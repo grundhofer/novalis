@@ -83,6 +83,17 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::create_template,
             commands::delete_template,
             commands::save_pasted_image,
+            commands::list_events,
+            commands::create_event,
+            commands::update_event,
+            commands::delete_event,
+            commands::get_agenda,
+            commands::list_calendar_sources,
+            commands::add_calendar_source,
+            commands::remove_calendar_source,
+            commands::refresh_calendar_source,
+            commands::import_ics,
+            commands::export_ics,
         ])
         .events(collect_events![
             ReindexedEvent,

@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use crate::error::CoreResult;
 
 /// Bump this whenever the table layout below changes.
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -40,7 +40,8 @@ fn drop_tables(conn: &Connection) -> CoreResult<()> {
         "DROP TABLE IF EXISTS note_meta;
          DROP TABLE IF EXISTS notes_fts;
          DROP TABLE IF EXISTS tasks;
-         DROP TABLE IF EXISTS links;",
+         DROP TABLE IF EXISTS links;
+         DROP TABLE IF EXISTS events;",
     )?;
     Ok(())
 }
@@ -86,7 +87,21 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
             target_title TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_title);
-        CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_path);",
+        CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_path);
+
+        CREATE TABLE IF NOT EXISTS events (
+            id TEXT PRIMARY KEY,
+            source_id TEXT NOT NULL,
+            title TEXT,
+            start TEXT NOT NULL,
+            end_at TEXT,
+            all_day INTEGER DEFAULT 0,
+            rrule TEXT,
+            location TEXT,
+            note_path TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_events_source ON events(source_id);
+        CREATE INDEX IF NOT EXISTS idx_events_note ON events(note_path);",
     )?;
     Ok(())
 }

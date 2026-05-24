@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api, type NoteTemplate } from "../ipc/api";
+import { api, type CalendarSourceConfig, type NoteTemplate } from "../ipc/api";
 import { useTasks } from "../stores/taskStore";
 
 interface Col {
@@ -24,6 +24,9 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [tplName, setTplName] = useState("");
   const [tplContent, setTplContent] = useState("");
+  const [sources, setSources] = useState<CalendarSourceConfig[]>([]);
+  const [srcName, setSrcName] = useState("");
+  const [srcUrl, setSrcUrl] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -43,7 +46,10 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       })
       .catch(() => {});
     void api.listTemplates().then(setTemplates).catch(() => {});
+    void api.listCalendarSources().then(setSources).catch(() => {});
   }, [open]);
+
+  const reloadSources = () => void api.listCalendarSources().then(setSources).catch(() => {});
 
   if (!open) return null;
 
@@ -191,6 +197,73 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               className="rounded-md bg-indigo-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400"
             >
               Add template
+            </button>
+          </div>
+        </Section>
+
+        <Section title="Calendars (read-only ICS subscriptions)">
+          <div className="space-y-1">
+            {sources.length === 0 && (
+              <p className="text-xs text-neutral-600">No calendar subscriptions.</p>
+            )}
+            {sources.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate text-neutral-200" title={s.url ?? ""}>
+                  {s.name}
+                </span>
+                <div className="flex shrink-0 gap-2 text-xs">
+                  <button
+                    onClick={() => void api.refreshCalendarSource(s.id).then(reloadSources)}
+                    className="text-indigo-400 hover:text-indigo-300"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    onClick={() => void api.removeCalendarSource(s.id).then(reloadSources)}
+                    className="text-neutral-500 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 space-y-2 rounded-lg bg-neutral-950/50 p-2">
+            <input
+              value={srcName}
+              onChange={(e) => setSrcName(e.target.value)}
+              placeholder="Calendar name"
+              className="w-full rounded bg-neutral-800 px-2 py-1 text-sm text-neutral-100 placeholder:text-neutral-600"
+            />
+            <input
+              value={srcUrl}
+              onChange={(e) => setSrcUrl(e.target.value)}
+              placeholder="ICS URL (e.g. Google/Outlook secret iCal address)"
+              className="w-full rounded bg-neutral-800 px-2 py-1 text-sm text-neutral-100 placeholder:text-neutral-600"
+            />
+            <button
+              onClick={() => {
+                if (!srcName.trim() || !srcUrl.trim()) return;
+                const id = `ics-${Date.now()}`;
+                void api
+                  .addCalendarSource({
+                    id,
+                    kind: "icsUrl",
+                    name: srcName.trim(),
+                    url: srcUrl.trim(),
+                    enabled: true,
+                  })
+                  .then(() => api.refreshCalendarSource(id))
+                  .then(() => {
+                    setSrcName("");
+                    setSrcUrl("");
+                    reloadSources();
+                  })
+                  .catch(() => {});
+              }}
+              className="rounded-md bg-indigo-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400"
+            >
+              Subscribe
             </button>
           </div>
         </Section>

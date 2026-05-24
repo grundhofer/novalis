@@ -89,4 +89,42 @@ export const api = {
     unwrap(commands.exportNote(path, format)),
   savePastedImage: (bytes: number[], ext: string) =>
     unwrap(commands.savePastedImage(bytes, ext)),
+
+  // Calendar
+  listEvents: (start: string, end: string) => unwrap(commands.listEvents(start, end)),
+  getAgenda: (start: string, end: string) => unwrap(commands.getAgenda(start, end)),
+  createEvent: (input: EventDraft) => unwrap(commands.createEvent(toEventInput(input))),
+  updateEvent: (input: EventDraft) => unwrap(commands.updateEvent(toEventInput(input))),
+  deleteEvent: (notePath: string) => unwrap(commands.deleteEvent(notePath)),
+  listCalendarSources: () => unwrap(commands.listCalendarSources()),
+  addCalendarSource: (cfg: { id: string; kind: string; name: string; url?: string; enabled: boolean }) =>
+    unwrap(commands.addCalendarSource({ ...cfg, url: cfg.url ?? null })),
+  removeCalendarSource: (id: string) => unwrap(commands.removeCalendarSource(id)),
+  refreshCalendarSource: (id: string) => unwrap(commands.refreshCalendarSource(id)),
+  importIcs: () => unwrap(commands.importIcs()),
+  exportIcs: (start: string, end: string) => unwrap(commands.exportIcs(start, end)),
 };
+
+export interface EventDraft {
+  title: string;
+  date: string;
+  allDay: boolean;
+  startTime?: string;
+  endTime?: string;
+  rrule?: string;
+  location?: string;
+  notePath?: string;
+}
+
+function toEventInput(d: EventDraft) {
+  return {
+    title: d.title,
+    date: d.date,
+    allDay: d.allDay,
+    startTime: d.startTime ?? null,
+    endTime: d.endTime ?? null,
+    rrule: d.rrule ?? null,
+    location: d.location ?? null,
+    notePath: d.notePath ?? null,
+  };
+}

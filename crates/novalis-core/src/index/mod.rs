@@ -3,6 +3,7 @@
 //! `[[wikilink]]` graph. The `tasks` table is created here but only populated
 //! starting in M2.
 
+pub mod events;
 pub mod links;
 pub mod schema;
 pub mod search;

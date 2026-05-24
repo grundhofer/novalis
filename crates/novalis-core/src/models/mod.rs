@@ -2,6 +2,7 @@
 //! `specta`. Every public type that crosses the IPC boundary derives
 //! [`specta::Type`] so the frontend bindings stay in lockstep with Rust.
 
+pub mod calendar;
 pub mod note;
 pub mod preferences;
 pub mod search;
@@ -9,6 +10,7 @@ pub mod task;
 pub mod template;
 pub mod vault;
 
+pub use calendar::*;
 pub use note::*;
 pub use preferences::*;
 pub use search::*;

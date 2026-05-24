@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { CalendarView } from "./components/CalendarView";
 import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/SettingsModal";
@@ -53,7 +54,7 @@ export default function App() {
         onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      {view === "notes" ? <EditorPane /> : <TasksView />}
+      {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {error && (

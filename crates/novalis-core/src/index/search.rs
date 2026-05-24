@@ -39,7 +39,7 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
 /// Upsert a single note into `note_meta`, the FTS index, and the link graph.
 pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> CoreResult<()> {
     let tags_json = serde_json::to_string(&summary.tags).unwrap_or_else(|_| "[]".to_string());
-    let (_, body) = frontmatter::parse_frontmatter(content);
+    let (fm, body) = frontmatter::parse_frontmatter(content);
 
     db.execute(
         "INSERT INTO note_meta (path, title, folder, tags, created, modified, size, word_count, pinned, task_total, task_completed)
@@ -82,6 +82,10 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
     let targets = links::extract_wiki_links(&body);
     links::index_links(db, &summary.path, &targets)?;
 
+    // Calendar event, if the note's frontmatter declares one.
+    let event = crate::index::events::event_from_note(&fm.extra, &summary.title, &summary.path);
+    crate::index::events::index_event(db, event.as_ref(), &summary.path)?;
+
     Ok(())
 }
 
@@ -91,6 +95,7 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     db.execute("DELETE FROM notes_fts WHERE path = ?1", params![path])?;
     db.execute("DELETE FROM tasks WHERE source_note = ?1", params![path])?;
     db.execute("DELETE FROM links WHERE source_path = ?1", params![path])?;
+    db.execute("DELETE FROM events WHERE note_path = ?1", params![path])?;
     Ok(())
 }
 

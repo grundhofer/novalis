@@ -66,6 +66,20 @@ export const commands = {
 	 *  vault-relative path for embedding as `![](...)`.
 	 */
 	savePastedImage: (bytes: number[], ext: string) => typedError<string, CommandError>(__TAURI_INVOKE("save_pasted_image", { bytes, ext })),
+	listEvents: (rangeStart: string, rangeEnd: string) => typedError<CalendarEvent[], CommandError>(__TAURI_INVOKE("list_events", { rangeStart, rangeEnd })),
+	createEvent: (input: EventInput) => typedError<CalendarEvent, CommandError>(__TAURI_INVOKE("create_event", { input })),
+	updateEvent: (input: EventInput) => typedError<CalendarEvent, CommandError>(__TAURI_INVOKE("update_event", { input })),
+	deleteEvent: (notePath: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_event", { notePath })),
+	getAgenda: (rangeStart: string, rangeEnd: string) => typedError<AgendaItem[], CommandError>(__TAURI_INVOKE("get_agenda", { rangeStart, rangeEnd })),
+	listCalendarSources: () => typedError<CalendarSourceConfig[], CommandError>(__TAURI_INVOKE("list_calendar_sources")),
+	addCalendarSource: (cfg: CalendarSourceConfig) => typedError<null, CommandError>(__TAURI_INVOKE("add_calendar_source", { cfg })),
+	removeCalendarSource: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("remove_calendar_source", { id })),
+	/**  Fetch an ICS-URL source and cache its events. Returns the number cached. */
+	refreshCalendarSource: (id: string) => typedError<number, CommandError>(__TAURI_INVOKE("refresh_calendar_source", { id })),
+	/**  Import an `.ics` file (native picker), creating own events. Returns the count. */
+	importIcs: () => typedError<number, CommandError>(__TAURI_INVOKE("import_ics")),
+	/**  Export events in a range to an `.ics` file (save dialog). Returns saved path. */
+	exportIcs: (rangeStart: string, rangeEnd: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("export_ics", { rangeStart, rangeEnd })),
 };
 
 /** Events */
@@ -77,10 +91,57 @@ export const events = {
 };
 
 /* Types */
+/**  A unified agenda entry merging tasks and calendar events. */
+export type AgendaItem = {
+	/**  `"task"` or `"event"`. */
+	kind: string,
+	title: string,
+	/**  `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`. */
+	start: string,
+	allDay: boolean,
+	source: string,
+	/**  Task id or event id. */
+	refId: string,
+	/**  Source note path, if any. */
+	notePath: string | null,
+};
+
 /**  Basic app/build information surfaced to the UI. */
 export type AppInfo = {
 	name: string,
 	version: string,
+};
+
+/**
+ *  A calendar event — either an own event (backed by a markdown note in the
+ *  vault) or a cached event from a remote source. Times are strings:
+ *  `YYYY-MM-DD` for all-day, or `YYYY-MM-DDTHH:MM` for timed.
+ */
+export type CalendarEvent = {
+	id: string,
+	/**  `"local"` for vault events, otherwise the calendar source id. */
+	sourceId: string,
+	title: string,
+	start: string,
+	end: string | null,
+	allDay: boolean,
+	/**  RFC 5545 RRULE string (without the `RRULE:` prefix), if recurring. */
+	rrule: string | null,
+	location: string | null,
+	/**  Vault-relative note path for own events. */
+	notePath: string | null,
+};
+
+/**
+ *  A configured calendar source (subscription). `kind` is `"icsUrl"`,
+ *  `"google"`, or `"outlook"`. Remote events are cached locally under its id.
+ */
+export type CalendarSourceConfig = {
+	id: string,
+	kind: string,
+	name: string,
+	url: string | null,
+	enabled?: boolean,
 };
 
 export type CaptureRequest = {
@@ -132,6 +193,21 @@ export type CreateTaskRequest = {
 	priority: string | null,
 	dueDate: string | null,
 	/**  Explicit destination note (overrides the preference-based strategy). */
+	notePath: string | null,
+};
+
+/**  Request to create/update an own event (written to a markdown note). */
+export type EventInput = {
+	title: string,
+	/**  `YYYY-MM-DD`. */
+	date: string,
+	allDay: boolean,
+	/**  `HH:MM` when not all-day. */
+	startTime: string | null,
+	endTime: string | null,
+	rrule: string | null,
+	location: string | null,
+	/**  Existing note path when updating; `None` to create a new event note. */
 	notePath: string | null,
 };
 

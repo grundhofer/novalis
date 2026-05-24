@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { useVault } from "../stores/vaultStore";
 
-export type MainView = "notes" | "tasks";
+export type MainView = "notes" | "tasks" | "calendar";
 
 export function Sidebar({
   view,
@@ -46,7 +46,7 @@ export function Sidebar({
       </div>
 
       <div className="flex gap-1 border-b border-neutral-800 p-2">
-        {(["notes", "tasks"] as const).map((v) => (
+        {(["notes", "tasks", "calendar"] as const).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}

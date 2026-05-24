@@ -11,14 +11,15 @@ use novalis_core::change;
 use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
-    CaptureRequest, ConflictDiff, ConflictFile, CreateNoteRequest, CreateTaskRequest, FolderNode,
-    Note, NoteSummary, NoteTemplate, Preferences, ResolveConflictRequest, SearchResult, Task,
-    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
+    CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, Note, NoteSummary, NoteTemplate,
+    Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery, UpdateMetaRequest,
+    VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
-use novalis_core::{export, media, templates, AppInfo, CoreError};
+use novalis_core::{calendar, export, media, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
 
@@ -454,6 +455,175 @@ pub fn save_pasted_image(
     ext: String,
 ) -> CmdResult<String> {
     state.with(|e| media::save_image(&e.vault_path, &bytes, &ext))
+}
+
+// ── Calendar ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_events(
+    state: State<AppEngine>,
+    range_start: String,
+    range_end: String,
+) -> CmdResult<Vec<CalendarEvent>> {
+    state.with(|e| calendar::list_events(&e.db, &range_start, &range_end))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_event(state: State<AppEngine>, input: EventInput) -> CmdResult<CalendarEvent> {
+    state.with(|e| calendar::create_event(&e.db, &e.vault_path, input))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_event(state: State<AppEngine>, input: EventInput) -> CmdResult<CalendarEvent> {
+    state.with(|e| calendar::update_event(&e.db, &e.vault_path, input))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_event(state: State<AppEngine>, note_path: String) -> CmdResult<()> {
+    state.with(|e| calendar::delete_event(&e.db, &e.vault_path, &e.data_dir, &note_path))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_agenda(
+    state: State<AppEngine>,
+    range_start: String,
+    range_end: String,
+) -> CmdResult<Vec<AgendaItem>> {
+    state.with(|e| calendar::get_agenda(&e.db, &range_start, &range_end))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_calendar_sources(state: State<AppEngine>) -> CmdResult<Vec<CalendarSourceConfig>> {
+    state.with(|e| Ok(calendar::source::list_sources(&e.vault_path)))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn add_calendar_source(state: State<AppEngine>, cfg: CalendarSourceConfig) -> CmdResult<()> {
+    state.with(|e| calendar::source::add_source(&e.vault_path, cfg))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<()> {
+    state.with(|e| {
+        calendar::source::remove_source(&e.vault_path, &id)?;
+        novalis_core::index::events::clear_source(&e.db, &id)
+    })
+}
+
+/// Fetch an ICS-URL source and cache its events. Returns the number cached.
+#[tauri::command]
+#[specta::specta]
+pub fn refresh_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<u32> {
+    let url = state.with(|e| {
+        calendar::source::list_sources(&e.vault_path)
+            .into_iter()
+            .find(|s| s.id == id)
+            .ok_or_else(|| CoreError::NotFound(format!("Calendar source not found: {id}")))
+            .map(|s| s.url)
+    })?;
+    let Some(url) = url else {
+        return Ok(0);
+    };
+
+    // Network fetch happens outside the engine lock.
+    let bytes = reqwest::blocking::get(&url)
+        .and_then(|r| r.bytes())
+        .map_err(|err| CommandError::internal(format!("fetch failed: {err}")))?;
+    let events = calendar::source::import_ics(&bytes, &id)?;
+
+    state.with(|e| {
+        novalis_core::index::events::clear_source(&e.db, &id)?;
+        for ev in &events {
+            novalis_core::index::events::upsert(&e.db, ev)?;
+        }
+        Ok(events.len() as u32)
+    })
+}
+
+/// Import an `.ics` file (native picker), creating own events. Returns the count.
+#[tauri::command]
+#[specta::specta]
+pub fn import_ics(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(fp) = app
+        .dialog()
+        .file()
+        .add_filter("iCalendar", &["ics"])
+        .blocking_pick_file()
+    else {
+        return Ok(0);
+    };
+    let path = fp
+        .into_path()
+        .map_err(|e| CommandError::internal(e.to_string()))?;
+    let bytes = std::fs::read(&path).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+    let events = calendar::source::import_ics(&bytes, "import")?;
+
+    state.with(|e| {
+        for ev in &events {
+            calendar::create_event(&e.db, &e.vault_path, event_to_input(ev))?;
+        }
+        Ok(events.len() as u32)
+    })
+}
+
+/// Export events in a range to an `.ics` file (save dialog). Returns saved path.
+#[tauri::command]
+#[specta::specta]
+pub fn export_ics(
+    app: AppHandle,
+    state: State<AppEngine>,
+    range_start: String,
+    range_end: String,
+) -> CmdResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let ics = state.with(|e| {
+        Ok(calendar::source::export_ics(&calendar::list_events(
+            &e.db,
+            &range_start,
+            &range_end,
+        )?))
+    })?;
+    let Some(fp) = app
+        .dialog()
+        .file()
+        .set_file_name("novalis-calendar.ics")
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let out = fp
+        .into_path()
+        .map_err(|e| CommandError::internal(e.to_string()))?;
+    std::fs::write(&out, ics.as_bytes()).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+    Ok(Some(out.to_string_lossy().to_string()))
+}
+
+fn event_to_input(e: &CalendarEvent) -> EventInput {
+    let date = e.start.get(..10).unwrap_or(&e.start).to_string();
+    let timed = !e.all_day && e.start.len() >= 16;
+    EventInput {
+        title: e.title.clone(),
+        date,
+        all_day: e.all_day,
+        start_time: timed.then(|| e.start[11..16].to_string()),
+        end_time: e
+            .end
+            .as_ref()
+            .filter(|x| !e.all_day && x.len() >= 16)
+            .map(|x| x[11..16].to_string()),
+        rrule: e.rrule.clone(),
+        location: e.location.clone(),
+        note_path: None,
+    }
 }
 
 /// Build a stable, filesystem-safe key for a vault path (used to name its
