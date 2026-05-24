@@ -31,6 +31,7 @@ export const api = {
   openVault: (path: string) => unwrap(commands.openVault(path)),
   closeVault: () => unwrap(commands.closeVault()),
   getFolderTree: () => unwrap(commands.getFolderTree()),
+  listNotes: () => unwrap(commands.listNotes()),
   getNote: (path: string) => unwrap(commands.getNote(path)),
   createNote: (path: string, opts?: { content?: string; template?: string }) =>
     unwrap(
@@ -106,6 +107,12 @@ export const api = {
   oauthBegin: (provider: "google" | "outlook") => unwrap(commands.oauthBegin(provider)),
   oauthStatus: (provider: string) => commands.oauthStatus(provider),
   oauthDisconnect: (provider: string) => unwrap(commands.oauthDisconnect(provider)),
+
+  // Plugins
+  listPlugins: () => unwrap(commands.listPlugins()),
+  setPluginEnabled: (id: string, enabled: boolean) =>
+    unwrap(commands.setPluginEnabled(id, enabled)),
+  readPluginSource: (id: string) => unwrap(commands.readPluginSource(id)),
 };
 
 export interface EventDraft {

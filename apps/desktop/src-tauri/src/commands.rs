@@ -13,8 +13,8 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, Note, NoteSummary, NoteTemplate,
-    Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery, UpdateMetaRequest,
-    VaultInfo, VaultStats,
+    PluginInfo, Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery,
+    UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -685,6 +685,26 @@ fn event_to_input(e: &CalendarEvent) -> EventInput {
         location: e.location.clone(),
         note_path: None,
     }
+}
+
+// ── Plugins ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_plugins(state: State<AppEngine>) -> CmdResult<Vec<PluginInfo>> {
+    state.with(|e| Ok(novalis_core::plugins::list(&e.vault_path)))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_plugin_enabled(state: State<AppEngine>, id: String, enabled: bool) -> CmdResult<()> {
+    state.with(|e| novalis_core::plugins::set_enabled(&e.vault_path, &id, enabled))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn read_plugin_source(state: State<AppEngine>, id: String) -> CmdResult<String> {
+    state.with(|e| novalis_core::plugins::read_source(&e.vault_path, &id))
 }
 
 /// Build a stable, filesystem-safe key for a vault path (used to name its

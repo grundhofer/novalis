@@ -1,0 +1,8 @@
+{
+  "id": "novalis-examples",
+  "name": "Novalis Examples",
+  "version": "0.1.0",
+  "description": "Sample commands demonstrating the Novalis plugin API.",
+  "entry": "main.js",
+  "capabilities": ["notes:read", "notes:write"]
+}

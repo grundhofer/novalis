@@ -92,6 +92,9 @@ export const commands = {
 	oauthStatus: (provider: string) => __TAURI_INVOKE<boolean>("oauth_status", { provider }),
 	/**  Disconnect a provider: clear tokens, its source, and its cached events. */
 	oauthDisconnect: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_disconnect", { provider })),
+	listPlugins: () => typedError<PluginInfo[], CommandError>(__TAURI_INVOKE("list_plugins")),
+	setPluginEnabled: (id: string, enabled: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("set_plugin_enabled", { id, enabled })),
+	readPluginSource: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_plugin_source", { id })),
 };
 
 /** Events */
@@ -294,6 +297,29 @@ export type NoteTemplate = {
 	description: string,
 	content: string,
 	created: string,
+};
+
+/**  A discovered plugin plus whether it is enabled. */
+export type PluginInfo = {
+	manifest: PluginManifest,
+	enabled: boolean,
+};
+
+/**
+ *  A plugin's `plugin.json` manifest. Plugins live in
+ *  `<vault>/.novalis/plugins/<id>/` and run sandboxed in the frontend.
+ */
+export type PluginManifest = {
+	id: string,
+	name: string,
+	version?: string,
+	description?: string,
+	entry?: string,
+	/**
+	 *  Capabilities the plugin may use, e.g. `["notes:read", "notes:write",
+	 *  "tasks:read", "search", "notify"]`. The host enforces these.
+	 */
+	capabilities?: string[],
 };
 
 export type Preferences = {

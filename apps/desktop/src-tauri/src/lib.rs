@@ -98,6 +98,9 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::oauth_begin,
             commands::oauth_status,
             commands::oauth_disconnect,
+            commands::list_plugins,
+            commands::set_plugin_enabled,
+            commands::read_plugin_source,
         ])
         .events(collect_events![
             ReindexedEvent,

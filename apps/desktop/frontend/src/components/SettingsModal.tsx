@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { api, type CalendarSourceConfig, type NoteTemplate } from "../ipc/api";
+import { api, type CalendarSourceConfig, type NoteTemplate, type PluginInfo } from "../ipc/api";
+import { usePlugins } from "../stores/pluginStore";
 import { useTasks } from "../stores/taskStore";
 
 interface Col {
@@ -28,6 +29,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [srcName, setSrcName] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
   const [calMsg, setCalMsg] = useState<string | null>(null);
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -48,9 +50,20 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
       .catch(() => {});
     void api.listTemplates().then(setTemplates).catch(() => {});
     void api.listCalendarSources().then(setSources).catch(() => {});
+    void api.listPlugins().then(setPlugins).catch(() => {});
   }, [open]);
 
   const reloadSources = () => void api.listCalendarSources().then(setSources).catch(() => {});
+
+  const togglePlugin = async (id: string, enabled: boolean) => {
+    try {
+      await api.setPluginEnabled(id, enabled);
+      await usePlugins.getState().reload();
+      setPlugins(await api.listPlugins());
+    } catch {
+      /* ignore */
+    }
+  };
 
   if (!open) return null;
 
@@ -295,6 +308,39 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
               Subscribe
             </button>
           </div>
+        </Section>
+
+        <Section title="Plugins">
+          {plugins.length === 0 ? (
+            <p className="text-xs text-neutral-600">
+              No plugins installed. Drop a plugin folder into <code>.novalis/plugins/</code> in
+              your vault (see PLUGINS.md), then reopen Settings.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {plugins.map((p) => (
+                <div key={p.manifest.id} className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm text-neutral-200">{p.manifest.name}</div>
+                    <div className="truncate text-xs text-neutral-600">
+                      {p.manifest.description || p.manifest.id}
+                      {(p.manifest.capabilities ?? []).length > 0 &&
+                        ` · ${(p.manifest.capabilities ?? []).join(", ")}`}
+                    </div>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-1 text-xs text-neutral-400">
+                    <input
+                      type="checkbox"
+                      checked={p.enabled}
+                      onChange={(e) => void togglePlugin(p.manifest.id, e.target.checked)}
+                      className="accent-indigo-500"
+                    />
+                    {p.enabled ? "On" : "Off"}
+                  </label>
+                </div>
+              ))}
+            </div>
+          )}
         </Section>
 
         <div className="mt-5 flex items-center justify-end gap-3">

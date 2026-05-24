@@ -4,6 +4,7 @@
 
 pub mod calendar;
 pub mod note;
+pub mod plugin;
 pub mod preferences;
 pub mod search;
 pub mod task;
@@ -12,6 +13,7 @@ pub mod vault;
 
 pub use calendar::*;
 pub use note::*;
+pub use plugin::*;
 pub use preferences::*;
 pub use search::*;
 pub use task::*;
