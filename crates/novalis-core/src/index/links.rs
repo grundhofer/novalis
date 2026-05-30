@@ -38,7 +38,7 @@ pub fn index_links(db: &Connection, source_path: &str, targets: &[String]) -> Co
 /// Notes that link to `title` (case-insensitive) via `[[title]]`.
 pub fn backlinks(db: &Connection, title: &str) -> CoreResult<Vec<NoteSummary>> {
     let mut stmt = db.prepare(
-        "SELECT m.path, m.title, m.folder, m.tags, m.created, m.modified, m.pinned, m.word_count, m.task_total, m.task_completed
+        "SELECT m.path, m.title, m.folder, m.tags, m.created, m.modified, m.pinned, m.word_count, m.task_total, m.task_completed, m.cloud_only
          FROM note_meta m
          JOIN links l ON l.source_path = m.path
          WHERE lower(l.target_title) = lower(?1)
@@ -57,7 +57,7 @@ pub fn unlinked_mentions(
 ) -> CoreResult<Vec<NoteSummary>> {
     let fts_query = title.replace('"', "\"\"");
     let mut stmt = db.prepare(
-        "SELECT m.path, m.title, m.folder, m.tags, m.created, m.modified, m.pinned, m.word_count, m.task_total, m.task_completed
+        "SELECT m.path, m.title, m.folder, m.tags, m.created, m.modified, m.pinned, m.word_count, m.task_total, m.task_completed, m.cloud_only
          FROM note_meta m
          JOIN notes_fts f ON f.path = m.path
          WHERE notes_fts MATCH ?1

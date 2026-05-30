@@ -47,6 +47,37 @@ pub fn trash_note(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<(
     Ok(())
 }
 
+/// Move an entire folder (and its contents) to trash. The whole subtree is
+/// relocated under a single trash id; the `.meta` sidecar stores the original
+/// vault-relative folder path so it can be restored as a unit.
+pub fn trash_folder(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<()> {
+    let abs = vault.join(relative);
+    if !abs.exists() {
+        return Err(CoreError::NotFound(format!("Folder not found: {relative}")));
+    }
+
+    let trash_dir = data_dir.join("trash");
+    std::fs::create_dir_all(&trash_dir)?;
+
+    let now = Utc::now().format("%Y%m%d_%H%M%S").to_string();
+    let name = abs
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let trash_id = format!("{now}_{name}");
+    let trash_path = trash_dir.join(&trash_id);
+    let meta_file = trash_dir.join(format!("{trash_id}.meta"));
+
+    // `rename` moves the whole subtree atomically (same filesystem).
+    std::fs::rename(&abs, &trash_path)?;
+    std::fs::write(&meta_file, relative)?;
+
+    log::info!("trashed folder {relative} -> {trash_id}");
+    Ok(())
+}
+
 /// List all items in the trash, newest first.
 pub fn list_trash(data_dir: &Path) -> CoreResult<Vec<TrashItem>> {
     let trash_dir = data_dir.join("trash");
@@ -135,7 +166,12 @@ pub fn empty_trash(data_dir: &Path) -> CoreResult<usize> {
     for entry in std::fs::read_dir(&trash_dir)? {
         let entry = entry?;
         let is_meta = entry.file_name().to_string_lossy().ends_with(".meta");
-        std::fs::remove_file(entry.path())?;
+        // Trashed folders are directories (see `trash_folder`); notes/meta are files.
+        if entry.file_type()?.is_dir() {
+            std::fs::remove_dir_all(entry.path())?;
+        } else {
+            std::fs::remove_file(entry.path())?;
+        }
         if !is_meta {
             count += 1;
         }
@@ -143,4 +179,58 @@ pub fn empty_trash(data_dir: &Path) -> CoreResult<usize> {
 
     log::info!("emptied trash: {count} items permanently deleted");
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dirs() -> (std::path::PathBuf, std::path::PathBuf) {
+        let base = std::env::temp_dir().join(format!("novalis-trash-test-{}", uuid::Uuid::new_v4()));
+        let vault = base.join("vault");
+        let data = base.join("data");
+        std::fs::create_dir_all(&vault).unwrap();
+        std::fs::create_dir_all(&data).unwrap();
+        (vault, data)
+    }
+
+    #[test]
+    fn trash_folder_moves_subtree_and_restores_as_unit() {
+        let (vault, data) = temp_dirs();
+        std::fs::create_dir_all(vault.join("Projects/Sub")).unwrap();
+        std::fs::write(vault.join("Projects/a.md"), "a").unwrap();
+        std::fs::write(vault.join("Projects/Sub/b.md"), "b").unwrap();
+
+        trash_folder(&vault, &data, "Projects").unwrap();
+        assert!(!vault.join("Projects").exists(), "folder should leave the vault");
+
+        let items = list_trash(&data).unwrap();
+        assert_eq!(items.len(), 1, "trashed folder is a single entry");
+        assert_eq!(items[0].original_path, "Projects");
+
+        let restored = restore_note(&vault, &data, &items[0].id).unwrap();
+        assert_eq!(restored, "Projects");
+        assert!(vault.join("Projects/a.md").exists());
+        assert!(vault.join("Projects/Sub/b.md").exists());
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn empty_trash_removes_trashed_folders() {
+        let (vault, data) = temp_dirs();
+        std::fs::create_dir_all(vault.join("Archive")).unwrap();
+        std::fs::write(vault.join("Archive/note.md"), "x").unwrap();
+        std::fs::write(vault.join("loose.md"), "y").unwrap();
+
+        trash_folder(&vault, &data, "Archive").unwrap();
+        trash_note(&vault, &data, "loose.md").unwrap();
+
+        // 2 items (a directory + a file); empty_trash must handle both.
+        let count = empty_trash(&data).unwrap();
+        assert_eq!(count, 2);
+        assert_eq!(list_trash(&data).unwrap().len(), 0);
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
 }

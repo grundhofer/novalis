@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
+import { Menu, X } from "lucide-react";
+
 import { CalendarView } from "./components/CalendarView";
+import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
@@ -97,12 +100,13 @@ export default function App() {
           <button
             onClick={() => setNavOpen(true)}
             title="Menu"
-            className="rounded px-2 py-1 text-neutral-300 hover:bg-white/5"
+            className="rounded-md p-1.5 text-neutral-300 transition-colors hover:bg-white/10"
           >
-            ☰
+            <Menu size={18} />
           </button>
           <span className="text-sm font-medium capitalize text-neutral-300">{view}</span>
         </div>
+        <CloudHint />
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
         </div>
@@ -112,15 +116,18 @@ export default function App() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {notice && (
-        <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-lg border border-neutral-700 bg-neutral-900/90 px-4 py-2 text-sm text-neutral-200 shadow-xl">
+        <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-neutral-700/80 bg-neutral-900/90 px-4 py-2.5 text-sm text-neutral-200 shadow-xl backdrop-blur">
           {notice}
         </div>
       )}
       {error && (
-        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-red-500/40 bg-red-950/80 px-4 py-2 text-sm text-red-200">
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-red-500/40 bg-red-950/80 px-4 py-2.5 text-sm text-red-200 shadow-xl backdrop-blur">
           <span className="min-w-0 break-words">{error}</span>
-          <button onClick={clearError} className="text-red-400 hover:text-red-200">
-            ✕
+          <button
+            onClick={clearError}
+            className="shrink-0 rounded p-0.5 text-red-400 transition-colors hover:bg-white/10 hover:text-red-200"
+          >
+            <X size={15} />
           </button>
         </div>
       )}

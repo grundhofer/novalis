@@ -17,8 +17,15 @@ export function useNovalisEvents() {
         void useVault.getState().sync();
         void useTasks.getState().load();
       }),
-      events.noteChanged.listen(refresh),
-      events.noteDeleted.listen(refresh),
+      events.noteChanged.listen((e) => {
+        // Drop the cached copy so the next open re-reads the new content.
+        useVault.getState().invalidateNote(e.payload.path);
+        refresh();
+      }),
+      events.noteDeleted.listen((e) => {
+        useVault.getState().invalidateNote(e.payload.path);
+        refresh();
+      }),
     ];
     return () => {
       for (const p of unlisten) void p.then((off) => off());

@@ -1,0 +1,87 @@
+// WikiLink: a TipTap extension that decorates `[[Title]]` patterns inside
+// text nodes as clickable spans. We use ProseMirror decorations (not a custom
+// node) so the underlying document is plain text — markdown round-trip stays
+// trivial and there is no schema change for tiptap-markdown to learn.
+
+import { Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
+
+const WIKI_LINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
+
+export interface WikiLinkOptions {
+  /** Called when the user clicks a wikilink. The host resolves it. */
+  onClick?: (title: string) => void;
+  /** CSS class on the decoration span. Defaults to `nv-wikilink`. */
+  className?: string;
+}
+
+const wikiLinkKey = new PluginKey("wikiLink");
+
+function buildDecorations(doc: { descendants: Function }, className: string) {
+  const decorations: Decoration[] = [];
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText) return;
+    const text: string = node.text ?? "";
+    WIKI_LINK_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = WIKI_LINK_RE.exec(text)) !== null) {
+      const start = pos + m.index;
+      const end = start + m[0].length;
+      const title = m[1].trim();
+      if (!title) continue;
+      decorations.push(
+        Decoration.inline(start, end, {
+          class: className,
+          "data-wiki-title": title,
+        }),
+      );
+    }
+  });
+  return DecorationSet.create(doc as any, decorations);
+}
+
+export const WikiLink = Extension.create<WikiLinkOptions>({
+  name: "wikiLink",
+
+  addOptions() {
+    return {
+      onClick: undefined,
+      className: "nv-wikilink",
+    };
+  },
+
+  addProseMirrorPlugins() {
+    const className = this.options.className ?? "nv-wikilink";
+    const onClick = this.options.onClick;
+
+    return [
+      new Plugin({
+        key: wikiLinkKey,
+        state: {
+          init: (_, { doc }) => buildDecorations(doc, className),
+          apply: (tr, old) =>
+            tr.docChanged ? buildDecorations(tr.doc, className) : old,
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          },
+          handleClick(_view, _pos, event) {
+            const target = event.target as HTMLElement | null;
+            const el = target?.closest?.(`.${className}`) as HTMLElement | null;
+            if (!el) return false;
+            const title = el.getAttribute("data-wiki-title");
+            if (!title || !onClick) return false;
+            // Cmd/Ctrl-click navigates; plain click also navigates (matches
+            // Obsidian). Modifier-click could be reserved for "open in pane"
+            // later — not differentiated yet.
+            event.preventDefault();
+            onClick(title);
+            return true;
+          },
+        },
+      }),
+    ];
+  },
+});

@@ -69,9 +69,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
 
   const save = async () => {
     try {
+      // Read-modify-write: preserve `fileTree` (folder colors / manual order /
+      // sort), which the sidebar owns — writing the whole Preferences blob would
+      // otherwise wipe it.
+      const cur = await api.getPreferences();
       await api.setPreferences({
+        ...cur,
         taskView: { defaultMode, kanbanColumns: columns, taskCreation: { strategy, inboxPath } },
-        fileTree: { sortBy: "name", sortDir: "asc" },
+        fileTree: cur.fileTree,
       });
       setSaved(true);
       void useTasks.getState().load();

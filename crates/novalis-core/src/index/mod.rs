@@ -8,10 +8,20 @@ pub mod links;
 pub mod schema;
 pub mod search;
 
-use rusqlite::Statement;
+use rusqlite::{Connection, Statement};
 
 use crate::error::CoreResult;
 use crate::models::NoteSummary;
+
+/// All note summaries straight from the index — no disk reads. Used to build
+/// the folder tree without reading (or hydrating) every file in the vault.
+pub fn list_summaries(db: &Connection) -> CoreResult<Vec<NoteSummary>> {
+    let mut stmt = db.prepare(
+        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only
+         FROM note_meta",
+    )?;
+    rows_to_summaries(&mut stmt, [])
+}
 
 /// Map `note_meta` rows (selected in a fixed column order) to [`NoteSummary`].
 /// Shared by quick search, backlinks, and unlinked mentions.
@@ -34,6 +44,7 @@ pub(crate) fn rows_to_summaries(
                 word_count: row.get::<_, i64>(7)? as usize,
                 task_total: row.get::<_, i64>(8)? as usize,
                 task_completed: row.get::<_, i64>(9)? as usize,
+                cloud_only: row.get::<_, i32>(10)? != 0,
             })
         })?
         .filter_map(|r| r.ok())

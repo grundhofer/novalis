@@ -1,6 +1,7 @@
 //! Vault filesystem operations: notes CRUD, folder tree, move/duplicate.
 //! Pure functions over a `vault: &Path` — no shared state, fully testable.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use chrono::Utc;
@@ -14,6 +15,32 @@ use crate::{tasks, trash};
 /// Whether a path component should be skipped (hidden files/folders, incl. `.novalis`).
 fn is_hidden(name: &str) -> bool {
     name.starts_with('.')
+}
+
+/// Whether `meta` describes a cloud-only placeholder — a file kept "online only"
+/// by OneDrive/iCloud (Files On-Demand). Such a file has a logical size but no
+/// data blocks allocated on disk, so a `read` would block on a network download.
+/// We index these from metadata alone and pick up their content once they are
+/// materialized locally; this keeps opening a cloud-synced vault from hanging on
+/// (or eagerly downloading) every offloaded note.
+///
+/// Heuristic: `size > 0` with zero allocated blocks. On APFS even a 1-byte
+/// materialized file occupies a block, so a real local file never reports zero.
+#[cfg(unix)]
+pub fn is_cloud_placeholder(meta: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    meta.len() > 0 && meta.blocks() == 0
+}
+
+#[cfg(not(unix))]
+pub fn is_cloud_placeholder(_meta: &std::fs::Metadata) -> bool {
+    false
+}
+
+/// Format a filesystem timestamp as RFC 3339, or empty string if unavailable.
+fn system_time_rfc3339(t: std::io::Result<std::time::SystemTime>) -> String {
+    t.map(|t| chrono::DateTime::<Utc>::from(t).to_rfc3339())
+        .unwrap_or_default()
 }
 
 /// Convert an absolute path to a vault-relative, forward-slashed path.
@@ -64,22 +91,41 @@ pub fn list_notes(vault: &Path) -> Vec<NoteSummary> {
 /// Build a [`NoteSummary`] for a single note.
 pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
     let abs = vault.join(relative);
-    let content = std::fs::read_to_string(&abs)?;
 
     let filename = abs
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
-
-    let (fm, body) = frontmatter::parse_frontmatter(&content);
-    let title = frontmatter::extract_title(&fm, &body, &filename);
-    let wc = frontmatter::word_count(&body);
-
     let folder = Path::new(relative)
         .parent()
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_default();
+
+    // Don't read cloud-only placeholders — it would block on a network download.
+    // Summarize from filename + metadata; content fills in once materialized.
+    let meta = std::fs::metadata(&abs)?;
+    if is_cloud_placeholder(&meta) {
+        let title = frontmatter::extract_title(&NoteFrontmatter::default(), "", &filename);
+        return Ok(NoteSummary {
+            path: relative.to_string(),
+            title,
+            folder,
+            tags: Vec::new(),
+            created: String::new(),
+            modified: system_time_rfc3339(meta.modified()),
+            pinned: false,
+            word_count: 0,
+            task_total: 0,
+            task_completed: 0,
+            cloud_only: true,
+        });
+    }
+
+    let content = std::fs::read_to_string(&abs)?;
+    let (fm, body) = frontmatter::parse_frontmatter(&content);
+    let title = frontmatter::extract_title(&fm, &body, &filename);
+    let wc = frontmatter::word_count(&body);
 
     // M1: count checkboxes. The full task index (with metadata) arrives in M2.
     let (task_total, task_completed) = tasks::count(&content);
@@ -95,6 +141,7 @@ pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
         word_count: wc,
         task_total,
         task_completed,
+        cloud_only: false,
     })
 }
 
@@ -265,11 +312,22 @@ pub fn duplicate_note(vault: &Path, relative: &str) -> CoreResult<Note> {
 }
 
 /// Build a recursive folder tree of the vault.
-pub fn list_folders(vault: &Path) -> FolderNode {
-    build_folder_node(vault, vault, "")
+///
+/// Note summaries come from the caller-supplied index map (`path -> summary`,
+/// see [`crate::index::list_summaries`]) so the tree is built by enumerating
+/// directories only — never reading file contents. Directory enumeration does
+/// not hydrate cloud-only files, so this stays fast on OneDrive/iCloud vaults.
+/// A file missing from the index falls back to a single disk read.
+pub fn list_folders(vault: &Path, summaries: &HashMap<String, NoteSummary>) -> FolderNode {
+    build_folder_node(vault, vault, "", summaries)
 }
 
-fn build_folder_node(vault: &Path, dir: &Path, rel_path: &str) -> FolderNode {
+fn build_folder_node(
+    vault: &Path,
+    dir: &Path,
+    rel_path: &str,
+    summaries: &HashMap<String, NoteSummary>,
+) -> FolderNode {
     let name = dir
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
@@ -302,16 +360,21 @@ fn build_folder_node(vault: &Path, dir: &Path, rel_path: &str) -> FolderNode {
                 } else {
                     format!("{rel_path}/{fname}")
                 };
-                children.push(build_folder_node(vault, &entry.path(), &child_rel));
+                children.push(build_folder_node(vault, &entry.path(), &child_rel, summaries));
             } else if ft.is_file() && fname.ends_with(".md") {
                 let note_rel = if rel_path.is_empty() {
                     fname.clone()
                 } else {
                     format!("{rel_path}/{fname}")
                 };
-                match build_summary(vault, &note_rel) {
-                    Ok(summary) => notes.push(summary),
-                    Err(e) => log::warn!("skipping {note_rel}: {e}"),
+                // Prefer the index summary (no disk read); fall back to reading
+                // the file only for notes not yet indexed.
+                match summaries.get(&note_rel) {
+                    Some(summary) => notes.push(summary.clone()),
+                    None => match build_summary(vault, &note_rel) {
+                        Ok(summary) => notes.push(summary),
+                        Err(e) => log::warn!("skipping {note_rel}: {e}"),
+                    },
                 }
             }
         }
@@ -416,6 +479,21 @@ mod tests {
         assert!(content.contains("body line"));
         assert!(content.trim_end().ends_with("- [ ] new task"));
         assert!(content.ends_with('\n'));
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn real_file_is_not_a_cloud_placeholder() {
+        // A materialized file always has blocks allocated, so the placeholder
+        // heuristic must not flag it (which would skip indexing its content).
+        let vault = temp_vault();
+        std::fs::write(vault.join("note.md"), "---\ntitle: N\n---\nhello").unwrap();
+        let meta = std::fs::metadata(vault.join("note.md")).unwrap();
+        assert!(!is_cloud_placeholder(&meta));
+        // An empty file (size 0) is read normally, not treated as a placeholder.
+        std::fs::write(vault.join("empty.md"), "").unwrap();
+        let empty_meta = std::fs::metadata(vault.join("empty.md")).unwrap();
+        assert!(!is_cloud_placeholder(&empty_meta));
         std::fs::remove_dir_all(&vault).ok();
     }
 

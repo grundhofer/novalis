@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { mergeAttributes } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -8,6 +9,8 @@ import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
+
+import { WikiLink } from "./WikiLink";
 
 export interface NovalisEditorProps {
   /** Initial markdown content. Remount (via a React `key`) to load another note. */
@@ -20,6 +23,8 @@ export interface NovalisEditorProps {
   onUploadImage?: (file: File) => Promise<string | null>;
   /** Map a stored (relative) image src to a displayable URL. */
   resolveImageSrc?: (src: string) => string;
+  /** Called when the user clicks a `[[wikilink]]`. Host resolves+opens. */
+  onWikiLinkClick?: (title: string) => void;
 }
 
 function getMarkdown(editor: Editor): string {
@@ -33,7 +38,17 @@ export function NovalisEditor({
   placeholder,
   onUploadImage,
   resolveImageSrc,
+  onWikiLinkClick,
 }: NovalisEditorProps) {
+  // Latest onChange, without re-creating the editor when it changes.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  // Debounce full-document markdown serialization. `getMarkdown` walks and
+  // serializes the entire document; doing it on every keystroke is the main
+  // typing lag on large notes. Serialize at most every ~200ms and flush on
+  // blur/unmount so the host still gets the latest content before it saves.
+  const serializeTimer = useRef<number | null>(null);
+
   // Image node that stores the relative `src` (for markdown round-trip) but
   // renders a resolved URL so the webview can display vault images.
   const VaultImage = Image.extend({
@@ -73,9 +88,17 @@ export function NovalisEditor({
       Link.configure({ openOnClick: false, autolink: true }),
       VaultImage,
       Placeholder.configure({ placeholder: placeholder ?? "Start writing…" }),
+      WikiLink.configure({ onClick: onWikiLinkClick }),
     ],
     content: value,
-    onUpdate: ({ editor }) => onChange?.(getMarkdown(editor)),
+    onUpdate: ({ editor }) => {
+      if (!onChangeRef.current) return;
+      if (serializeTimer.current) window.clearTimeout(serializeTimer.current);
+      serializeTimer.current = window.setTimeout(() => {
+        serializeTimer.current = null;
+        onChangeRef.current?.(getMarkdown(editor));
+      }, 200);
+    },
     editorProps: {
       handlePaste(view, event) {
         const file = firstImage(event.clipboardData?.files);
@@ -93,6 +116,23 @@ export function NovalisEditor({
       },
     },
   });
+
+  // Flush any pending serialization on blur and on unmount (e.g. switching
+  // notes) so the latest edits reach the host before it persists them.
+  useEffect(() => {
+    if (!editor) return;
+    const flush = () => {
+      if (serializeTimer.current === null) return;
+      window.clearTimeout(serializeTimer.current);
+      serializeTimer.current = null;
+      onChangeRef.current?.(getMarkdown(editor));
+    };
+    editor.on("blur", flush);
+    return () => {
+      editor.off("blur", flush);
+      flush();
+    };
+  }, [editor]);
 
   if (!editor) return null;
 

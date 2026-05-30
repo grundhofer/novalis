@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -61,10 +63,20 @@ pub struct KanbanColumnDef {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FileTreePrefs {
+    /// `"name"` | `"modified"` | `"created"` | `"manual"`.
     #[serde(default = "default_sort_by")]
     pub sort_by: String,
     #[serde(default = "default_sort_dir")]
     pub sort_dir: String,
+    /// Folder path (vault-relative, forward-slashed) -> color token (e.g. "indigo").
+    /// Synced with the vault so colors follow it across devices.
+    #[serde(default)]
+    pub folder_colors: HashMap<String, String>,
+    /// Parent path ("" = vault root) -> ordered child item keys (folder paths and
+    /// note paths, interleaved). Used when `sort_by == "manual"`. Keys never
+    /// collide because notes end in `.md`.
+    #[serde(default)]
+    pub item_order: HashMap<String, Vec<String>>,
 }
 
 fn default_task_mode() -> String {
@@ -136,6 +148,8 @@ impl Default for FileTreePrefs {
         Self {
             sort_by: default_sort_by(),
             sort_dir: default_sort_dir(),
+            folder_colors: HashMap::new(),
+            item_order: HashMap::new(),
         }
     }
 }

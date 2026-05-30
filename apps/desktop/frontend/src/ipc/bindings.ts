@@ -7,15 +7,37 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 export const commands = {
 	/**  Returns app/build info from the core. Works without a vault open. */
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
-	/**  Open (or create) a vault at `path`. */
+	/**
+	 *  Open (or create) a vault at `path`.
+	 * 
+	 *  `async` + `spawn_blocking`: indexing reads every note, and a vault on a
+	 *  cloud-synced folder (OneDrive/iCloud) hydrates online-only files over the
+	 *  network — slow and blocking. A synchronous command runs on the main thread,
+	 *  so that work would freeze the UI; running it on a blocking-pool thread keeps
+	 *  the window responsive (it shows the loading state) while indexing proceeds.
+	 */
 	openVault: (path: string) => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("open_vault", { path })),
 	/**  Close the current vault (drops the index connection). */
 	closeVault: () => typedError<null, CommandError>(__TAURI_INVOKE("close_vault")),
 	/**  Path of the currently open vault, if any. */
 	currentVault: () => typedError<string | null, CommandError>(__TAURI_INVOKE("current_vault")),
-	/**  Show a native folder picker; returns the chosen path, if any. */
+	/**
+	 *  Show a native folder picker; returns the chosen path, if any.
+	 * 
+	 *  Must be `async`: a synchronous command runs on the main thread, and
+	 *  `blocking_pick_folder` would then deadlock — it asks the main thread's event
+	 *  loop to show the native panel while blocking that same thread. Running the
+	 *  blocking call on a blocking-pool thread keeps the main thread free to render
+	 *  the panel.
+	 */
 	pickVaultFolder: () => __TAURI_INVOKE<string | null>("pick_vault_folder"),
 	listNotes: () => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("list_notes")),
+	/**
+	 *  `async` + `spawn_blocking`: reading a note on a OneDrive/iCloud vault may
+	 *  hydrate an online-only file over the network. Off the main thread, that read
+	 *  never blocks the UI or other commands (the frontend masks it with a loading
+	 *  state and prefetch-on-hover).
+	 */
 	getNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("get_note", { path })),
 	createNote: (req: CreateNoteRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("create_note", { req })),
 	updateNote: (path: string, content: string) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note", { path, content })),
@@ -23,9 +45,16 @@ export const commands = {
 	moveNote: (path: string, newPath: string) => typedError<Note, CommandError>(__TAURI_INVOKE("move_note", { path, newPath })),
 	duplicateNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("duplicate_note", { path })),
 	deleteNote: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_note", { path })),
+	resolveOrCreateWikiLink: (title: string) => typedError<string, CommandError>(__TAURI_INVOKE("resolve_or_create_wiki_link", { title })),
 	getFolderTree: () => typedError<FolderNode, CommandError>(__TAURI_INVOKE("get_folder_tree")),
 	createFolder: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("create_folder", { path })),
 	deleteFolder: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_folder", { path })),
+	/**
+	 *  Delete a folder and all its contents by moving the whole subtree to trash.
+	 *  Unlike [`delete_folder`] (which only removes an empty folder), this is
+	 *  recoverable. The index is rebuilt so the removed notes leave it immediately.
+	 */
+	deleteFolderRecursive: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_folder_recursive", { path })),
 	moveFolder: (path: string, newPath: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_folder", { path, newPath })),
 	search: (query: string, folder: string | null, tag: string | null) => typedError<SearchResult[], CommandError>(__TAURI_INVOKE("search", { query, folder, tag })),
 	quickSearch: (query: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("quick_search", { query })),
@@ -33,7 +62,12 @@ export const commands = {
 	unlinkedMentions: (title: string, selfPath: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("unlinked_mentions", { title, selfPath })),
 	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
 	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
-	/**  Rebuild the entire index from the vault. Returns the number of notes indexed. */
+	/**
+	 *  Rebuild the entire index from the vault. Returns the number of notes indexed.
+	 * 
+	 *  `async` + `spawn_blocking` for the same reason as [`open_vault`]: a full
+	 *  rebuild reads every note and would freeze the UI if run on the main thread.
+	 */
 	reindexVault: () => typedError<number, CommandError>(__TAURI_INVOKE("reindex_vault")),
 	/**
 	 *  Re-scan from disk (pull model — used on mobile/foreground and manual refresh).
@@ -227,8 +261,20 @@ export type EventInput = {
 };
 
 export type FileTreePrefs = {
+	/**  `"name"` | `"modified"` | `"created"` | `"manual"`. */
 	sortBy?: string,
 	sortDir?: string,
+	/**
+	 *  Folder path (vault-relative, forward-slashed) -> color token (e.g. "indigo").
+	 *  Synced with the vault so colors follow it across devices.
+	 */
+	folderColors?: { [key in string]: string },
+	/**
+	 *  Parent path ("" = vault root) -> ordered child item keys (folder paths and
+	 *  note paths, interleaved). Used when `sort_by == "manual"`. Keys never
+	 *  collide because notes end in `.md`.
+	 */
+	itemOrder?: { [key in string]: string[] },
 };
 
 /**  A node in the recursive vault folder tree. */
@@ -289,6 +335,11 @@ export type NoteSummary = {
 	wordCount: number,
 	taskTotal: number,
 	taskCompleted: number,
+	/**
+	 *  True for an "online only" cloud placeholder (OneDrive/iCloud) whose
+	 *  content isn't on disk yet, so opening it triggers a network download.
+	 */
+	cloudOnly: boolean,
 };
 
 export type NoteTemplate = {
@@ -396,6 +447,7 @@ export type TrashItem = {
 
 export type UpdateMetaRequest = {
 	path: string | null,
+	title: string | null,
 	tags: string[] | null,
 	pinned: boolean | null,
 	aliases: string[] | null,

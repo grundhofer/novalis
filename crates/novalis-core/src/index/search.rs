@@ -20,12 +20,19 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     let notes = vault_fs::list_notes(vault);
     for summary in &notes {
         let abs = vault.join(&summary.path);
-        let content = match std::fs::read_to_string(&abs) {
-            Ok(c) => c,
-            Err(e) => {
-                log::warn!("could not read {}: {e}", summary.path);
-                continue;
-            }
+        // Cloud-only placeholders (OneDrive/iCloud "online only") are indexed
+        // from metadata alone — reading them would block on a network download.
+        // Their body/tasks/links get indexed on the next reindex after the file
+        // is materialized locally.
+        let content = match std::fs::metadata(&abs) {
+            Ok(meta) if vault_fs::is_cloud_placeholder(&meta) => String::new(),
+            _ => match std::fs::read_to_string(&abs) {
+                Ok(c) => c,
+                Err(e) => {
+                    log::warn!("could not read {}: {e}", summary.path);
+                    continue;
+                }
+            },
         };
         if let Err(e) = index_note(db, summary, &content) {
             log::warn!("failed to index {}: {e}", summary.path);
@@ -42,13 +49,14 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
     let (fm, body) = frontmatter::parse_frontmatter(content);
 
     db.execute(
-        "INSERT INTO note_meta (path, title, folder, tags, created, modified, size, word_count, pinned, task_total, task_completed)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        "INSERT INTO note_meta (path, title, folder, tags, created, modified, size, word_count, pinned, task_total, task_completed, cloud_only)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
          ON CONFLICT(path) DO UPDATE SET
             title=excluded.title, folder=excluded.folder, tags=excluded.tags,
             created=excluded.created, modified=excluded.modified, size=excluded.size,
             word_count=excluded.word_count, pinned=excluded.pinned,
-            task_total=excluded.task_total, task_completed=excluded.task_completed",
+            task_total=excluded.task_total, task_completed=excluded.task_completed,
+            cloud_only=excluded.cloud_only",
         params![
             summary.path,
             summary.title,
@@ -61,6 +69,7 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
             summary.pinned as i32,
             summary.task_total as i64,
             summary.task_completed as i64,
+            summary.cloud_only as i32,
         ],
     )?;
 
@@ -162,7 +171,7 @@ pub fn quick_search(db: &Connection, query: &str) -> CoreResult<Vec<NoteSummary>
     let pattern = format!("%{}%", query.replace('%', "\\%"));
 
     let mut stmt = db.prepare(
-        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed
+        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only
          FROM note_meta
          WHERE title LIKE ?1 OR path LIKE ?1
          ORDER BY modified DESC
@@ -195,6 +204,7 @@ mod tests {
             word_count: 0,
             task_total: 0,
             task_completed: 0,
+            cloud_only: false,
         }
     }
 
@@ -221,6 +231,19 @@ mod tests {
         let quick = quick_search(&db, "bet").unwrap();
         assert_eq!(quick.len(), 1);
         assert_eq!(quick[0].title, "Beta");
+    }
+
+    #[test]
+    fn cloud_only_flag_round_trips_through_the_index() {
+        let db = mem_db();
+        let mut s = summary("a.md", "A");
+        s.cloud_only = true;
+        index_note(&db, &s, "").unwrap();
+        index_note(&db, &summary("b.md", "B"), "hello").unwrap();
+
+        let all = crate::index::list_summaries(&db).unwrap();
+        assert!(all.iter().find(|n| n.path == "a.md").unwrap().cloud_only);
+        assert!(!all.iter().find(|n| n.path == "b.md").unwrap().cloud_only);
     }
 
     #[test]

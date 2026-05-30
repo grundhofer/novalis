@@ -91,3 +91,14 @@
   height: 0;
   pointer-events: none;
 }
+
+.nv-editor-content .nv-wikilink {
+  color: var(--nv-accent);
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.nv-editor-content .nv-wikilink:hover {
+  background: rgba(129, 140, 248, 0.12);
+}

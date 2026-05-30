@@ -1,7 +1,18 @@
 @import "tailwindcss";
 
+/* Design tokens. Exposed to Tailwind utilities (font-sans, the accent palette)
+   and reused by the editor via the --nv-* variables below. */
+@theme {
+  --font-sans:
+    "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
+  /* Accent (indigo) — single source for selection/focus and the editor. */
+  --accent: #818cf8;
+  --accent-soft: rgba(129, 140, 248, 0.18);
 }
 
 html,
@@ -12,6 +23,51 @@ body,
 
 body {
   margin: 0;
-  font-family:
-    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Slightly tighter tracking reads better in a dense dark UI. */
+  letter-spacing: -0.006em;
+}
+
+/* Match the editor's accent to the app accent. */
+.nv-editor {
+  --nv-editor-accent: var(--accent);
+}
+
+/* Subtle, modern scrollbars — the OS default is heavy on a dark surface. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: padding-box;
+}
+
+/* Accent-tinted selection. */
+::selection {
+  background: var(--accent-soft);
+}
+
+/* One consistent keyboard-focus ring for all interactive elements (the app
+   had none). Mouse clicks stay clean; only keyboard focus shows the ring. */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+button:focus:not(:focus-visible) {
+  outline: none;
 }

@@ -84,22 +84,41 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
 }
 
 /// Open (or create) a vault at `path`.
+///
+/// `async` + `spawn_blocking`: indexing reads every note, and a vault on a
+/// cloud-synced folder (OneDrive/iCloud) hydrates online-only files over the
+/// network — slow and blocking. A synchronous command runs on the main thread,
+/// so that work would freeze the UI; running it on a blocking-pool thread keeps
+/// the window responsive (it shows the loading state) while indexing proceeds.
 #[tauri::command]
 #[specta::specta]
-pub fn open_vault(app: AppHandle, path: String) -> CmdResult<VaultInfo> {
-    open_vault_impl(&app, &path)
+pub async fn open_vault(app: AppHandle, path: String) -> CmdResult<VaultInfo> {
+    tauri::async_runtime::spawn_blocking(move || open_vault_impl(&app, &path))
+        .await
+        .map_err(|e| CommandError::internal(format!("open_vault task panicked: {e}")))?
 }
 
 /// Show a native folder picker; returns the chosen path, if any.
+///
+/// Must be `async`: a synchronous command runs on the main thread, and
+/// `blocking_pick_folder` would then deadlock — it asks the main thread's event
+/// loop to show the native panel while blocking that same thread. Running the
+/// blocking call on a blocking-pool thread keeps the main thread free to render
+/// the panel.
 #[tauri::command]
 #[specta::specta]
-pub fn pick_vault_folder(app: AppHandle) -> Option<String> {
+pub async fn pick_vault_folder(app: AppHandle) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
-    app.dialog()
-        .file()
-        .blocking_pick_folder()
-        .and_then(|fp| fp.into_path().ok())
-        .map(|p| p.to_string_lossy().to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .blocking_pick_folder()
+            .and_then(|fp| fp.into_path().ok())
+            .map(|p| p.to_string_lossy().to_string())
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// Close the current vault (drops the index connection).
@@ -134,10 +153,19 @@ pub fn list_notes(state: State<AppEngine>) -> CmdResult<Vec<NoteSummary>> {
     state.with(|e| Ok(novalis_core::notes::list(&e.vault_path)))
 }
 
+/// `async` + `spawn_blocking`: reading a note on a OneDrive/iCloud vault may
+/// hydrate an online-only file over the network. Off the main thread, that read
+/// never blocks the UI or other commands (the frontend masks it with a loading
+/// state and prefetch-on-hover).
 #[tauri::command]
 #[specta::specta]
-pub fn get_note(state: State<AppEngine>, path: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::get(&e.vault_path, &path))
+pub async fn get_note(app: AppHandle, path: String) -> CmdResult<Note> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>()
+            .with(|e| novalis_core::notes::get(&e.vault_path, &path))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("get_note task panicked: {e}")))?
 }
 
 #[tauri::command]
@@ -176,12 +204,25 @@ pub fn delete_note(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &e.data_dir, &path))
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn resolve_or_create_wiki_link(state: State<AppEngine>, title: String) -> CmdResult<String> {
+    state.with(|e| novalis_core::notes::resolve_or_create_wiki_link(&e.db, &e.vault_path, &title))
+}
+
 // ── Folders ────────────────────────────────────────────────────────────────
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_folder_tree(state: State<AppEngine>) -> CmdResult<FolderNode> {
-    state.with(|e| Ok(vault_fs::list_folders(&e.vault_path)))
+    state.with(|e| {
+        // Pull summaries from the index (no disk reads) and build the tree from
+        // the directory structure alone — fast even on a cloud-synced vault.
+        let summaries = novalis_core::index::list_summaries(&e.db)?;
+        let map: std::collections::HashMap<String, _> =
+            summaries.into_iter().map(|s| (s.path.clone(), s)).collect();
+        Ok(vault_fs::list_folders(&e.vault_path, &map))
+    })
 }
 
 #[tauri::command]
@@ -203,6 +244,18 @@ pub fn move_folder(state: State<AppEngine>, path: String, new_path: String) -> C
     // before the file watcher catches up.
     state.with(|e| {
         vault_fs::move_folder(&e.vault_path, &path, &new_path)?;
+        search::build_index(&e.db, &e.vault_path)
+    })
+}
+
+/// Delete a folder and all its contents by moving the whole subtree to trash.
+/// Unlike [`delete_folder`] (which only removes an empty folder), this is
+/// recoverable. The index is rebuilt so the removed notes leave it immediately.
+#[tauri::command]
+#[specta::specta]
+pub fn delete_folder_recursive(state: State<AppEngine>, path: String) -> CmdResult<()> {
+    state.with(|e| {
+        trash::trash_folder(&e.vault_path, &e.data_dir, &path)?;
         search::build_index(&e.db, &e.vault_path)
     })
 }
@@ -257,18 +310,26 @@ pub fn get_vault_stats(state: State<AppEngine>) -> CmdResult<VaultStats> {
 }
 
 /// Rebuild the entire index from the vault. Returns the number of notes indexed.
+///
+/// `async` + `spawn_blocking` for the same reason as [`open_vault`]: a full
+/// rebuild reads every note and would freeze the UI if run on the main thread.
 #[tauri::command]
 #[specta::specta]
-pub fn reindex_vault(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> {
-    let count = state.with(|e| {
-        search::build_index(&e.db, &e.vault_path)?;
-        let n: i64 =
-            e.db.query_row("SELECT COUNT(*) FROM note_meta", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .unwrap_or(0);
-        Ok(n as u32)
-    })?;
+pub async fn reindex_vault(app: AppHandle) -> CmdResult<u32> {
+    let engine_app = app.clone();
+    let count = tauri::async_runtime::spawn_blocking(move || {
+        engine_app.state::<AppEngine>().with(|e| {
+            search::build_index(&e.db, &e.vault_path)?;
+            let n: i64 =
+                e.db.query_row("SELECT COUNT(*) FROM note_meta", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap_or(0);
+            Ok(n as u32)
+        })
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("reindex_vault task panicked: {e}")))??;
     let _ = app.emit("reindexed-event", ());
     Ok(count)
 }
@@ -277,8 +338,8 @@ pub fn reindex_vault(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> 
 /// For M1 this is a full rebuild; incremental mtime scanning comes later.
 #[tauri::command]
 #[specta::specta]
-pub fn rescan_vault(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> {
-    reindex_vault(app, state)
+pub async fn rescan_vault(app: AppHandle) -> CmdResult<u32> {
+    reindex_vault(app).await
 }
 
 // ── Conflicts ──────────────────────────────────────────────────────────────

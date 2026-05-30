@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use crate::error::CoreResult;
 
 /// Bump this whenever the table layout below changes.
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -60,7 +60,8 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
             word_count INTEGER NOT NULL DEFAULT 0,
             pinned INTEGER DEFAULT 0,
             task_total INTEGER DEFAULT 0,
-            task_completed INTEGER DEFAULT 0
+            task_completed INTEGER DEFAULT 0,
+            cloud_only INTEGER DEFAULT 0
         );
 
         CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(

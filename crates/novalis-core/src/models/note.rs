@@ -48,6 +48,9 @@ pub struct NoteSummary {
     pub word_count: usize,
     pub task_total: usize,
     pub task_completed: usize,
+    /// True for an "online only" cloud placeholder (OneDrive/iCloud) whose
+    /// content isn't on disk yet, so opening it triggers a network download.
+    pub cloud_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -62,6 +65,7 @@ pub struct CreateNoteRequest {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMetaRequest {
     pub path: Option<String>,
+    pub title: Option<String>,
     pub tags: Option<Vec<String>>,
     pub pinned: Option<bool>,
     pub aliases: Option<Vec<String>>,
