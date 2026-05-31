@@ -186,7 +186,8 @@ mod tests {
     use super::*;
 
     fn temp_dirs() -> (std::path::PathBuf, std::path::PathBuf) {
-        let base = std::env::temp_dir().join(format!("novalis-trash-test-{}", uuid::Uuid::new_v4()));
+        let base =
+            std::env::temp_dir().join(format!("novalis-trash-test-{}", uuid::Uuid::new_v4()));
         let vault = base.join("vault");
         let data = base.join("data");
         std::fs::create_dir_all(&vault).unwrap();
@@ -202,7 +203,10 @@ mod tests {
         std::fs::write(vault.join("Projects/Sub/b.md"), "b").unwrap();
 
         trash_folder(&vault, &data, "Projects").unwrap();
-        assert!(!vault.join("Projects").exists(), "folder should leave the vault");
+        assert!(
+            !vault.join("Projects").exists(),
+            "folder should leave the vault"
+        );
 
         let items = list_trash(&data).unwrap();
         assert_eq!(items.len(), 1, "trashed folder is a single entry");

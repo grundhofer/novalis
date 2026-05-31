@@ -360,7 +360,12 @@ fn build_folder_node(
                 } else {
                     format!("{rel_path}/{fname}")
                 };
-                children.push(build_folder_node(vault, &entry.path(), &child_rel, summaries));
+                children.push(build_folder_node(
+                    vault,
+                    &entry.path(),
+                    &child_rel,
+                    summaries,
+                ));
             } else if ft.is_file() && fname.ends_with(".md") {
                 let note_rel = if rel_path.is_empty() {
                     fname.clone()

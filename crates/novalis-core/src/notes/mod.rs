@@ -68,7 +68,11 @@ pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> Cor
     if let Some(title) = req.title {
         // Empty title clears it (display falls back to the first H1, then filename).
         let t = title.trim();
-        fm.title = if t.is_empty() { None } else { Some(t.to_string()) };
+        fm.title = if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        };
     }
     if let Some(tags) = req.tags {
         fm.tags = tags;
@@ -259,7 +263,10 @@ mod tests {
         assert_eq!(updated.title, "Renamed");
         assert!(c.vault.join("Note.md").exists());
         // The summary the sidebar renders reflects the new title.
-        assert_eq!(vault_fs::build_summary(&c.vault, "Note.md").unwrap().title, "Renamed");
+        assert_eq!(
+            vault_fs::build_summary(&c.vault, "Note.md").unwrap().title,
+            "Renamed"
+        );
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
