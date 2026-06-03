@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { mergeAttributes } from "@tiptap/core";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -8,10 +9,15 @@ import TaskList from "@tiptap/extension-task-list";
 import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
+import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
+
+// Shared lowlight registry (highlight.js "common" set, ~37 languages), created
+// once at module scope so the language registry is stable across editor mounts.
+const lowlight = createLowlight(common);
 
 export interface NovalisEditorProps {
   /** Initial markdown content. Remount (via a React `key`) to load another note. */
@@ -137,7 +143,11 @@ export function NovalisEditor({
   const editor = useEditor({
     editable,
     extensions: [
-      StarterKit,
+      // Disable StarterKit's plain code block; CodeBlockLowlight replaces it
+      // (same `codeBlock` node name + `language` attr, so Markdown round-trip
+      // via tiptap-markdown is unchanged).
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight }),
       Markdown.configure({
         html: false,
         linkify: true,

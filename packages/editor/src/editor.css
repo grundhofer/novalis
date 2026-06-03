@@ -77,6 +77,65 @@
   overflow-x: auto;
 }
 .nv-editor-content pre code { background: none; padding: 0; }
+
+/* Syntax highlighting (lowlight / highlight.js token classes). Dark palette is
+   the default (matching the editor's dark fallbacks); a light-theme override
+   follows. Comments reuse the themed muted token. */
+.nv-editor-content .hljs-comment,
+.nv-editor-content .hljs-quote { color: var(--nv-muted); font-style: italic; }
+.nv-editor-content .hljs-keyword,
+.nv-editor-content .hljs-selector-tag,
+.nv-editor-content .hljs-literal,
+.nv-editor-content .hljs-section,
+.nv-editor-content .hljs-doctag { color: #c792ea; }
+.nv-editor-content .hljs-string,
+.nv-editor-content .hljs-regexp,
+.nv-editor-content .hljs-addition { color: #c3e88d; }
+.nv-editor-content .hljs-number,
+.nv-editor-content .hljs-deletion { color: #f78c6c; }
+.nv-editor-content .hljs-title,
+.nv-editor-content .hljs-title.function_,
+.nv-editor-content .hljs-function .hljs-title { color: #82aaff; }
+.nv-editor-content .hljs-attr,
+.nv-editor-content .hljs-attribute,
+.nv-editor-content .hljs-variable,
+.nv-editor-content .hljs-template-variable,
+.nv-editor-content .hljs-property { color: #f07178; }
+.nv-editor-content .hljs-built_in,
+.nv-editor-content .hljs-type,
+.nv-editor-content .hljs-title.class_,
+.nv-editor-content .hljs-symbol,
+.nv-editor-content .hljs-meta { color: #ffcb6b; }
+.nv-editor-content .hljs-tag,
+.nv-editor-content .hljs-name { color: #89ddff; }
+.nv-editor-content .hljs-emphasis { font-style: italic; }
+.nv-editor-content .hljs-strong { font-weight: 700; }
+
+:root[data-theme="light"] .nv-editor-content .hljs-keyword,
+:root[data-theme="light"] .nv-editor-content .hljs-selector-tag,
+:root[data-theme="light"] .nv-editor-content .hljs-literal,
+:root[data-theme="light"] .nv-editor-content .hljs-section,
+:root[data-theme="light"] .nv-editor-content .hljs-doctag { color: #8250df; }
+:root[data-theme="light"] .nv-editor-content .hljs-string,
+:root[data-theme="light"] .nv-editor-content .hljs-regexp,
+:root[data-theme="light"] .nv-editor-content .hljs-addition { color: #116329; }
+:root[data-theme="light"] .nv-editor-content .hljs-number,
+:root[data-theme="light"] .nv-editor-content .hljs-deletion { color: #953800; }
+:root[data-theme="light"] .nv-editor-content .hljs-title,
+:root[data-theme="light"] .nv-editor-content .hljs-title.function_,
+:root[data-theme="light"] .nv-editor-content .hljs-function .hljs-title { color: #0550ae; }
+:root[data-theme="light"] .nv-editor-content .hljs-attr,
+:root[data-theme="light"] .nv-editor-content .hljs-attribute,
+:root[data-theme="light"] .nv-editor-content .hljs-variable,
+:root[data-theme="light"] .nv-editor-content .hljs-template-variable,
+:root[data-theme="light"] .nv-editor-content .hljs-property { color: #cf222e; }
+:root[data-theme="light"] .nv-editor-content .hljs-built_in,
+:root[data-theme="light"] .nv-editor-content .hljs-type,
+:root[data-theme="light"] .nv-editor-content .hljs-title.class_,
+:root[data-theme="light"] .nv-editor-content .hljs-symbol,
+:root[data-theme="light"] .nv-editor-content .hljs-meta { color: #953800; }
+:root[data-theme="light"] .nv-editor-content .hljs-tag,
+:root[data-theme="light"] .nv-editor-content .hljs-name { color: #0550ae; }
 .nv-editor-content blockquote {
   border-left: 3px solid var(--nv-border);
   padding-left: 1em;
