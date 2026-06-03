@@ -1,0 +1,16 @@
+{
+  "backlinks": "Références liées",
+  "emptyNote": "Note vide",
+  "graph": "Graphe",
+  "hide": "Masquer les liens",
+  "link": "Lier",
+  "linkFailed": "Impossible de lier cette mention — elle a peut-être changé.",
+  "linkTitle": "Lier cette mention",
+  "mentions": "Mentions non liées",
+  "noBacklinks": "Aucune note ne pointe ici pour l'instant.",
+  "noGraph": "Cette note n'a pas encore de liens.",
+  "noMentions": "Aucune mention non liée.",
+  "notCreated": "Pas encore créée",
+  "show": "Afficher les liens",
+  "title": "Liens"
+}

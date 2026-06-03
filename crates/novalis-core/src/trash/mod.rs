@@ -1,14 +1,18 @@
-//! Soft-delete: notes are moved into `<data_dir>/trash/` with a `.meta`
-//! sidecar recording their original vault-relative path, so they can be
-//! restored. Trash lives in app-data, never in the synced vault.
+//! Soft-delete: notes are moved into the vault's `.novalis/trash/` with a
+//! `.meta` sidecar recording their original vault-relative path, so they can be
+//! restored. Living inside the vault means trash syncs (OneDrive/iCloud): it
+//! survives a reinstall and is recoverable on any device. The `.novalis/` folder
+//! is hidden from the index and the file watcher, so trashed notes never appear
+//! in search or the tree.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::error::{CoreError, CoreResult};
+use crate::vault::config;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -19,14 +23,19 @@ pub struct TrashItem {
     pub filename: String,
 }
 
-/// Move a note to the trash directory inside `data_dir`.
-pub fn trash_note(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<()> {
+/// The trash directory inside a vault (`<vault>/.novalis/trash`).
+fn trash_root(vault: &Path) -> PathBuf {
+    config::config_dir(vault).join("trash")
+}
+
+/// Move a note to the vault's trash.
+pub fn trash_note(vault: &Path, relative: &str) -> CoreResult<()> {
     let abs = vault.join(relative);
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
 
-    let trash_dir = data_dir.join("trash");
+    let trash_dir = trash_root(vault);
     std::fs::create_dir_all(&trash_dir)?;
 
     let now = Utc::now().format("%Y%m%d_%H%M%S").to_string();
@@ -50,13 +59,13 @@ pub fn trash_note(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<(
 /// Move an entire folder (and its contents) to trash. The whole subtree is
 /// relocated under a single trash id; the `.meta` sidecar stores the original
 /// vault-relative folder path so it can be restored as a unit.
-pub fn trash_folder(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<()> {
+pub fn trash_folder(vault: &Path, relative: &str) -> CoreResult<()> {
     let abs = vault.join(relative);
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Folder not found: {relative}")));
     }
 
-    let trash_dir = data_dir.join("trash");
+    let trash_dir = trash_root(vault);
     std::fs::create_dir_all(&trash_dir)?;
 
     let now = Utc::now().format("%Y%m%d_%H%M%S").to_string();
@@ -79,8 +88,8 @@ pub fn trash_folder(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult
 }
 
 /// List all items in the trash, newest first.
-pub fn list_trash(data_dir: &Path) -> CoreResult<Vec<TrashItem>> {
-    let trash_dir = data_dir.join("trash");
+pub fn list_trash(vault: &Path) -> CoreResult<Vec<TrashItem>> {
+    let trash_dir = trash_root(vault);
     if !trash_dir.exists() {
         return Ok(Vec::new());
     }
@@ -123,8 +132,8 @@ pub fn list_trash(data_dir: &Path) -> CoreResult<Vec<TrashItem>> {
 }
 
 /// Restore a trashed note to its original location. Returns the restored path.
-pub fn restore_note(vault: &Path, data_dir: &Path, trash_id: &str) -> CoreResult<String> {
-    let trash_dir = data_dir.join("trash");
+pub fn restore_note(vault: &Path, trash_id: &str) -> CoreResult<String> {
+    let trash_dir = trash_root(vault);
     let trash_file = trash_dir.join(trash_id);
     let meta_file = trash_dir.join(format!("{trash_id}.meta"));
 
@@ -155,9 +164,31 @@ pub fn restore_note(vault: &Path, data_dir: &Path, trash_id: &str) -> CoreResult
     Ok(original_path)
 }
 
+/// Permanently delete a single trash item (and its `.meta` sidecar).
+pub fn delete_trash_item(vault: &Path, trash_id: &str) -> CoreResult<()> {
+    let trash_dir = trash_root(vault);
+    let item = trash_dir.join(trash_id);
+    let meta = trash_dir.join(format!("{trash_id}.meta"));
+
+    if item.is_dir() {
+        std::fs::remove_dir_all(&item)?;
+    } else if item.exists() {
+        std::fs::remove_file(&item)?;
+    } else {
+        return Err(CoreError::NotFound(format!(
+            "Trash item not found: {trash_id}"
+        )));
+    }
+    if meta.exists() {
+        let _ = std::fs::remove_file(&meta);
+    }
+    log::info!("permanently deleted {trash_id}");
+    Ok(())
+}
+
 /// Permanently delete all items in the trash. Returns count of notes deleted.
-pub fn empty_trash(data_dir: &Path) -> CoreResult<usize> {
-    let trash_dir = data_dir.join("trash");
+pub fn empty_trash(vault: &Path) -> CoreResult<usize> {
+    let trash_dir = trash_root(vault);
     if !trash_dir.exists() {
         return Ok(0);
     }
@@ -181,38 +212,101 @@ pub fn empty_trash(data_dir: &Path) -> CoreResult<usize> {
     Ok(count)
 }
 
+/// One-time migration: relocate any app-local trash (`<data_dir>/trash`, the old
+/// location) into the vault. No-op if the legacy dir is absent or the vault
+/// trash already has items. Best-effort; falls back to copy across filesystems.
+pub fn migrate_legacy_trash(vault: &Path, data_dir: &Path) -> CoreResult<()> {
+    let legacy = data_dir.join("trash");
+    if !legacy.exists() {
+        return Ok(());
+    }
+    let dest = trash_root(vault);
+    let dest_has_items = std::fs::read_dir(&dest)
+        .map(|mut r| r.next().is_some())
+        .unwrap_or(false);
+    if dest_has_items {
+        return Ok(());
+    }
+    std::fs::create_dir_all(&dest)?;
+
+    for entry in std::fs::read_dir(&legacy)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dest.join(entry.file_name());
+        if std::fs::rename(&from, &to).is_err() {
+            // Cross-filesystem: copy then remove.
+            copy_recursive(&from, &to)?;
+            if entry.file_type()?.is_dir() {
+                let _ = std::fs::remove_dir_all(&from);
+            } else {
+                let _ = std::fs::remove_file(&from);
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&legacy);
+    log::info!("migrated legacy app-data trash into the vault");
+    Ok(())
+}
+
+fn copy_recursive(from: &Path, to: &Path) -> CoreResult<()> {
+    if from.is_dir() {
+        std::fs::create_dir_all(to)?;
+        for entry in std::fs::read_dir(from)? {
+            let entry = entry?;
+            copy_recursive(&entry.path(), &to.join(entry.file_name()))?;
+        }
+    } else {
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(from, to)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn temp_dirs() -> (std::path::PathBuf, std::path::PathBuf) {
+    fn temp_vault() -> std::path::PathBuf {
         let base =
             std::env::temp_dir().join(format!("novalis-trash-test-{}", uuid::Uuid::new_v4()));
         let vault = base.join("vault");
-        let data = base.join("data");
         std::fs::create_dir_all(&vault).unwrap();
-        std::fs::create_dir_all(&data).unwrap();
-        (vault, data)
+        vault
+    }
+
+    #[test]
+    fn trash_lives_inside_the_vault() {
+        let vault = temp_vault();
+        std::fs::write(vault.join("loose.md"), "y").unwrap();
+        trash_note(&vault, "loose.md").unwrap();
+        assert!(
+            vault.join(".novalis/trash").exists(),
+            "trash should live under <vault>/.novalis/trash"
+        );
+        assert!(!vault.join("loose.md").exists());
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 
     #[test]
     fn trash_folder_moves_subtree_and_restores_as_unit() {
-        let (vault, data) = temp_dirs();
+        let vault = temp_vault();
         std::fs::create_dir_all(vault.join("Projects/Sub")).unwrap();
         std::fs::write(vault.join("Projects/a.md"), "a").unwrap();
         std::fs::write(vault.join("Projects/Sub/b.md"), "b").unwrap();
 
-        trash_folder(&vault, &data, "Projects").unwrap();
+        trash_folder(&vault, "Projects").unwrap();
         assert!(
             !vault.join("Projects").exists(),
             "folder should leave the vault"
         );
 
-        let items = list_trash(&data).unwrap();
+        let items = list_trash(&vault).unwrap();
         assert_eq!(items.len(), 1, "trashed folder is a single entry");
         assert_eq!(items[0].original_path, "Projects");
 
-        let restored = restore_note(&vault, &data, &items[0].id).unwrap();
+        let restored = restore_note(&vault, &items[0].id).unwrap();
         assert_eq!(restored, "Projects");
         assert!(vault.join("Projects/a.md").exists());
         assert!(vault.join("Projects/Sub/b.md").exists());
@@ -221,19 +315,55 @@ mod tests {
     }
 
     #[test]
+    fn delete_trash_item_removes_one_entry() {
+        let vault = temp_vault();
+        std::fs::write(vault.join("a.md"), "a").unwrap();
+        std::fs::write(vault.join("b.md"), "b").unwrap();
+        trash_note(&vault, "a.md").unwrap();
+        trash_note(&vault, "b.md").unwrap();
+
+        let items = list_trash(&vault).unwrap();
+        assert_eq!(items.len(), 2);
+        delete_trash_item(&vault, &items[0].id).unwrap();
+        assert_eq!(list_trash(&vault).unwrap().len(), 1);
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
     fn empty_trash_removes_trashed_folders() {
-        let (vault, data) = temp_dirs();
+        let vault = temp_vault();
         std::fs::create_dir_all(vault.join("Archive")).unwrap();
         std::fs::write(vault.join("Archive/note.md"), "x").unwrap();
         std::fs::write(vault.join("loose.md"), "y").unwrap();
 
-        trash_folder(&vault, &data, "Archive").unwrap();
-        trash_note(&vault, &data, "loose.md").unwrap();
+        trash_folder(&vault, "Archive").unwrap();
+        trash_note(&vault, "loose.md").unwrap();
 
         // 2 items (a directory + a file); empty_trash must handle both.
-        let count = empty_trash(&data).unwrap();
+        let count = empty_trash(&vault).unwrap();
         assert_eq!(count, 2);
-        assert_eq!(list_trash(&data).unwrap().len(), 0);
+        assert_eq!(list_trash(&vault).unwrap().len(), 0);
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn migrate_legacy_trash_moves_items_into_the_vault() {
+        let vault = temp_vault();
+        let data = vault.parent().unwrap().join("data");
+        // Seed an old app-data trash item.
+        let legacy = data.join("trash");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("20250101_000000_old.md"), "old").unwrap();
+        std::fs::write(legacy.join("20250101_000000_old.md.meta"), "old.md").unwrap();
+
+        migrate_legacy_trash(&vault, &data).unwrap();
+
+        assert!(!legacy.exists(), "legacy trash dir should be removed");
+        let items = list_trash(&vault).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].original_path, "old.md");
 
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }

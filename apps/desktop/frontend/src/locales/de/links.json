@@ -1,0 +1,16 @@
+{
+  "backlinks": "Eingehende Verweise",
+  "emptyNote": "Leere Notiz",
+  "graph": "Graph",
+  "hide": "Verknüpfungen ausblenden",
+  "link": "Verknüpfen",
+  "linkFailed": "Erwähnung konnte nicht verknüpft werden — sie hat sich möglicherweise geändert.",
+  "linkTitle": "Diese Erwähnung verknüpfen",
+  "mentions": "Unverknüpfte Erwähnungen",
+  "noBacklinks": "Noch verweist keine Notiz hierauf.",
+  "noGraph": "Diese Notiz hat noch keine Verknüpfungen.",
+  "noMentions": "Keine unverknüpften Erwähnungen.",
+  "notCreated": "Noch nicht erstellt",
+  "show": "Verknüpfungen anzeigen",
+  "title": "Verknüpfungen"
+}

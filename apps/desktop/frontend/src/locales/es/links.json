@@ -1,0 +1,16 @@
+{
+  "backlinks": "Referencias enlazadas",
+  "emptyNote": "Nota vacía",
+  "graph": "Grafo",
+  "hide": "Ocultar enlaces",
+  "link": "Enlazar",
+  "linkFailed": "No se pudo enlazar esa mención: puede haber cambiado.",
+  "linkTitle": "Enlazar esta mención",
+  "mentions": "Menciones sin enlazar",
+  "noBacklinks": "Aún ninguna nota enlaza aquí.",
+  "noGraph": "Esta nota aún no tiene enlaces.",
+  "noMentions": "No hay menciones sin enlazar.",
+  "notCreated": "Aún no creada",
+  "show": "Mostrar enlaces",
+  "title": "Enlaces"
+}

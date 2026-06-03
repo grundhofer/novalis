@@ -17,6 +17,20 @@ import { findFolder, orderedItems, type SortBy } from "../lib/treeOrder";
 const noteCache = new Map<string, Note>();
 const inflight = new Map<string, Promise<Note>>();
 
+// The last content we *requested* to write per path. Makes a repeated save of
+// identical content a no-op — so a redundant flush after navigation costs
+// nothing, and idle autosaves don't churn the file.
+const lastRequest = new Map<string, string>();
+
+// The editor registers a "flush my pending autosave now" callback here. Every
+// navigation that changes `activePath` calls it first, so edits made in the
+// last debounce window are persisted to the *outgoing* note before we switch —
+// closing the silent data-loss path on sidebar/search/palette navigation.
+let pendingFlush: (() => Promise<void>) | null = null;
+
+/** Save lifecycle for the active note, surfaced as a status indicator. */
+export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
 /** Fetch a note once: concurrent callers for the same path share one request,
  *  and the result is cached. */
 function fetchNote(path: string): Promise<Note> {
@@ -119,8 +133,18 @@ interface VaultState {
   tree: FolderNode | null;
   activePath: string | null;
   activeNote: Note | null;
+  /** Bumped to force the editor to remount with fresh content (external reload
+   *  / version restore) without changing `activePath`. */
+  activeNoteVersion: number;
   loading: boolean;
   error: string | null;
+
+  // Save lifecycle for the active note (drives the editor status indicator).
+  saveState: SaveState;
+  lastSavedAt: number | null;
+  saveError: string | null;
+  /** Set when the open note changed on disk while it has unsaved edits. */
+  externalChange: string | null;
 
   // Sidebar view-state (device-local).
   collapsed: Set<string>;
@@ -145,6 +169,19 @@ interface VaultState {
   newNote: (folder: string, templateId?: string) => Promise<void>;
   deleteActive: () => Promise<void>;
   saveNote: (path: string, content: string) => Promise<void>;
+  /** The editor registers its pending-autosave flush so navigation can drain it. */
+  registerFlush: (fn: (() => Promise<void>) | null) => void;
+  /** Drain the active note's pending autosave now (e.g. before the window closes). */
+  flushActive: () => Promise<void>;
+  /** Mark the active note as having unsaved edits (editor calls this on input). */
+  markDirty: () => void;
+  /** Reload the active note from disk, discarding in-editor changes. */
+  reloadActive: () => Promise<void>;
+  /** React to a watcher `note-changed` for the active note: ignore our own
+   *  write echo, auto-reload when clean, or prompt when there are unsaved edits. */
+  handleExternalChange: (path: string) => Promise<void>;
+  /** Dismiss the "changed on disk" prompt without reloading. */
+  dismissExternalChange: () => void;
   clearError: () => void;
 
   // Sidebar actions.
@@ -201,8 +238,14 @@ export const useVault = create<VaultState>((set, get) => ({
   tree: null,
   activePath: null,
   activeNote: null,
+  activeNoteVersion: 0,
   loading: true,
   error: null,
+
+  saveState: "idle",
+  lastSavedAt: null,
+  saveError: null,
+  externalChange: null,
 
   collapsed: new Set<string>(),
   selectedFolder: null,
@@ -297,13 +340,24 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   openNote: async (path) => {
+    // Flush the outgoing note's pending autosave to *its* path before switching,
+    // so edits made in the last debounce window are never dropped.
+    if (pendingFlush) await pendingFlush();
     // Highlight the clicked note immediately, regardless of load time. Opening
     // a note clears the explicit folder selection (so the next "New note"
     // targets this note's folder), reveals it, and records it as recent.
     const collapsed = new Set(get().collapsed);
     for (const a of ancestorsOf(path)) collapsed.delete(a);
     const recent = [path, ...get().recent.filter((p) => p !== path)].slice(0, getRecentLimit());
-    set({ activePath: path, selectedFolder: null, collapsed, recent });
+    set({
+      activePath: path,
+      selectedFolder: null,
+      collapsed,
+      recent,
+      saveState: "idle",
+      saveError: null,
+      externalChange: null,
+    });
     persistSidebar(get);
 
     const cached = noteCache.get(path);
@@ -330,9 +384,12 @@ export const useVault = create<VaultState>((set, get) => ({
   invalidateNote: (path) => {
     noteCache.delete(path);
     inflight.delete(path);
+    lastRequest.delete(path);
   },
 
   newNote: async (folder, templateId) => {
+    // Don't lose pending edits in the currently-open note when creating another.
+    if (pendingFlush) await pendingFlush();
     const base = folder ? `${folder}/` : "";
     for (let i = 1; i <= 50; i++) {
       const name = i === 1 ? "Untitled" : `Untitled ${i}`;
@@ -351,7 +408,13 @@ export const useVault = create<VaultState>((set, get) => ({
         );
         set({ collapsed, recent });
         await get().refreshTree();
-        set({ activePath: note.path, activeNote: note });
+        set({
+          activePath: note.path,
+          activeNote: note,
+          saveState: "idle",
+          saveError: null,
+          externalChange: null,
+        });
         persistSidebar(get);
         return;
       } catch (e) {
@@ -365,11 +428,13 @@ export const useVault = create<VaultState>((set, get) => ({
   deleteActive: async () => {
     const path = get().activePath;
     if (!path) return;
+    // Flush first so the trashed copy reflects the latest edits (a restore then
+    // brings back the most recent content).
+    if (pendingFlush) await pendingFlush();
     try {
       await api.deleteNote(path);
-      noteCache.delete(path);
-      inflight.delete(path);
-      set({ activePath: null, activeNote: null });
+      get().invalidateNote(path);
+      set({ activePath: null, activeNote: null, saveState: "idle", externalChange: null });
       await get().refreshTree();
     } catch (e) {
       set({ error: displayError(e) });
@@ -377,6 +442,14 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   saveNote: async (path, content) => {
+    // Idempotent: skip writing content identical to the last request for this
+    // path (a redundant flush after navigation, or an idle autosave, is free).
+    if (lastRequest.get(path) === content) {
+      if (get().activePath === path) set({ saveState: "saved" });
+      return;
+    }
+    lastRequest.set(path, content);
+    if (get().activePath === path) set({ saveState: "saving", saveError: null });
     try {
       const note = await api.updateNote(path, content);
       // Keep the cache current so re-opening this note is instant.
@@ -385,10 +458,75 @@ export const useVault = create<VaultState>((set, get) => ({
       // and the file watcher re-indexes the written file and emits
       // `note-changed`, which refreshes the tree once (see useNovalisEvents).
       // Refreshing on every debounced keystroke-save was the main typing lag.
+      if (get().activePath === path) set({ saveState: "saved", lastSavedAt: Date.now() });
     } catch (e) {
-      set({ error: displayError(e) });
+      lastRequest.delete(path); // allow retrying the same content
+      if (get().activePath === path) set({ saveState: "error", saveError: displayError(e) });
+      else set({ error: displayError(e) });
     }
   },
+
+  registerFlush: (fn) => {
+    pendingFlush = fn;
+  },
+
+  flushActive: async () => {
+    if (pendingFlush) await pendingFlush();
+  },
+
+  markDirty: () => {
+    if (get().saveState !== "dirty") set({ saveState: "dirty" });
+  },
+
+  reloadActive: async () => {
+    const path = get().activePath;
+    if (!path) return;
+    get().invalidateNote(path);
+    try {
+      const note = await fetchNote(path);
+      if (get().activePath === path) {
+        set({
+          activeNote: note,
+          activeNoteVersion: get().activeNoteVersion + 1,
+          externalChange: null,
+          saveState: "idle",
+          saveError: null,
+        });
+      }
+    } catch (e) {
+      if (get().activePath === path) set({ error: displayError(e) });
+    }
+  },
+
+  handleExternalChange: async (path) => {
+    if (get().activePath !== path) return;
+    let disk: Note;
+    try {
+      // Read fresh from disk (bypasses the frontend cache).
+      disk = await api.getNote(path);
+    } catch {
+      return;
+    }
+    if (get().activePath !== path) return; // navigated away meanwhile
+    const cached = noteCache.get(path);
+    // Self-write echo (our own save re-fires the watcher) or no real change.
+    if (cached && cached.content === disk.content) return;
+    if (get().saveState === "dirty") {
+      // Unsaved edits: let the user choose rather than clobber either side.
+      set({ externalChange: path });
+    } else {
+      // Clean: adopt the external content and remount the editor.
+      noteCache.set(path, disk);
+      set({
+        activeNote: disk,
+        activeNoteVersion: get().activeNoteVersion + 1,
+        externalChange: null,
+        saveState: "idle",
+      });
+    }
+  },
+
+  dismissExternalChange: () => set({ externalChange: null }),
 
   clearError: () => set({ error: null }),
 
@@ -549,11 +687,18 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   duplicateNote: async (path) => {
+    if (pendingFlush) await pendingFlush();
     try {
       const note = await api.duplicateNote(path);
       noteCache.set(note.path, note);
       await get().refreshTree();
-      set({ activePath: note.path, activeNote: note });
+      set({
+        activePath: note.path,
+        activeNote: note,
+        saveState: "idle",
+        saveError: null,
+        externalChange: null,
+      });
     } catch (e) {
       set({ error: displayError(e) });
     }

@@ -25,9 +25,10 @@ pub fn ensure_vault_dir(path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Ensure the app-data support dirs exist (`trash`, `templates`, `db`).
+/// Ensure the app-data support dirs exist (`templates`, `db`). Trash now lives
+/// inside the vault (`.novalis/trash`); `versions/` is created lazily on save.
 pub fn ensure_data_dirs(data_dir: &Path) -> std::io::Result<()> {
-    for d in ["trash", "templates", "db"] {
+    for d in ["templates", "db"] {
         let p = data_dir.join(d);
         if !p.exists() {
             std::fs::create_dir_all(&p)?;

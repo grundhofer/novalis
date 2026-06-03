@@ -8,32 +8,48 @@ import { describe, expect, it } from "vitest";
 
 import deCalendar from "../de/calendar.json";
 import deCommon from "../de/common.json";
+import deConflict from "../de/conflict.json";
 import deEditor from "../de/editor.json";
+import deLinks from "../de/links.json";
 import deSettings from "../de/settings.json";
 import deSidebar from "../de/sidebar.json";
 import deTasks from "../de/tasks.json";
+import deTrash from "../de/trash.json";
 import deVault from "../de/vault.json";
+import deVersions from "../de/versions.json";
 import esCalendar from "../es/calendar.json";
 import esCommon from "../es/common.json";
+import esConflict from "../es/conflict.json";
 import esEditor from "../es/editor.json";
+import esLinks from "../es/links.json";
 import esSettings from "../es/settings.json";
 import esSidebar from "../es/sidebar.json";
 import esTasks from "../es/tasks.json";
+import esTrash from "../es/trash.json";
 import esVault from "../es/vault.json";
+import esVersions from "../es/versions.json";
 import frCalendar from "../fr/calendar.json";
 import frCommon from "../fr/common.json";
+import frConflict from "../fr/conflict.json";
 import frEditor from "../fr/editor.json";
+import frLinks from "../fr/links.json";
 import frSettings from "../fr/settings.json";
 import frSidebar from "../fr/sidebar.json";
 import frTasks from "../fr/tasks.json";
+import frTrash from "../fr/trash.json";
 import frVault from "../fr/vault.json";
+import frVersions from "../fr/versions.json";
 import calendar from "../en/calendar.json";
 import common from "../en/common.json";
+import conflict from "../en/conflict.json";
 import editor from "../en/editor.json";
+import links from "../en/links.json";
 import settings from "../en/settings.json";
 import sidebar from "../en/sidebar.json";
 import tasks from "../en/tasks.json";
+import trash from "../en/trash.json";
 import vault from "../en/vault.json";
+import versions from "../en/versions.json";
 
 const CATALOGS: Record<string, unknown> = {
   common,
@@ -43,6 +59,10 @@ const CATALOGS: Record<string, unknown> = {
   tasks,
   editor,
   vault,
+  trash,
+  conflict,
+  versions,
+  links,
 };
 
 /** Non-English locales, keyed by namespace, checked for parity against English. */
@@ -55,6 +75,10 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     tasks: deTasks,
     editor: deEditor,
     vault: deVault,
+    trash: deTrash,
+    conflict: deConflict,
+    versions: deVersions,
+    links: deLinks,
   },
   fr: {
     common: frCommon,
@@ -64,6 +88,10 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     tasks: frTasks,
     editor: frEditor,
     vault: frVault,
+    trash: frTrash,
+    conflict: frConflict,
+    versions: frVersions,
+    links: frLinks,
   },
   es: {
     common: esCommon,
@@ -73,6 +101,10 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     tasks: esTasks,
     editor: esEditor,
     vault: esVault,
+    trash: esTrash,
+    conflict: esConflict,
+    versions: esVersions,
+    links: esLinks,
   },
 };
 

@@ -11,13 +11,14 @@ use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
-    CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, Note, NoteSummary, NoteTemplate,
-    PluginInfo, Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery,
-    UpdateMetaRequest, VaultInfo, VaultStats,
+    CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, LinkReference, Note, NoteGraph,
+    NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest, SearchResult, Task,
+    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
+use novalis_core::versions::VersionMeta;
 use novalis_core::{calendar, export, media, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
@@ -52,6 +53,11 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
         .join("vaults")
         .join(vault_key(&vault_path));
     config::ensure_data_dirs(&data_dir).map_err(CoreError::Io)?;
+    // Best-effort: relocate any pre-existing app-local trash into the vault so it
+    // syncs and survives reinstall (one-time, no-op once migrated).
+    if let Err(e) = trash::migrate_legacy_trash(&vault_path, &data_dir) {
+        log::warn!("legacy trash migration failed: {e}");
+    }
 
     let db = schema::open_db(&config::db_path(&data_dir))?;
     search::build_index(&db, &vault_path)?;
@@ -177,7 +183,7 @@ pub fn create_note(state: State<AppEngine>, req: CreateNoteRequest) -> CmdResult
 #[tauri::command]
 #[specta::specta]
 pub fn update_note(state: State<AppEngine>, path: String, content: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::update(&e.db, &e.vault_path, &path, &content))
+    state.with(|e| novalis_core::notes::update(&e.db, &e.vault_path, &e.data_dir, &path, &content))
 }
 
 #[tauri::command]
@@ -189,7 +195,9 @@ pub fn update_note_meta(state: State<AppEngine>, req: UpdateMetaRequest) -> CmdR
 #[tauri::command]
 #[specta::specta]
 pub fn move_note(state: State<AppEngine>, path: String, new_path: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::move_note(&e.db, &e.vault_path, &path, &new_path))
+    state.with(|e| {
+        novalis_core::notes::move_note(&e.db, &e.vault_path, &e.data_dir, &path, &new_path)
+    })
 }
 
 #[tauri::command]
@@ -201,7 +209,7 @@ pub fn duplicate_note(state: State<AppEngine>, path: String) -> CmdResult<Note> 
 #[tauri::command]
 #[specta::specta]
 pub fn delete_note(state: State<AppEngine>, path: String) -> CmdResult<()> {
-    state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &e.data_dir, &path))
+    state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &path))
 }
 
 #[tauri::command]
@@ -255,7 +263,7 @@ pub fn move_folder(state: State<AppEngine>, path: String, new_path: String) -> C
 #[specta::specta]
 pub fn delete_folder_recursive(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| {
-        trash::trash_folder(&e.vault_path, &e.data_dir, &path)?;
+        trash::trash_folder(&e.vault_path, &path)?;
         search::build_index(&e.db, &e.vault_path)
     })
 }
@@ -279,20 +287,60 @@ pub fn quick_search(state: State<AppEngine>, query: String) -> CmdResult<Vec<Not
     state.with(|e| search::quick_search(&e.db, &query))
 }
 
+/// Notes linking to `title`, each with the snippet line(s) where they do.
+///
+/// `async` + `spawn_blocking`: this reads candidate note bodies to extract the
+/// context snippet, which on a OneDrive/iCloud vault could hydrate a file over
+/// the network. Off the main thread, that never freezes the UI (online-only
+/// placeholders are skipped in the core, so they don't block at all).
 #[tauri::command]
 #[specta::specta]
-pub fn backlinks(state: State<AppEngine>, title: String) -> CmdResult<Vec<NoteSummary>> {
-    state.with(|e| links::backlinks(&e.db, &title))
+pub async fn backlinks(app: AppHandle, title: String) -> CmdResult<Vec<LinkReference>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>()
+            .with(|e| links::backlinks(&e.db, &e.vault_path, &title))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("backlinks task panicked: {e}")))?
 }
 
+/// Notes that name `title` without linking it, each with the bare-mention line(s).
+/// `async` + `spawn_blocking` for the same reason as [`backlinks`].
 #[tauri::command]
 #[specta::specta]
-pub fn unlinked_mentions(
-    state: State<AppEngine>,
+pub async fn unlinked_mentions(
+    app: AppHandle,
     title: String,
     self_path: String,
-) -> CmdResult<Vec<NoteSummary>> {
-    state.with(|e| links::unlinked_mentions(&e.db, &title, &self_path))
+) -> CmdResult<Vec<LinkReference>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>()
+            .with(|e| links::unlinked_mentions(&e.db, &e.vault_path, &title, &self_path))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("unlinked_mentions task panicked: {e}")))?
+}
+
+/// Turn the first bare mention of `title` on `line` of `path` into a `[[title]]`
+/// wikilink (then re-index). Returns the updated note.
+#[tauri::command]
+#[specta::specta]
+pub fn link_mention(
+    state: State<AppEngine>,
+    path: String,
+    title: String,
+    line: usize,
+) -> CmdResult<Note> {
+    state.with(|e| {
+        novalis_core::notes::link_mention(&e.db, &e.vault_path, &e.data_dir, &path, &title, line)
+    })
+}
+
+/// The 1-hop link neighborhood of `path` for the local graph view. Index-only.
+#[tauri::command]
+#[specta::specta]
+pub fn note_graph(state: State<AppEngine>, path: String) -> CmdResult<NoteGraph> {
+    state.with(|e| links::note_graph(&e.db, &path))
 }
 
 // ── Vault info / index ──────────────────────────────────────────────────────
@@ -374,14 +422,14 @@ pub fn resolve_conflict(
 #[tauri::command]
 #[specta::specta]
 pub fn list_trash(state: State<AppEngine>) -> CmdResult<Vec<TrashItem>> {
-    state.with(|e| trash::list_trash(&e.data_dir))
+    state.with(|e| trash::list_trash(&e.vault_path))
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn restore_trash(state: State<AppEngine>, id: String) -> CmdResult<String> {
     state.with(|e| {
-        let restored = trash::restore_note(&e.vault_path, &e.data_dir, &id)?;
+        let restored = trash::restore_note(&e.vault_path, &id)?;
         change::reindex_path(&e.db, &e.vault_path, &restored)?;
         Ok(restored)
     })
@@ -389,8 +437,44 @@ pub fn restore_trash(state: State<AppEngine>, id: String) -> CmdResult<String> {
 
 #[tauri::command]
 #[specta::specta]
+pub fn delete_trash_item(state: State<AppEngine>, id: String) -> CmdResult<()> {
+    state.with(|e| trash::delete_trash_item(&e.vault_path, &id))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn empty_trash(state: State<AppEngine>) -> CmdResult<u32> {
-    state.with(|e| trash::empty_trash(&e.data_dir).map(|n| n as u32))
+    state.with(|e| trash::empty_trash(&e.vault_path).map(|n| n as u32))
+}
+
+// ── Version history ────────────────────────────────────────────────────────
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_versions(state: State<AppEngine>, path: String) -> CmdResult<Vec<VersionMeta>> {
+    state.with(|e| novalis_core::versions::list_versions(&e.data_dir, &path))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn read_version(
+    state: State<AppEngine>,
+    path: String,
+    version_id: String,
+) -> CmdResult<String> {
+    state.with(|e| novalis_core::versions::read_version(&e.data_dir, &path, &version_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn restore_version(
+    state: State<AppEngine>,
+    path: String,
+    version_id: String,
+) -> CmdResult<Note> {
+    state.with(|e| {
+        novalis_core::notes::restore_version(&e.db, &e.vault_path, &e.data_dir, &path, &version_id)
+    })
 }
 
 // ── Preferences ────────────────────────────────────────────────────────────
@@ -431,6 +515,26 @@ pub fn toggle_task(state: State<AppEngine>, id: String) -> CmdResult<bool> {
 #[specta::specta]
 pub fn set_task_status(state: State<AppEngine>, id: String, status: String) -> CmdResult<()> {
     state.with(|e| task_svc::set_status(&e.db, &e.vault_path, &id, &status))
+}
+
+/// Set or clear an annotation on a task. `field` is one of `project` | `epic` |
+/// `priority` | `due`; `value = null` removes it.
+#[tauri::command]
+#[specta::specta]
+pub fn update_task(
+    state: State<AppEngine>,
+    id: String,
+    field: String,
+    value: Option<String>,
+) -> CmdResult<()> {
+    state.with(|e| task_svc::update_task(&e.db, &e.vault_path, &id, &field, value.as_deref()))
+}
+
+/// Delete a task (remove its checkbox line from the source note).
+#[tauri::command]
+#[specta::specta]
+pub fn delete_task(state: State<AppEngine>, id: String) -> CmdResult<()> {
+    state.with(|e| task_svc::delete_task(&e.db, &e.vault_path, &id))
 }
 
 #[tauri::command]
@@ -549,7 +653,7 @@ pub fn update_event(state: State<AppEngine>, input: EventInput) -> CmdResult<Cal
 #[tauri::command]
 #[specta::specta]
 pub fn delete_event(state: State<AppEngine>, note_path: String) -> CmdResult<()> {
-    state.with(|e| calendar::delete_event(&e.db, &e.vault_path, &e.data_dir, &note_path))
+    state.with(|e| calendar::delete_event(&e.db, &e.vault_path, &note_path))
 }
 
 #[tauri::command]

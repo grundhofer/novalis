@@ -1,0 +1,13 @@
+{
+  "banner": "Sync conflicts: {{n}}",
+  "conflicted": "Conflicted copy",
+  "description": "Your sync service created these copies (e.g. OneDrive). Choose which version to keep.",
+  "empty": "No sync conflicts.",
+  "keepBoth": "Keep both",
+  "keepConflict": "Use conflicted copy",
+  "keepOriginal": "Keep original",
+  "missing": "The original no longer exists.",
+  "original": "Original",
+  "review": "Review",
+  "title": "Sync conflicts"
+}

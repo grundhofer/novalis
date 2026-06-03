@@ -1,4 +1,5 @@
 {
+  "backToTasks": "Back to tasks",
   "blockquote": "Quote",
   "bold": "Bold",
   "bulletList": "List",
@@ -7,11 +8,18 @@
   "export": "Export",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",
+  "externalChanged": "This note changed on disk.",
+  "externalKeepMine": "Keep mine",
+  "externalReload": "Reload",
   "heading1": "Heading 1",
   "heading2": "Heading 2",
   "italic": "Italic",
   "noteOpen": "No note open",
   "placeholder": "Start writing…",
+  "saved": "Saved",
+  "saveFailed": "Save failed — retry",
+  "saving": "Saving…",
   "selectHint": "Select a note from the sidebar, or create a new one.",
-  "taskList": "Tasks"
+  "taskList": "Tasks",
+  "unsaved": "Unsaved"
 }

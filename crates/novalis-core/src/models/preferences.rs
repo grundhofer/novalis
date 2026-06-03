@@ -29,6 +29,10 @@ pub struct TaskViewPrefs {
     pub kanban_columns: Vec<KanbanColumnDef>,
     #[serde(default)]
     pub task_creation: TaskCreationPrefs,
+    /// Project slug -> color token (e.g. "indigo"), mirroring
+    /// [`FileTreePrefs::folder_colors`]. Synced with the vault.
+    #[serde(default)]
+    pub project_colors: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -241,6 +245,7 @@ impl Default for TaskViewPrefs {
             default_mode: default_task_mode(),
             kanban_columns: default_kanban_columns(),
             task_creation: TaskCreationPrefs::default(),
+            project_colors: HashMap::new(),
         }
     }
 }

@@ -4,11 +4,15 @@ import "i18next";
 
 import calendar from "../locales/en/calendar.json";
 import common from "../locales/en/common.json";
+import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
+import links from "../locales/en/links.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
+import trash from "../locales/en/trash.json";
 import vault from "../locales/en/vault.json";
+import versions from "../locales/en/versions.json";
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -21,6 +25,10 @@ declare module "i18next" {
       tasks: typeof tasks;
       editor: typeof editor;
       vault: typeof vault;
+      trash: typeof trash;
+      conflict: typeof conflict;
+      versions: typeof versions;
+      links: typeof links;
     };
   }
 }

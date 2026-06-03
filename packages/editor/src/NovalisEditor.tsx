@@ -11,6 +11,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 
 import { WikiLink } from "./WikiLink";
+import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 
 export interface NovalisEditorProps {
   /** Initial markdown content. Remount (via a React `key`) to load another note. */
@@ -25,6 +26,13 @@ export interface NovalisEditorProps {
   resolveImageSrc?: (src: string) => string;
   /** Called when the user clicks a `[[wikilink]]`. Host resolves+opens. */
   onWikiLinkClick?: (title: string) => void;
+  /** Search note titles for the `[[` autocomplete. Host wires it to its index;
+   *  results are shown in a popover and inserted as plain `[[Title]]` text. */
+  onSearchLinkTargets?: (query: string) => Promise<{ title: string; path: string }[]>;
+  /** Pointer entered a `[[wikilink]]` — host may show a preview at `rect`. */
+  onWikiLinkHover?: (title: string, rect: DOMRect) => void;
+  /** Pointer left the hovered wikilink. */
+  onWikiLinkHoverEnd?: () => void;
   /** Debounce (ms) for full-document markdown serialization. Default 200. */
   serializeMs?: number;
   /** Browser spellcheck in the editable area. Default true. */
@@ -74,6 +82,9 @@ export function NovalisEditor({
   onUploadImage,
   resolveImageSrc,
   onWikiLinkClick,
+  onSearchLinkTargets,
+  onWikiLinkHover,
+  onWikiLinkHoverEnd,
   serializeMs,
   spellCheck,
   labels,
@@ -130,7 +141,12 @@ export function NovalisEditor({
       Link.configure({ openOnClick: false, autolink: true }),
       VaultImage,
       Placeholder.configure({ placeholder: placeholder ?? lbl.placeholder }),
-      WikiLink.configure({ onClick: onWikiLinkClick }),
+      WikiLink.configure({
+        onClick: onWikiLinkClick,
+        onHover: onWikiLinkHover,
+        onHoverEnd: onWikiLinkHoverEnd,
+      }),
+      WikiLinkSuggestion.configure({ onSearch: onSearchLinkTargets }),
     ],
     content: value,
     onUpdate: ({ editor }) => {

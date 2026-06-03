@@ -108,13 +108,8 @@ pub fn update_event(db: &Connection, vault: &Path, input: EventInput) -> CoreRes
 }
 
 /// Delete an own event (trashes its note).
-pub fn delete_event(
-    db: &Connection,
-    vault: &Path,
-    data_dir: &Path,
-    note_path: &str,
-) -> CoreResult<()> {
-    crate::notes::delete(db, vault, data_dir, note_path)
+pub fn delete_event(db: &Connection, vault: &Path, note_path: &str) -> CoreResult<()> {
+    crate::notes::delete(db, vault, note_path)
 }
 
 /// List events (own + cached remote) within a date range, recurrences expanded.

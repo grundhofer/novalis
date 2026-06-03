@@ -1,4 +1,6 @@
 {
+  "addCard": "Añadir tarjeta",
+  "addCardPlaceholder": "Nueva tarea…",
   "addPlaceholder": "Añadir una tarea…  (p. ej. Publicar la versión @due(2026-06-01) @priority(high))",
   "agenda": {
     "noDate": "Sin fecha",
@@ -6,18 +8,54 @@
     "today": "Hoy",
     "upcoming": "Próximas"
   },
+  "detail": {
+    "completeHint": "Las tareas completadas se ocultan del tablero",
+    "due": "Vence",
+    "epic": "Épica",
+    "noEpic": "Sin épica",
+    "noPriority": "Sin prioridad",
+    "noProject": "Sin proyecto",
+    "openNote": "Abrir nota",
+    "priority": "Prioridad",
+    "project": "Proyecto",
+    "status": "Estado",
+    "subtasks": "Subtareas {{done}}/{{total}}",
+    "tags": "Etiquetas"
+  },
   "empty": "No hay tareas. Añadir una arriba o escribir <1>- [ ] algo</1> en una nota.",
   "filter": {
     "all": "Todas",
     "completed": "Completadas",
     "open": "Abiertas"
   },
+  "filterBar": {
+    "anyDue": "Cualquier fecha",
+    "anyFolder": "Cualquier carpeta",
+    "anyPriority": "Cualquier prioridad",
+    "anyProject": "Cualquier proyecto",
+    "anyTag": "Cualquier etiqueta",
+    "clear": "Limpiar",
+    "groupFolder": "Por carpeta",
+    "groupNone": "Sin agrupar",
+    "groupNote": "Por nota",
+    "groupProject": "Por proyecto",
+    "noDue": "Sin fecha",
+    "search": "Buscar…",
+    "thisWeek": "Esta semana"
+  },
   "kanban": {
     "backlog": "Backlog",
     "done": "Hecho",
     "inProgress": "En curso",
+    "noProject": "(Sin proyecto)",
     "review": "Revisión",
+    "rootFolder": "(Raíz)",
     "todo": "Por hacer"
+  },
+  "menu": {
+    "cancel": "Cancelar",
+    "confirmDelete": "Confirmar",
+    "delete": "Eliminar tarea"
   },
   "priority": {
     "high": "Alta",

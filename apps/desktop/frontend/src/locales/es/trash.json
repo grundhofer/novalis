@@ -1,0 +1,13 @@
+{
+  "deleteConfirmBody": "¿Eliminar «{{name}}» de forma permanente? Esta acción no se puede deshacer.",
+  "deleteConfirmTitle": "¿Eliminar de forma permanente?",
+  "deletePermanently": "Eliminar de forma permanente",
+  "empty": "La papelera está vacía.",
+  "emptyConfirmBody": "¿Eliminar de forma permanente todo el contenido de la papelera? Esta acción no se puede deshacer.",
+  "emptyConfirmTitle": "¿Vaciar la papelera?",
+  "emptyTrash": "Vaciar la papelera",
+  "restore": "Restaurar",
+  "title": "Eliminados recientemente",
+  "trashConfirmBody": "¿Mover «{{name}}» a la papelera? Se puede restaurar desde «Eliminados recientemente».",
+  "trashConfirmTitle": "¿Eliminar la nota?"
+}

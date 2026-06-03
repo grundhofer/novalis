@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  Trash2,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -72,18 +73,20 @@ export function Sidebar({
   onViewChange,
   onOpenSearch,
   onOpenSettings,
+  onOpenTrash,
 }: {
   view: MainView;
   onViewChange: (v: MainView) => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenTrash: () => void;
 }) {
   const tree = useVault((s) => s.tree);
   const vaultPath = useVault((s) => s.vaultPath);
   const collapseAll = useVault((s) => s.collapseAll);
   const moveItem = useVault((s) => s.moveItem);
   const vaultName = vaultPath ? vaultPath.split("/").filter(Boolean).pop() : "Vault";
-  const { t } = useTranslation(["sidebar", "common"]);
+  const { t } = useTranslation(["sidebar", "common", "trash"]);
   const viewLabels: Record<MainView, string> = {
     notes: t("common:views.notes"),
     tasks: t("common:views.tasks"),
@@ -227,6 +230,17 @@ export function Sidebar({
         </Ctx.Provider>
       </div>
 
+      {/* Recently deleted lives at the bottom as a destination, not a toolbar tool. */}
+      <div className="border-t border-border/80 p-1.5">
+        <button
+          onClick={onOpenTrash}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+        >
+          <Trash2 size={15} className="shrink-0" />
+          <span className="truncate">{t("trash:title")}</span>
+        </button>
+      </div>
+
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {colorPicker && (
         <ColorPopover
@@ -265,10 +279,15 @@ function buildMenu(target: MenuTarget, actions: CtxActions): MenuItem[] {
         danger: true,
         separatorBefore: true,
         onClick: () => {
-          if (window.confirm(i18n.t("sidebar:confirm.trashNote", { title: note?.title ?? target.path }))) {
+          if (!window.confirm(i18n.t("sidebar:confirm.trashNote", { title: note?.title ?? target.path }))) {
+            return;
+          }
+          if (s.activePath === target.path) {
+            // Route through the store so pending edits flush into the trashed copy.
+            void s.deleteActive();
+          } else {
             void api.deleteNote(target.path).then(() => {
               s.invalidateNote(target.path);
-              if (s.activePath === target.path) useVault.setState({ activePath: null, activeNote: null });
               void s.refreshTree();
             });
           }

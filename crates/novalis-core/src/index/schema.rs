@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use crate::error::CoreResult;
 
 /// Bump this whenever the table layout below changes.
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -80,7 +80,11 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
             source_line INTEGER NOT NULL,
             tags TEXT DEFAULT '[]',
             repeat TEXT,
-            parent_id TEXT
+            parent_id TEXT,
+            note_title TEXT NOT NULL DEFAULT '',
+            heading TEXT,
+            project TEXT,
+            epic TEXT
         );
 
         CREATE TABLE IF NOT EXISTS links (

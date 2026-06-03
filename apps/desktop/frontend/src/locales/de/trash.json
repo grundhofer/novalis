@@ -1,0 +1,13 @@
+{
+  "deleteConfirmBody": "„{{name}}“ endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+  "deleteConfirmTitle": "Endgültig löschen?",
+  "deletePermanently": "Endgültig löschen",
+  "empty": "Der Papierkorb ist leer.",
+  "emptyConfirmBody": "Alle Elemente im Papierkorb endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+  "emptyConfirmTitle": "Papierkorb leeren?",
+  "emptyTrash": "Papierkorb leeren",
+  "restore": "Wiederherstellen",
+  "title": "Zuletzt gelöscht",
+  "trashConfirmBody": "„{{name}}“ in den Papierkorb verschieben? Eine Wiederherstellung ist über „Zuletzt gelöscht“ möglich.",
+  "trashConfirmTitle": "Notiz löschen?"
+}

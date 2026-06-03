@@ -19,6 +19,7 @@ pub mod tasks;
 pub mod templates;
 pub mod trash;
 pub mod vault;
+pub mod versions;
 
 pub use error::{CoreError, CoreResult};
 pub use models::AppInfo;

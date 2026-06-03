@@ -13,18 +13,64 @@ use crate::models::{Task, TaskQuery};
 /// Extract tasks (markdown checkboxes) from note content.
 pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
     let task_re = Regex::new(r"^([ \t]*)- \[([ xX])\] (.+)$").unwrap();
+    let heading_re = Regex::new(r"^ {0,3}#{1,6}\s+(.+)$").unwrap();
     let due_re = Regex::new(r"@due\((\d{4}-\d{2}-\d{2})\)").unwrap();
     let priority_re = Regex::new(r"@priority\((urgent|high|medium|low)\)").unwrap();
     let status_re = Regex::new(r"@status\(([a-z0-9-]+)\)").unwrap();
     let repeat_re = Regex::new(r"@repeat\((daily|weekly|monthly|yearly)\)").unwrap();
+    let project_re = Regex::new(r"@project\(([a-z0-9-]+)\)").unwrap();
+    let epic_re = Regex::new(r"@epic\(([a-z0-9-]+)\)").unwrap();
     let tag_re = Regex::new(r"#(\w+)").unwrap();
+
+    // Display title for the note, derived the same way as the search index.
+    let (fm, body) = crate::vault::frontmatter::parse_frontmatter(content);
+    let filename = note_path.rsplit('/').next().unwrap_or(note_path);
+    let note_title = crate::vault::frontmatter::extract_title(&fm, &body, filename);
 
     let mut tasks = Vec::new();
     // Stack of (indent width, task id): a task's parent is the nearest preceding
     // task with a strictly smaller indent.
     let mut stack: Vec<(usize, String)> = Vec::new();
+    // The nearest preceding markdown heading — the section a task lives under.
+    let mut current_heading: Option<String> = None;
+    // Skip a leading YAML frontmatter block, and the inside of fenced code
+    // blocks, so a `#` line in either isn't mistaken for a heading. (Task line
+    // numbers stay 1-based over the full content; task detection itself is left
+    // fence-agnostic, matching the prior behavior.)
+    let mut in_frontmatter = false;
+    let mut in_code_fence = false;
 
     for (line_idx, line) in content.lines().enumerate() {
+        if line_idx == 0 && line.trim_end() == "---" {
+            in_frontmatter = true;
+            continue;
+        }
+        if in_frontmatter {
+            if line.trim_end() == "---" {
+                in_frontmatter = false;
+            }
+            continue;
+        }
+
+        let fence = line.trim_start();
+        if fence.starts_with("```") || fence.starts_with("~~~") {
+            in_code_fence = !in_code_fence;
+            continue;
+        }
+
+        if !in_code_fence {
+            if let Some(hc) = heading_re.captures(line) {
+                let cleaned = hc
+                    .get(1)
+                    .unwrap()
+                    .as_str()
+                    .trim_end_matches([' ', '#'])
+                    .trim();
+                current_heading = (!cleaned.is_empty()).then(|| cleaned.to_string());
+                continue;
+            }
+        }
+
         if let Some(caps) = task_re.captures(line) {
             let indent = caps.get(1).unwrap().as_str().chars().count();
             let checkbox = caps.get(2).unwrap().as_str();
@@ -38,6 +84,12 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
                 .captures(&text_raw)
                 .map(|c| c.get(1).unwrap().as_str().to_string());
             let status = status_re
+                .captures(&text_raw)
+                .map(|c| c.get(1).unwrap().as_str().to_string());
+            let project = project_re
+                .captures(&text_raw)
+                .map(|c| c.get(1).unwrap().as_str().to_string());
+            let epic = epic_re
                 .captures(&text_raw)
                 .map(|c| c.get(1).unwrap().as_str().to_string());
             let tags: Vec<String> = tag_re
@@ -73,6 +125,10 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
                 tags,
                 repeat,
                 parent_id,
+                note_title: note_title.clone(),
+                heading: current_heading.clone(),
+                project,
+                epic,
             });
         }
     }
@@ -130,8 +186,8 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
     )?;
 
     let mut stmt = db.prepare(
-        "INSERT INTO tasks (id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO tasks (id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
     )?;
 
     for task in tasks {
@@ -148,6 +204,10 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
             tags_json,
             task.repeat,
             task.parent_id,
+            task.note_title,
+            task.heading,
+            task.project,
+            task.epic,
         ])?;
     }
 
@@ -157,7 +217,7 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
 /// Query tasks with optional filters.
 pub fn query_tasks(db: &Connection, query: &TaskQuery) -> CoreResult<Vec<Task>> {
     let mut sql = String::from(
-        "SELECT id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id FROM tasks WHERE 1=1",
+        "SELECT id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic FROM tasks WHERE 1=1",
     );
     let mut bind_values: Vec<String> = Vec::new();
 
@@ -211,6 +271,10 @@ pub fn query_tasks(db: &Connection, query: &TaskQuery) -> CoreResult<Vec<Task>> 
                 tags,
                 repeat: row.get(9)?,
                 parent_id: row.get(10)?,
+                note_title: row.get(11)?,
+                heading: row.get(12)?,
+                project: row.get(13)?,
+                epic: row.get(14)?,
             })
         })?
         .filter_map(|r| r.ok())
@@ -312,6 +376,105 @@ pub fn update_task_status(
     Ok(())
 }
 
+/// Set, replace, or remove an `@key(value)` annotation on a task's source line.
+/// `value = Some(v)` sets/replaces `@key(v)` (appending if absent, preserving
+/// trailing whitespace); `value = None` removes any existing `@key(...)`.
+///
+/// The task id is derived from path + line and is not stable across edits, so
+/// this refuses to touch a line that is no longer a task checkbox.
+pub fn update_task_annotation(
+    vault: &Path,
+    note_path: &str,
+    line: usize,
+    key: &str,
+    value: Option<&str>,
+) -> CoreResult<()> {
+    let abs = vault.join(note_path);
+    if !abs.exists() {
+        return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
+    }
+
+    let content = std::fs::read_to_string(&abs)?;
+    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+
+    let idx = line
+        .checked_sub(1)
+        .ok_or_else(|| CoreError::BadRequest("Invalid line number".to_string()))?;
+    if idx >= lines.len() {
+        return Err(CoreError::BadRequest(format!(
+            "Line {line} out of range (file has {} lines)",
+            lines.len()
+        )));
+    }
+
+    let line_str = &lines[idx];
+    let task_re = Regex::new(r"^[ \t]*- \[[ xX]\] ").unwrap();
+    if !task_re.is_match(line_str) {
+        return Err(CoreError::BadRequest(format!(
+            "Line {line} is not a task checkbox"
+        )));
+    }
+
+    let key_esc = regex::escape(key);
+    let new_line = match value {
+        Some(v) => {
+            let set_re = Regex::new(&format!(r"@{key_esc}\([^)]*\)")).unwrap();
+            if set_re.is_match(line_str) {
+                set_re
+                    .replace(line_str, format!("@{key}({v})").as_str())
+                    .to_string()
+            } else {
+                let trimmed_end = line_str.trim_end();
+                let trailing = &line_str[trimmed_end.len()..];
+                format!("{trimmed_end} @{key}({v}){trailing}")
+            }
+        }
+        None => {
+            // Drop the annotation along with one leading space, if present.
+            let del_re = Regex::new(&format!(r" ?@{key_esc}\([^)]*\)")).unwrap();
+            del_re.replace(line_str, "").to_string()
+        }
+    };
+
+    lines[idx] = new_line;
+    write_lines(&abs, &content, &lines)?;
+    Ok(())
+}
+
+/// Delete a task's checkbox line from its source note. Guards that the target
+/// line is still a task checkbox (the line-derived id is not stable across
+/// edits) before removing it.
+pub fn delete_task_line(vault: &Path, note_path: &str, line: usize) -> CoreResult<()> {
+    let abs = vault.join(note_path);
+    if !abs.exists() {
+        return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
+    }
+
+    let content = std::fs::read_to_string(&abs)?;
+    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+
+    let idx = line
+        .checked_sub(1)
+        .ok_or_else(|| CoreError::BadRequest("Invalid line number".to_string()))?;
+    if idx >= lines.len() {
+        return Err(CoreError::BadRequest(format!(
+            "Line {line} out of range (file has {} lines)",
+            lines.len()
+        )));
+    }
+
+    let task_re = Regex::new(r"^[ \t]*- \[[ xX]\] ").unwrap();
+    if !task_re.is_match(&lines[idx]) {
+        return Err(CoreError::BadRequest(format!(
+            "Line {line} is not a task checkbox"
+        )));
+    }
+
+    lines.remove(idx);
+    write_lines(&abs, &content, &lines)?;
+    Ok(())
+}
+
 /// Join lines and write, preserving a trailing newline if the original had one.
 fn write_lines(abs: &Path, original: &str, lines: &[String]) -> CoreResult<()> {
     let mut joined = lines.join("\n");
@@ -383,5 +546,71 @@ mod tests {
         assert_eq!(next_due(d, "monthly"), NaiveDate::from_ymd_opt(2026, 6, 24));
         assert_eq!(next_due(d, "yearly"), NaiveDate::from_ymd_opt(2027, 5, 24));
         assert_eq!(next_due(d, "bogus"), None);
+    }
+
+    #[test]
+    fn extract_tasks_captures_heading_note_title_project_epic() {
+        let md = "---\ntitle: My Note\n---\n\n# Top\n\n## Section A\n- [ ] Do thing @project(work) @epic(q3)\n";
+        let tasks = extract_tasks(md, "Projects/Plan.md");
+        assert_eq!(tasks.len(), 1);
+        let t = &tasks[0];
+        assert_eq!(t.note_title, "My Note");
+        assert_eq!(t.heading.as_deref(), Some("Section A"));
+        assert_eq!(t.project.as_deref(), Some("work"));
+        assert_eq!(t.epic.as_deref(), Some("q3"));
+    }
+
+    #[test]
+    fn extract_tasks_ignores_headings_inside_code_fences() {
+        let md = "## Real Section\n\n```sh\n# just a comment\n```\n\n- [ ] Do it\n";
+        let tasks = extract_tasks(md, "n.md");
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].heading.as_deref(), Some("Real Section"));
+    }
+
+    #[test]
+    fn extract_tasks_note_title_falls_back_to_filename_and_no_heading() {
+        let tasks = extract_tasks("- [ ] Lone task", "Inbox/Quick.md");
+        assert_eq!(tasks[0].note_title, "Quick");
+        assert_eq!(tasks[0].heading, None);
+        assert_eq!(tasks[0].project, None);
+    }
+
+    #[test]
+    fn update_task_annotation_sets_replaces_and_removes() {
+        let dir = std::env::temp_dir().join(format!("novalis-ann-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let rel = "n.md";
+        let abs = dir.join(rel);
+        std::fs::write(&abs, "- [ ] Task\n").unwrap();
+
+        // Append when absent.
+        update_task_annotation(&dir, rel, 1, "project", Some("work")).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&abs).unwrap(),
+            "- [ ] Task @project(work)\n"
+        );
+
+        // Replace existing in place.
+        update_task_annotation(&dir, rel, 1, "project", Some("home")).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&abs).unwrap(),
+            "- [ ] Task @project(home)\n"
+        );
+
+        // Remove (drops the leading space too).
+        update_task_annotation(&dir, rel, 1, "project", None).unwrap();
+        assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Task\n");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn update_task_annotation_rejects_non_task_line() {
+        let dir = std::env::temp_dir().join(format!("novalis-ann-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("n.md"), "Just a paragraph\n").unwrap();
+        assert!(update_task_annotation(&dir, "n.md", 1, "project", Some("work")).is_err());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

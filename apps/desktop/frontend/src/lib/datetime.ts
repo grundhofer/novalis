@@ -28,6 +28,25 @@ export function monthYearLabel(date: Date): string {
   return new Intl.DateTimeFormat(activeLocale(), { month: "long", year: "numeric" }).format(date);
 }
 
+/** Localized date + time for an ISO/RFC 3339 string (raw value if unparseable). */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat(activeLocale(), {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(d);
+}
+
+/** Localized date + time from a trash id stamp (`YYYYMMDD_HHMMSS`, stored UTC). */
+export function formatStamp(stamp: string): string {
+  const m = stamp.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+  if (!m) return stamp;
+  const [, y, mo, d, h, mi, s] = m;
+  const date = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+  return formatDateTime(date.toISOString());
+}
+
 /** Format a 24h `HH:MM` string in the chosen time format. 24-hour is returned
  *  verbatim (locale-neutral); 12-hour uses the locale's AM/PM markers. */
 export function formatTime(hhmm: string, fmt: "12h" | "24h"): string {

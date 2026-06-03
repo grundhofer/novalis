@@ -8,32 +8,48 @@ import { initReactI18next } from "react-i18next";
 
 import deCalendar from "../locales/de/calendar.json";
 import deCommon from "../locales/de/common.json";
+import deConflict from "../locales/de/conflict.json";
 import deEditor from "../locales/de/editor.json";
+import deLinks from "../locales/de/links.json";
 import deSettings from "../locales/de/settings.json";
 import deSidebar from "../locales/de/sidebar.json";
 import deTasks from "../locales/de/tasks.json";
+import deTrash from "../locales/de/trash.json";
 import deVault from "../locales/de/vault.json";
+import deVersions from "../locales/de/versions.json";
 import esCalendar from "../locales/es/calendar.json";
 import esCommon from "../locales/es/common.json";
+import esConflict from "../locales/es/conflict.json";
 import esEditor from "../locales/es/editor.json";
+import esLinks from "../locales/es/links.json";
 import esSettings from "../locales/es/settings.json";
 import esSidebar from "../locales/es/sidebar.json";
 import esTasks from "../locales/es/tasks.json";
+import esTrash from "../locales/es/trash.json";
 import esVault from "../locales/es/vault.json";
+import esVersions from "../locales/es/versions.json";
 import frCalendar from "../locales/fr/calendar.json";
 import frCommon from "../locales/fr/common.json";
+import frConflict from "../locales/fr/conflict.json";
 import frEditor from "../locales/fr/editor.json";
+import frLinks from "../locales/fr/links.json";
 import frSettings from "../locales/fr/settings.json";
 import frSidebar from "../locales/fr/sidebar.json";
 import frTasks from "../locales/fr/tasks.json";
+import frTrash from "../locales/fr/trash.json";
 import frVault from "../locales/fr/vault.json";
+import frVersions from "../locales/fr/versions.json";
 import calendar from "../locales/en/calendar.json";
 import common from "../locales/en/common.json";
+import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
+import links from "../locales/en/links.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
+import trash from "../locales/en/trash.json";
 import vault from "../locales/en/vault.json";
+import versions from "../locales/en/versions.json";
 import { getLanguage, type LanguageCode } from "./language";
 
 export const NAMESPACES = [
@@ -44,6 +60,10 @@ export const NAMESPACES = [
   "tasks",
   "editor",
   "vault",
+  "trash",
+  "conflict",
+  "versions",
+  "links",
 ] as const;
 
 // --- dev-only pseudo-locale generation -------------------------------------
@@ -87,7 +107,7 @@ function pseudoize(node: unknown): unknown {
 
 // ---------------------------------------------------------------------------
 
-const en = { common, settings, sidebar, calendar, tasks, editor, vault };
+const en = { common, settings, sidebar, calendar, tasks, editor, vault, trash, conflict, versions, links };
 const de = {
   common: deCommon,
   settings: deSettings,
@@ -96,6 +116,10 @@ const de = {
   tasks: deTasks,
   editor: deEditor,
   vault: deVault,
+  trash: deTrash,
+  conflict: deConflict,
+  versions: deVersions,
+  links: deLinks,
 };
 const fr = {
   common: frCommon,
@@ -105,6 +129,10 @@ const fr = {
   tasks: frTasks,
   editor: frEditor,
   vault: frVault,
+  trash: frTrash,
+  conflict: frConflict,
+  versions: frVersions,
+  links: frLinks,
 };
 const es = {
   common: esCommon,
@@ -114,6 +142,10 @@ const es = {
   tasks: esTasks,
   editor: esEditor,
   vault: esVault,
+  trash: esTrash,
+  conflict: esConflict,
+  versions: esVersions,
+  links: esLinks,
 };
 
 const resources: Resource = { en, de, fr, es };

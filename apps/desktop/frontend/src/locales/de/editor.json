@@ -1,4 +1,5 @@
 {
+  "backToTasks": "Zurück zu Aufgaben",
   "blockquote": "Zitat",
   "bold": "Fett",
   "bulletList": "Liste",
@@ -7,11 +8,18 @@
   "export": "Exportieren",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",
+  "externalChanged": "Diese Notiz wurde auf dem Datenträger geändert.",
+  "externalKeepMine": "Eigene behalten",
+  "externalReload": "Neu laden",
   "heading1": "Überschrift 1",
   "heading2": "Überschrift 2",
   "italic": "Kursiv",
   "noteOpen": "Keine Notiz geöffnet",
   "placeholder": "Mit dem Schreiben beginnen…",
+  "saveFailed": "Speichern fehlgeschlagen – erneut versuchen",
+  "saved": "Gespeichert",
+  "saving": "Speichern …",
   "selectHint": "Eine Notiz in der Seitenleiste auswählen oder eine neue erstellen.",
-  "taskList": "Aufgaben"
+  "taskList": "Aufgaben",
+  "unsaved": "Nicht gespeichert"
 }

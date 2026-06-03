@@ -1,4 +1,6 @@
 {
+  "addCard": "Add card",
+  "addCardPlaceholder": "New task…",
   "addPlaceholder": "Add a task…  (e.g. Ship release @due(2026-06-01) @priority(high))",
   "agenda": {
     "noDate": "No date",
@@ -6,18 +8,54 @@
     "today": "Today",
     "upcoming": "Upcoming"
   },
+  "detail": {
+    "completeHint": "Completed tasks are hidden from the board",
+    "due": "Due",
+    "epic": "Epic",
+    "noEpic": "No epic",
+    "noPriority": "No priority",
+    "noProject": "No project",
+    "openNote": "Open note",
+    "priority": "Priority",
+    "project": "Project",
+    "status": "Status",
+    "subtasks": "Subtasks {{done}}/{{total}}",
+    "tags": "Tags"
+  },
   "empty": "No tasks. Add one above, or write <1>- [ ] something</1> in a note.",
   "filter": {
     "all": "All",
     "completed": "Completed",
     "open": "Open"
   },
+  "filterBar": {
+    "anyDue": "Any due date",
+    "anyFolder": "Any folder",
+    "anyPriority": "Any priority",
+    "anyProject": "Any project",
+    "anyTag": "Any tag",
+    "clear": "Clear",
+    "groupFolder": "By folder",
+    "groupNone": "No grouping",
+    "groupNote": "By note",
+    "groupProject": "By project",
+    "noDue": "No due date",
+    "search": "Search…",
+    "thisWeek": "This week"
+  },
   "kanban": {
     "backlog": "Backlog",
     "done": "Done",
     "inProgress": "In Progress",
+    "noProject": "(No project)",
     "review": "Review",
+    "rootFolder": "(Root)",
     "todo": "To Do"
+  },
+  "menu": {
+    "cancel": "Cancel",
+    "confirmDelete": "Confirm",
+    "delete": "Delete task"
   },
   "priority": {
     "high": "High",

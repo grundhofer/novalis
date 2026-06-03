@@ -54,6 +54,14 @@ export const api = {
   moveFolder: (path: string, newPath: string) => unwrap(commands.moveFolder(path, newPath)),
   search: (query: string) => unwrap(commands.search(query, null, null)),
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
+
+  // Linked writing
+  backlinks: (title: string) => unwrap(commands.backlinks(title)),
+  unlinkedMentions: (title: string, selfPath: string) =>
+    unwrap(commands.unlinkedMentions(title, selfPath)),
+  linkMention: (path: string, title: string, line: number) =>
+    unwrap(commands.linkMention(path, title, line)),
+  noteGraph: (path: string) => unwrap(commands.noteGraph(path)),
   reindexVault: () => unwrap(commands.reindexVault()),
   rescanVault: () => unwrap(commands.rescanVault()),
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
@@ -86,6 +94,9 @@ export const api = {
     ),
   toggleTask: (id: string) => unwrap(commands.toggleTask(id)),
   setTaskStatus: (id: string, status: string) => unwrap(commands.setTaskStatus(id, status)),
+  updateTask: (id: string, field: "project" | "epic" | "priority" | "due", value: string | null) =>
+    unwrap(commands.updateTask(id, field, value)),
+  deleteTask: (id: string) => unwrap(commands.deleteTask(id)),
 
   // Templates / export / media
   listTemplates: () => unwrap(commands.listTemplates()),
@@ -121,6 +132,26 @@ export const api = {
   setPluginEnabled: (id: string, enabled: boolean) =>
     unwrap(commands.setPluginEnabled(id, enabled)),
   readPluginSource: (id: string) => unwrap(commands.readPluginSource(id)),
+
+  // Trash (Recently deleted)
+  listTrash: () => unwrap(commands.listTrash()),
+  restoreTrash: (id: string) => unwrap(commands.restoreTrash(id)),
+  deleteTrashItem: (id: string) => unwrap(commands.deleteTrashItem(id)),
+  emptyTrash: () => unwrap(commands.emptyTrash()),
+
+  // Version history
+  listVersions: (path: string) => unwrap(commands.listVersions(path)),
+  readVersion: (path: string, versionId: string) =>
+    unwrap(commands.readVersion(path, versionId)),
+  restoreVersion: (path: string, versionId: string) =>
+    unwrap(commands.restoreVersion(path, versionId)),
+
+  // Sync conflicts
+  listConflicts: () => unwrap(commands.listConflicts()),
+  conflictDiff: (original: string, conflict: string) =>
+    unwrap(commands.conflictDiff(original, conflict)),
+  resolveConflict: (req: Parameters<typeof commands.resolveConflict>[0]) =>
+    unwrap(commands.resolveConflict(req)),
 };
 
 export interface EventDraft {

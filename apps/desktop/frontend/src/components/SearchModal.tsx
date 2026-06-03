@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, type NoteSummary } from "../ipc/api";
+import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
 export function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -10,6 +11,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NoteSummary[]>([]);
   const openNote = useVault((s) => s.openNote);
+  const setView = useUi((s) => s.setView);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   if (!open) return null;
 
   const pick = (path: string) => {
+    setView("notes"); // search can run from any view; make the editor visible
     void openNote(path);
     onClose();
   };

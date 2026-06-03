@@ -1,4 +1,5 @@
 {
+  "backToTasks": "Retour aux tâches",
   "blockquote": "Citation",
   "bold": "Gras",
   "bulletList": "Liste",
@@ -7,11 +8,18 @@
   "export": "Exporter",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",
+  "externalChanged": "Cette note a été modifiée sur le disque.",
+  "externalKeepMine": "Conserver la mienne",
+  "externalReload": "Recharger",
   "heading1": "Titre 1",
   "heading2": "Titre 2",
   "italic": "Italique",
   "noteOpen": "Aucune note ouverte",
   "placeholder": "Commencer à écrire…",
+  "saveFailed": "Échec de l'enregistrement — réessayer",
+  "saved": "Enregistré",
+  "saving": "Enregistrement…",
   "selectHint": "Sélectionner une note dans la barre latérale ou en créer une nouvelle.",
-  "taskList": "Tâches"
+  "taskList": "Tâches",
+  "unsaved": "Non enregistré"
 }

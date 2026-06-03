@@ -1,4 +1,6 @@
 {
+  "addCard": "Ajouter une carte",
+  "addCardPlaceholder": "Nouvelle tâche…",
   "addPlaceholder": "Ajouter une tâche…  (p. ex. Publier la version @due(2026-06-01) @priority(high))",
   "agenda": {
     "noDate": "Sans date",
@@ -6,18 +8,54 @@
     "today": "Aujourd'hui",
     "upcoming": "À venir"
   },
+  "detail": {
+    "completeHint": "Les tâches terminées sont masquées du tableau",
+    "due": "Échéance",
+    "epic": "Épopée",
+    "noEpic": "Aucune épopée",
+    "noPriority": "Aucune priorité",
+    "noProject": "Aucun projet",
+    "openNote": "Ouvrir la note",
+    "priority": "Priorité",
+    "project": "Projet",
+    "status": "Statut",
+    "subtasks": "Sous-tâches {{done}}/{{total}}",
+    "tags": "Étiquettes"
+  },
   "empty": "Aucune tâche. En ajouter une ci-dessus ou écrire <1>- [ ] quelque chose</1> dans une note.",
   "filter": {
     "all": "Toutes",
     "completed": "Terminées",
     "open": "Ouvertes"
   },
+  "filterBar": {
+    "anyDue": "N'importe quelle échéance",
+    "anyFolder": "N'importe quel dossier",
+    "anyPriority": "N'importe quelle priorité",
+    "anyProject": "N'importe quel projet",
+    "anyTag": "N'importe quelle étiquette",
+    "clear": "Effacer",
+    "groupFolder": "Par dossier",
+    "groupNone": "Aucun regroupement",
+    "groupNote": "Par note",
+    "groupProject": "Par projet",
+    "noDue": "Sans échéance",
+    "search": "Rechercher…",
+    "thisWeek": "Cette semaine"
+  },
   "kanban": {
     "backlog": "Backlog",
     "done": "Terminé",
     "inProgress": "En cours",
+    "noProject": "(Aucun projet)",
     "review": "Revue",
+    "rootFolder": "(Racine)",
     "todo": "À faire"
+  },
+  "menu": {
+    "cancel": "Annuler",
+    "confirmDelete": "Confirmer",
+    "delete": "Supprimer la tâche"
   },
   "priority": {
     "high": "Haute",

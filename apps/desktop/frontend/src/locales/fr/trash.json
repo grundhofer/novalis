@@ -1,0 +1,13 @@
+{
+  "deleteConfirmBody": "Supprimer définitivement « {{name}} » ? Cette action est irréversible.",
+  "deleteConfirmTitle": "Supprimer définitivement ?",
+  "deletePermanently": "Supprimer définitivement",
+  "empty": "La corbeille est vide.",
+  "emptyConfirmBody": "Supprimer définitivement tout le contenu de la corbeille ? Cette action est irréversible.",
+  "emptyConfirmTitle": "Vider la corbeille ?",
+  "emptyTrash": "Vider la corbeille",
+  "restore": "Restaurer",
+  "title": "Récemment supprimés",
+  "trashConfirmBody": "Déplacer « {{name}} » vers la corbeille ? Une restauration reste possible depuis « Récemment supprimés ».",
+  "trashConfirmTitle": "Supprimer la note ?"
+}

@@ -254,9 +254,9 @@ pub fn append_line(vault: &Path, relative: &str, line: &str) -> CoreResult<()> {
     Ok(())
 }
 
-/// Delete a note by moving it to trash (in `data_dir`).
-pub fn delete_note(vault: &Path, data_dir: &Path, relative: &str) -> CoreResult<()> {
-    trash::trash_note(vault, data_dir, relative)
+/// Delete a note by moving it to the vault's trash (`.novalis/trash`).
+pub fn delete_note(vault: &Path, relative: &str) -> CoreResult<()> {
+    trash::trash_note(vault, relative)
 }
 
 /// Move/rename a note.

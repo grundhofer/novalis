@@ -1,4 +1,6 @@
 {
+  "addCard": "Karte hinzufügen",
+  "addCardPlaceholder": "Neue Aufgabe…",
   "addPlaceholder": "Aufgabe hinzufügen…  (z. B. Release veröffentlichen @due(2026-06-01) @priority(high))",
   "agenda": {
     "noDate": "Ohne Datum",
@@ -6,18 +8,54 @@
     "today": "Heute",
     "upcoming": "Demnächst"
   },
+  "detail": {
+    "completeHint": "Erledigte Aufgaben werden vom Board ausgeblendet",
+    "due": "Fällig",
+    "epic": "Epic",
+    "noEpic": "Kein Epic",
+    "noPriority": "Keine Priorität",
+    "noProject": "Kein Projekt",
+    "openNote": "Notiz öffnen",
+    "priority": "Priorität",
+    "project": "Projekt",
+    "status": "Status",
+    "subtasks": "Unteraufgaben {{done}}/{{total}}",
+    "tags": "Tags"
+  },
   "empty": "Keine Aufgaben. Oben eine hinzufügen oder <1>- [ ] etwas</1> in einer Notiz schreiben.",
   "filter": {
     "all": "Alle",
     "completed": "Erledigt",
     "open": "Offen"
   },
+  "filterBar": {
+    "anyDue": "Beliebiges Datum",
+    "anyFolder": "Beliebiger Ordner",
+    "anyPriority": "Beliebige Priorität",
+    "anyProject": "Beliebiges Projekt",
+    "anyTag": "Beliebiges Tag",
+    "clear": "Zurücksetzen",
+    "groupFolder": "Nach Ordner",
+    "groupNone": "Keine Gruppierung",
+    "groupNote": "Nach Notiz",
+    "groupProject": "Nach Projekt",
+    "noDue": "Kein Datum",
+    "search": "Suchen…",
+    "thisWeek": "Diese Woche"
+  },
   "kanban": {
     "backlog": "Backlog",
     "done": "Fertig",
     "inProgress": "In Bearbeitung",
+    "noProject": "(Kein Projekt)",
     "review": "Review",
+    "rootFolder": "(Stamm)",
     "todo": "Zu erledigen"
+  },
+  "menu": {
+    "cancel": "Abbrechen",
+    "confirmDelete": "Bestätigen",
+    "delete": "Aufgabe löschen"
   },
   "priority": {
     "high": "Hoch",

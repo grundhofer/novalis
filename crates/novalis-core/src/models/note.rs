@@ -53,6 +53,54 @@ pub struct NoteSummary {
     pub cloud_only: bool,
 }
 
+/// One matching line within a note that links to or mentions a target title.
+/// `line` is 1-based and refers to the raw file (frontmatter included), so it
+/// can locate the line again for [`crate::notes::link_mention`].
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkMatch {
+    pub line: usize,
+    pub snippet: String,
+}
+
+/// A note that references a target title, grouped with the lines where it does.
+/// Used for the "linked references" and "unlinked mentions" panels.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkReference {
+    pub path: String,
+    pub title: String,
+    pub folder: String,
+    pub modified: String,
+    pub matches: Vec<LinkMatch>,
+}
+
+/// A node (note) in the local link graph.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphNode {
+    pub path: String,
+    pub title: String,
+}
+
+/// A directed `[[link]]` edge between two notes, by path.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphEdge {
+    pub source: String,
+    pub target: String,
+}
+
+/// The 1-hop link neighborhood of a note: the note itself (`center`), the notes
+/// it links to, and the notes that link to it.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteGraph {
+    pub center: String,
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateNoteRequest {

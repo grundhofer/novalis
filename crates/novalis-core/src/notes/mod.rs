@@ -51,12 +51,36 @@ pub fn create(
     Ok(note)
 }
 
-/// Overwrite a note's content (updating `modified`) and re-index it.
-pub fn update(db: &Connection, vault: &Path, path: &str, content: &str) -> CoreResult<Note> {
+/// Overwrite a note's content (updating `modified`) and re-index it. Snapshots
+/// the pre-overwrite content into version history first (best-effort).
+pub fn update(
+    db: &Connection,
+    vault: &Path,
+    data_dir: &Path,
+    path: &str,
+    content: &str,
+) -> CoreResult<Note> {
+    if let Err(e) = crate::versions::snapshot(data_dir, vault, path) {
+        log::warn!("version snapshot failed for {path}: {e}");
+    }
     vault_fs::write_note(vault, path, content)?;
     let note = vault_fs::read_note(vault, path)?;
     change::reindex_path(db, vault, path)?;
     Ok(note)
+}
+
+/// Restore a note to a stored snapshot. Captures the current content as a new
+/// version first, so a restore can itself be undone.
+pub fn restore_version(
+    db: &Connection,
+    vault: &Path,
+    data_dir: &Path,
+    path: &str,
+    version_id: &str,
+) -> CoreResult<Note> {
+    let content = crate::versions::read_version(data_dir, path, version_id)?;
+    let _ = crate::versions::snapshot_now(data_dir, vault, path);
+    update(db, vault, data_dir, path, &content)
 }
 
 /// Update frontmatter metadata (title/tags/pinned/aliases) without touching the body.
@@ -93,9 +117,16 @@ pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> Cor
     Ok(updated)
 }
 
-/// Move/rename a note and update the index.
-pub fn move_note(db: &Connection, vault: &Path, from: &str, to: &str) -> CoreResult<Note> {
+/// Move/rename a note and update the index. Version history follows the note.
+pub fn move_note(
+    db: &Connection,
+    vault: &Path,
+    data_dir: &Path,
+    from: &str,
+    to: &str,
+) -> CoreResult<Note> {
     vault_fs::move_note(vault, from, to)?;
+    crate::versions::rename(data_dir, from, to);
     change::remove(db, from)?;
     let note = vault_fs::read_note(vault, to)?;
     change::reindex_path(db, vault, to)?;
@@ -109,9 +140,9 @@ pub fn duplicate(db: &Connection, vault: &Path, path: &str) -> CoreResult<Note> 
     Ok(note)
 }
 
-/// Trash a note and remove it from the index.
-pub fn delete(db: &Connection, vault: &Path, data_dir: &Path, path: &str) -> CoreResult<()> {
-    vault_fs::delete_note(vault, data_dir, path)?;
+/// Trash a note (into the vault's `.novalis/trash`) and remove it from the index.
+pub fn delete(db: &Connection, vault: &Path, path: &str) -> CoreResult<()> {
+    vault_fs::delete_note(vault, path)?;
     change::remove(db, path)?;
     Ok(())
 }
@@ -150,6 +181,57 @@ pub fn resolve_or_create_wiki_link(
     let note = vault_fs::create_note(vault, &path, "")?;
     change::reindex_path(db, vault, &note.path)?;
     Ok(note.path)
+}
+
+/// Convert the first bare mention of `title` on `line` (1-based, raw-file
+/// coordinates as reported by [`crate::index::links::unlinked_mentions`]) in
+/// `source_path` into a `[[title]]` wikilink, persisting + reindexing through
+/// the normal [`update`] path (so it is versioned). Idempotent when the line is
+/// already linked; errors *without writing* if the mention is no longer there,
+/// so a stale panel can never corrupt unrelated text.
+pub fn link_mention(
+    db: &Connection,
+    vault: &Path,
+    data_dir: &Path,
+    source_path: &str,
+    title: &str,
+    line: usize,
+) -> CoreResult<Note> {
+    use crate::index::links::{link_bare_mention_in_line, MentionLink};
+
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(CoreError::BadRequest("empty link title".into()));
+    }
+
+    let note = vault_fs::read_note(vault, source_path)?;
+    let idx = line
+        .checked_sub(1)
+        .ok_or_else(|| CoreError::BadRequest("invalid line number".into()))?;
+    let mut parts: Vec<String> = note.content.split('\n').map(str::to_string).collect();
+    if idx >= parts.len() {
+        return Err(CoreError::BadRequest("line out of range".into()));
+    }
+
+    // Preserve the line's original line ending when rewriting it.
+    let target = parts[idx].clone();
+    let had_cr = target.ends_with('\r');
+    let core = target.strip_suffix('\r').unwrap_or(&target);
+
+    match link_bare_mention_in_line(core, title) {
+        MentionLink::Replaced(replaced) => {
+            parts[idx] = if had_cr {
+                format!("{replaced}\r")
+            } else {
+                replaced
+            };
+            update(db, vault, data_dir, source_path, &parts.join("\n"))
+        }
+        MentionLink::AlreadyLinked => Ok(note),
+        MentionLink::NotFound => Err(CoreError::BadRequest(format!(
+            "no unlinked mention of '{title}' on line {line}"
+        ))),
+    }
 }
 
 /// Strip filesystem-reserved characters from a wikilink title so it can be
@@ -212,7 +294,14 @@ mod tests {
         );
 
         // Update changes the index.
-        update(&c.db, &c.vault, "Ideas.md", "# Ideas\nthe osprey hunts").unwrap();
+        update(
+            &c.db,
+            &c.vault,
+            &c.data,
+            "Ideas.md",
+            "# Ideas\nthe osprey hunts",
+        )
+        .unwrap();
         assert!(search::search(&c.db, "peregrine", None, None)
             .unwrap()
             .is_empty());
@@ -222,10 +311,46 @@ mod tests {
         );
 
         // Delete (trash) removes it from the index.
-        delete(&c.db, &c.vault, &c.data, "Ideas.md").unwrap();
+        delete(&c.db, &c.vault, "Ideas.md").unwrap();
         assert!(search::search(&c.db, "osprey", None, None)
             .unwrap()
             .is_empty());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn update_snapshots_and_restore_version_round_trips() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            &c.data,
+            CreateNoteRequest {
+                path: "Doc.md".to_string(),
+                content: Some("# Doc\nfirst body".to_string()),
+                template: None,
+            },
+        )
+        .unwrap();
+
+        // An update snapshots the pre-overwrite content into version history.
+        update(&c.db, &c.vault, &c.data, "Doc.md", "# Doc\nsecond body").unwrap();
+        let versions = crate::versions::list_versions(&c.data, "Doc.md").unwrap();
+        assert_eq!(versions.len(), 1, "the pre-update content was snapshotted");
+
+        // Restoring that version brings back the old body (and snapshots current
+        // first, so the restore is itself undoable → 2 versions).
+        let restored =
+            restore_version(&c.db, &c.vault, &c.data, "Doc.md", &versions[0].id).unwrap();
+        assert!(restored.content.contains("first body"));
+        assert!(!restored.content.contains("second body"));
+        assert_eq!(
+            crate::versions::list_versions(&c.data, "Doc.md")
+                .unwrap()
+                .len(),
+            2
+        );
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }

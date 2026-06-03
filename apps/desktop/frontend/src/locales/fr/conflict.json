@@ -1,0 +1,13 @@
+{
+  "banner": "Conflits de synchronisation : {{n}}",
+  "conflicted": "Copie en conflit",
+  "description": "Le service de synchronisation a créé ces copies (par exemple OneDrive). Choisir la version à conserver.",
+  "empty": "Aucun conflit de synchronisation.",
+  "keepBoth": "Conserver les deux",
+  "keepConflict": "Utiliser la copie en conflit",
+  "keepOriginal": "Conserver l’original",
+  "missing": "L’original n’existe plus.",
+  "original": "Original",
+  "review": "Examiner",
+  "title": "Conflits de synchronisation"
+}

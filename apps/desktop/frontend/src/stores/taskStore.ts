@@ -1,9 +1,125 @@
 import { create } from "zustand";
 
 import { api, type KanbanColumnDef, type Task } from "../ipc/api";
+import { topFolderFromPath } from "../lib/taskDisplay";
 
 export type TaskFilter = "open" | "completed" | "all";
 export type TaskMode = "list" | "kanban" | "agenda";
+
+/** Coarse due-date buckets for the board filter bar. */
+export type DueBucket = "any" | "overdue" | "today" | "week" | "none";
+
+/** How the Kanban board groups cards into swimlanes. View setting, not a
+ *  filter — lives only in memory. */
+export type BoardGroupBy = "none" | "note" | "folder" | "project";
+
+/** Client-side narrowing applied on top of the server `filter` (open/all/…).
+ *  Lives only in memory — never written to notes. */
+export interface BoardFilter {
+  text: string;
+  priority: string | null;
+  tag: string | null;
+  due: DueBucket;
+  /** Top-level folder of the source note, or null for any. */
+  folder: string | null;
+  /** `@project(slug)` of the task, or null for any. */
+  project: string | null;
+}
+
+export const EMPTY_BOARD_FILTER: BoardFilter = {
+  text: "",
+  priority: null,
+  tag: null,
+  due: "any",
+  folder: null,
+  project: null,
+};
+
+export function boardFilterActive(f: BoardFilter): boolean {
+  return (
+    f.text.trim() !== "" ||
+    f.priority !== null ||
+    f.tag !== null ||
+    f.due !== "any" ||
+    f.folder !== null ||
+    f.project !== null
+  );
+}
+
+/** Narrow the already-loaded task list by the board filter (pure). */
+export function filterTasks(tasks: Task[], f: BoardFilter): Task[] {
+  const q = f.text.trim().toLowerCase();
+  const today = new Date().toISOString().slice(0, 10);
+  const weekEnd = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  return tasks.filter((t) => {
+    if (q && !t.text.toLowerCase().includes(q)) return false;
+    if (f.priority && t.priority !== f.priority) return false;
+    if (f.tag && !t.tags.includes(f.tag)) return false;
+    if (f.folder && topFolderFromPath(t.sourceNote) !== f.folder) return false;
+    if (f.project && t.project !== f.project) return false;
+    switch (f.due) {
+      case "overdue":
+        if (!t.dueDate || t.dueDate >= today) return false;
+        break;
+      case "today":
+        if (t.dueDate !== today) return false;
+        break;
+      case "week":
+        if (!t.dueDate || t.dueDate < today || t.dueDate > weekEnd) return false;
+        break;
+      case "none":
+        if (t.dueDate) return false;
+        break;
+    }
+    return true;
+  });
+}
+
+/** Completion rollup of a task's direct children (from the parsed `parentId`). */
+export function subtaskProgress(tasks: Task[], parentId: string): { done: number; total: number } {
+  let done = 0;
+  let total = 0;
+  for (const t of tasks) {
+    if (t.parentId === parentId) {
+      total += 1;
+      if (t.completed) done += 1;
+    }
+  }
+  return { done, total };
+}
+
+/** Distinct tags across the given tasks, sorted — for the tag filter dropdown. */
+export function allTags(tasks: Task[]): string[] {
+  const set = new Set<string>();
+  for (const t of tasks) for (const tag of t.tags) set.add(tag);
+  return [...set].sort();
+}
+
+/** Distinct non-empty top-level folders across the tasks' source notes, sorted —
+ *  for the folder filter dropdown. Root-level notes (no folder) are omitted. */
+export function topFolders(tasks: Task[]): string[] {
+  const set = new Set<string>();
+  for (const t of tasks) {
+    const folder = topFolderFromPath(t.sourceNote);
+    if (folder) set.add(folder);
+  }
+  return [...set].sort();
+}
+
+/** Distinct `@project` slugs across the tasks, sorted — for the project filter
+ *  dropdown and the detail-modal datalist. */
+export function allProjects(tasks: Task[]): string[] {
+  const set = new Set<string>();
+  for (const t of tasks) if (t.project) set.add(t.project);
+  return [...set].sort();
+}
+
+/** Distinct `@epic` slugs across the tasks, sorted — for the epic datalist. */
+export function allEpics(tasks: Task[]): string[] {
+  const set = new Set<string>();
+  for (const t of tasks) if (t.epic) set.add(t.epic);
+  return [...set].sort();
+}
 
 /** A Kanban column with guaranteed id/title (the generated type has them
  *  optional because of serde defaults). */
@@ -41,6 +157,12 @@ interface TaskState {
   modeInitialized: boolean;
   columns: Column[];
   loading: boolean;
+  /** In-memory board narrowing (text/priority/tag/due/folder). Never persisted. */
+  boardFilter: BoardFilter;
+  /** How the Kanban board groups cards into swimlanes. Never persisted. */
+  boardGroupBy: BoardGroupBy;
+  /** Right-click card menu: target task id + cursor position, or null. */
+  cardMenu: { taskId: string; x: number; y: number } | null;
 
   load: () => Promise<void>;
   setFilter: (f: TaskFilter) => void;
@@ -49,7 +171,18 @@ interface TaskState {
   setColumnsFromPreferences: (columns: KanbanColumnDef[] | Column[] | null | undefined) => void;
   toggle: (id: string) => Promise<void>;
   setStatus: (id: string, status: string) => Promise<void>;
-  addTask: (text: string, opts?: { notePath?: string }) => Promise<void>;
+  updateField: (
+    id: string,
+    field: "project" | "epic" | "priority" | "due",
+    value: string | null,
+  ) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  addTask: (text: string, opts?: { notePath?: string; status?: string }) => Promise<void>;
+  setBoardFilter: (patch: Partial<BoardFilter>) => void;
+  clearBoardFilter: () => void;
+  setBoardGroupBy: (g: BoardGroupBy) => void;
+  openCardMenu: (taskId: string, x: number, y: number) => void;
+  closeCardMenu: () => void;
 }
 
 export const useTasks = create<TaskState>((set, get) => ({
@@ -59,6 +192,9 @@ export const useTasks = create<TaskState>((set, get) => ({
   modeInitialized: false,
   columns: DEFAULT_COLUMNS,
   loading: false,
+  boardFilter: EMPTY_BOARD_FILTER,
+  boardGroupBy: "none",
+  cardMenu: null,
 
   load: async () => {
     set({ loading: true });
@@ -115,14 +251,39 @@ export const useTasks = create<TaskState>((set, get) => ({
     }
   },
 
+  updateField: async (id, field, value) => {
+    try {
+      await api.updateTask(id, field, value);
+      await get().load();
+    } catch {
+      /* surfaced elsewhere */
+    }
+  },
+
+  deleteTask: async (id) => {
+    try {
+      await api.deleteTask(id);
+      await get().load();
+      get().closeCardMenu();
+    } catch {
+      /* surfaced elsewhere */
+    }
+  },
+
   addTask: async (text, opts) => {
     const trimmed = text.trim();
     if (!trimmed) return;
     try {
-      await api.createTask(trimmed, { notePath: opts?.notePath });
+      await api.createTask(trimmed, { notePath: opts?.notePath, status: opts?.status });
       await get().load();
     } catch {
       /* ignore */
     }
   },
+
+  setBoardFilter: (patch) => set({ boardFilter: { ...get().boardFilter, ...patch } }),
+  clearBoardFilter: () => set({ boardFilter: EMPTY_BOARD_FILTER }),
+  setBoardGroupBy: (boardGroupBy) => set({ boardGroupBy }),
+  openCardMenu: (taskId, x, y) => set({ cardMenu: { taskId, x, y } }),
+  closeCardMenu: () => set({ cardMenu: null }),
 }));

@@ -1,4 +1,5 @@
 {
+  "backToTasks": "Volver a tareas",
   "blockquote": "Cita",
   "bold": "Negrita",
   "bulletList": "Lista",
@@ -7,11 +8,18 @@
   "export": "Exportar",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",
+  "externalChanged": "Esta nota cambió en el disco.",
+  "externalKeepMine": "Conservar la mía",
+  "externalReload": "Recargar",
   "heading1": "Encabezado 1",
   "heading2": "Encabezado 2",
   "italic": "Cursiva",
   "noteOpen": "No hay ninguna nota abierta",
   "placeholder": "Empezar a escribir…",
+  "saveFailed": "Error al guardar: reintentar",
+  "saved": "Guardado",
+  "saving": "Guardando…",
   "selectHint": "Seleccionar una nota en la barra lateral o crear una nueva.",
-  "taskList": "Tareas"
+  "taskList": "Tareas",
+  "unsaved": "Sin guardar"
 }

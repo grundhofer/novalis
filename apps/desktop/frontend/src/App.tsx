@@ -1,23 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { CalendarView } from "./components/CalendarView";
 import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
+import { ConflictModal } from "./components/ConflictModal";
 import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
+import { TrashModal } from "./components/TrashModal";
 import { VaultGate } from "./components/VaultGate";
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { getLanguage } from "./lib/language";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
+import { useConflicts } from "./stores/conflictStore";
 import { usePlugins } from "./stores/pluginStore";
 import { useSettings } from "./stores/settingsStore";
+import { useUi } from "./stores/uiStore";
 import { useVault } from "./stores/vaultStore";
 
 export default function App() {
@@ -26,14 +31,18 @@ export default function App() {
   const activePath = useVault((s) => s.activePath);
   const error = useVault((s) => s.error);
   const clearError = useVault((s) => s.clearError);
-  const [view, setView] = useState<MainView>("notes");
+  const view = useUi((s) => s.view);
+  const setView = useUi((s) => s.setView);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [conflictsOpen, setConflictsOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const conflicts = useConflicts((s) => s.conflicts);
   const [notice, setNotice] = useState<string | null>(null);
   const initialViewVault = useRef<string | null>(null);
-  const { t } = useTranslation();
+  const { t } = useTranslation(["common", "conflict"]);
 
   useNovalisEvents();
 
@@ -68,7 +77,8 @@ export default function App() {
         applyAppearance(prefs?.appearance);
         if (initialViewVault.current !== vaultPath) {
           const dv = prefs?.general?.defaultAppView;
-          if (dv === "notes" || dv === "tasks" || dv === "calendar") setView(dv);
+          if (dv === "notes" || dv === "tasks" || dv === "calendar")
+            useUi.getState().setView(dv);
           initialViewVault.current = vaultPath;
         }
       });
@@ -100,6 +110,30 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Persist any pending autosave before the window closes, so the last edits
+  // aren't lost if the user quits within the debounce window.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const win = getCurrentWindow();
+    void win
+      .onCloseRequested(async (event) => {
+        event.preventDefault();
+        try {
+          await Promise.race([
+            useVault.getState().flushActive(),
+            new Promise((r) => window.setTimeout(r, 2000)),
+          ]);
+        } catch {
+          /* best-effort */
+        }
+        void win.destroy();
+      })
+      .then((u) => {
+        unlisten = u;
+      });
+    return () => unlisten?.();
+  }, []);
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-app text-fg-subtle">
@@ -129,6 +163,7 @@ export default function App() {
           onViewChange={setView}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenTrash={() => setTrashOpen(true)}
         />
       </div>
       {navOpen && (
@@ -150,6 +185,15 @@ export default function App() {
           <span className="text-sm font-medium capitalize text-fg-muted">{viewLabels[view]}</span>
         </div>
         <CloudHint />
+        {conflicts.length > 0 && (
+          <button
+            onClick={() => setConflictsOpen(true)}
+            className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-4 py-2 text-left text-xs text-fg-muted transition-colors hover:bg-hover"
+          >
+            <span>{t("conflict:banner", { n: conflicts.length })}</span>
+            <span className="shrink-0 font-medium text-accent">{t("conflict:review")}</span>
+          </button>
+        )}
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
         </div>
@@ -158,6 +202,8 @@ export default function App() {
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
+      <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

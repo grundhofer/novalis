@@ -24,7 +24,7 @@ pub fn list_summaries(db: &Connection) -> CoreResult<Vec<NoteSummary>> {
 }
 
 /// Map `note_meta` rows (selected in a fixed column order) to [`NoteSummary`].
-/// Shared by quick search, backlinks, and unlinked mentions.
+/// Shared by the folder tree and quick search.
 pub(crate) fn rows_to_summaries(
     stmt: &mut Statement,
     params: impl rusqlite::Params,

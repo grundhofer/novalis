@@ -12,6 +12,10 @@ const WIKI_LINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
 export interface WikiLinkOptions {
   /** Called when the user clicks a wikilink. The host resolves it. */
   onClick?: (title: string) => void;
+  /** Called when the pointer enters a wikilink (host shows a preview). */
+  onHover?: (title: string, rect: DOMRect) => void;
+  /** Called when the pointer leaves a wikilink. */
+  onHoverEnd?: () => void;
   /** CSS class on the decoration span. Defaults to `nv-wikilink`. */
   className?: string;
 }
@@ -54,6 +58,11 @@ export const WikiLink = Extension.create<WikiLinkOptions>({
   addProseMirrorPlugins() {
     const className = this.options.className ?? "nv-wikilink";
     const onClick = this.options.onClick;
+    const onHover = this.options.onHover;
+    const onHoverEnd = this.options.onHoverEnd;
+
+    const wikiLinkAt = (target: EventTarget | null): HTMLElement | null =>
+      (target as HTMLElement | null)?.closest?.(`.${className}`) as HTMLElement | null;
 
     return [
       new Plugin({
@@ -68,8 +77,7 @@ export const WikiLink = Extension.create<WikiLinkOptions>({
             return this.getState(state);
           },
           handleClick(_view, _pos, event) {
-            const target = event.target as HTMLElement | null;
-            const el = target?.closest?.(`.${className}`) as HTMLElement | null;
+            const el = wikiLinkAt(event.target);
             if (!el) return false;
             const title = el.getAttribute("data-wiki-title");
             if (!title || !onClick) return false;
@@ -79,6 +87,25 @@ export const WikiLink = Extension.create<WikiLinkOptions>({
             event.preventDefault();
             onClick(title);
             return true;
+          },
+          handleDOMEvents: {
+            mouseover(_view, event) {
+              if (!onHover) return false;
+              const el = wikiLinkAt(event.target);
+              const title = el?.getAttribute("data-wiki-title");
+              if (el && title) onHover(title, el.getBoundingClientRect());
+              return false;
+            },
+            mouseout(_view, event) {
+              if (!onHoverEnd) return false;
+              const el = wikiLinkAt(event.target);
+              if (!el) return false;
+              // Ignore moves that stay within the same wikilink span.
+              const to = event.relatedTarget as Node | null;
+              if (to && el.contains(to)) return false;
+              onHoverEnd();
+              return false;
+            },
           },
         },
       }),

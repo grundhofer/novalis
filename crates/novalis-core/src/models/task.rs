@@ -19,6 +19,19 @@ pub struct Task {
     pub repeat: Option<String>,
     #[serde(default)]
     pub parent_id: Option<String>,
+    /// The source note's display title (frontmatter / first H1 / filename),
+    /// derived consistently with the search index — for board cards/lanes.
+    #[serde(default)]
+    pub note_title: String,
+    /// The nearest preceding markdown heading (the task's section), if any.
+    #[serde(default)]
+    pub heading: Option<String>,
+    /// `@project(slug)` annotation — the task's project bucket.
+    #[serde(default)]
+    pub project: Option<String>,
+    /// `@epic(slug)` annotation.
+    #[serde(default)]
+    pub epic: Option<String>,
 }
 
 /// Filters for [`crate::tasks::service::list`].

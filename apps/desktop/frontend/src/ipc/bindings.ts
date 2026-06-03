@@ -58,8 +58,27 @@ export const commands = {
 	moveFolder: (path: string, newPath: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_folder", { path, newPath })),
 	search: (query: string, folder: string | null, tag: string | null) => typedError<SearchResult[], CommandError>(__TAURI_INVOKE("search", { query, folder, tag })),
 	quickSearch: (query: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("quick_search", { query })),
-	backlinks: (title: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("backlinks", { title })),
-	unlinkedMentions: (title: string, selfPath: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("unlinked_mentions", { title, selfPath })),
+	/**
+	 *  Notes linking to `title`, each with the snippet line(s) where they do.
+	 * 
+	 *  `async` + `spawn_blocking`: this reads candidate note bodies to extract the
+	 *  context snippet, which on a OneDrive/iCloud vault could hydrate a file over
+	 *  the network. Off the main thread, that never freezes the UI (online-only
+	 *  placeholders are skipped in the core, so they don't block at all).
+	 */
+	backlinks: (title: string) => typedError<LinkReference[], CommandError>(__TAURI_INVOKE("backlinks", { title })),
+	/**
+	 *  Notes that name `title` without linking it, each with the bare-mention line(s).
+	 *  `async` + `spawn_blocking` for the same reason as [`backlinks`].
+	 */
+	unlinkedMentions: (title: string, selfPath: string) => typedError<LinkReference[], CommandError>(__TAURI_INVOKE("unlinked_mentions", { title, selfPath })),
+	/**
+	 *  Turn the first bare mention of `title` on `line` of `path` into a `[[title]]`
+	 *  wikilink (then re-index). Returns the updated note.
+	 */
+	linkMention: (path: string, title: string, line: number) => typedError<Note, CommandError>(__TAURI_INVOKE("link_mention", { path, title, line })),
+	/**  The 1-hop link neighborhood of `path` for the local graph view. Index-only. */
+	noteGraph: (path: string) => typedError<NoteGraph, CommandError>(__TAURI_INVOKE("note_graph", { path })),
 	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
 	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
 	/**
@@ -79,13 +98,24 @@ export const commands = {
 	resolveConflict: (req: ResolveConflictRequest) => typedError<string | null, CommandError>(__TAURI_INVOKE("resolve_conflict", { req })),
 	listTrash: () => typedError<TrashItem[], CommandError>(__TAURI_INVOKE("list_trash")),
 	restoreTrash: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("restore_trash", { id })),
+	deleteTrashItem: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_trash_item", { id })),
 	emptyTrash: () => typedError<number, CommandError>(__TAURI_INVOKE("empty_trash")),
+	listVersions: (path: string) => typedError<VersionMeta[], CommandError>(__TAURI_INVOKE("list_versions", { path })),
+	readVersion: (path: string, versionId: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_version", { path, versionId })),
+	restoreVersion: (path: string, versionId: string) => typedError<Note, CommandError>(__TAURI_INVOKE("restore_version", { path, versionId })),
 	getPreferences: () => typedError<Preferences, CommandError>(__TAURI_INVOKE("get_preferences")),
 	setPreferences: (prefs: Preferences) => typedError<null, CommandError>(__TAURI_INVOKE("set_preferences", { prefs })),
 	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
 	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
 	setTaskStatus: (id: string, status: string) => typedError<null, CommandError>(__TAURI_INVOKE("set_task_status", { id, status })),
+	/**
+	 *  Set or clear an annotation on a task. `field` is one of `project` | `epic` |
+	 *  `priority` | `due`; `value = null` removes it.
+	 */
+	updateTask: (id: string, field: string, value: string | null) => typedError<null, CommandError>(__TAURI_INVOKE("update_task", { id, field, value })),
+	/**  Delete a task (remove its checkbox line from the source note). */
+	deleteTask: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_task", { id })),
 	quickCapture: (req: CaptureRequest) => typedError<string, CommandError>(__TAURI_INVOKE("quick_capture", { req })),
 	/**
 	 *  Export a note to HTML or DOCX, prompting for a save location. Returns the
@@ -327,9 +357,43 @@ export type GeneralPrefs = {
 	defaultAppView?: string,
 };
 
+/**  A directed `[[link]]` edge between two notes, by path. */
+export type GraphEdge = {
+	source: string,
+	target: string,
+};
+
+/**  A node (note) in the local link graph. */
+export type GraphNode = {
+	path: string,
+	title: string,
+};
+
 export type KanbanColumnDef = {
 	id?: string,
 	title?: string,
+};
+
+/**
+ *  One matching line within a note that links to or mentions a target title.
+ *  `line` is 1-based and refers to the raw file (frontmatter included), so it
+ *  can locate the line again for [`crate::notes::link_mention`].
+ */
+export type LinkMatch = {
+	line: number,
+	snippet: string,
+};
+
+/**
+ *  A note that references a target title, grouped with the lines where it does.
+ *  Used for the "linked references" and "unlinked mentions" panels.
+ */
+export type LinkReference = {
+	path: string,
+	title: string,
+	folder: string,
+	modified: string,
+	matches: LinkMatch[],
 };
 
 /**  A full note: raw markdown `content` (frontmatter included) plus a parsed view. */
@@ -363,6 +427,16 @@ export type NoteFrontmatter = {
 	created?: string,
 	modified?: string,
 	pinned?: boolean,
+};
+
+/**
+ *  The 1-hop link neighborhood of a note: the note itself (`center`), the notes
+ *  it links to, and the notes that link to it.
+ */
+export type NoteGraph = {
+	center: string,
+	nodes: GraphNode[],
+	edges: GraphEdge[],
 };
 
 /**  Lightweight note metadata used for lists, the file tree, and search results. */
@@ -460,6 +534,17 @@ export type Task = {
 	tags: string[],
 	repeat?: string | null,
 	parentId?: string | null,
+	/**
+	 *  The source note's display title (frontmatter / first H1 / filename),
+	 *  derived consistently with the search index — for board cards/lanes.
+	 */
+	noteTitle?: string,
+	/**  The nearest preceding markdown heading (the task's section), if any. */
+	heading?: string | null,
+	/**  `@project(slug)` annotation — the task's project bucket. */
+	project?: string | null,
+	/**  `@epic(slug)` annotation. */
+	epic?: string | null,
 };
 
 export type TaskCreationPrefs = {
@@ -482,6 +567,11 @@ export type TaskViewPrefs = {
 	defaultMode?: string,
 	kanbanColumns?: KanbanColumnDef[],
 	taskCreation?: TaskCreationPrefs,
+	/**
+	 *  Project slug -> color token (e.g. "indigo"), mirroring
+	 *  [`FileTreePrefs::folder_colors`]. Synced with the vault.
+	 */
+	projectColors?: { [key in string]: string },
 };
 
 export type TrashItem = {
@@ -515,6 +605,16 @@ export type VaultStats = {
 	taskTotal: number,
 	taskCompleted: number,
 	tagDistribution: { [key in string]: number },
+};
+
+/**  Metadata for one stored snapshot of a note. */
+export type VersionMeta = {
+	/**  Snapshot id = its timestamped filename stem (`YYYYMMDD_HHMMSS_mmm`). */
+	id: string,
+	/**  When the snapshot was taken (RFC 3339, derived from the id). */
+	createdAt: string,
+	/**  Byte size of the snapshot content. */
+	size: number,
 };
 
 /* Tauri Specta runtime */

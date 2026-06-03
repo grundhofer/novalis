@@ -1,0 +1,13 @@
+{
+  "deleteConfirmBody": "Permanently delete \"{{name}}\"? This cannot be undone.",
+  "deleteConfirmTitle": "Delete permanently?",
+  "deletePermanently": "Delete permanently",
+  "empty": "Trash is empty.",
+  "emptyConfirmBody": "Permanently delete everything in the trash? This cannot be undone.",
+  "emptyConfirmTitle": "Empty trash?",
+  "emptyTrash": "Empty trash",
+  "restore": "Restore",
+  "title": "Recently deleted",
+  "trashConfirmBody": "Move \"{{name}}\" to the trash? You can restore it from Recently deleted.",
+  "trashConfirmTitle": "Delete note?"
+}
