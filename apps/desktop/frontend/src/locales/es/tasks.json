@@ -18,6 +18,7 @@
     "openNote": "Abrir nota",
     "priority": "Prioridad",
     "project": "Proyecto",
+    "start": "Inicio",
     "status": "Estado",
     "subtasks": "Subtareas {{done}}/{{total}}",
     "tags": "Etiquetas"

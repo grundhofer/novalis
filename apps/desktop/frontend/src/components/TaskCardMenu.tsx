@@ -181,6 +181,15 @@ export function TaskCardMenu() {
           </select>
         </Row>
 
+        <Row label={t("detail.start")}>
+          <input
+            type="date"
+            value={task.startDate ?? ""}
+            onChange={(e) => void updateField(task.id, "start", e.target.value || null)}
+            className={selectCls}
+          />
+        </Row>
+
         <Row label={t("detail.due")}>
           <input
             type="date"
