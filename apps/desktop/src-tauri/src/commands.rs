@@ -665,6 +665,14 @@ pub fn delete_template(state: State<AppEngine>, id: String) -> CmdResult<()> {
     state.with(|e| templates::delete(&e.data_dir, &id))
 }
 
+/// Render a template body's `{{...}}` variables (for inserting into the open
+/// note). Pure — shares the exact substitution used on the create-note path.
+#[tauri::command]
+#[specta::specta]
+pub fn render_template(content: String, title: Option<String>) -> String {
+    templates::render_template(&content, &templates::TemplateContext { title })
+}
+
 /// Save a pasted/dropped image into the vault `media/` folder; returns the
 /// vault-relative path for embedding as `![](...)`.
 #[tauri::command]

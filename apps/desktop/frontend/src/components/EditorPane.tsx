@@ -147,7 +147,10 @@ export function EditorPane() {
     await setNoteMeta(activePath, meta);
   };
 
-  const handleEditorReady = useCallback((ed: Editor) => setEditorInstance(ed), []);
+  const handleEditorReady = useCallback((ed: Editor) => {
+    setEditorInstance(ed);
+    useUi.getState().setActiveEditor(ed); // share for palette "Insert template"
+  }, []);
 
   const jumpToHeading = useCallback(
     (pos: number) => {
@@ -218,6 +221,7 @@ export function EditorPane() {
       pending.current = null;
       setHovered(null);
       setFindOpen(false);
+      useUi.getState().setActiveEditor(null);
     },
     [activePath],
   );

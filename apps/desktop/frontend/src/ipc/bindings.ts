@@ -141,6 +141,11 @@ export const commands = {
 	createTemplate: (name: string, description: string | null, content: string) => typedError<NoteTemplate, CommandError>(__TAURI_INVOKE("create_template", { name, description, content })),
 	deleteTemplate: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_template", { id })),
 	/**
+	 *  Render a template body's `{{...}}` variables (for inserting into the open
+	 *  note). Pure — shares the exact substitution used on the create-note path.
+	 */
+	renderTemplate: (content: string, title: string | null) => __TAURI_INVOKE<string>("render_template", { content, title }),
+	/**
 	 *  Save a pasted/dropped image into the vault `media/` folder; returns the
 	 *  vault-relative path for embedding as `![](...)`.
 	 */

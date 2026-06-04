@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import type { Editor } from "@novalis/editor";
+
 import type { MainView } from "../components/Sidebar";
 import { useVault } from "./vaultStore";
 
@@ -9,10 +11,15 @@ interface UiState {
   /** Where to return to when the user drilled into a note from elsewhere
    *  (e.g. a Kanban card). null = no pending "Back" affordance. */
   returnView: MainView | null;
+  /** The TipTap editor of the open note (or null). Shared so palette actions
+   *  like "Insert template" can write at the cursor without prop-drilling. */
+  activeEditor: Editor | null;
 
   /** Switch the top-level view. A deliberate switch clears any pending "Back"
    *  target — the user chose where to be. */
   setView: (view: MainView) => void;
+  /** Register/clear the open note's editor instance. */
+  setActiveEditor: (editor: Editor | null) => void;
   /** Open a note and jump to the Notes view, remembering where we came from so
    *  the editor can offer a "Back" button. */
   openNoteFrom: (path: string, from: MainView) => void;
@@ -23,8 +30,11 @@ interface UiState {
 export const useUi = create<UiState>((set, get) => ({
   view: "notes",
   returnView: null,
+  activeEditor: null,
 
   setView: (view) => set({ view, returnView: null }),
+
+  setActiveEditor: (editor) => set({ activeEditor: editor }),
 
   openNoteFrom: (path, from) => {
     set({ view: "notes", returnView: from });

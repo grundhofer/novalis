@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
-import { api } from "../ipc/api";
+import { api, type NoteTemplate } from "../ipc/api";
 import { fuzzyRank } from "../lib/fuzzy";
 import { type ActionId, formatChord } from "../lib/keybindings";
 import { useKeymap } from "../stores/keymapStore";
@@ -22,6 +22,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const { t } = useTranslation(["vault", "common", "today"]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
+  const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const pluginCommands = usePlugins((s) => s.commands);
   const keymap = useKeymap((s) => s.keymap);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +41,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       }
       await useVault.getState().refreshTree();
       useUi.getState().openNoteFrom(path, "today");
+    })();
+  };
+
+  // Render a template's variables (shared backend renderer) and insert the
+  // markdown at the cursor of the open note. No-op if no note/editor is active.
+  const insertTemplate = (tpl: NoteTemplate) => {
+    const ed = useUi.getState().activeEditor;
+    if (!ed) return;
+    const title = useVault.getState().activeNote?.title ?? null;
+    void (async () => {
+      const md = await api.renderTemplate(tpl.content, title);
+      ed.chain().focus().insertContent(md).run();
     })();
   };
 
@@ -71,6 +84,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     builtin("reindex", t("cmdReindex"), null, () => void api.reindexVault()),
   ];
 
+  const templateCmds: Command[] = templates.map((tpl) =>
+    builtin(`insert-template:${tpl.id}`, t("cmdInsertTemplate", { name: tpl.name }), null, () =>
+      insertTemplate(tpl),
+    ),
+  );
+
   const pluginCmds: Command[] = pluginCommands.map((c) => ({
     id: c.id,
     title: c.title,
@@ -78,12 +97,20 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     run: c.run,
   }));
 
-  const filtered = fuzzyRank([...builtins, ...pluginCmds], query.trim(), (c) => c.title);
+  const filtered = fuzzyRank(
+    [...builtins, ...templateCmds, ...pluginCmds],
+    query.trim(),
+    (c) => c.title,
+  );
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setSelected(0);
+      void api
+        .listTemplates()
+        .then(setTemplates)
+        .catch(() => setTemplates([]));
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);

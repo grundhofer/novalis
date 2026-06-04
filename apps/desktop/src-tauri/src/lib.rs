@@ -99,6 +99,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::list_templates,
             commands::create_template,
             commands::delete_template,
+            commands::render_template,
             commands::save_pasted_image,
             commands::list_events,
             commands::create_event,

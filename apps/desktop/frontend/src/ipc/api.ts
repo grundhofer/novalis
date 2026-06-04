@@ -114,6 +114,8 @@ export const api = {
   createTemplate: (name: string, content: string, description?: string) =>
     unwrap(commands.createTemplate(name, description ?? null, content)),
   deleteTemplate: (id: string) => unwrap(commands.deleteTemplate(id)),
+  renderTemplate: (content: string, title: string | null) =>
+    commands.renderTemplate(content, title),
   setPreferences: (prefs: Parameters<typeof commands.setPreferences>[0]) =>
     unwrap(commands.setPreferences(prefs)),
   exportNote: (path: string, format: "html" | "docx") =>
