@@ -139,7 +139,8 @@
     "language": "Idioma",
     "plugins": "Plugins",
     "tasks": "Tareas y Kanban",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "vault": "Vault"
   },
   "plugins": {
     "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",
@@ -162,5 +163,19 @@
     "empty": "Aún no hay plantillas.",
     "namePlaceholder": "Nombre de la plantilla",
     "section": "Plantillas de notas"
+  },
+  "vault": {
+    "current": {
+      "label": "Ubicación del Vault",
+      "none": "Ningún Vault abierto",
+      "title": "Vault actual"
+    },
+    "recent": {
+      "empty": "Aún no hay otros Vaults.",
+      "missing": "Carpeta no encontrada",
+      "title": "Vaults recientes"
+    },
+    "switch": "Cambiar de Vault…",
+    "switchDesc": "Abrir otra carpeta como Vault."
   }
 }

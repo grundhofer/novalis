@@ -15,6 +15,7 @@ import { LanguagePanel } from "./panels/LanguagePanel";
 import { PluginsPanel } from "./panels/PluginsPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import { TemplatesPanel } from "./panels/TemplatesPanel";
+import { VaultPanel } from "./panels/VaultPanel";
 
 export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation("settings");
@@ -108,6 +109,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             className="nv-panel-enter min-w-0 flex-1 overflow-y-auto p-6 outline-none"
           >
             {active === "general" && <GeneralPanel />}
+            {active === "vault" && <VaultPanel onSwitched={() => void close()} />}
             {active === "appearance" && <AppearancePanel />}
             {active === "language" && <LanguagePanel />}
             {active === "editor" && <EditorPanel />}

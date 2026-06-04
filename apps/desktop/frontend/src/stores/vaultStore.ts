@@ -9,6 +9,8 @@ import {
   saveSidebarPrefs,
 } from "../lib/sidebarPrefs";
 import { findFolder, orderedItems, type SortBy } from "../lib/treeOrder";
+import { useAgenda } from "./agendaStore";
+import { useCalendar } from "./calendarStore";
 
 // In-memory note cache + in-flight de-dup. Kept outside the store so reads/
 // prefetches don't trigger re-renders; only `activeNote` drives the editor.
@@ -31,6 +33,10 @@ let pendingFlush: (() => Promise<void>) | null = null;
 // Set while stepping through back/forward history, so openNote doesn't record
 // the navigation as a new history entry.
 let navigatingHistory = false;
+
+// Set while a vault switch is opening, so a second switch can't race the backend
+// Engine swap and leave `vaultPath` out of sync with the open vault.
+let switching = false;
 
 /** Save lifecycle for the active note, surfaced as a status indicator. */
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -167,6 +173,8 @@ interface VaultState {
   sync: () => Promise<void>;
   pickAndOpen: () => Promise<void>;
   openVault: (path: string) => Promise<void>;
+  /** Switch the active vault to `path`: flush pending edits, then open + reload. */
+  switchVault: (path: string) => Promise<void>;
   refreshTree: () => Promise<void>;
   openNote: (path: string) => Promise<void>;
   /** Step back/forward through the navigation history. */
@@ -282,7 +290,46 @@ export const useVault = create<VaultState>((set, get) => ({
 
   pickAndOpen: async () => {
     const path = await api.pickVaultFolder();
-    if (path) await get().openVault(path);
+    if (path) await get().switchVault(path);
+  },
+
+  switchVault: async (path) => {
+    // Serialize switches: a second switch racing an in-flight one would race the
+    // backend Engine swap and could leave `vaultPath` out of sync with the engine.
+    if (switching) return;
+    switching = true;
+    try {
+      // Drain the active editor's pending autosave to the *outgoing* vault first,
+      // so edits made in the last debounce window survive the switch.
+      await get().flushActive();
+      // If that autosave failed, the edit is still unsaved — tearing the vault
+      // down here would lose it irrecoverably (the old engine closes). Surface
+      // the error and stay put so the user can retry against the open vault.
+      if (get().saveState === "error") {
+        set({ error: get().saveError });
+        return;
+      }
+      // Fail loud if the target folder is gone rather than silently recreating an
+      // empty vault there (open_vault_impl would `ensure_vault_dir` it back).
+      try {
+        await api.validateVault(path);
+      } catch (e) {
+        set({ error: displayError(e) });
+        return;
+      }
+      await get().openVault(path);
+      // openVault only sets `vaultPath` on success — bail if the switch failed
+      // (the previous vault stays open and the error is already surfaced).
+      if (get().vaultPath !== path) return;
+      // openVault resets all vault-scoped state, and the backend `reindexed-event`
+      // refreshes the tree, tasks, and conflicts (see useNovalisEvents). The lazy
+      // calendar/agenda stores aren't covered, so drop the previous vault's data
+      // here; each refetches when its view is next opened.
+      useCalendar.getState().reset();
+      useAgenda.getState().reset();
+    } finally {
+      switching = false;
+    }
   },
 
   openVault: async (path) => {

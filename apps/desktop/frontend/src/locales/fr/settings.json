@@ -139,7 +139,8 @@
     "language": "Langue",
     "plugins": "Plugins",
     "tasks": "Tâches et Kanban",
-    "templates": "Modèles"
+    "templates": "Modèles",
+    "vault": "Vault"
   },
   "plugins": {
     "empty": "Aucun plugin installé. Placer un dossier de plugin dans <2>.novalis/plugins/</2> dans le Vault (voir PLUGINS.md), puis rouvrir les paramètres.",
@@ -162,5 +163,19 @@
     "empty": "Aucun modèle pour le moment.",
     "namePlaceholder": "Nom du modèle",
     "section": "Modèles de notes"
+  },
+  "vault": {
+    "current": {
+      "label": "Emplacement du Vault",
+      "none": "Aucun Vault ouvert",
+      "title": "Vault actuel"
+    },
+    "recent": {
+      "empty": "Aucun autre Vault pour l'instant.",
+      "missing": "Dossier introuvable",
+      "title": "Vaults récents"
+    },
+    "switch": "Changer de Vault…",
+    "switchDesc": "Ouvrir un autre dossier comme Vault."
   }
 }

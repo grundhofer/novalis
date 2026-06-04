@@ -14,8 +14,10 @@
     "itemExistsTarget": "« {{name}} » existe déjà dans le dossier de destination."
   },
   "openVault": "Ouvrir un Vault…",
+  "recentVaults": "Vaults récents",
   "searchAllFolders": "Tous les dossiers",
   "searchNoResults": "Aucune note correspondante.",
   "searchPlaceholder": "Rechercher des notes…",
-  "tagline": "Local-first : notes, tâches et calendrier"
+  "tagline": "Local-first : notes, tâches et calendrier",
+  "vaultMissing": "Dossier introuvable"
 }

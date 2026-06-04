@@ -14,8 +14,10 @@
     "itemExistsTarget": "\"{{name}}\" already exists in the target folder."
   },
   "openVault": "Open a vault…",
+  "recentVaults": "Recent vaults",
   "searchAllFolders": "All folders",
   "searchNoResults": "No matching notes.",
   "searchPlaceholder": "Search notes…",
-  "tagline": "Local-first notes, tasks & calendar"
+  "tagline": "Local-first notes, tasks & calendar",
+  "vaultMissing": "Folder missing"
 }

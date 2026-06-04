@@ -122,7 +122,11 @@ export function Sidebar({
     },
     endNewFolder: () => setNewFolderParent(undefined),
     openMenu: (e, target) =>
-      setMenu({ x: e.clientX, y: e.clientY, items: buildMenu(target, ctxActions) }),
+      setMenu({
+        x: e.clientX,
+        y: e.clientY,
+        items: buildMenu(target, ctxActions, e.clientX, e.clientY),
+      }),
   };
 
   // Action bundle the menu builder closes over.
@@ -132,12 +136,37 @@ export function Sidebar({
     beginNewFolder: ctx.beginNewFolder,
   };
 
+  // Vault switcher: recent vaults + "open another" + jump to Vault settings.
+  const openVaultMenu = async (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const recent = await api.listRecentVaults().catch(() => []);
+    const others = recent.filter((v) => v.path !== vaultPath).slice(0, 6);
+    const items: MenuItem[] = [
+      ...others.map((v) => ({
+        label: v.path.split("/").filter(Boolean).pop() ?? v.path,
+        onClick: () => void useVault.getState().switchVault(v.path),
+      })),
+      {
+        label: t("vaultMenu.openAnother"),
+        separatorBefore: others.length > 0,
+        onClick: () => void useVault.getState().pickAndOpen(),
+      },
+      { label: t("vaultMenu.settings"), onClick: onOpenSettings },
+    ];
+    setMenu({ x: rect.left, y: rect.bottom + 4, items });
+  };
+
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border/80 bg-surface/40">
       <div className="flex items-center justify-between gap-2 border-b border-border/80 px-3 py-2.5">
-        <span className="truncate text-sm font-semibold text-fg" title={vaultPath ?? ""}>
-          {vaultName}
-        </span>
+        <button
+          onClick={openVaultMenu}
+          title={vaultPath ?? ""}
+          className="flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-semibold text-fg transition-colors hover:bg-hover"
+        >
+          <span className="truncate">{vaultName}</span>
+          <ChevronDown size={13} className="shrink-0 text-fg-subtle" />
+        </button>
         <div className="flex items-center gap-0.5">
           <button title={t("searchShortcut")} onClick={onOpenSearch} className={iconBtn}>
             <Search size={16} />
@@ -262,7 +291,7 @@ interface CtxActions {
   beginNewFolder: (parent: string | null) => void;
 }
 
-function buildMenu(target: MenuTarget, actions: CtxActions): MenuItem[] {
+function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number): MenuItem[] {
   const s = useVault.getState();
   if (target.kind === "note") {
     const note = target.note;
@@ -304,7 +333,7 @@ function buildMenu(target: MenuTarget, actions: CtxActions): MenuItem[] {
     { label: i18n.t("sidebar:menu.rename"), onClick: () => actions.beginRename(target.path) },
     {
       label: i18n.t("sidebar:menu.setColor"),
-      onClick: () => actions.openColorPicker(target.path, 0, 0),
+      onClick: () => actions.openColorPicker(target.path, x, y),
     },
     {
       label: i18n.t("sidebar:menu.delete"),

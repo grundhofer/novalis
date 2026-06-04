@@ -12,8 +12,8 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, LinkReference, Note, NoteGraph,
-    NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest, SearchResult, Task,
-    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest, SearchResult,
+    TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -74,6 +74,7 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     });
 
     crate::settings::save_last_vault(app, path);
+    crate::settings::push_recent_vault(app, path, now_ms());
 
     // Desktop watches the vault for external changes. Mobile relies on
     // `rescan_vault` (foreground / pull-to-refresh) instead — `notify` isn't
@@ -149,6 +150,38 @@ pub fn current_vault(state: State<AppEngine>) -> CmdResult<Option<String>> {
     Ok(guard
         .as_ref()
         .map(|e| e.vault_path.to_string_lossy().to_string()))
+}
+
+/// Validate a candidate vault path *without* opening it or touching the engine
+/// lock. Returns summary info for an existing directory; errors if the path is
+/// missing or not a directory. Used to preview recent vaults and detect ones
+/// whose folder was moved/deleted before the user switches to them.
+#[tauri::command]
+#[specta::specta]
+pub fn validate_vault(path: String) -> CmdResult<VaultInfo> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(CoreError::NotFound(format!("vault folder not found: {path}")).into());
+    }
+    if !p.is_dir() {
+        return Err(CoreError::BadRequest(format!("not a folder: {path}")).into());
+    }
+    Ok(stats::vault_info(&p))
+}
+
+/// The recent-vaults list (most-recent first) for quick switching.
+#[tauri::command]
+#[specta::specta]
+pub fn list_recent_vaults(app: AppHandle) -> CmdResult<Vec<crate::settings::RecentVault>> {
+    Ok(crate::settings::list_recent_vaults(&app))
+}
+
+/// Drop a stale entry (moved/deleted folder) from the recent-vaults list.
+#[tauri::command]
+#[specta::specta]
+pub fn remove_recent_vault(app: AppHandle, path: String) -> CmdResult<()> {
+    crate::settings::remove_recent_vault(&app, &path);
+    Ok(())
 }
 
 // ── Notes ───────────────────────────────────────────────────────────────────
@@ -285,6 +318,13 @@ pub fn search(
 #[specta::specta]
 pub fn quick_search(state: State<AppEngine>, query: String) -> CmdResult<Vec<NoteSummary>> {
     state.with(|e| search::quick_search(&e.db, &query))
+}
+
+/// Distinct note tags with per-tag note counts, for the tag browser/autocomplete.
+#[tauri::command]
+#[specta::specta]
+pub fn list_tags(state: State<AppEngine>) -> CmdResult<Vec<TagCount>> {
+    state.with(|e| search::list_tags(&e.db))
 }
 
 /// Notes linking to `title`, each with the snippet line(s) where they do.
@@ -883,4 +923,34 @@ fn vault_key(vault: &std::path::Path) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     vault.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
+}
+
+/// Current time in epoch milliseconds (for recent-vault timestamps).
+fn now_ms() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_vault_accepts_existing_dir_and_rejects_missing() {
+        // Uses the OS temp dir (no extra dev-deps); create_dir_all is idempotent.
+        let dir = std::env::temp_dir().join("novalis-validate-vault-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let ok = validate_vault(dir.to_string_lossy().to_string());
+        assert!(ok.is_ok(), "an existing directory validates");
+
+        let missing = dir.join("does-not-exist-subdir");
+        let err = validate_vault(missing.to_string_lossy().to_string());
+        assert!(err.is_err(), "a missing path is rejected");
+        assert_eq!(err.unwrap_err().kind, "notFound");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

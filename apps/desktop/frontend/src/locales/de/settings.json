@@ -139,7 +139,8 @@
     "language": "Sprache",
     "plugins": "Plugins",
     "tasks": "Aufgaben & Kanban",
-    "templates": "Vorlagen"
+    "templates": "Vorlagen",
+    "vault": "Vault"
   },
   "plugins": {
     "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
@@ -162,5 +163,19 @@
     "empty": "Noch keine Vorlagen.",
     "namePlaceholder": "Vorlagenname",
     "section": "Notizvorlagen"
+  },
+  "vault": {
+    "current": {
+      "label": "Vault-Speicherort",
+      "none": "Kein Vault geöffnet",
+      "title": "Aktueller Vault"
+    },
+    "recent": {
+      "empty": "Noch keine weiteren Vaults.",
+      "missing": "Ordner fehlt",
+      "title": "Zuletzt verwendete Vaults"
+    },
+    "switch": "Vault wechseln…",
+    "switchDesc": "Einen anderen Ordner als Vault öffnen."
   }
 }

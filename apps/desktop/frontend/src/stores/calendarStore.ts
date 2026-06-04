@@ -58,6 +58,8 @@ interface CalState {
   prev: () => void;
   next: () => void;
   today: () => void;
+  /** Drop the previous vault's events on a vault switch (refetched on next view). */
+  reset: () => void;
 }
 
 /** Shift the anchor by one period in the given direction. */
@@ -101,4 +103,5 @@ export const useCalendar = create<CalState>((set, get) => ({
     set({ anchor: new Date() });
     void get().load();
   },
+  reset: () => set({ events: [], anchor: new Date(), loading: false }),
 }));

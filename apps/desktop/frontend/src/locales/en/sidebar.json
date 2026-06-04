@@ -38,5 +38,9 @@
     "nameAsc": "Name (A–Z)",
     "nameDesc": "Name (Z–A)"
   },
-  "sortTitle": "Sort: {{mode}}"
+  "sortTitle": "Sort: {{mode}}",
+  "vaultMenu": {
+    "openAnother": "Open another vault…",
+    "settings": "Vault settings…"
+  }
 }

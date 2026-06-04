@@ -30,6 +30,9 @@ export const api = {
   pickVaultFolder: () => commands.pickVaultFolder(),
   openVault: (path: string) => unwrap(commands.openVault(path)),
   closeVault: () => unwrap(commands.closeVault()),
+  validateVault: (path: string) => unwrap(commands.validateVault(path)),
+  listRecentVaults: () => unwrap(commands.listRecentVaults()),
+  removeRecentVault: (path: string) => unwrap(commands.removeRecentVault(path)),
   getFolderTree: () => unwrap(commands.getFolderTree()),
   listNotes: () => unwrap(commands.listNotes()),
   getNote: (path: string) => unwrap(commands.getNote(path)),
@@ -55,6 +58,7 @@ export const api = {
   search: (query: string, folder?: string | null, tag?: string | null) =>
     unwrap(commands.search(query, folder ?? null, tag ?? null)),
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
+  listTags: () => unwrap(commands.listTags()),
 
   // Linked writing
   backlinks: (title: string) => unwrap(commands.backlinks(title)),

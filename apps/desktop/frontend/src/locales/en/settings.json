@@ -139,7 +139,8 @@
     "language": "Language",
     "plugins": "Plugins",
     "tasks": "Tasks & Kanban",
-    "templates": "Templates"
+    "templates": "Templates",
+    "vault": "Vault"
   },
   "plugins": {
     "empty": "No plugins installed. Drop a plugin folder into <2>.novalis/plugins/</2> in your vault (see PLUGINS.md), then reopen Settings.",
@@ -162,5 +163,19 @@
     "empty": "No templates yet.",
     "namePlaceholder": "Template name",
     "section": "Note templates"
+  },
+  "vault": {
+    "current": {
+      "label": "Vault location",
+      "none": "No vault open",
+      "title": "Current vault"
+    },
+    "recent": {
+      "empty": "No other vaults yet.",
+      "missing": "Folder missing",
+      "title": "Recent vaults"
+    },
+    "switch": "Switch vault…",
+    "switchDesc": "Open a different folder as your vault."
   }
 }

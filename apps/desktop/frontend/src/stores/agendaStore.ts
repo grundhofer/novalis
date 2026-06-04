@@ -25,6 +25,8 @@ interface AgendaState {
   overdue: AgendaItem[];
   loading: boolean;
   load: (focus: string) => Promise<void>;
+  /** Drop the previous vault's agenda on a vault switch (refetched on next view). */
+  reset: () => void;
 }
 
 export const useAgenda = create<AgendaState>((set) => ({
@@ -48,4 +50,5 @@ export const useAgenda = create<AgendaState>((set) => ({
       set({ items: [], overdue: [], loading: false });
     }
   },
+  reset: () => set({ items: [], overdue: [], focus: isoDay(new Date()), loading: false }),
 }));

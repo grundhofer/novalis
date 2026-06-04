@@ -31,6 +31,17 @@ export const commands = {
 	 *  the panel.
 	 */
 	pickVaultFolder: () => __TAURI_INVOKE<string | null>("pick_vault_folder"),
+	/**
+	 *  Validate a candidate vault path *without* opening it or touching the engine
+	 *  lock. Returns summary info for an existing directory; errors if the path is
+	 *  missing or not a directory. Used to preview recent vaults and detect ones
+	 *  whose folder was moved/deleted before the user switches to them.
+	 */
+	validateVault: (path: string) => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("validate_vault", { path })),
+	/**  The recent-vaults list (most-recent first) for quick switching. */
+	listRecentVaults: () => typedError<RecentVault[], CommandError>(__TAURI_INVOKE("list_recent_vaults")),
+	/**  Drop a stale entry (moved/deleted folder) from the recent-vaults list. */
+	removeRecentVault: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("remove_recent_vault", { path })),
 	listNotes: () => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("list_notes")),
 	/**
 	 *  `async` + `spawn_blocking`: reading a note on a OneDrive/iCloud vault may
@@ -58,6 +69,8 @@ export const commands = {
 	moveFolder: (path: string, newPath: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_folder", { path, newPath })),
 	search: (query: string, folder: string | null, tag: string | null) => typedError<SearchResult[], CommandError>(__TAURI_INVOKE("search", { query, folder, tag })),
 	quickSearch: (query: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("quick_search", { query })),
+	/**  Distinct note tags with per-tag note counts, for the tag browser/autocomplete. */
+	listTags: () => typedError<TagCount[], CommandError>(__TAURI_INVOKE("list_tags")),
 	/**
 	 *  Notes linking to `title`, each with the snippet line(s) where they do.
 	 * 
@@ -445,6 +458,7 @@ export type NoteSummary = {
 	title: string,
 	folder: string,
 	tags: string[],
+	aliases?: string[],
 	created: string,
 	modified: string,
 	pinned: boolean,
@@ -498,6 +512,14 @@ export type Preferences = {
 	general?: GeneralPrefs,
 };
 
+/**  An entry in the recent-vaults list (most-recent first in the stored list). */
+export type RecentVault = {
+	/**  Absolute path to the vault folder. */
+	path: string,
+	/**  Epoch milliseconds of the last time this vault was opened. */
+	lastOpened: number,
+};
+
 /**  Emitted when the vault finishes (re)indexing, so the UI can refresh fully. */
 export type ReindexedEvent = null;
 
@@ -516,6 +538,15 @@ export type SearchResult = {
 	title: string,
 	snippet: string,
 	score: number | null,
+};
+
+/**
+ *  A distinct note tag with the number of notes carrying it. Powers the tag
+ *  browser and `#tag` autocomplete.
+ */
+export type TagCount = {
+	tag: string,
+	count: number,
 };
 
 /**
