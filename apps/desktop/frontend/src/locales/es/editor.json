@@ -36,7 +36,10 @@
   "saved": "Guardado",
   "saving": "Guardando…",
   "selectHint": "Seleccionar una nota en la barra lateral o crear una nueva.",
+  "slashMath": "Bloque de fórmula",
+  "slashMermaid": "Diagrama Mermaid",
   "strike": "Tachado",
   "taskList": "Tareas",
-  "unsaved": "Sin guardar"
+  "unsaved": "Sin guardar",
+  "wikiCreateNew": "Crear \"{{query}}\""
 }

@@ -36,7 +36,10 @@
   "saved": "Gespeichert",
   "saving": "Speichern …",
   "selectHint": "Eine Notiz in der Seitenleiste auswählen oder eine neue erstellen.",
+  "slashMath": "Mathe-Block",
+  "slashMermaid": "Mermaid-Diagramm",
   "strike": "Durchgestrichen",
   "taskList": "Aufgaben",
-  "unsaved": "Nicht gespeichert"
+  "unsaved": "Nicht gespeichert",
+  "wikiCreateNew": "„{{query}}“ erstellen"
 }

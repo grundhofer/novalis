@@ -15,6 +15,8 @@ import { Callout } from "./Callout";
 import { Find } from "./Find";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
+import { SlashCommand } from "./SlashCommand";
+import { TagSuggestion } from "./TagSuggestion";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 
@@ -38,6 +40,9 @@ export interface NovalisEditorProps {
   /** Search note titles for the `[[` autocomplete. Host wires it to its index;
    *  results are shown in a popover and inserted as plain `[[Title]]` text. */
   onSearchLinkTargets?: (query: string) => Promise<{ title: string; path: string }[]>;
+  /** Search existing tags for the `#` autocomplete. Host wires it to its index;
+   *  returns bare tags (no `#`), inserted as plain `#tag` text. */
+  onSearchTags?: (query: string) => Promise<string[]>;
   /** Pointer entered a `[[wikilink]]` — host may show a preview at `rect`. */
   onWikiLinkHover?: (title: string, rect: DOMRect) => void;
   /** Pointer left the hovered wikilink. */
@@ -76,6 +81,12 @@ export interface NovalisEditorLabels {
   callout: string;
   mermaidShowSource: string;
   mermaidShowDiagram: string;
+  /** Slash-menu item to insert a `$$ $$` math block. */
+  slashMath: string;
+  /** Slash-menu item to insert a ```mermaid code block. */
+  slashMermaid: string;
+  /** `[[` create-new row; `{{query}}` is replaced with the typed title. */
+  wikiCreateNew: string;
 }
 
 const DEFAULT_LABELS: NovalisEditorLabels = {
@@ -94,6 +105,9 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   callout: "Callout",
   mermaidShowSource: "Show source",
   mermaidShowDiagram: "Show diagram",
+  slashMath: "Math block",
+  slashMermaid: "Mermaid diagram",
+  wikiCreateNew: 'Create "{{query}}"',
 };
 
 function getMarkdown(editor: Editor): string {
@@ -109,6 +123,7 @@ export function NovalisEditor({
   resolveImageSrc,
   onWikiLinkClick,
   onSearchLinkTargets,
+  onSearchTags,
   onWikiLinkHover,
   onWikiLinkHoverEnd,
   onEditorReady,
@@ -186,7 +201,26 @@ export function NovalisEditor({
         onHover: onWikiLinkHover,
         onHoverEnd: onWikiLinkHoverEnd,
       }),
-      WikiLinkSuggestion.configure({ onSearch: onSearchLinkTargets }),
+      WikiLinkSuggestion.configure({
+        onSearch: onSearchLinkTargets,
+        createLabel: lbl.wikiCreateNew,
+      }),
+      TagSuggestion.configure({ onSearch: onSearchTags }),
+      SlashCommand.configure({
+        labels: {
+          heading1: lbl.heading1,
+          heading2: lbl.heading2,
+          heading3: lbl.heading3,
+          bulletList: lbl.bulletList,
+          taskList: lbl.taskList,
+          codeBlock: lbl.codeBlock,
+          blockquote: lbl.blockquote,
+          callout: lbl.callout,
+          horizontalRule: lbl.horizontalRule,
+          math: lbl.slashMath,
+          mermaid: lbl.slashMermaid,
+        },
+      }),
       Find,
       Callout,
       MathExtension,

@@ -19,11 +19,16 @@ import {
 export interface LinkTarget {
   title: string;
   path: string;
+  /** Synthetic "create a new note named <title>" row (no existing match). */
+  create?: boolean;
 }
 
 export interface WikiLinkSuggestionOptions {
   /** Title search the host wires to its index (e.g. quick search). */
   onSearch?: (query: string) => Promise<LinkTarget[]>;
+  /** Label template for the synthetic "create new note" row; `{{query}}` is
+   *  replaced with the typed title. Omit to disable the create row. */
+  createLabel?: string;
 }
 
 const wikiSuggestKey = "wikiLinkSuggestion";
@@ -44,7 +49,7 @@ function findWikiMatch({ $position }: Trigger): SuggestionMatch {
 }
 
 /** Build the suggestion lifecycle managing a small DOM popover. */
-function createRenderer() {
+function createRenderer(createLabel?: string) {
   let popup: HTMLDivElement | null = null;
   let items: LinkTarget[] = [];
   let selected = 0;
@@ -61,8 +66,9 @@ function createRenderer() {
     items.forEach((item, i) => {
       const el = document.createElement("button");
       el.type = "button";
-      el.className = `nv-suggest-item${i === selected ? " is-selected" : ""}`;
-      el.textContent = item.title;
+      el.className = `nv-suggest-item${i === selected ? " is-selected" : ""}${item.create ? " nv-suggest-create" : ""}`;
+      el.textContent =
+        item.create && createLabel ? createLabel.replace("{{query}}", item.title) : item.title;
       // mousedown (not click) so the editor doesn't lose selection first.
       el.addEventListener("mousedown", (e) => {
         e.preventDefault();
@@ -138,11 +144,12 @@ export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
   name: "wikiLinkSuggestion",
 
   addOptions() {
-    return { onSearch: undefined };
+    return { onSearch: undefined, createLabel: undefined };
   },
 
   addProseMirrorPlugins() {
     const onSearch = this.options.onSearch;
+    const createLabel = this.options.createLabel;
     return [
       Suggestion<LinkTarget, LinkTarget>({
         editor: this.editor,
@@ -150,7 +157,16 @@ export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
         char: "[",
         allowSpaces: true,
         findSuggestionMatch: findWikiMatch,
-        items: ({ query }) => (onSearch ? onSearch(query) : Promise.resolve([])),
+        items: async ({ query }) => {
+          const results = onSearch ? await onSearch(query) : [];
+          const q = query.trim();
+          // Offer "create <q>" when something was typed and no title matches it
+          // exactly (case-insensitive). The note is materialized lazily on click.
+          if (createLabel && q && !results.some((r) => r.title.toLowerCase() === q.toLowerCase())) {
+            return [...results, { title: q, path: "", create: true }];
+          }
+          return results;
+        },
         command: ({ editor, range, props }) => {
           editor
             .chain()
@@ -158,7 +174,7 @@ export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
             .insertContentAt(range, [{ type: "text", text: `[[${props.title}]]` }])
             .run();
         },
-        render: createRenderer,
+        render: () => createRenderer(createLabel),
       }),
     ];
   },

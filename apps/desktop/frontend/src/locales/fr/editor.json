@@ -36,7 +36,10 @@
   "saved": "Enregistré",
   "saving": "Enregistrement…",
   "selectHint": "Sélectionner une note dans la barre latérale ou en créer une nouvelle.",
+  "slashMath": "Bloc de formule",
+  "slashMermaid": "Diagramme Mermaid",
   "strike": "Barré",
   "taskList": "Tâches",
-  "unsaved": "Non enregistré"
+  "unsaved": "Non enregistré",
+  "wikiCreateNew": "Créer « {{query}} »"
 }

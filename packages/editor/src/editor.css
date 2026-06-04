@@ -261,3 +261,8 @@
 .nv-suggest-item.is-selected {
   background: var(--nv-hover);
 }
+/* The synthetic "create new note" row in the `[[` menu. */
+.nv-suggest-create {
+  color: var(--nv-accent);
+  font-style: italic;
+}

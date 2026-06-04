@@ -204,6 +204,20 @@ export function EditorPane() {
     }
   }, []);
 
+  // `#` autocomplete: existing tags from the index, filtered by the typed query.
+  const searchTags = useCallback(async (query: string) => {
+    try {
+      const tags = await api.listTags();
+      const q = query.toLowerCase();
+      return tags
+        .map((t) => t.tag)
+        .filter((tag) => tag.toLowerCase().includes(q))
+        .slice(0, 20);
+    } catch {
+      return [];
+    }
+  }, []);
+
   // Hovering a `[[wikilink]]` shows a preview after a short delay (so passing
   // the cursor over a link doesn't flash a card).
   const onWikiLinkHover = useCallback((title: string, rect: DOMRect) => {
@@ -471,6 +485,7 @@ export function EditorPane() {
             resolveImageSrc={resolveImageSrc}
             onWikiLinkClick={onWikiLinkClick}
             onSearchLinkTargets={searchLinkTargets}
+            onSearchTags={searchTags}
             onWikiLinkHover={onWikiLinkHover}
             onWikiLinkHoverEnd={onWikiLinkHoverEnd}
             onEditorReady={handleEditorReady}
@@ -493,6 +508,9 @@ export function EditorPane() {
               horizontalRule: t("horizontalRule"),
               mermaidShowSource: t("mermaidShowSource"),
               mermaidShowDiagram: t("mermaidShowDiagram"),
+              slashMath: t("slashMath"),
+              slashMermaid: t("slashMermaid"),
+              wikiCreateNew: t("wikiCreateNew"),
             }}
           />
         </div>

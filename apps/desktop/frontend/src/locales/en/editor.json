@@ -36,7 +36,10 @@
   "saveFailed": "Save failed — retry",
   "saving": "Saving…",
   "selectHint": "Select a note from the sidebar, or create a new one.",
+  "slashMath": "Math block",
+  "slashMermaid": "Mermaid diagram",
   "strike": "Strikethrough",
   "taskList": "Tasks",
-  "unsaved": "Unsaved"
+  "unsaved": "Unsaved",
+  "wikiCreateNew": "Create \"{{query}}\""
 }
