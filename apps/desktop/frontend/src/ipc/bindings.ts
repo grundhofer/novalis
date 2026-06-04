@@ -528,6 +528,8 @@ export type Task = {
 	completed: boolean,
 	priority: string | null,
 	dueDate: string | null,
+	/**  `@start(YYYY-MM-DD)` — the scheduled "do" date (distinct from due). */
+	startDate?: string | null,
 	status: string | null,
 	sourceNote: string,
 	sourceLine: number,

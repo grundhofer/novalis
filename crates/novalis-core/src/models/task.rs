@@ -11,6 +11,9 @@ pub struct Task {
     pub completed: bool,
     pub priority: Option<String>,
     pub due_date: Option<String>,
+    /// `@start(YYYY-MM-DD)` — the scheduled "do" date (distinct from due).
+    #[serde(default)]
+    pub start_date: Option<String>,
     pub status: Option<String>,
     pub source_note: String,
     pub source_line: usize,

@@ -131,23 +131,26 @@ pub fn get_agenda(
     use crate::models::AgendaItem;
     let mut items = Vec::new();
 
+    // Open tasks are placed on their scheduled (start) date if set, else their
+    // due date; include those whose effective date falls within the range.
     let query = crate::models::TaskQuery {
         status: Some("open".to_string()),
-        due_after: Some(range_start.to_string()),
-        due_before: Some(range_end.to_string()),
         ..Default::default()
     };
     for t in crate::tasks::index::query_tasks(db, &query)? {
-        if let Some(due) = t.due_date.clone() {
-            items.push(AgendaItem {
-                kind: "task".to_string(),
-                title: t.text,
-                start: due,
-                all_day: true,
-                source: "tasks".to_string(),
-                ref_id: t.id,
-                note_path: Some(t.source_note),
-            });
+        let eff = t.start_date.clone().or_else(|| t.due_date.clone());
+        if let Some(date) = eff {
+            if date.as_str() >= range_start && date.as_str() <= range_end {
+                items.push(AgendaItem {
+                    kind: "task".to_string(),
+                    title: t.text,
+                    start: date,
+                    all_day: true,
+                    source: "tasks".to_string(),
+                    ref_id: t.id,
+                    note_path: Some(t.source_note),
+                });
+            }
         }
     }
 
@@ -205,6 +208,29 @@ mod tests {
         let listed = list_events(&db, "2026-06-01", "2026-06-30").unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].title, "Sprint review");
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn get_agenda_places_task_on_start_then_due() {
+        let (vault, db) = ctx();
+        // A task scheduled (start) earlier than its due date.
+        std::fs::write(
+            vault.join("_Inbox.md"),
+            "- [ ] Plan trip @start(2026-06-10) @due(2026-06-20)\n",
+        )
+        .unwrap();
+        crate::change::reindex_path(&db, &vault, "_Inbox.md").unwrap();
+
+        // Appears on its start date...
+        let on_start = get_agenda(&db, "2026-06-10", "2026-06-10").unwrap();
+        assert!(on_start
+            .iter()
+            .any(|i| i.kind == "task" && i.start == "2026-06-10"));
+        // ...and not on its due date.
+        let on_due = get_agenda(&db, "2026-06-20", "2026-06-20").unwrap();
+        assert!(!on_due.iter().any(|i| i.kind == "task"));
 
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }

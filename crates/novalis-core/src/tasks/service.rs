@@ -36,6 +36,7 @@ pub fn create(db: &Connection, vault: &Path, req: CreateTaskRequest) -> CoreResu
         &req.text,
         req.status.as_deref(),
         req.priority.as_deref(),
+        None,
         req.due_date.as_deref(),
     );
     vault_fs::append_line(vault, &dest, &line)?;
@@ -95,7 +96,7 @@ pub fn set_status(db: &Connection, vault: &Path, id: &str, status: &str) -> Core
 /// Set or clear an annotation on a task in its source markdown (the annotation
 /// key equals `field`). `value = None` removes it. Supported fields and their
 /// value rules: `project`/`epic` → slug `[a-z0-9-]+`; `priority` →
-/// `urgent|high|medium|low`; `due` → `YYYY-MM-DD`.
+/// `urgent|high|medium|low`; `due`/`start` → `YYYY-MM-DD`.
 pub fn update_task(
     db: &Connection,
     vault: &Path,
@@ -103,7 +104,7 @@ pub fn update_task(
     field: &str,
     value: Option<&str>,
 ) -> CoreResult<()> {
-    if !matches!(field, "project" | "epic" | "priority" | "due") {
+    if !matches!(field, "project" | "epic" | "priority" | "due" | "start") {
         return Err(CoreError::BadRequest(format!(
             "Unsupported task field: {field}"
         )));
@@ -112,7 +113,7 @@ pub fn update_task(
         let ok = match field {
             "project" | "epic" => is_slug(v),
             "priority" => matches!(v, "urgent" | "high" | "medium" | "low"),
-            "due" => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_ok(),
+            "due" | "start" => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_ok(),
             _ => false,
         };
         if !ok {
@@ -160,7 +161,7 @@ pub fn quick_capture(db: &Connection, vault: &Path, req: CaptureRequest) -> Core
         .resolve(req.note_path.as_deref(), today);
 
     let line = if req.as_task {
-        index::build_task_line(text, None, None, None)
+        index::build_task_line(text, None, None, None, None)
     } else {
         format!("- {text}")
     };

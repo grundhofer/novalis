@@ -15,6 +15,7 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
     let task_re = Regex::new(r"^([ \t]*)- \[([ xX])\] (.+)$").unwrap();
     let heading_re = Regex::new(r"^ {0,3}#{1,6}\s+(.+)$").unwrap();
     let due_re = Regex::new(r"@due\((\d{4}-\d{2}-\d{2})\)").unwrap();
+    let start_re = Regex::new(r"@start\((\d{4}-\d{2}-\d{2})\)").unwrap();
     let priority_re = Regex::new(r"@priority\((urgent|high|medium|low)\)").unwrap();
     let status_re = Regex::new(r"@status\(([a-z0-9-]+)\)").unwrap();
     let repeat_re = Regex::new(r"@repeat\((daily|weekly|monthly|yearly)\)").unwrap();
@@ -80,6 +81,9 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
             let due_date = due_re
                 .captures(&text_raw)
                 .map(|c| c.get(1).unwrap().as_str().to_string());
+            let start_date = start_re
+                .captures(&text_raw)
+                .map(|c| c.get(1).unwrap().as_str().to_string());
             let priority = priority_re
                 .captures(&text_raw)
                 .map(|c| c.get(1).unwrap().as_str().to_string());
@@ -119,6 +123,7 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
                 completed,
                 priority,
                 due_date,
+                start_date,
                 status,
                 source_note: note_path.to_string(),
                 source_line,
@@ -142,6 +147,7 @@ pub fn build_task_line(
     text: &str,
     status: Option<&str>,
     priority: Option<&str>,
+    start: Option<&str>,
     due: Option<&str>,
 ) -> String {
     let mut parts = vec![format!("- [ ] {}", text.trim())];
@@ -150,6 +156,9 @@ pub fn build_task_line(
     }
     if let Some(p) = priority.filter(|p| !p.is_empty()) {
         parts.push(format!("@priority({p})"));
+    }
+    if let Some(s) = start.filter(|s| !s.is_empty()) {
+        parts.push(format!("@start({s})"));
     }
     if let Some(d) = due.filter(|d| !d.is_empty()) {
         parts.push(format!("@due({d})"));
@@ -186,8 +195,8 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
     )?;
 
     let mut stmt = db.prepare(
-        "INSERT INTO tasks (id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+        "INSERT INTO tasks (id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic, start_date)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
     )?;
 
     for task in tasks {
@@ -208,6 +217,7 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
             task.heading,
             task.project,
             task.epic,
+            task.start_date,
         ])?;
     }
 
@@ -217,7 +227,7 @@ pub fn index_tasks(db: &Connection, note_path: &str, tasks: &[Task]) -> CoreResu
 /// Query tasks with optional filters.
 pub fn query_tasks(db: &Connection, query: &TaskQuery) -> CoreResult<Vec<Task>> {
     let mut sql = String::from(
-        "SELECT id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic FROM tasks WHERE 1=1",
+        "SELECT id, text, completed, priority, due_date, status, source_note, source_line, tags, repeat, parent_id, note_title, heading, project, epic, start_date FROM tasks WHERE 1=1",
     );
     let mut bind_values: Vec<String> = Vec::new();
 
@@ -275,6 +285,7 @@ pub fn query_tasks(db: &Connection, query: &TaskQuery) -> CoreResult<Vec<Task>> 
                 heading: row.get(12)?,
                 project: row.get(13)?,
                 epic: row.get(14)?,
+                start_date: row.get(15)?,
             })
         })?
         .filter_map(|r| r.ok())
@@ -492,7 +503,7 @@ mod tests {
     #[test]
     fn build_task_line_minimal_only_text() {
         assert_eq!(
-            build_task_line("Just text", None, None, None),
+            build_task_line("Just text", None, None, None, None),
             "- [ ] Just text"
         );
     }
@@ -500,20 +511,27 @@ mod tests {
     #[test]
     fn build_task_line_omits_empty_annotations() {
         assert_eq!(
-            build_task_line("Task", Some(""), None, Some("")),
+            build_task_line("Task", Some(""), None, Some(""), Some("")),
             "- [ ] Task"
         );
     }
 
     #[test]
     fn build_task_line_round_trips_through_extract() {
-        let line = build_task_line("Buy milk", Some("todo"), Some("high"), Some("2026-05-30"));
+        let line = build_task_line(
+            "Buy milk",
+            Some("todo"),
+            Some("high"),
+            Some("2026-05-28"),
+            Some("2026-05-30"),
+        );
         let tasks = extract_tasks(&line, "_Inbox.md");
         assert_eq!(tasks.len(), 1);
         let t = &tasks[0];
         assert!(t.text.starts_with("Buy milk"));
         assert_eq!(t.status.as_deref(), Some("todo"));
         assert_eq!(t.priority.as_deref(), Some("high"));
+        assert_eq!(t.start_date.as_deref(), Some("2026-05-28"));
         assert_eq!(t.due_date.as_deref(), Some("2026-05-30"));
         assert!(!t.completed);
     }
