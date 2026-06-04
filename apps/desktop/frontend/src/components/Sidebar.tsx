@@ -28,7 +28,7 @@ import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 
-export type MainView = "notes" | "tasks" | "calendar";
+export type MainView = "notes" | "today" | "tasks" | "calendar";
 
 const iconBtn =
   "rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg";
@@ -89,6 +89,7 @@ export function Sidebar({
   const { t } = useTranslation(["sidebar", "common", "trash"]);
   const viewLabels: Record<MainView, string> = {
     notes: t("common:views.notes"),
+    today: t("common:views.today"),
     tasks: t("common:views.tasks"),
     calendar: t("common:views.calendar"),
   };
@@ -152,7 +153,7 @@ export function Sidebar({
 
       <div className="flex gap-1 p-2 pb-1">
         {/* eslint-disable-next-line i18next/no-literal-string -- view ids (logic keys); labels come from viewLabels */}
-        {(["notes", "tasks", "calendar"] as const).map((v) => (
+        {(["notes", "today", "tasks", "calendar"] as const).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}

@@ -14,6 +14,7 @@ import deLinks from "../locales/de/links.json";
 import deSettings from "../locales/de/settings.json";
 import deSidebar from "../locales/de/sidebar.json";
 import deTasks from "../locales/de/tasks.json";
+import deToday from "../locales/de/today.json";
 import deTrash from "../locales/de/trash.json";
 import deVault from "../locales/de/vault.json";
 import deVersions from "../locales/de/versions.json";
@@ -25,6 +26,7 @@ import esLinks from "../locales/es/links.json";
 import esSettings from "../locales/es/settings.json";
 import esSidebar from "../locales/es/sidebar.json";
 import esTasks from "../locales/es/tasks.json";
+import esToday from "../locales/es/today.json";
 import esTrash from "../locales/es/trash.json";
 import esVault from "../locales/es/vault.json";
 import esVersions from "../locales/es/versions.json";
@@ -36,6 +38,7 @@ import frLinks from "../locales/fr/links.json";
 import frSettings from "../locales/fr/settings.json";
 import frSidebar from "../locales/fr/sidebar.json";
 import frTasks from "../locales/fr/tasks.json";
+import frToday from "../locales/fr/today.json";
 import frTrash from "../locales/fr/trash.json";
 import frVault from "../locales/fr/vault.json";
 import frVersions from "../locales/fr/versions.json";
@@ -47,6 +50,7 @@ import links from "../locales/en/links.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
+import today from "../locales/en/today.json";
 import trash from "../locales/en/trash.json";
 import vault from "../locales/en/vault.json";
 import versions from "../locales/en/versions.json";
@@ -58,6 +62,7 @@ export const NAMESPACES = [
   "sidebar",
   "calendar",
   "tasks",
+  "today",
   "editor",
   "vault",
   "trash",
@@ -107,13 +112,14 @@ function pseudoize(node: unknown): unknown {
 
 // ---------------------------------------------------------------------------
 
-const en = { common, settings, sidebar, calendar, tasks, editor, vault, trash, conflict, versions, links };
+const en = { common, settings, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
 const de = {
   common: deCommon,
   settings: deSettings,
   sidebar: deSidebar,
   calendar: deCalendar,
   tasks: deTasks,
+  today: deToday,
   editor: deEditor,
   vault: deVault,
   trash: deTrash,
@@ -127,6 +133,7 @@ const fr = {
   sidebar: frSidebar,
   calendar: frCalendar,
   tasks: frTasks,
+  today: frToday,
   editor: frEditor,
   vault: frVault,
   trash: frTrash,
@@ -140,6 +147,7 @@ const es = {
   sidebar: esSidebar,
   calendar: esCalendar,
   tasks: esTasks,
+  today: esToday,
   editor: esEditor,
   vault: esVault,
   trash: esTrash,

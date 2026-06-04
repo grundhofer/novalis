@@ -14,6 +14,7 @@ import deLinks from "../de/links.json";
 import deSettings from "../de/settings.json";
 import deSidebar from "../de/sidebar.json";
 import deTasks from "../de/tasks.json";
+import deToday from "../de/today.json";
 import deTrash from "../de/trash.json";
 import deVault from "../de/vault.json";
 import deVersions from "../de/versions.json";
@@ -25,6 +26,7 @@ import esLinks from "../es/links.json";
 import esSettings from "../es/settings.json";
 import esSidebar from "../es/sidebar.json";
 import esTasks from "../es/tasks.json";
+import esToday from "../es/today.json";
 import esTrash from "../es/trash.json";
 import esVault from "../es/vault.json";
 import esVersions from "../es/versions.json";
@@ -36,6 +38,7 @@ import frLinks from "../fr/links.json";
 import frSettings from "../fr/settings.json";
 import frSidebar from "../fr/sidebar.json";
 import frTasks from "../fr/tasks.json";
+import frToday from "../fr/today.json";
 import frTrash from "../fr/trash.json";
 import frVault from "../fr/vault.json";
 import frVersions from "../fr/versions.json";
@@ -47,6 +50,7 @@ import links from "../en/links.json";
 import settings from "../en/settings.json";
 import sidebar from "../en/sidebar.json";
 import tasks from "../en/tasks.json";
+import today from "../en/today.json";
 import trash from "../en/trash.json";
 import vault from "../en/vault.json";
 import versions from "../en/versions.json";
@@ -57,6 +61,7 @@ const CATALOGS: Record<string, unknown> = {
   sidebar,
   calendar,
   tasks,
+  today,
   editor,
   vault,
   trash,
@@ -73,6 +78,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     sidebar: deSidebar,
     calendar: deCalendar,
     tasks: deTasks,
+    today: deToday,
     editor: deEditor,
     vault: deVault,
     trash: deTrash,
@@ -86,6 +92,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     sidebar: frSidebar,
     calendar: frCalendar,
     tasks: frTasks,
+    today: frToday,
     editor: frEditor,
     vault: frVault,
     trash: frTrash,
@@ -99,6 +106,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     sidebar: esSidebar,
     calendar: esCalendar,
     tasks: esTasks,
+    today: esToday,
     editor: esEditor,
     vault: esVault,
     trash: esTrash,

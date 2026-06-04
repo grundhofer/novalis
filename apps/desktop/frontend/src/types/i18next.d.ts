@@ -10,6 +10,7 @@ import links from "../locales/en/links.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
+import today from "../locales/en/today.json";
 import trash from "../locales/en/trash.json";
 import vault from "../locales/en/vault.json";
 import versions from "../locales/en/versions.json";
@@ -23,6 +24,7 @@ declare module "i18next" {
       sidebar: typeof sidebar;
       calendar: typeof calendar;
       tasks: typeof tasks;
+      today: typeof today;
       editor: typeof editor;
       vault: typeof vault;
       trash: typeof trash;

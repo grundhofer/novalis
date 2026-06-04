@@ -28,6 +28,15 @@ export function monthYearLabel(date: Date): string {
   return new Intl.DateTimeFormat(activeLocale(), { month: "long", year: "numeric" }).format(date);
 }
 
+/** Localized long day label, e.g. "Wednesday, June 4" — for the day/agenda header. */
+export function formatDayLong(date: Date): string {
+  return new Intl.DateTimeFormat(activeLocale(), {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
+
 /** Localized date + time for an ISO/RFC 3339 string (raw value if unparseable). */
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);

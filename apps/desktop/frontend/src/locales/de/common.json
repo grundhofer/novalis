@@ -15,6 +15,7 @@
   "views": {
     "calendar": "Kalender",
     "notes": "Notizen",
-    "tasks": "Aufgaben"
+    "tasks": "Aufgaben",
+    "today": "Heute"
   }
 }

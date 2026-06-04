@@ -13,6 +13,7 @@ import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
+import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
 import { VaultGate } from "./components/VaultGate";
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
@@ -77,7 +78,7 @@ export default function App() {
         applyAppearance(prefs?.appearance);
         if (initialViewVault.current !== vaultPath) {
           const dv = prefs?.general?.defaultAppView;
-          if (dv === "notes" || dv === "tasks" || dv === "calendar")
+          if (dv === "notes" || dv === "today" || dv === "tasks" || dv === "calendar")
             useUi.getState().setView(dv);
           initialViewVault.current = vaultPath;
         }
@@ -146,6 +147,7 @@ export default function App() {
 
   const viewLabels: Record<MainView, string> = {
     notes: t("views.notes"),
+    today: t("views.today"),
     tasks: t("views.tasks"),
     calendar: t("views.calendar"),
   };
@@ -195,7 +197,15 @@ export default function App() {
           </button>
         )}
         <div className="flex min-h-0 flex-1 flex-col">
-          {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
+          {view === "notes" ? (
+            <EditorPane />
+          ) : view === "today" ? (
+            <TodayView />
+          ) : view === "tasks" ? (
+            <TasksView />
+          ) : (
+            <CalendarView />
+          )}
         </div>
       </div>
 

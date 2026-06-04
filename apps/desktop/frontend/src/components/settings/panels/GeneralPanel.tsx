@@ -38,6 +38,7 @@ export function GeneralPanel() {
               onChange={(v) => settings.setGeneral({ defaultAppView: v })}
               options={[
                 { value: "notes", label: t("common:views.notes") },
+                { value: "today", label: t("common:views.today") },
                 { value: "tasks", label: t("common:views.tasks") },
                 { value: "calendar", label: t("common:views.calendar") },
               ]}
