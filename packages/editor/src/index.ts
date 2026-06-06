@@ -15,9 +15,13 @@ export { Find, findInfo } from "./Find";
 export type { FindMatchInfo } from "./Find";
 export { findMatches } from "./findMatches";
 export { findMath } from "./mathMatches";
+export { findEmbeds } from "./embedMatches";
+export type { EmbedMatch } from "./embedMatches";
 export { parseCallout } from "./parseCallout";
 export { WikiLink } from "./WikiLink";
 export type { WikiLinkOptions } from "./WikiLink";
+export { Embed } from "./Embed";
+export type { EmbedOptions, EmbedResult, EmbedLabels } from "./Embed";
 export type { Editor } from "@tiptap/react";
 
 export const EDITOR_PACKAGE_NAME = "@novalis/editor";

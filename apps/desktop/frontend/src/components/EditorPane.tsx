@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { NovalisEditor, extractHeadings, type Editor, type OutlineItem } from "@novalis/editor";
+import {
+  NovalisEditor,
+  extractHeadings,
+  type Editor,
+  type EmbedResult,
+  type OutlineItem,
+} from "@novalis/editor";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
@@ -67,6 +73,14 @@ const FRONTMATTER = /^(---\r?\n[\s\S]*?\r?\n---\r?\n?)([\s\S]*)$/;
 function splitFrontmatter(raw: string): { fm: string; body: string } {
   const m = raw.match(FRONTMATTER);
   return m ? { fm: m[1], body: m[2] } : { fm: "", body: raw };
+}
+
+// `![[image.png]]` embeds are classified + resolved entirely client-side — the
+// `resolve_embed` backend only ever returns note/missing (image is a frontend
+// concern via the vault image-src resolver).
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "bmp"]);
+function isImageTarget(target: string): boolean {
+  return IMAGE_EXTS.has(target.split(".").pop()?.toLowerCase() ?? "");
 }
 
 /** Clickable folder segments leading to a note (root-first; excludes the file). */
@@ -367,6 +381,28 @@ export function EditorPane() {
     }
   };
 
+  // Resolve a `![[transclusion]]`: images by extension (client-side), notes via
+  // the index. Read-only and never creates — a missing target yields a chip the
+  // user can click (which routes through onWikiLinkClick to create + open).
+  const onResolveEmbed = async (target: string): Promise<EmbedResult> => {
+    if (isImageTarget(target)) return { kind: "image", src: resolveImageSrc(target) };
+    try {
+      const r = await api.resolveEmbed(target);
+      if (r.kind === "note" && r.body != null) {
+        return { kind: "note", path: r.path ?? "", title: r.title ?? target, body: r.body };
+      }
+      return { kind: "missing" };
+    } catch {
+      return { kind: "missing" };
+    }
+  };
+
+  // Opening an embed (its "open note" affordance, or a missing-embed chip) routes
+  // through the wikilink resolver, which creates on miss. Strip any `#section`
+  // anchor first so `![[Note#Heading]]` opens/creates the base `Note` rather than
+  // a literal `Note#Heading.md` file (section embeds are a later phase).
+  const onOpenEmbed = (target: string) => onWikiLinkClick(target.split("#")[0].trim() || target);
+
   const doExport = (format: "html" | "docx") => {
     setExportOpen(false);
     void api.exportNote(activePath, format).catch(() => {});
@@ -578,6 +614,8 @@ export function EditorPane() {
             onUploadImage={onUploadImage}
             resolveImageSrc={resolveImageSrc}
             onWikiLinkClick={onWikiLinkClick}
+            onResolveEmbed={onResolveEmbed}
+            onOpenNote={onOpenEmbed}
             onSearchLinkTargets={searchLinkTargets}
             onSearchTags={searchTags}
             onWikiLinkHover={onWikiLinkHover}
@@ -605,6 +643,9 @@ export function EditorPane() {
               slashMath: t("slashMath"),
               slashMermaid: t("slashMermaid"),
               wikiCreateNew: t("wikiCreateNew"),
+              embedLoading: t("embedLoading"),
+              embedMissing: t("embedMissing"),
+              embedOpenNote: t("embedOpenNote"),
             }}
           />
         </div>

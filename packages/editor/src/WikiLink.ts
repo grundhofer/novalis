@@ -34,6 +34,9 @@ function buildDecorations(doc: { descendants: Function }, className: string) {
       const end = start + m[0].length;
       const title = m[1].trim();
       if (!title) continue;
+      // Skip the inner `[[…]]` of an `![[embed]]`; the Embed extension owns it.
+      // `text[-1]` (match at node start) is undefined, so this is safe there.
+      if (text[m.index - 1] === "!") continue;
       decorations.push(
         Decoration.inline(start, end, {
           class: className,

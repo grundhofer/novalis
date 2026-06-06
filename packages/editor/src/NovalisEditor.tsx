@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 import { mergeAttributes } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -12,6 +13,7 @@ import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
 import { Callout } from "./Callout";
+import { Embed, type EmbedResult } from "./Embed";
 import { Find } from "./Find";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
@@ -23,6 +25,12 @@ import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 // Shared lowlight registry (highlight.js "common" set, ~37 languages), created
 // once at module scope so the language registry is stable across editor mounts.
 const lowlight = createLowlight(common);
+
+// `![[embed]]` transclusions render a nested read-only editor. Bound the
+// recursion so a cycle (`![[A]]` ⇄ `![[B]]`) can't blow the stack: past this
+// depth the Embed extension is simply not registered, so inner `![[…]]` stays
+// inert literal text.
+const MAX_EMBED_DEPTH = 3;
 
 export interface NovalisEditorProps {
   /** Initial markdown content. Remount (via a React `key`) to load another note. */
@@ -37,6 +45,17 @@ export interface NovalisEditorProps {
   resolveImageSrc?: (src: string) => string;
   /** Called when the user clicks a `[[wikilink]]`. Host resolves+opens. */
   onWikiLinkClick?: (title: string) => void;
+  /** Resolve a `![[transclusion]]` target to a renderable result (note body,
+   *  image src, or missing). Host classifies images by extension and resolves
+   *  notes via its index/IPC. Omitted → embeds stay as loading placeholders. */
+  onResolveEmbed?: (target: string) => Promise<EmbedResult>;
+  /** Open (creating if absent) an embedded note — the embed's "open note"
+   *  affordance and the click target of a missing-embed chip. */
+  onOpenNote?: (target: string) => void;
+  /** Current transclusion nesting depth. Top-level hosts pass 0 (or omit);
+   *  nested embed editors pass parent + 1. Embed is registered only while
+   *  `embedDepth < MAX_EMBED_DEPTH`, which terminates recursion. Default 0. */
+  embedDepth?: number;
   /** Search note titles for the `[[` autocomplete. Host wires it to its index;
    *  results are shown in a popover and inserted as plain `[[Title]]` text. */
   onSearchLinkTargets?: (query: string) => Promise<{ title: string; path: string }[]>;
@@ -87,6 +106,12 @@ export interface NovalisEditorLabels {
   slashMermaid: string;
   /** `[[` create-new row; `{{query}}` is replaced with the typed title. */
   wikiCreateNew: string;
+  /** Shown inside a `![[embed]]` while its target is being resolved. */
+  embedLoading: string;
+  /** Shown inside a `![[embed]]` when the target note does not exist. */
+  embedMissing: string;
+  /** Affordance to open the embedded note. */
+  embedOpenNote: string;
 }
 
 const DEFAULT_LABELS: NovalisEditorLabels = {
@@ -108,6 +133,9 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   slashMath: "Math block",
   slashMermaid: "Mermaid diagram",
   wikiCreateNew: 'Create "{{query}}"',
+  embedLoading: "Loading…",
+  embedMissing: "Note not found",
+  embedOpenNote: "Open note",
 };
 
 function getMarkdown(editor: Editor): string {
@@ -122,6 +150,9 @@ export function NovalisEditor({
   onUploadImage,
   resolveImageSrc,
   onWikiLinkClick,
+  onResolveEmbed,
+  onOpenNote,
+  embedDepth,
   onSearchLinkTargets,
   onSearchTags,
   onWikiLinkHover,
@@ -173,6 +204,31 @@ export function NovalisEditor({
   const firstImage = (files: FileList | undefined | null) =>
     Array.from(files ?? []).find((f) => f.type.startsWith("image/"));
 
+  // Render a transcluded note body read-only into the Embed widget's mount. A
+  // nested NovalisEditor gives embedded math/mermaid/callouts/wikilinks the same
+  // rendering as the source; `embedDepth + 1` plus the MAX_EMBED_DEPTH guard on
+  // the extension below terminate recursion. `onChange`/`onEditorReady`/
+  // `onFindToggle` are intentionally NOT forwarded — the nested editor is
+  // read-only and must not hijack the host's outline, save, or Cmd/Ctrl+F.
+  // Returns the unmount fn the Embed extension calls on widget teardown.
+  const depth = embedDepth ?? 0;
+  const renderNote = (body: string, mount: HTMLElement): (() => void) => {
+    const root = createRoot(mount);
+    root.render(
+      <NovalisEditor
+        value={body}
+        editable={false}
+        embedDepth={depth + 1}
+        resolveImageSrc={resolveImageSrc}
+        onWikiLinkClick={onWikiLinkClick}
+        onResolveEmbed={onResolveEmbed}
+        onOpenNote={onOpenNote}
+        labels={lbl}
+      />,
+    );
+    return () => root.unmount();
+  };
+
   const editor = useEditor({
     editable,
     extensions: [
@@ -201,6 +257,22 @@ export function NovalisEditor({
         onHover: onWikiLinkHover,
         onHoverEnd: onWikiLinkHoverEnd,
       }),
+      // Register transclusion only below the depth cap; at/above it the inner
+      // `![[…]]` of a maximally-nested embed renders as inert literal text.
+      ...((embedDepth ?? 0) < MAX_EMBED_DEPTH
+        ? [
+            Embed.configure({
+              onResolve: onResolveEmbed,
+              onOpenNote,
+              renderNote,
+              labels: {
+                loading: lbl.embedLoading,
+                missing: lbl.embedMissing,
+                openNote: lbl.embedOpenNote,
+              },
+            }),
+          ]
+        : []),
       WikiLinkSuggestion.configure({
         onSearch: onSearchLinkTargets,
         createLabel: lbl.wikiCreateNew,

@@ -200,6 +200,52 @@
 .nv-editor-content .nv-math-src { display: none; }
 .nv-editor-content .nv-math-block { display: block; text-align: center; margin: 0.6em 0; }
 
+/* Transclusion: a standalone `![[Note]]` line renders the target inline as a
+   read-only embed; the raw `![[…]]` source is hidden (and reappears when the
+   cursor enters the line). Decoration-only — the Markdown stays literal. */
+.nv-editor-content .nv-embed-src { display: none; }
+.nv-editor-content .nv-embed {
+  display: block;
+  margin: 0.6em 0;
+  border: 1px solid var(--nv-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--nv-fg) 3%, transparent);
+}
+.nv-editor-content .nv-embed-loading,
+.nv-editor-content .nv-embed-missing {
+  color: var(--nv-muted);
+  font-size: 0.9em;
+}
+.nv-editor-content .nv-embed-missing { cursor: pointer; }
+.nv-editor-content .nv-embed-missing:hover {
+  background: color-mix(in srgb, var(--nv-accent) 14%, transparent);
+}
+.nv-editor-content .nv-embed-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.nv-editor-content .nv-embed-title {
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--nv-muted);
+}
+.nv-editor-content .nv-embed-open {
+  font-size: 0.75em;
+  color: var(--nv-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.nv-editor-content .nv-embed-open:hover { text-decoration: underline; }
+.nv-editor-content .nv-embed-image img { max-width: 100%; }
+/* The nested read-only editor inside an embed drops its own outer chrome so it
+   sits flush inside the embed box. */
+.nv-editor-content .nv-embed .nv-editor-content { padding: 0; }
+
 /* Mermaid: a ```mermaid block renders the diagram with a raw/rendered toggle. */
 .nv-editor-content .nv-mermaid-block { position: relative; margin: 0.75em 0; }
 .nv-editor-content .nv-mermaid { text-align: center; padding: 8px 0; }
