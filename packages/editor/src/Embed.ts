@@ -32,6 +32,8 @@ export interface EmbedLabels {
   loading: string;
   /** Shown when the target note does not exist (click to create + open). */
   missing: string;
+  /** Shown when the note exists but the `#section` anchor doesn't. */
+  sectionMissing: string;
   /** Affordance to open the embedded note. */
   openNote: string;
 }
@@ -55,6 +57,7 @@ const embedKey = new PluginKey("nvEmbed");
 const DEFAULT_LABELS: EmbedLabels = {
   loading: "Loading…",
   missing: "Note not found",
+  sectionMissing: "Section not found",
   openNote: "Open note",
 };
 
@@ -147,11 +150,16 @@ export const Embed = Extension.create<EmbedOptions>({
           host.appendChild(img);
         } else if (result.kind === "note") {
           host.classList.add("nv-embed-note");
+          // A `Note#Section` target shows as "Note › Section"; an empty body for
+          // a sectioned target means the section heading wasn't found.
+          const hashIdx = target.indexOf("#");
+          const section = hashIdx >= 0 ? target.slice(hashIdx + 1).trim() : "";
+          const noteTitle = result.title || (hashIdx >= 0 ? target.slice(0, hashIdx) : target);
           const header = document.createElement("div");
           header.className = "nv-embed-header";
           const titleEl = document.createElement("span");
           titleEl.className = "nv-embed-title";
-          titleEl.textContent = result.title || target;
+          titleEl.textContent = section ? `${noteTitle} › ${section}` : noteTitle;
           const openBtn = document.createElement("button");
           openBtn.type = "button";
           openBtn.className = "nv-embed-open";
@@ -159,15 +167,22 @@ export const Embed = Extension.create<EmbedOptions>({
           openHandlers(openBtn, target);
           header.appendChild(titleEl);
           header.appendChild(openBtn);
-          const mount = document.createElement("div");
-          mount.className = "nv-embed-body";
           host.appendChild(header);
-          host.appendChild(mount);
-          if (renderNote) {
-            const c = renderNote(result.body, mount);
-            cleanup = typeof c === "function" ? c : null;
+          if (section && result.body.trim() === "") {
+            const miss = document.createElement("div");
+            miss.className = "nv-embed-section-missing";
+            miss.textContent = labels.sectionMissing;
+            host.appendChild(miss);
           } else {
-            mount.textContent = result.body;
+            const mount = document.createElement("div");
+            mount.className = "nv-embed-body";
+            host.appendChild(mount);
+            if (renderNote) {
+              const c = renderNote(result.body, mount);
+              cleanup = typeof c === "function" ? c : null;
+            } else {
+              mount.textContent = result.body;
+            }
           }
         } else {
           host.classList.add("nv-embed-missing");

@@ -13,6 +13,7 @@
   "embedLoading": "Wird geladen…",
   "embedMissing": "Notiz nicht gefunden",
   "embedOpenNote": "Notiz öffnen",
+  "embedSectionMissing": "Abschnitt nicht gefunden",
   "export": "Exportieren",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",

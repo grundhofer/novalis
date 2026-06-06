@@ -213,7 +213,8 @@
   background: color-mix(in srgb, var(--nv-fg) 3%, transparent);
 }
 .nv-editor-content .nv-embed-loading,
-.nv-editor-content .nv-embed-missing {
+.nv-editor-content .nv-embed-missing,
+.nv-editor-content .nv-embed-section-missing {
   color: var(--nv-muted);
   font-size: 0.9em;
 }

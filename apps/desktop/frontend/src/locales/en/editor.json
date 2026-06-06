@@ -13,6 +13,7 @@
   "embedLoading": "Loading…",
   "embedMissing": "Note not found",
   "embedOpenNote": "Open note",
+  "embedSectionMissing": "Section not found",
   "export": "Export",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",

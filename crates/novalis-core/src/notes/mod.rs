@@ -3,7 +3,9 @@
 //! `&Connection` and vault/data paths — no shared state, fully testable.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
+use regex::Regex;
 use rusqlite::{params, Connection};
 
 use crate::change;
@@ -231,23 +233,73 @@ pub fn resolve_or_create_wiki_link(
     Ok(note.path)
 }
 
+/// Slice the body under the ATX heading matching `section` (case-insensitive,
+/// trimmed) up to — but excluding — the next heading of the same or a higher
+/// level (so deeper sub-headings stay part of the section). The heading line
+/// itself is excluded (the embed surfaces it as the title). Headings inside
+/// fenced code (```` ``` ````/`~~~`) are ignored, mirroring the task scanner.
+/// Returns `None` when the section heading isn't found.
+fn slice_section(body: &str, section: &str) -> Option<String> {
+    static HEADING_RE: OnceLock<Regex> = OnceLock::new();
+    let re = HEADING_RE.get_or_init(|| Regex::new(r"^ {0,3}(#{1,6})\s+(.+)$").unwrap());
+    let want = section.trim();
+    let lines: Vec<&str> = body.lines().collect();
+    let mut in_fence = false;
+    let mut start: Option<(usize, usize)> = None; // (first content line, heading level)
+
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        let Some(c) = re.captures(line) else { continue };
+        let level = c.get(1).unwrap().as_str().len();
+        let text = c.get(2).unwrap().as_str().trim_end_matches([' ', '#']).trim();
+        match start {
+            None => {
+                if text.eq_ignore_ascii_case(want) {
+                    start = Some((i + 1, level));
+                }
+            }
+            // Inside the section: a same-or-higher-level heading ends it.
+            Some((s, lvl)) if level <= lvl => {
+                return Some(lines[s..i].join("\n").trim_matches('\n').to_string());
+            }
+            Some(_) => {}
+        }
+    }
+
+    start.map(|(s, _)| lines[s..].join("\n").trim_matches('\n').to_string())
+}
+
 /// Resolve an `![[embed]]` target to a renderable note **without ever creating
 /// a file**. Reuses [`resolve_note_path`]'s title-then-alias lookup, but a miss
 /// returns [`EmbedTargetKind::Missing`] instead of materializing a note (an
 /// embed of a non-existent note must not litter the vault). On a hit, the note
 /// is read and its frontmatter stripped so only the body is embedded.
 ///
-/// Phase 1a resolves the whole `target` as a title/alias; `![[Note#Heading]]`
-/// section anchors are not parsed here (that is a Phase 2 concern), so a target
-/// carrying a `#section` that isn't itself a real title resolves to `Missing`.
+/// A `![[Note#Heading]]` anchor resolves `Note` as the title/alias and slices
+/// the named section out of the body (see [`slice_section`]). A section that
+/// isn't found yields a `Note` hit with an **empty body** (not `Missing`) — the
+/// note exists, so the UI can say "section not found" while still naming it.
 pub fn resolve_embed(db: &Connection, vault: &Path, target: &str) -> CoreResult<EmbedResolution> {
     let target = target.trim();
     if target.is_empty() {
         return Err(CoreError::BadRequest("empty embed target".into()));
     }
 
+    // Split off an optional `#section` anchor; resolve the note by name only.
+    let (name, section) = match target.split_once('#') {
+        Some((n, s)) => (n.trim(), Some(s.trim())),
+        None => (target, None),
+    };
+
     // Existing note by title or alias — but NEVER create on miss.
-    let Some(path) = resolve_note_path(db, target)? else {
+    let Some(path) = resolve_note_path(db, name)? else {
         return Ok(EmbedResolution {
             kind: EmbedTargetKind::Missing,
             path: None,
@@ -259,6 +311,11 @@ pub fn resolve_embed(db: &Connection, vault: &Path, target: &str) -> CoreResult<
     // Hit → read the note and strip frontmatter; embeds render the body only.
     let note = vault_fs::read_note(vault, &path)?;
     let (_fm, body) = frontmatter::parse_frontmatter(&note.content);
+    let body = match section {
+        // A section heading that isn't found → empty body (kind stays Note).
+        Some(sec) if !sec.is_empty() => slice_section(&body, sec).unwrap_or_default(),
+        _ => body,
+    };
     Ok(EmbedResolution {
         kind: EmbedTargetKind::Note,
         path: Some(note.path),
@@ -643,26 +700,73 @@ mod tests {
     }
 
     #[test]
-    fn resolve_embed_does_not_parse_section_anchors_in_phase_1a() {
+    fn resolve_embed_slices_section_anchor() {
+        let c = ctx();
+
+        let content = "# Daily\n\nintro\n\n## Tasks\n\n- one\n- two\n\n### Sub\n\ndeep\n\n## Done\n\nfini\n";
+        std::fs::write(c.vault.join("Daily.md"), content).unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Daily.md").unwrap();
+
+        // The base note (no anchor) resolves to the whole body.
+        let whole = resolve_embed(&c.db, &c.vault, "Daily").unwrap();
+        assert!(matches!(whole.kind, EmbedTargetKind::Note));
+        assert!(whole.body.as_deref().unwrap().contains("fini"));
+
+        // `Daily#Tasks` slices that section: content up to the next same-or-
+        // higher heading (`## Done`), INCLUDING the deeper `### Sub`, but NOT the
+        // `## Tasks` heading line itself and NOT the `## Done` section.
+        let sec = resolve_embed(&c.db, &c.vault, "Daily#Tasks").unwrap();
+        assert!(matches!(sec.kind, EmbedTargetKind::Note));
+        let body = sec.body.as_deref().unwrap();
+        assert!(body.contains("- one") && body.contains("- two"));
+        assert!(body.contains("### Sub") && body.contains("deep")); // deeper nested included
+        assert!(!body.contains("## Tasks")); // heading line excluded
+        assert!(!body.contains("fini")); // stops before `## Done`
+        assert!(!body.contains("intro")); // doesn't bleed from above
+
+        // Case-insensitive heading match.
+        assert_eq!(
+            resolve_embed(&c.db, &c.vault, "Daily#tasks").unwrap().body.as_deref(),
+            Some(body),
+        );
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_missing_section_is_note_with_empty_body() {
         let c = ctx();
 
         std::fs::write(c.vault.join("Daily.md"), "# Daily\n\n## Tasks\n\n- one\n").unwrap();
         crate::change::reindex_path(&c.db, &c.vault, "Daily.md").unwrap();
 
-        // The base note resolves on its own.
+        // Note exists but the section doesn't → Note hit with an EMPTY body (so
+        // the UI can say "section not found" while still naming the note). The
+        // note is NOT created or duplicated.
+        let r = resolve_embed(&c.db, &c.vault, "Daily#Nonexistent").unwrap();
+        assert!(matches!(r.kind, EmbedTargetKind::Note));
+        assert_eq!(r.path.as_deref(), Some("Daily.md"));
+        assert_eq!(r.body.as_deref(), Some(""));
+        assert!(!c.vault.join("Daily#Nonexistent.md").exists());
+
+        // A `#section` on a NON-existent note is still Missing (no note at all).
         assert!(matches!(
-            resolve_embed(&c.db, &c.vault, "Daily").unwrap().kind,
-            EmbedTargetKind::Note
+            resolve_embed(&c.db, &c.vault, "Ghost#Tasks").unwrap().kind,
+            EmbedTargetKind::Missing
         ));
 
-        // `Daily#Tasks` is treated as a literal title in Phase 1a — section
-        // anchors are not parsed yet (that is Phase 2), so it does NOT resolve
-        // and creates no file. This documents the Phase 1a/2 boundary and is
-        // expected to change when section embeds land.
-        let sectioned = resolve_embed(&c.db, &c.vault, "Daily#Tasks").unwrap();
-        assert!(matches!(sectioned.kind, EmbedTargetKind::Missing));
-        assert!(!c.vault.join("Daily#Tasks.md").exists());
-
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn slice_section_ignores_headings_inside_code_fences() {
+        // A `#`-comment inside a fenced block must not be treated as a heading
+        // boundary; the fenced block is part of the `Setup` section.
+        let body = "## Setup\n\n```sh\n# not a heading\n```\n\nrun it\n\n## Next\n\nafter\n";
+        let sliced = slice_section(body, "Setup").unwrap();
+        assert!(sliced.contains("# not a heading")); // fenced `#` preserved, not a boundary
+        assert!(sliced.contains("run it"));
+        assert!(!sliced.contains("after")); // stops at the real `## Next`
+        assert!(slice_section(body, "Missing").is_none());
     }
 }

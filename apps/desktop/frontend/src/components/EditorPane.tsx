@@ -645,6 +645,7 @@ export function EditorPane() {
               wikiCreateNew: t("wikiCreateNew"),
               embedLoading: t("embedLoading"),
               embedMissing: t("embedMissing"),
+              embedSectionMissing: t("embedSectionMissing"),
               embedOpenNote: t("embedOpenNote"),
             }}
           />

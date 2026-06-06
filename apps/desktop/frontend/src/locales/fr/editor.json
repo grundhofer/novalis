@@ -13,6 +13,7 @@
   "embedLoading": "Chargement…",
   "embedMissing": "Note introuvable",
   "embedOpenNote": "Ouvrir la note",
+  "embedSectionMissing": "Section introuvable",
   "export": "Exporter",
   "exportDocx": "Word (.docx)",
   "exportHtml": "HTML",

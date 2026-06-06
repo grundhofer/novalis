@@ -110,6 +110,8 @@ export interface NovalisEditorLabels {
   embedLoading: string;
   /** Shown inside a `![[embed]]` when the target note does not exist. */
   embedMissing: string;
+  /** Shown inside a `![[Note#Section]]` embed when the section isn't found. */
+  embedSectionMissing: string;
   /** Affordance to open the embedded note. */
   embedOpenNote: string;
 }
@@ -135,6 +137,7 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   wikiCreateNew: 'Create "{{query}}"',
   embedLoading: "Loading…",
   embedMissing: "Note not found",
+  embedSectionMissing: "Section not found",
   embedOpenNote: "Open note",
 };
 
@@ -268,6 +271,7 @@ export function NovalisEditor({
               labels: {
                 loading: lbl.embedLoading,
                 missing: lbl.embedMissing,
+                sectionMissing: lbl.embedSectionMissing,
                 openNote: lbl.embedOpenNote,
               },
             }),
