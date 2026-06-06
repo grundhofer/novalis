@@ -120,3 +120,28 @@ pub struct UpdateMetaRequest {
     pub pinned: Option<bool>,
     pub aliases: Option<Vec<String>>,
 }
+
+/// What an `![[embed]]` target resolved to. A note renders its body inline; an
+/// image renders via the host's `resolveImageSrc`; a miss reports `Missing` so
+/// the UI can offer a "create note" affordance — unlike `[[wikilinks]]`, embeds
+/// never materialize a note on miss.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum EmbedTargetKind {
+    Note,
+    Image,
+    Missing,
+}
+
+/// The resolution of an `![[embed]]` reference. `path`/`title`/`body` are set
+/// for a `Note` hit (`body` has the frontmatter stripped); all `None` for a
+/// `Missing` target. `Image` is classified frontend-side by extension, so the
+/// backend only ever returns `Note` or `Missing`.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedResolution {
+    pub kind: EmbedTargetKind,
+    pub path: Option<String>,
+    pub title: Option<String>,
+    pub body: Option<String>,
+}

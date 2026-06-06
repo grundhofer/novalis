@@ -52,6 +52,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::remove_recent_vault,
             commands::list_notes,
             commands::get_note,
+            commands::resolve_embed,
             commands::create_note,
             commands::update_note,
             commands::update_note_meta,

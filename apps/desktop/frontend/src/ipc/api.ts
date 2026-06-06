@@ -36,6 +36,7 @@ export const api = {
   getFolderTree: () => unwrap(commands.getFolderTree()),
   listNotes: () => unwrap(commands.listNotes()),
   getNote: (path: string) => unwrap(commands.getNote(path)),
+  resolveEmbed: (target: string) => unwrap(commands.resolveEmbed(target)),
   createNote: (path: string, opts?: { content?: string; template?: string }) =>
     unwrap(
       commands.createNote({

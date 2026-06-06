@@ -11,9 +11,9 @@ use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
-    CreateNoteRequest, CreateTaskRequest, EventInput, FolderNode, LinkReference, Note, NoteGraph,
-    NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest, SearchResult,
-    TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, LinkReference,
+    Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest,
+    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -205,6 +205,21 @@ pub async fn get_note(app: AppHandle, path: String) -> CmdResult<Note> {
     })
     .await
     .map_err(|e| CommandError::internal(format!("get_note task panicked: {e}")))?
+}
+
+/// `async` + `spawn_blocking`: resolving an `![[embed]]` reads the target note
+/// from disk, which on a OneDrive/iCloud vault may hydrate an online-only file
+/// over the network — so it runs off the main thread like [`get_note`]. Never
+/// creates a note on a miss; returns `EmbedResolution { kind: missing }`.
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_embed(app: AppHandle, target: String) -> CmdResult<EmbedResolution> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>()
+            .with(|e| novalis_core::notes::resolve_embed(&e.db, &e.vault_path, &target))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("resolve_embed task panicked: {e}")))?
 }
 
 #[tauri::command]

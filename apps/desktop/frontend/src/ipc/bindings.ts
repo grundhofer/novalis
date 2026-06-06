@@ -50,6 +50,13 @@ export const commands = {
 	 *  state and prefetch-on-hover).
 	 */
 	getNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("get_note", { path })),
+	/**
+	 *  `async` + `spawn_blocking`: resolving an `![[embed]]` reads the target note
+	 *  from disk, which on a OneDrive/iCloud vault may hydrate an online-only file
+	 *  over the network — so it runs off the main thread like [`get_note`]. Never
+	 *  creates a note on a miss; returns `EmbedResolution { kind: missing }`.
+	 */
+	resolveEmbed: (target: string) => typedError<EmbedResolution, CommandError>(__TAURI_INVOKE("resolve_embed", { target })),
 	createNote: (req: CreateNoteRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("create_note", { req })),
 	updateNote: (path: string, content: string) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note", { path, content })),
 	updateNoteMeta: (req: UpdateMetaRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note_meta", { req })),
@@ -339,6 +346,27 @@ export type EditorPrefs = {
 	/**  Open notes in reading mode (rendered, non-editable) by default. */
 	defaultReadingMode?: boolean,
 };
+
+/**
+ *  The resolution of an `![[embed]]` reference. `path`/`title`/`body` are set
+ *  for a `Note` hit (`body` has the frontmatter stripped); all `None` for a
+ *  `Missing` target. `Image` is classified frontend-side by extension, so the
+ *  backend only ever returns `Note` or `Missing`.
+ */
+export type EmbedResolution = {
+	kind: EmbedTargetKind,
+	path: string | null,
+	title: string | null,
+	body: string | null,
+};
+
+/**
+ *  What an `![[embed]]` target resolved to. A note renders its body inline; an
+ *  image renders via the host's `resolveImageSrc`; a miss reports `Missing` so
+ *  the UI can offer a "create note" affordance — unlike `[[wikilinks]]`, embeds
+ *  never materialize a note on miss.
+ */
+export type EmbedTargetKind = "note" | "image" | "missing";
 
 /**  Request to create/update an own event (written to a markdown note). */
 export type EventInput = {

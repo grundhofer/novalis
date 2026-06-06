@@ -8,7 +8,10 @@ use rusqlite::{params, Connection};
 
 use crate::change;
 use crate::error::{CoreError, CoreResult};
-use crate::models::{CreateNoteRequest, Note, NoteSummary, NoteTemplate, UpdateMetaRequest};
+use crate::models::{
+    CreateNoteRequest, EmbedResolution, EmbedTargetKind, Note, NoteSummary, NoteTemplate,
+    UpdateMetaRequest,
+};
 use crate::vault::{frontmatter, fs as vault_fs};
 
 /// List all note summaries in the vault.
@@ -155,12 +158,56 @@ pub fn delete(db: &Connection, vault: &Path, path: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// Resolve a target title to an existing note's path: exact case-insensitive
+/// title match first, then an alias fallback. Returns `None` when nothing
+/// matches. Shared by [`resolve_or_create_wiki_link`] (which creates on `None`)
+/// and [`resolve_embed`] (which reports `Missing` on `None`) so the two paths
+/// never drift.
+///
+/// The alias `LIKE` is a cheap pre-filter over the JSON-array `aliases` column;
+/// the authoritative check is the exact case-insensitive compare, so `[[al]]`
+/// doesn't resolve to a note aliased "Allan". Ties resolve to the
+/// most-recently-modified note (`ORDER BY modified DESC`).
+fn resolve_note_path(db: &Connection, target: &str) -> CoreResult<Option<String>> {
+    // 1. Existing note by title (case-insensitive).
+    let by_title: Option<String> = db
+        .query_row(
+            "SELECT path FROM note_meta WHERE lower(title) = lower(?1) ORDER BY modified DESC LIMIT 1",
+            params![target],
+            |row| row.get(0),
+        )
+        .ok();
+    if by_title.is_some() {
+        return Ok(by_title);
+    }
+
+    // 2. Existing note by alias (case-insensitive exact match).
+    let pattern = format!("%{}%", target.replace('%', "\\%"));
+    let mut stmt = db.prepare(
+        "SELECT path, aliases FROM note_meta WHERE aliases LIKE ?1 ORDER BY modified DESC",
+    )?;
+    let rows = stmt.query_map(params![pattern], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    for (path, aliases_str) in rows.filter_map(|r| r.ok()) {
+        let aliases: Vec<String> = serde_json::from_str(&aliases_str).unwrap_or_default();
+        if aliases
+            .iter()
+            .any(|a| a.trim().eq_ignore_ascii_case(target))
+        {
+            return Ok(Some(path));
+        }
+    }
+    Ok(None)
+}
+
 /// Resolve a `[[wikilink]]` target title to an existing note's path, or create
 /// a new note at the vault root and return its path. Used when the user clicks
 /// a wikilink in the editor.
 ///
-/// Resolution order: case-insensitive title match in `note_meta`, then create
-/// `<sanitized>.md` at vault root. Reserved filesystem characters are stripped.
+/// Resolution order: existing note by title or alias ([`resolve_note_path`]),
+/// then create `<sanitized>.md` at vault root. Reserved filesystem characters
+/// are stripped.
 pub fn resolve_or_create_wiki_link(
     db: &Connection,
     vault: &Path,
@@ -171,50 +218,53 @@ pub fn resolve_or_create_wiki_link(
         return Err(CoreError::BadRequest("empty wikilink title".into()));
     }
 
-    // 1. Existing note by title (case-insensitive).
-    let existing: Option<String> = db
-        .query_row(
-            "SELECT path FROM note_meta WHERE lower(title) = lower(?1) ORDER BY modified DESC LIMIT 1",
-            params![title],
-            |row| row.get(0),
-        )
-        .ok();
-    if let Some(path) = existing {
+    // Existing note by title or alias.
+    if let Some(path) = resolve_note_path(db, title)? {
         return Ok(path);
     }
 
-    // 2. Existing note by alias (case-insensitive exact match). The LIKE is a
-    //    cheap pre-filter over the JSON-array `aliases` column; the authoritative
-    //    check is the exact case-insensitive compare, so `[[al]]` doesn't resolve
-    //    to a note aliased "Allan".
-    let alias_hit: Option<String> = {
-        let pattern = format!("%{}%", title.replace('%', "\\%"));
-        let mut stmt = db.prepare(
-            "SELECT path, aliases FROM note_meta WHERE aliases LIKE ?1 ORDER BY modified DESC",
-        )?;
-        let rows = stmt.query_map(params![pattern], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
-        let mut found = None;
-        for (path, aliases_str) in rows.filter_map(|r| r.ok()) {
-            let aliases: Vec<String> = serde_json::from_str(&aliases_str).unwrap_or_default();
-            if aliases.iter().any(|a| a.trim().eq_ignore_ascii_case(title)) {
-                found = Some(path);
-                break;
-            }
-        }
-        found
-    };
-    if let Some(path) = alias_hit {
-        return Ok(path);
-    }
-
-    // 3. Create at vault root using a sanitized filename.
+    // Miss → create at vault root using a sanitized filename.
     let filename = sanitize_wiki_link_filename(title);
     let path = format!("{filename}.md");
     let note = vault_fs::create_note(vault, &path, "")?;
     change::reindex_path(db, vault, &note.path)?;
     Ok(note.path)
+}
+
+/// Resolve an `![[embed]]` target to a renderable note **without ever creating
+/// a file**. Reuses [`resolve_note_path`]'s title-then-alias lookup, but a miss
+/// returns [`EmbedTargetKind::Missing`] instead of materializing a note (an
+/// embed of a non-existent note must not litter the vault). On a hit, the note
+/// is read and its frontmatter stripped so only the body is embedded.
+///
+/// Phase 1a resolves the whole `target` as a title/alias; `![[Note#Heading]]`
+/// section anchors are not parsed here (that is a Phase 2 concern), so a target
+/// carrying a `#section` that isn't itself a real title resolves to `Missing`.
+pub fn resolve_embed(db: &Connection, vault: &Path, target: &str) -> CoreResult<EmbedResolution> {
+    let target = target.trim();
+    if target.is_empty() {
+        return Err(CoreError::BadRequest("empty embed target".into()));
+    }
+
+    // Existing note by title or alias — but NEVER create on miss.
+    let Some(path) = resolve_note_path(db, target)? else {
+        return Ok(EmbedResolution {
+            kind: EmbedTargetKind::Missing,
+            path: None,
+            title: None,
+            body: None,
+        });
+    };
+
+    // Hit → read the note and strip frontmatter; embeds render the body only.
+    let note = vault_fs::read_note(vault, &path)?;
+    let (_fm, body) = frontmatter::parse_frontmatter(&note.content);
+    Ok(EmbedResolution {
+        kind: EmbedTargetKind::Note,
+        path: Some(note.path),
+        title: Some(note.title),
+        body: Some(body),
+    })
 }
 
 /// Convert the first bare mention of `title` on `line` (1-based, raw-file
@@ -496,6 +546,122 @@ mod tests {
         let al = resolve_or_create_wiki_link(&c.db, &c.vault, "al").unwrap();
         assert_eq!(al, "al.md");
         assert!(c.vault.join("al.md").exists());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_finds_note_and_strips_frontmatter() {
+        let c = ctx();
+
+        std::fs::write(
+            c.vault.join("Recipes.md"),
+            "---\ntitle: Recipes\naliases:\n  - Cookbook\n---\n\nThe body of the note.",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Recipes.md").unwrap();
+
+        // Resolves by title, case-insensitively.
+        let r = resolve_embed(&c.db, &c.vault, "recipes").unwrap();
+        assert!(matches!(r.kind, EmbedTargetKind::Note));
+        assert_eq!(r.path.as_deref(), Some("Recipes.md"));
+        assert_eq!(r.title.as_deref(), Some("Recipes"));
+
+        // The embedded body excludes the YAML frontmatter.
+        let body = r.body.unwrap();
+        assert!(body.contains("The body of the note."));
+        assert!(!body.contains("title: Recipes"));
+        assert!(!body.contains("---"));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_resolves_aliases_but_not_partial() {
+        let c = ctx();
+
+        std::fs::write(
+            c.vault.join("Recipes.md"),
+            "---\ntitle: Recipes\naliases:\n  - Cookbook\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Recipes.md").unwrap();
+
+        // `![[Cookbook]]` resolves to the canonical note (case-insensitive).
+        let hit = resolve_embed(&c.db, &c.vault, "cookbook").unwrap();
+        assert!(matches!(hit.kind, EmbedTargetKind::Note));
+        assert_eq!(hit.path.as_deref(), Some("Recipes.md"));
+
+        // Exact-match only: a partial of an alias must NOT resolve (LIKE is just
+        // a pre-filter) — and must NOT create a file.
+        let partial = resolve_embed(&c.db, &c.vault, "Cook").unwrap();
+        assert!(matches!(partial.kind, EmbedTargetKind::Missing));
+        assert!(!c.vault.join("Cook.md").exists());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_missing_creates_no_file() {
+        let c = ctx();
+
+        let r = resolve_embed(&c.db, &c.vault, "Nonexistent Note").unwrap();
+        assert!(matches!(r.kind, EmbedTargetKind::Missing));
+        assert!(r.path.is_none());
+        assert!(r.title.is_none());
+        assert!(r.body.is_none());
+        // Critically: a missed embed must NOT materialize a note (unlike a
+        // `[[wikilink]]` click) — this is the load-bearing invariant.
+        assert!(!c.vault.join("Nonexistent Note.md").exists());
+
+        // An empty target is a bad request, not a silent miss.
+        assert!(resolve_embed(&c.db, &c.vault, "   ").is_err());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_returns_body_for_note_without_frontmatter() {
+        let c = ctx();
+
+        // A plain note with no YAML frontmatter block at all (the common case
+        // for legacy/imported notes) — there is nothing to strip.
+        let content = "Plain body text.\nNo frontmatter here.\n";
+        std::fs::write(c.vault.join("Plain.md"), content).unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Plain.md").unwrap();
+
+        let r = resolve_embed(&c.db, &c.vault, "Plain").unwrap();
+        assert!(matches!(r.kind, EmbedTargetKind::Note));
+        // The whole content is the body, returned verbatim (no mangling, no
+        // stray `---` delimiters).
+        let body = r.body.unwrap();
+        assert!(body.contains("Plain body text."));
+        assert!(body.contains("No frontmatter here."));
+        assert!(!body.starts_with("---"));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_embed_does_not_parse_section_anchors_in_phase_1a() {
+        let c = ctx();
+
+        std::fs::write(c.vault.join("Daily.md"), "# Daily\n\n## Tasks\n\n- one\n").unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Daily.md").unwrap();
+
+        // The base note resolves on its own.
+        assert!(matches!(
+            resolve_embed(&c.db, &c.vault, "Daily").unwrap().kind,
+            EmbedTargetKind::Note
+        ));
+
+        // `Daily#Tasks` is treated as a literal title in Phase 1a — section
+        // anchors are not parsed yet (that is Phase 2), so it does NOT resolve
+        // and creates no file. This documents the Phase 1a/2 boundary and is
+        // expected to change when section embeds land.
+        let sectioned = resolve_embed(&c.db, &c.vault, "Daily#Tasks").unwrap();
+        assert!(matches!(sectioned.kind, EmbedTargetKind::Missing));
+        assert!(!c.vault.join("Daily#Tasks.md").exists());
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
