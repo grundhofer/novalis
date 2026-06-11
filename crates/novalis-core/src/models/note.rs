@@ -135,6 +135,26 @@ pub struct NoteGraph {
     pub edges: Vec<GraphEdge>,
 }
 
+/// A node in the whole-vault graph. A parallel type (not a widened
+/// [`GraphNode`], which note_graph/GraphModal still consume) — the vault view
+/// colors nodes by folder, so it carries one extra field.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultGraphNode {
+    pub path: String,
+    pub title: String,
+    pub folder: String,
+}
+
+/// The whole-vault link graph: every indexed note plus every resolved
+/// `[[link]]` edge between two existing notes.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FullGraph {
+    pub nodes: Vec<VaultGraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateNoteRequest {

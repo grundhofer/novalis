@@ -11,10 +11,10 @@ use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
-    CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, LinkReference,
-    Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue,
-    ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo,
-    VaultStats,
+    CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
+    LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences,
+    PropertyValue, ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery,
+    UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -425,6 +425,14 @@ pub fn link_mention(
 #[specta::specta]
 pub fn note_graph(state: State<AppEngine>, path: String) -> CmdResult<NoteGraph> {
     state.with(|e| links::note_graph(&e.db, &path))
+}
+
+/// The whole-vault link graph for the Graph view. Index-only — never reads
+/// note bodies (no cloud hydration on graph open).
+#[tauri::command]
+#[specta::specta]
+pub fn full_graph(state: State<AppEngine>) -> CmdResult<FullGraph> {
+    state.with(|e| links::full_graph(&e.db))
 }
 
 // ── Vault info / index ──────────────────────────────────────────────────────

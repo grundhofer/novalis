@@ -75,6 +75,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::unlinked_mentions,
             commands::link_mention,
             commands::note_graph,
+            commands::full_graph,
             commands::get_vault_info,
             commands::get_vault_stats,
             commands::reindex_vault,

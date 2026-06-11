@@ -102,6 +102,11 @@ export const commands = {
 	linkMention: (path: string, title: string, line: number) => typedError<Note, CommandError>(__TAURI_INVOKE("link_mention", { path, title, line })),
 	/**  The 1-hop link neighborhood of `path` for the local graph view. Index-only. */
 	noteGraph: (path: string) => typedError<NoteGraph, CommandError>(__TAURI_INVOKE("note_graph", { path })),
+	/**
+	 *  The whole-vault link graph for the Graph view. Index-only — never reads
+	 *  note bodies (no cloud hydration on graph open).
+	 */
+	fullGraph: () => typedError<FullGraph, CommandError>(__TAURI_INVOKE("full_graph")),
 	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
 	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
 	/**
@@ -411,6 +416,15 @@ export type FolderNode = {
 	notes: NoteSummary[],
 };
 
+/**
+ *  The whole-vault link graph: every indexed note plus every resolved
+ *  `[[link]]` edge between two existing notes.
+ */
+export type FullGraph = {
+	nodes: VaultGraphNode[],
+	edges: GraphEdge[],
+};
+
 /**  General / startup behavior. */
 export type GeneralPrefs = {
 	/**  View shown on launch: `"notes"` | `"tasks"` | `"calendar"`. */
@@ -695,6 +709,17 @@ export type UpdateMetaRequest = {
 	tags: string[] | null,
 	pinned: boolean | null,
 	aliases: string[] | null,
+};
+
+/**
+ *  A node in the whole-vault graph. A parallel type (not a widened
+ *  [`GraphNode`], which note_graph/GraphModal still consume) — the vault view
+ *  colors nodes by folder, so it carries one extra field.
+ */
+export type VaultGraphNode = {
+	path: string,
+	title: string,
+	folder: string,
 };
 
 export type VaultInfo = {

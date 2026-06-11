@@ -75,6 +75,7 @@ export const api = {
   linkMention: (path: string, title: string, line: number) =>
     unwrap(commands.linkMention(path, title, line)),
   noteGraph: (path: string) => unwrap(commands.noteGraph(path)),
+  fullGraph: () => unwrap(commands.fullGraph()),
   reindexVault: () => unwrap(commands.reindexVault()),
   rescanVault: () => unwrap(commands.rescanVault()),
   getVaultInfo: () => unwrap(commands.getVaultInfo()),

@@ -10,7 +10,9 @@ use regex::Regex;
 use rusqlite::{params, Connection};
 
 use crate::error::CoreResult;
-use crate::models::{GraphEdge, GraphNode, LinkMatch, LinkReference, NoteGraph};
+use crate::models::{
+    FullGraph, GraphEdge, GraphNode, LinkMatch, LinkReference, NoteGraph, VaultGraphNode,
+};
 
 /// The `[[target]]` pattern. Compiled once per query and reused across lines.
 fn wiki_regex() -> Regex {
@@ -209,6 +211,45 @@ pub fn note_graph(db: &Connection, path: &str) -> CoreResult<NoteGraph> {
         nodes,
         edges,
     })
+}
+
+/// The whole-vault link graph: every indexed note, plus every `[[link]]` edge
+/// that resolves to an existing note. INDEX-ONLY — this must never read note
+/// bodies (a cloud-only placeholder would hydrate over the network on graph
+/// open); nodes and edges come solely from `note_meta` and `links`.
+///
+/// Edge resolution mirrors [`note_graph`]: case-insensitive title JOIN,
+/// self-loops dropped, duplicates collapsed. Known v1 limitation (same as
+/// note_graph): two notes sharing a TITLE both match a `[[link]]` to that
+/// title, fanning one logical edge out to both — acceptable until the links
+/// table stores resolved paths.
+pub fn full_graph(db: &Connection) -> CoreResult<FullGraph> {
+    let mut node_stmt = db.prepare("SELECT path, title, folder FROM note_meta ORDER BY path")?;
+    let nodes: Vec<VaultGraphNode> = node_stmt
+        .query_map([], |r| {
+            Ok(VaultGraphNode {
+                path: r.get(0)?,
+                title: r.get(1)?,
+                folder: r.get(2)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let mut edge_stmt = db.prepare(
+        "SELECT DISTINCT l.source_path, nm.path
+         FROM links l JOIN note_meta nm ON lower(nm.title) = lower(l.target_title)
+         WHERE l.source_path != nm.path",
+    )?;
+    let mut seen = std::collections::HashSet::new();
+    let edges: Vec<GraphEdge> = edge_stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .filter_map(|r| r.ok())
+        .filter(|(s, t)| seen.insert((s.clone(), t.clone())))
+        .map(|(source, target)| GraphEdge { source, target })
+        .collect();
+
+    Ok(FullGraph { nodes, edges })
 }
 
 /// Result of bracketing a bare mention on a single line.
@@ -502,6 +543,121 @@ mod tests {
             .edges
             .iter()
             .any(|e| e.source == "Inbound.md" && e.target == "Hub.md"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn graph_summary(path: &str, title: &str, folder: &str) -> crate::models::NoteSummary {
+        crate::models::NoteSummary {
+            path: path.to_string(),
+            title: title.to_string(),
+            folder: folder.to_string(),
+            tags: vec![],
+            aliases: vec![],
+            created: String::new(),
+            modified: String::new(),
+            pinned: false,
+            word_count: 0,
+            task_total: 0,
+            task_completed: 0,
+            cloud_only: false,
+        }
+    }
+
+    #[test]
+    fn full_graph_resolves_title_edges_and_excludes_self_loops() {
+        use crate::index::{schema, search};
+
+        let dir = std::env::temp_dir().join(format!("novalis-fullgraph-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+
+        // Hub → Spoke, Inbound → Hub; Loner has no links; Selfie links to its
+        // own title (must NOT produce a self-loop edge). Case-insensitive
+        // resolution: Inbound links `[[hub]]`.
+        search::index_note(&db, &graph_summary("Hub.md", "Hub", ""), "see [[Spoke]]").unwrap();
+        search::index_note(&db, &graph_summary("sub/Spoke.md", "Spoke", "sub"), "x").unwrap();
+        search::index_note(
+            &db,
+            &graph_summary("Inbound.md", "Inbound", ""),
+            "see [[hub]]",
+        )
+        .unwrap();
+        search::index_note(&db, &graph_summary("Loner.md", "Loner", ""), "no links").unwrap();
+        search::index_note(
+            &db,
+            &graph_summary("Selfie.md", "Selfie", ""),
+            "I am [[Selfie]]",
+        )
+        .unwrap();
+
+        let g = full_graph(&db).unwrap();
+        // Every indexed note is a node (including the linkless one).
+        let mut paths: Vec<&str> = g.nodes.iter().map(|n| n.path.as_str()).collect();
+        paths.sort();
+        assert_eq!(
+            paths,
+            vec![
+                "Hub.md",
+                "Inbound.md",
+                "Loner.md",
+                "Selfie.md",
+                "sub/Spoke.md"
+            ]
+        );
+        // Folder rides along for color-by-folder.
+        assert_eq!(
+            g.nodes
+                .iter()
+                .find(|n| n.path == "sub/Spoke.md")
+                .unwrap()
+                .folder,
+            "sub"
+        );
+        // Exactly the two resolved edges; unresolved/missing targets omitted,
+        // the self-link dropped.
+        let mut edges: Vec<(String, String)> = g
+            .edges
+            .iter()
+            .map(|e| (e.source.clone(), e.target.clone()))
+            .collect();
+        edges.sort();
+        assert_eq!(
+            edges,
+            vec![
+                ("Hub.md".to_string(), "sub/Spoke.md".to_string()),
+                ("Inbound.md".to_string(), "Hub.md".to_string()),
+            ]
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn full_graph_title_collision_fans_out_documented() {
+        use crate::index::{schema, search};
+
+        let dir = std::env::temp_dir().join(format!("novalis-collide-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+
+        // Two notes share the title "Notes": a `[[Notes]]` link fans out to
+        // BOTH (the documented v1 limitation of title-keyed resolution — this
+        // test pins the behavior so a future path-resolved links table changes
+        // it deliberately, not silently).
+        search::index_note(&db, &graph_summary("a/Notes.md", "Notes", "a"), "x").unwrap();
+        search::index_note(&db, &graph_summary("b/Notes.md", "Notes", "b"), "x").unwrap();
+        search::index_note(&db, &graph_summary("Src.md", "Src", ""), "see [[Notes]]").unwrap();
+
+        let g = full_graph(&db).unwrap();
+        let from_src: Vec<&str> = g
+            .edges
+            .iter()
+            .filter(|e| e.source == "Src.md")
+            .map(|e| e.target.as_str())
+            .collect();
+        assert_eq!(from_src.len(), 2);
+        assert!(from_src.contains(&"a/Notes.md") && from_src.contains(&"b/Notes.md"));
 
         std::fs::remove_dir_all(&dir).ok();
     }
