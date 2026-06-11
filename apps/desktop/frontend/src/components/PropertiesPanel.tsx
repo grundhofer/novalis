@@ -4,8 +4,18 @@ import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { NotePropertyEntry, PropertyValue } from "../ipc/api";
+import {
+  coerceTo,
+  effectiveKind,
+  getKindHint,
+  moveKindHint,
+  PROPERTY_KINDS,
+  setKindHint,
+  type PropertyKind,
+} from "../lib/propertyKinds";
 import { useVault } from "../stores/vaultStore";
 import { ChipInput } from "./ui/ChipInput";
+import { Select } from "./ui/Select";
 import { Switch } from "./ui/Switch";
 import { TextField } from "./ui/TextField";
 
@@ -31,7 +41,14 @@ function savePropsOpen(open: boolean): void {
 // The backend remains authoritative.
 const RESERVED_KEYS = new Set(["title", "tags", "aliases", "created", "modified", "pinned"]);
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Static key map (i18next's typed keys reject dynamic template strings).
+const KIND_LABEL_KEY = {
+  text: "editor:propertyTypeText",
+  number: "editor:propertyTypeNumber",
+  date: "editor:propertyTypeDate",
+  checkbox: "editor:propertyTypeCheckbox",
+  list: "editor:propertyTypeList",
+} as const;
 
 /** Collapsible typed editor for a note's custom frontmatter properties. The
  *  YAML stays the source of truth — every edit round-trips through the
@@ -44,6 +61,7 @@ export function PropertiesPanel({
   properties: NotePropertyEntry[];
 }) {
   const { t } = useTranslation(["editor", "common"]);
+  const vaultPath = useVault((s) => s.vaultPath) ?? "";
   const setProperty = useVault((s) => s.setProperty);
   const removeProperty = useVault((s) => s.removeProperty);
   const renameProperty = useVault((s) => s.renameProperty);
@@ -52,6 +70,9 @@ export function PropertiesPanel({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
+  // Bumped when only a device-local kind hint changed (the note itself didn't),
+  // so the affected row re-renders with its new widget.
+  const [, setHintBump] = useState(0);
 
   // Leaving the note resets transient row state (the panel itself is shared
   // across notes via the open bit only).
@@ -95,7 +116,28 @@ export function PropertiesPanel({
     }
     setRenaming(null);
     setKeyError(null);
+    moveKindHint(vaultPath, path, from, k); // the device-local kind follows
     void renameProperty(path, from, k);
+  };
+
+  /** Switch a property's kind: store the device-local hint and write the
+   *  coerced value (if it changed). A value that can't be coerced shows a
+   *  localized error and writes NOTHING — a lossy guess is worse than a no. */
+  const commitKind = (entry: NotePropertyEntry, kind: PropertyKind) => {
+    const coerced = coerceTo(entry.value, kind);
+    if (coerced === null) {
+      setKeyError(t("editor:propertyCoerceInvalid", { type: t(KIND_LABEL_KEY[kind]) }));
+      return;
+    }
+    setKeyError(null);
+    setKindHint(vaultPath, path, entry.key, kind);
+    if (JSON.stringify(coerced) !== JSON.stringify(entry.value)) {
+      void setProperty(path, entry.key, coerced);
+    } else {
+      // Same stored value (e.g. text ↔ date over a date-shaped string): only
+      // the device-local hint changed — re-render for the new widget.
+      setHintBump((n) => n + 1);
+    }
   };
 
   const commitAdd = (key: string, value: string) => {
@@ -138,6 +180,8 @@ export function PropertiesPanel({
               <PropertyRow
                 key={p.key}
                 entry={p}
+                kind={effectiveKind(p.value, getKindHint(vaultPath, path, p.key))}
+                onChangeKind={(kind) => commitKind(p, kind)}
                 menuOpen={menuKey === p.key}
                 onToggleMenu={() => setMenuKey((m) => (m === p.key ? null : p.key))}
                 onRename={() => {
@@ -147,6 +191,7 @@ export function PropertiesPanel({
                 }}
                 onDelete={() => {
                   setMenuKey(null);
+                  setKindHint(vaultPath, path, p.key, null); // hint dies with the key
                   void removeProperty(path, p.key);
                 }}
                 onCommit={(value) => void setProperty(path, p.key, value)}
@@ -182,6 +227,8 @@ export function PropertiesPanel({
 
 function PropertyRow({
   entry,
+  kind,
+  onChangeKind,
   menuOpen,
   onToggleMenu,
   onRename,
@@ -189,6 +236,8 @@ function PropertyRow({
   onCommit,
 }: {
   entry: NotePropertyEntry;
+  kind: PropertyKind;
+  onChangeKind: (kind: PropertyKind) => void;
   menuOpen: boolean;
   onToggleMenu: () => void;
   onRename: () => void;
@@ -205,8 +254,15 @@ function PropertyRow({
         {entry.key}
       </span>
       <div className="flex min-w-0 flex-1 items-center">
-        <ValueEditor value={entry.value} onCommit={onCommit} ariaLabel={entry.key} />
+        <ValueEditor kind={kind} value={entry.value} onCommit={onCommit} ariaLabel={entry.key} />
       </div>
+      <Select
+        value={kind}
+        onChange={(v) => onChangeKind(v as PropertyKind)}
+        options={PROPERTY_KINDS.map((k) => ({ value: k, label: t(KIND_LABEL_KEY[k]) }))}
+        aria-label={t("editor:propertyType")}
+        className="h-7 shrink-0 text-xs"
+      />
       <div className="relative shrink-0">
         <button
           onClick={onToggleMenu}
@@ -238,23 +294,27 @@ function PropertyRow({
   );
 }
 
-/** The kind-matched value widget. Text/number commit on blur or Enter (a
- *  per-keystroke commit would write the file on every key); switch, chips and
- *  the date picker commit immediately (discrete actions). */
+/** The kind-matched value widget (kind = inferred ∪ device-local override;
+ *  `effectiveKind` guarantees it is compatible with the stored value). Text/
+ *  number/date inputs draft and commit on blur or Enter (a per-keystroke
+ *  commit would write the file on every key); switch and chips commit
+ *  immediately (discrete actions). */
 function ValueEditor({
+  kind,
   value,
   onCommit,
   ariaLabel,
 }: {
+  kind: PropertyKind;
   value: PropertyValue;
   onCommit: (value: PropertyValue) => void;
   ariaLabel: string;
 }) {
-  switch (value.kind) {
+  switch (kind) {
     case "checkbox":
       return (
         <Switch
-          checked={value.value}
+          checked={value.kind === "checkbox" && value.value}
           onChange={(v) => onCommit({ kind: "checkbox", value: v })}
           aria-label={ariaLabel}
         />
@@ -262,17 +322,18 @@ function ValueEditor({
     case "list":
       return (
         <ChipInput
-          values={value.value}
+          values={value.kind === "list" ? value.value : []}
           onChange={(next) => onCommit({ kind: "list", value: next })}
           ariaLabel={ariaLabel}
         />
       );
-    case "number":
+    case "number": {
+      const current = value.kind === "number" && value.value != null ? String(value.value) : "";
       return (
         <DraftField
-          key={String(value.value)}
+          key={current}
           type="number"
-          initial={value.value == null ? "" : String(value.value)}
+          initial={current}
           ariaLabel={ariaLabel}
           onCommit={(draft) => {
             const n = Number(draft);
@@ -284,26 +345,15 @@ function ValueEditor({
           }}
         />
       );
-    case "text":
-      if (DATE_RE.test(value.value)) {
-        return (
-          <DraftField
-            key={value.value}
-            type="date"
-            initial={value.value}
-            ariaLabel={ariaLabel}
-            onCommit={(draft) => {
-              onCommit({ kind: "text", value: draft });
-              return true;
-            }}
-          />
-        );
-      }
+    }
+    case "date":
+    case "text": {
+      const current = value.kind === "text" ? value.value : "";
       return (
         <DraftField
-          key={value.value}
-          type="text"
-          initial={value.value}
+          key={`${kind}:${current}`}
+          type={kind}
+          initial={current}
           ariaLabel={ariaLabel}
           onCommit={(draft) => {
             onCommit({ kind: "text", value: draft });
@@ -311,6 +361,7 @@ function ValueEditor({
           }}
         />
       );
+    }
   }
 }
 
