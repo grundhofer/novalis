@@ -507,6 +507,12 @@ export const useVault = create<VaultState>((set, get) => ({
         folderColors: {},
         itemOrder: {},
       });
+      // Discard any pending edits that re-armed while the switch was in flight
+      // (switchVault already flushed + error-bailed BEFORE the engine swap):
+      // the engine now points at the NEW vault, and the unmount cleanup-save
+      // would otherwise write the OLD vault's content into a same-named file
+      // here. Pre-switch behavior (discard, contained to the old vault) wins.
+      for (const entry of flushRegistry.values()) entry.discard();
       // Clear the old vault's tabs immediately (no persist — that would clobber
       // the NEW vault's saved layout, which App's vaultPath effect then restores
       // via loadWorkspace).

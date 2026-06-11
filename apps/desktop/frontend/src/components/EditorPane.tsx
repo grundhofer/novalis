@@ -338,9 +338,14 @@ export function EditorPane({ pane }: { pane: Pane }) {
     discarded.current = false;
   }, [epoch]);
 
-  // On note switch / unmount, cancel the debounce. The outgoing note's edits
-  // were already flushed by the navigating action (and the editor's own blur
-  // flush ran first), so there is nothing to lose here.
+  // On note switch / unmount, cancel the debounce. Note switches were already
+  // flushed by the navigating action — but a VIEW switch (notes → tasks/graph)
+  // unmounts this pane with no flush in its path, so an unflushed edit here is
+  // the last copy: persist it instead of discarding. In a DELETED subtree
+  // React runs cleanups PARENT → CHILD, so this runs BEFORE the editor's own
+  // unmount serialize-flush — serialize the live doc ourselves (the TipTap
+  // instance is still alive at this point). The child's later flush re-arms an
+  // identical pending whose orphaned save dedupes via lastRequest.
   useEffect(
     () => () => {
       if (timer.current) {
@@ -351,6 +356,20 @@ export function EditorPane({ pane }: { pane: Pane }) {
         window.clearTimeout(hoverTimer.current);
         hoverTimer.current = null;
       }
+      let p = pending.current;
+      const ed = editorRef.current;
+      // pathRef === path distinguishes a true unmount from a tab switch within
+      // the pane (there the render already advanced pathRef to the NEW path,
+      // and the old editor's content must not be saved under it — the tab
+      // switch was flushed by openNote anyway).
+      if (path && liveDirty.current && ed && !ed.isDestroyed && pathRef.current === path) {
+        try {
+          p = { path, content: fmRef.current + getMarkdown(ed) };
+        } catch {
+          p = pending.current;
+        }
+      }
+      if (p && !discarded.current) void saveNote(p.path, p.content, pane.id);
       pending.current = null;
       liveDirty.current = false;
       discarded.current = false;

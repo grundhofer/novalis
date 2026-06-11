@@ -31,7 +31,7 @@ import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 
-export type MainView = "notes" | "today" | "tasks" | "calendar";
+export type MainView = "notes" | "today" | "tasks" | "calendar" | "graph";
 
 const iconBtn =
   "rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg";
@@ -101,6 +101,7 @@ export function Sidebar({
     today: t("common:views.today"),
     tasks: t("common:views.tasks"),
     calendar: t("common:views.calendar"),
+    graph: t("common:views.graph"),
   };
 
   const [filter, setFilter] = useState("");
@@ -203,7 +204,7 @@ export function Sidebar({
 
       <div className="flex gap-1 p-2 pb-1">
         {/* eslint-disable-next-line i18next/no-literal-string -- view ids (logic keys); labels come from viewLabels */}
-        {(["notes", "today", "tasks", "calendar"] as const).map((v) => (
+        {(["notes", "today", "tasks", "calendar", "graph"] as const).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}

@@ -25,6 +25,7 @@ export function useActionLabels(): Record<ActionId, string> {
     "view-today": t("common:views.today"),
     "view-tasks": t("common:views.tasks"),
     "view-calendar": t("common:views.calendar"),
+    "view-graph": t("common:views.graph"),
     "nav-back": t("settings:keybindings.navBack"),
     "nav-forward": t("settings:keybindings.navForward"),
     cheatsheet: t("settings:keybindings.cheatsheet"),

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Menu, PanelLeftOpen, X } from "lucide-react";
@@ -17,6 +17,10 @@ import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
 import { VaultGate } from "./components/VaultGate";
 import { WorkspaceLayout } from "./components/WorkspaceLayout";
+
+// Lazy: the Graph view pulls in d3-force, which stays out of the main bundle
+// (the vite manualChunks rule keeps it in its own `d3-force` chunk).
+const GraphView = lazy(() => import("./components/GraphView"));
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
@@ -148,6 +152,7 @@ export default function App() {
         "view-today": () => useUi.getState().setView("today"),
         "view-tasks": () => useUi.getState().setView("tasks"),
         "view-calendar": () => useUi.getState().setView("calendar"),
+        "view-graph": () => useUi.getState().setView("graph"),
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
         cheatsheet: () => setCheatsheetOpen((v) => !v),
@@ -230,6 +235,7 @@ export default function App() {
     today: t("views.today"),
     tasks: t("views.tasks"),
     calendar: t("views.calendar"),
+    graph: t("views.graph"),
   };
 
   return (
@@ -335,6 +341,16 @@ export default function App() {
             <TodayView />
           ) : view === "tasks" ? (
             <TasksView />
+          ) : view === "graph" ? (
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
+                  {t("loading")}
+                </div>
+              }
+            >
+              <GraphView />
+            </Suspense>
           ) : (
             <CalendarView />
           )}

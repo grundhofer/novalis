@@ -12,6 +12,7 @@ export type ActionId =
   | "view-today"
   | "view-tasks"
   | "view-calendar"
+  | "view-graph"
   | "nav-back"
   | "nav-forward"
   | "cheatsheet"
@@ -33,6 +34,7 @@ export const ACTION_IDS: ActionId[] = [
   "view-today",
   "view-tasks",
   "view-calendar",
+  "view-graph",
   "nav-back",
   "nav-forward",
   "cheatsheet",
@@ -58,6 +60,7 @@ export const DEFAULT_KEYMAP: Record<ActionId, Chord> = {
   "view-today": "mod+2",
   "view-tasks": "mod+3",
   "view-calendar": "mod+4",
+  "view-graph": "mod+5",
   "nav-back": "mod+[",
   "nav-forward": "mod+]",
   cheatsheet: "mod+/",

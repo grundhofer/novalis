@@ -63,11 +63,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     run,
   });
 
-  const viewTitle: Record<"notes" | "today" | "tasks" | "calendar", string> = {
+  const viewTitle: Record<"notes" | "today" | "tasks" | "calendar" | "graph", string> = {
     notes: t("common:views.notes"),
     today: t("common:views.today"),
     tasks: t("common:views.tasks"),
     calendar: t("common:views.calendar"),
+    graph: t("common:views.graph"),
   };
 
   const builtins: Command[] = [
@@ -77,6 +78,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     builtin("view-calendar", viewTitle.calendar, "view-calendar", () =>
       useUi.getState().setView("calendar"),
     ),
+    builtin("view-graph", viewTitle.graph, "view-graph", () => useUi.getState().setView("graph")),
     builtin("new-note", t("cmdNewNote"), "new-note", () =>
       void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
     ),

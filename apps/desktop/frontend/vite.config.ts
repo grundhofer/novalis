@@ -28,6 +28,12 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("/katex/")) return "katex";
           if (id.includes("/mermaid/")) return "mermaid";
+          // d3-force + its own deps load with the lazy Graph view only.
+          // Scoped to exactly these packages — a bare `d3-` prefix would also
+          // capture mermaid's d3 modules into this chunk.
+          if (/\/node_modules\/d3-(force|quadtree|timer|dispatch)\//.test(id)) {
+            return "d3-force";
+          }
         },
       },
     },

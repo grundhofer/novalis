@@ -2,6 +2,11 @@
   "cancel": "Cancel",
   "delete": "Delete",
   "errorPrefix": "Error: ",
+  "graph": {
+    "empty": "No notes to graph yet",
+    "linksCount": "{{n}} links",
+    "notesCount": "{{n}} notes"
+  },
   "loading": "Loading…",
   "menu": "Menu",
   "refresh": "Refresh",
@@ -15,6 +20,7 @@
   },
   "views": {
     "calendar": "Calendar",
+    "graph": "Graph",
     "notes": "Notes",
     "tasks": "Tasks",
     "today": "Today"
