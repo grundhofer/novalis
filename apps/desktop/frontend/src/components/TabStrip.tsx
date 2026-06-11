@@ -1,35 +1,128 @@
-import { X } from "lucide-react";
+import { useState } from "react";
+
+import { SquareSplitHorizontal, SquareSplitVertical, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { formatChord } from "../lib/keybindings";
 import { noteTitleFromPath } from "../lib/taskDisplay";
-import type { Pane } from "../lib/workspacePrefs";
+import { MAX_PANES, type Pane } from "../lib/workspacePrefs";
+import { useKeymap } from "../stores/keymapStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
-/** Scrollable row of one pane's open note tabs. One live editor backs the
- *  active tab; the rest are inert {path} descriptors. Hidden when empty. */
+/** Scrollable row of one pane's open note tabs, with split/close-pane actions
+ *  pinned at the right edge. One live editor backs the active tab; the rest
+ *  are inert {path} descriptors. Hidden when empty. */
 export function TabStrip({ pane }: { pane: Pane }) {
   const { t } = useTranslation("editor");
   const setActiveTab = useUi((s) => s.setActiveTab);
   const closeTab = useUi((s) => s.closeTab);
+  const splitPane = useUi((s) => s.splitPane);
+  const closePane = useUi((s) => s.closePane);
   const paneFocused = useUi((s) => s.workspace.focusedPaneId === pane.id);
+  const paneCount = useUi((s) => s.workspace.panes.length);
+  const direction = useUi((s) => s.workspace.direction);
+  const keymap = useKeymap((s) => s.keymap);
+  // Split/close are async (flush-first); the buttons stay disabled until the
+  // action lands. Otherwise a second click inside the flush window still sees
+  // the pre-split layout — e.g. "Split right" firing after "Split down" fixed
+  // the axis would silently split on the wrong axis.
+  const [busy, setBusy] = useState(false);
 
   if (pane.tabs.length === 0) return null;
 
+  const run = (fn: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    void fn().finally(() => setBusy(false));
+  };
+
+  // Only actionable buttons render: splits need a free pane slot, and once
+  // the first split fixed the workspace axis only same-axis splits exist.
+  const canSplit = paneCount < MAX_PANES && pane.activeTab !== null;
+  const showSplitRight = canSplit && (paneCount === 1 || direction === "row");
+  const showSplitDown = canSplit && (paneCount === 1 || direction === "column");
+  // The keyboard chord splits the FOCUSED pane, so only that pane's buttons
+  // advertise it — in the visual tooltip only, never in the accessible name
+  // (a screen reader would read the modifier glyphs as noise).
+  const chord = (action: "split-right" | "split-down"): string | undefined =>
+    paneFocused ? formatChord(keymap[action]) : undefined;
+
   return (
-    <div className="flex shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-surface px-1 pt-1">
-      {pane.tabs.map((path) => (
-        <TabItem
-          key={path}
-          path={path}
-          active={path === pane.activeTab}
-          paneFocused={paneFocused}
-          onSelect={(p) => setActiveTab(p, pane.id)}
-          onClose={(p) => void closeTab(p, pane.id)}
-          closeLabel={t("closeTab")}
-        />
-      ))}
+    <div className="flex shrink-0 items-stretch border-b border-border bg-surface">
+      <div className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto px-1 pt-1">
+        {pane.tabs.map((path) => (
+          <TabItem
+            key={path}
+            path={path}
+            active={path === pane.activeTab}
+            paneFocused={paneFocused}
+            onSelect={(p) => setActiveTab(p, pane.id)}
+            onClose={(p) => void closeTab(p, pane.id)}
+            closeLabel={t("closeTab")}
+          />
+        ))}
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5 px-1">
+        {showSplitRight && (
+          <PaneAction
+            label={t("splitRight")}
+            shortcut={chord("split-right")}
+            disabled={busy}
+            onClick={() => run(() => splitPane(pane.id, "row"))}
+          >
+            <SquareSplitHorizontal size={14} />
+          </PaneAction>
+        )}
+        {showSplitDown && (
+          <PaneAction
+            label={t("splitDown")}
+            shortcut={chord("split-down")}
+            disabled={busy}
+            onClick={() => run(() => splitPane(pane.id, "column"))}
+          >
+            <SquareSplitVertical size={14} />
+          </PaneAction>
+        )}
+        {paneCount > 1 && (
+          <PaneAction
+            label={t("closePane")}
+            disabled={busy}
+            onClick={() => run(() => closePane(pane.id))}
+          >
+            <X size={14} />
+          </PaneAction>
+        )}
+      </div>
     </div>
+  );
+}
+
+function PaneAction({
+  label,
+  shortcut,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  /** Formatted chord shown in the tooltip only (never in the accessible name). */
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded p-1 text-fg-faint transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }
 
