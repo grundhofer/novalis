@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { api, NovalisError, type FolderNode, type Note } from "../ipc/api";
+import { api, NovalisError, type FolderNode, type Note, type PropertyValue } from "../ipc/api";
 import { displayError } from "../lib/errors";
 import i18n from "../lib/i18n";
 import {
@@ -355,6 +355,12 @@ interface VaultState {
   createFolder: (parent: string | null, name: string) => Promise<void>;
   renameItem: (path: string, kind: "note" | "folder", newName: string) => Promise<void>;
   setNoteMeta: (path: string, meta: { tags?: string[]; aliases?: string[] }) => Promise<void>;
+  /** Custom frontmatter properties (the typed `extra` view). All three flush
+   *  pending body edits FIRST (the write rewrites the whole file) and update
+   *  open content WITHOUT remounting any editor. */
+  setProperty: (path: string, key: string, value: PropertyValue) => Promise<void>;
+  removeProperty: (path: string, key: string) => Promise<void>;
+  renameProperty: (path: string, from: string, to: string) => Promise<void>;
   deleteFolder: (path: string) => Promise<void>;
   duplicateNote: (path: string) => Promise<void>;
   togglePin: (path: string, pinned: boolean) => Promise<void>;
@@ -1063,6 +1069,47 @@ export const useVault = create<VaultState>((set, get) => ({
         pinned: null,
         aliases: meta.aliases ?? null,
       });
+      noteCache.set(path, updated);
+      if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
+      await get().refreshTree();
+    } catch (e) {
+      set({ error: displayError(e) });
+    }
+  },
+
+  // Custom-property writes rewrite the whole .md file, so the pending body
+  // autosave is flushed INSIDE each action (un-skippable at call sites —
+  // unlike setNoteMeta, whose ChipInput callers flush via commitMeta). Like
+  // setNoteMeta they update the open content WITHOUT bumping any pane epoch:
+  // the body is unchanged, and a remount would drop the cursor.
+  setProperty: async (path, key, value) => {
+    await flushAll();
+    try {
+      const updated = await api.setProperty(path, key, value);
+      noteCache.set(path, updated);
+      if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
+      await get().refreshTree();
+    } catch (e) {
+      set({ error: displayError(e) });
+    }
+  },
+
+  removeProperty: async (path, key) => {
+    await flushAll();
+    try {
+      const updated = await api.removeProperty(path, key);
+      noteCache.set(path, updated);
+      if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
+      await get().refreshTree();
+    } catch (e) {
+      set({ error: displayError(e) });
+    }
+  },
+
+  renameProperty: async (path, from, to) => {
+    await flushAll();
+    try {
+      const updated = await api.renameProperty(path, from, to);
       noteCache.set(path, updated);
       if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
       await get().refreshTree();

@@ -33,6 +33,7 @@ import { useVault, type SaveState } from "../stores/vaultStore";
 import { FindBar } from "./FindBar";
 import { LinksPanel } from "./LinksPanel";
 import { OutlinePanel } from "./OutlinePanel";
+import { PropertiesPanel } from "./PropertiesPanel";
 import { ChipInput } from "./ui/ChipInput";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { VersionHistoryModal } from "./VersionHistoryModal";
@@ -742,6 +743,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             ariaLabel={t("aliases")}
           />
         </div>
+        <PropertiesPanel path={path} properties={note.properties ?? []} />
       </div>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
