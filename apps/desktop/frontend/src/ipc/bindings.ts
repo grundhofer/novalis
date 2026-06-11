@@ -713,8 +713,8 @@ export type UpdateMetaRequest = {
 
 /**
  *  A node in the whole-vault graph. A parallel type (not a widened
- *  [`GraphNode`], which note_graph/GraphModal still consume) — the vault view
- *  colors nodes by folder, so it carries one extra field.
+ *  [`GraphNode`], which `note_graph` still serves) — the vault view colors
+ *  nodes by folder, so it carries one extra field.
  */
 export type VaultGraphNode = {
 	path: string,

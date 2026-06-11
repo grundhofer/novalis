@@ -74,6 +74,9 @@ export const api = {
     unwrap(commands.unlinkedMentions(title, selfPath)),
   linkMention: (path: string, title: string, line: number) =>
     unwrap(commands.linkMention(path, title, line)),
+  // note_graph (1-hop, index-only) is retained as a cheap fast path even
+  // though the local graph UI now slices the full graph client-side — no
+  // frontend caller today, deliberate (not silently dead).
   noteGraph: (path: string) => unwrap(commands.noteGraph(path)),
   fullGraph: () => unwrap(commands.fullGraph()),
   reindexVault: () => unwrap(commands.reindexVault()),
