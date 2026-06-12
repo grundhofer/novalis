@@ -183,6 +183,33 @@
       "desc": "Tiempo de espera entre commits automáticos.",
       "label": "Intervalo de auto-commit"
     },
+    "outcome": {
+      "diverged": "Ambos lados tienen commits nuevos ({{ahead}} locales, {{behind}} remotos): resolver manualmente",
+      "noRemote": "Sin remoto configurado",
+      "pulled": "{{behind}} commit(s) recibidos",
+      "pushed": "{{ahead}} commit(s) enviados",
+      "upToDate": "Actualizado"
+    },
+    "remote": {
+      "aheadBehind": "{{ahead}} por enviar · {{behind}} por recibir",
+      "desc": "Sincroniza el Vault con un servidor Git por HTTPS (GitHub, GitLab, autoalojado). Requiere un token de acceso personal con permiso de escritura.",
+      "divergedHint": "Los historiales local y remoto han divergido. Novalis nunca fuerza el push: resuelve la divergencia con un cliente Git y sincroniza de nuevo.",
+      "notConfigured": "Configura primero una URL remota",
+      "syncNow": "Sincronizar ahora",
+      "title": "Remoto",
+      "token": {
+        "desc": "Token de acceso personal, guardado en el llavero del sistema; nunca sale de este dispositivo.",
+        "label": "Token de acceso",
+        "placeholder": "Pegar token…",
+        "remove": "Quitar",
+        "save": "Guardar",
+        "saved": "Hay un token guardado en el llavero para este Vault."
+      },
+      "url": {
+        "desc": "URL HTTPS del repositorio, p. ej. un repo privado de GitHub.",
+        "label": "URL del repositorio"
+      }
+    },
     "repo": {
       "commitFailed": "El commit falló: {{message}}",
       "commitNow": "Confirmar ahora",

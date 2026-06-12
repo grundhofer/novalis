@@ -19,7 +19,7 @@ use novalis_core::models::CalendarEvent;
 
 use crate::engine::CommandError;
 
-const KEYRING_SERVICE: &str = "app.novalis";
+pub(crate) const KEYRING_SERVICE: &str = "app.novalis";
 
 struct Provider {
     auth_url: &'static str,

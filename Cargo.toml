@@ -20,9 +20,15 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
-# Local-only git (sync P1): default-features = false builds no network
-# transports (no openssl/libssh2) — remote support is a deliberate P2 opt-in.
-git2 = { version = "0.21", default-features = false }
+# Git engine (sync P2): HTTPS only — ssh is deliberately absent per the
+# maintainer sign-off (PAT-first). Vendored openssl/libgit2 keep the shipped
+# artifact self-contained (a non-vendored build links Homebrew dylibs —
+# verified undeliverable in the engine spike).
+git2 = { version = "0.21", default-features = false, features = [
+    "https",
+    "vendored-openssl",
+    "vendored-libgit2",
+] }
 # Type export — pinned: specta + tauri-specta must share the same rc.
 specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "uuid"] }
 

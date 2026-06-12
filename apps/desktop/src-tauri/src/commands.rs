@@ -12,9 +12,9 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
-    GitStatus, LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences,
-    PropertyValue, ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery,
-    UpdateMetaRequest, VaultInfo, VaultStats,
+    GitStatus, GitSyncOutcome, LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate,
+    PluginInfo, Preferences, PropertyValue, ResolveConflictRequest, SearchResult, TagCount, Task,
+    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -642,6 +642,98 @@ pub async fn git_commit_now(app: AppHandle) -> CmdResult<GitStatus> {
     })
     .await
     .map_err(|e| CommandError::internal(format!("git_commit_now task panicked: {e}")))?
+}
+
+/// The vault's git access token from the OS keychain, if stored. Shared by
+/// the sync command and the background auto-committer; the token itself
+/// never crosses the IPC boundary to the frontend.
+pub(crate) fn read_git_token(vault: &std::path::Path) -> Option<String> {
+    keyring::Entry::new(
+        crate::oauth::KEYRING_SERVICE,
+        &format!("git:{}", vault.display()),
+    )
+    .ok()?
+    .get_password()
+    .ok()
+}
+
+/// Set or clear the vault's `origin` remote. HTTPS only — this build
+/// deliberately ships no ssh transport (engine-spike sign-off).
+#[tauri::command]
+#[specta::specta]
+pub async fn git_set_remote(app: AppHandle, url: Option<String>) -> CmdResult<GitStatus> {
+    let vault = vault_path_snapshot(&app)?;
+    let url = url.map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
+    if let Some(u) = &url {
+        if !u.starts_with("https://") {
+            return Err(CoreError::BadRequest(
+                "only https:// remotes are supported in this build".to_string(),
+            )
+            .into());
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        git::ensure_repo(&vault)?;
+        git::set_remote(&vault, url.as_deref())?;
+        git::repo_status(&vault).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_set_remote task panicked: {e}")))?
+}
+
+/// Store (or, with an empty string, remove) the vault's git access token in
+/// the OS keychain.
+#[tauri::command]
+#[specta::specta]
+pub fn git_set_token(state: State<AppEngine>, token: String) -> CmdResult<()> {
+    state.with(|e| {
+        let entry = keyring::Entry::new(
+            crate::oauth::KEYRING_SERVICE,
+            &format!("git:{}", e.vault_path.display()),
+        )
+        .map_err(|err| CoreError::Internal(format!("keychain: {err}")))?;
+        let token = token.trim();
+        if token.is_empty() {
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(err) => Err(CoreError::Internal(format!("keychain: {err}"))),
+            }
+        } else {
+            entry
+                .set_password(token)
+                .map_err(|err| CoreError::Internal(format!("keychain: {err}")))
+        }
+    })
+}
+
+/// Whether a git access token is stored for this vault (the UI shows state
+/// without ever receiving the token).
+#[tauri::command]
+#[specta::specta]
+pub fn git_has_token(state: State<AppEngine>) -> CmdResult<bool> {
+    state.with(|e| Ok(read_git_token(&e.vault_path).is_some()))
+}
+
+/// One manual sync cycle: fetch, then fast-forward or push (P2a — diverged
+/// histories stop and are surfaced; never a force-push). `async` +
+/// `spawn_blocking` off the engine lock: network plus checkout work.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_sync_now(app: AppHandle) -> CmdResult<GitSyncOutcome> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let prefs = config::read_preferences(&vault);
+        let token = read_git_token(&vault);
+        git::sync(
+            &vault,
+            &prefs.git.author_name,
+            &prefs.git.author_email,
+            token.as_deref(),
+        )
+        .map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_sync_now task panicked: {e}")))?
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────

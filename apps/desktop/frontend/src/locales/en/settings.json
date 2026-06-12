@@ -183,6 +183,33 @@
       "desc": "How long to wait between automatic commits.",
       "label": "Auto-commit interval"
     },
+    "outcome": {
+      "diverged": "Both sides have new commits ({{ahead}} local, {{behind}} remote) — resolve manually",
+      "noRemote": "No remote configured",
+      "pulled": "Pulled {{behind}} commit(s)",
+      "pushed": "Pushed {{ahead}} commit(s)",
+      "upToDate": "Up to date"
+    },
+    "remote": {
+      "aheadBehind": "{{ahead}} to push · {{behind}} to pull",
+      "desc": "Sync the vault with a Git host over HTTPS (GitHub, GitLab, self-hosted). Requires a personal access token with write access.",
+      "divergedHint": "Local and remote histories have diverged. Novalis never force-pushes — resolve the divergence with a git client, then sync again.",
+      "notConfigured": "Set a remote URL first",
+      "syncNow": "Sync now",
+      "title": "Remote",
+      "token": {
+        "desc": "Personal access token, stored in the OS keychain — it never leaves this device.",
+        "label": "Access token",
+        "placeholder": "Paste token…",
+        "remove": "Remove",
+        "save": "Save",
+        "saved": "A token is stored in the keychain for this vault."
+      },
+      "url": {
+        "desc": "HTTPS URL of the repository, e.g. a private GitHub repo.",
+        "label": "Repository URL"
+      }
+    },
     "repo": {
       "commitFailed": "Commit failed: {{message}}",
       "commitNow": "Commit now",

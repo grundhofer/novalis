@@ -150,6 +150,27 @@ export const commands = {
 	 *  main thread or under the lock it would freeze the app for its duration.
 	 */
 	gitCommitNow: () => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_commit_now")),
+	/**
+	 *  Set or clear the vault's `origin` remote. HTTPS only — this build
+	 *  deliberately ships no ssh transport (engine-spike sign-off).
+	 */
+	gitSetRemote: (url: string | null) => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_set_remote", { url })),
+	/**
+	 *  Store (or, with an empty string, remove) the vault's git access token in
+	 *  the OS keychain.
+	 */
+	gitSetToken: (token: string) => typedError<null, CommandError>(__TAURI_INVOKE("git_set_token", { token })),
+	/**
+	 *  Whether a git access token is stored for this vault (the UI shows state
+	 *  without ever receiving the token).
+	 */
+	gitHasToken: () => typedError<boolean, CommandError>(__TAURI_INVOKE("git_has_token")),
+	/**
+	 *  One manual sync cycle: fetch, then fast-forward or push (P2a — diverged
+	 *  histories stop and are surfaced; never a force-push). `async` +
+	 *  `spawn_blocking` off the engine lock: network plus checkout work.
+	 */
+	gitSyncNow: () => typedError<GitSyncOutcome, CommandError>(__TAURI_INVOKE("git_sync_now")),
 	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
 	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
@@ -475,7 +496,7 @@ export type GitPrefs = {
 	autoCommitSecs?: number,
 };
 
-/**  Local repository state of the open vault (Git sync P1 — no remotes yet). */
+/**  Local repository state of the open vault. */
 export type GitStatus = {
 	/**  Whether the vault root is a git repository. */
 	initialized: boolean,
@@ -487,6 +508,48 @@ export type GitStatus = {
 	/**  HEAD branch shorthand (`main` for repos Novalis created). */
 	branch: string | null,
 	lastCommit: GitCommitInfo | null,
+	/**
+	 *  URL of the `origin` remote (the repo's git config is the single
+	 *  source of truth — not duplicated into prefs).
+	 */
+	remoteUrl: string | null,
+	/**
+	 *  Local commits the remote tracking ref doesn't have. Computed from
+	 *  local refs only (no network) — current as of the last fetch.
+	 */
+	ahead: number,
+	/**
+	 *  Remote-tracking commits the local branch doesn't have (as of the
+	 *  last fetch).
+	 */
+	behind: number,
+};
+
+export type GitSyncKind = 
+/**  Nothing to transfer in either direction. */
+"upToDate" | 
+/**  Local commits were pushed. */
+"pushed" | 
+/**
+ *  The local branch fast-forwarded onto the remote (incl. first
+ *  adoption of a populated remote into a fresh vault).
+ */
+"pulled" | 
+/**  Both sides have new commits — P2a stops here (merge is P2b). */
+"diverged" | 
+/**  No `origin` remote is configured. */
+"noRemote";
+
+/**
+ *  What one sync cycle did (P2a: fast-forward or push only — divergence
+ *  stops the cycle and is surfaced; Novalis never force-pushes).
+ */
+export type GitSyncOutcome = {
+	kind: GitSyncKind,
+	/**  Local commits the remote was missing at decision time. */
+	ahead: number,
+	/**  Remote commits the local branch was missing at decision time. */
+	behind: number,
 };
 
 /**  A directed `[[link]]` edge between two notes, by path. */

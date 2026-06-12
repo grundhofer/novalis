@@ -84,9 +84,14 @@ export const api = {
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
   getPreferences: () => unwrap(commands.getPreferences()),
 
-  // Git sync (P1: local auto-commit)
+  // Git sync (P1 local auto-commit; P2 https remote)
   gitStatus: () => unwrap(commands.gitStatus()),
   gitCommitNow: () => unwrap(commands.gitCommitNow()),
+  gitSetRemote: (url: string | null) => unwrap(commands.gitSetRemote(url)),
+  // Write-only: the token goes to the OS keychain and never comes back.
+  gitSetToken: (token: string) => unwrap(commands.gitSetToken(token)),
+  gitHasToken: () => unwrap(commands.gitHasToken()),
+  gitSyncNow: () => unwrap(commands.gitSyncNow()),
 
   // Tasks
   listTasks: (status: "open" | "completed" | "all" = "open") =>

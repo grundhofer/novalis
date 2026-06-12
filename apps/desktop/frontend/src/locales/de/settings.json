@@ -183,6 +183,33 @@
       "desc": "Wartezeit zwischen automatischen Commits.",
       "label": "Auto-Commit-Intervall"
     },
+    "outcome": {
+      "diverged": "Beide Seiten haben neue Commits ({{ahead}} lokal, {{behind}} remote) — manuell auflösen",
+      "noRemote": "Kein Remote konfiguriert",
+      "pulled": "{{behind}} Commit(s) geholt",
+      "pushed": "{{ahead}} Commit(s) gepusht",
+      "upToDate": "Auf dem neuesten Stand"
+    },
+    "remote": {
+      "aheadBehind": "{{ahead}} zu pushen · {{behind}} zu holen",
+      "desc": "Gleicht den Vault über HTTPS mit einem Git-Host ab (GitHub, GitLab, self-hosted). Benötigt ein Personal Access Token mit Schreibzugriff.",
+      "divergedHint": "Lokale und Remote-Historie sind auseinandergelaufen. Novalis force-pusht nie — die Divergenz mit einem Git-Client auflösen, dann erneut synchronisieren.",
+      "notConfigured": "Zuerst eine Remote-URL festlegen",
+      "syncNow": "Jetzt synchronisieren",
+      "title": "Remote",
+      "token": {
+        "desc": "Personal Access Token, gespeichert im Schlüsselbund des Systems — verlässt dieses Gerät nie.",
+        "label": "Access-Token",
+        "placeholder": "Token einfügen…",
+        "remove": "Entfernen",
+        "save": "Speichern",
+        "saved": "Für diesen Vault ist ein Token im Schlüsselbund gespeichert."
+      },
+      "url": {
+        "desc": "HTTPS-URL des Repositorys, z. B. ein privates GitHub-Repo.",
+        "label": "Repository-URL"
+      }
+    },
     "repo": {
       "commitFailed": "Commit fehlgeschlagen: {{message}}",
       "commitNow": "Jetzt committen",

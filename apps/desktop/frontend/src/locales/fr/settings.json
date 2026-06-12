@@ -183,6 +183,33 @@
       "desc": "Délai entre les commits automatiques.",
       "label": "Intervalle d'auto-commit"
     },
+    "outcome": {
+      "diverged": "Les deux côtés ont de nouveaux commits ({{ahead}} locaux, {{behind}} distants) — à résoudre manuellement",
+      "noRemote": "Aucun dépôt distant configuré",
+      "pulled": "{{behind}} commit(s) récupérés",
+      "pushed": "{{ahead}} commit(s) envoyés",
+      "upToDate": "À jour"
+    },
+    "remote": {
+      "aheadBehind": "{{ahead}} à envoyer · {{behind}} à récupérer",
+      "desc": "Synchronise le Vault avec un hébergeur Git via HTTPS (GitHub, GitLab, auto-hébergé). Nécessite un jeton d'accès personnel avec droit d'écriture.",
+      "divergedHint": "Les historiques local et distant ont divergé. Novalis ne force jamais le push — résolvez la divergence avec un client Git, puis resynchronisez.",
+      "notConfigured": "Définissez d'abord une URL distante",
+      "syncNow": "Synchroniser maintenant",
+      "title": "Dépôt distant",
+      "token": {
+        "desc": "Jeton d'accès personnel, stocké dans le trousseau du système — il ne quitte jamais cet appareil.",
+        "label": "Jeton d'accès",
+        "placeholder": "Coller le jeton…",
+        "remove": "Supprimer",
+        "save": "Enregistrer",
+        "saved": "Un jeton est stocké dans le trousseau pour ce Vault."
+      },
+      "url": {
+        "desc": "URL HTTPS du dépôt, p. ex. un dépôt GitHub privé.",
+        "label": "URL du dépôt"
+      }
+    },
     "repo": {
       "commitFailed": "Échec du commit : {{message}}",
       "commitNow": "Commiter maintenant",

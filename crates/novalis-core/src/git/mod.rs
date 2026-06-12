@@ -1,20 +1,27 @@
-//! Local git versioning for a vault (Git sync P1).
+//! Git versioning + sync for a vault. P1: local auto-commit. P2: HTTPS
+//! remote sync (fetch → fast-forward or push — merging is P2b, force-pushing
+//! is never an option).
 //!
 //! Every function opens the repository per call: `git2::Repository` is
 //! `!Sync`, per-call opens are cheap at auto-commit rates, and it keeps this
-//! module free of shared state. Remote operations are deliberately absent —
-//! the workspace builds git2 with `default-features = false` (no
-//! openssl/libssh2), so this build physically cannot reach the network;
-//! remote sync is the P2 opt-in.
+//! module free of shared state. The workspace builds git2 with https as the
+//! ONLY network transport (no ssh/libssh2 — engine-spike sign-off); auth is
+//! PAT-over-HTTPS via attempt-bounded callbacks.
 
-use std::path::Path;
-use std::sync::Mutex;
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use git2::{IndexAddOption, Repository, RepositoryInitOptions, Signature, StatusOptions};
+use git2::build::CheckoutBuilder;
+use git2::{
+    Cred, FetchOptions, IndexAddOption, Oid, PushOptions, RemoteCallbacks, Repository,
+    RepositoryInitOptions, Signature, StatusOptions,
+};
 
 use crate::error::{CoreError, CoreResult};
-use crate::models::{GitCommitInfo, GitStatus};
+use crate::models::{GitCommitInfo, GitStatus, GitSyncKind, GitSyncOutcome};
 
 /// Lines Novalis maintains in the vault's `.gitignore`. `.novalis/config.json`
 /// is deliberately NOT ignored — per-vault preferences are synced-by-design
@@ -28,6 +35,24 @@ const IGNORE_LINES: [&str; 3] = [".novalis/trash/", ".novalis/versions/", ".DS_S
 /// Cross-process contention (the user's own git CLI) still errors; that one
 /// is real.
 static MUTATE_GATE: Mutex<()> = Mutex::new(());
+
+/// Serializes whole sync cycles (manual "sync now" vs the background
+/// auto-committer). Deliberately separate from [`MUTATE_GATE`]: the network
+/// phases (fetch/push) run under THIS gate only, so a slow or hung remote
+/// can never block local auto-commits or the commit-now button. Lock order
+/// is always SYNC_GATE → MUTATE_GATE, never the reverse.
+static SYNC_GATE: Mutex<()> = Mutex::new(());
+
+/// Bound libgit2's network I/O once per process — it ships with NO default
+/// timeouts, so a hung remote would otherwise stall a sync cycle (and the
+/// background thread waiting on [`SYNC_GATE`]) forever.
+fn ensure_network_timeouts() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| unsafe {
+        let _ = git2::opts::set_server_connect_timeout_in_milliseconds(15_000);
+        let _ = git2::opts::set_server_timeout_in_milliseconds(60_000);
+    });
+}
 
 /// A `.git` lock file older than this has no live owner: in-process holders
 /// are serialized by [`MUTATE_GATE`] and finish in seconds. Crashed/killed
@@ -139,17 +164,64 @@ pub fn repo_status(vault: &Path) -> CoreResult<GitStatus> {
             dirty: 0,
             branch: None,
             last_commit: None,
+            remote_url: None,
+            ahead: 0,
+            behind: 0,
         });
+    };
+    let branch = current_branch(&repo);
+    // Ahead/behind against the remote-tracking ref — local refs only (no
+    // network), so it reflects the state as of the last fetch.
+    let local = repo
+        .find_reference(&format!("refs/heads/{branch}"))
+        .ok()
+        .and_then(|r| r.target());
+    let remote_tip = repo
+        .find_reference(&format!("refs/remotes/origin/{branch}"))
+        .ok()
+        .and_then(|r| r.target());
+    let (ahead, behind) = match (local, remote_tip) {
+        (Some(l), Some(r)) => repo
+            .graph_ahead_behind(l, r)
+            .map(|(a, b)| (a as u32, b as u32))
+            .unwrap_or((0, 0)),
+        _ => (0, 0),
     };
     Ok(GitStatus {
         initialized: true,
         dirty: count_dirty(&repo)?,
-        branch: repo
-            .head()
-            .ok()
-            .and_then(|h| h.shorthand().ok().map(str::to_string)),
+        branch: Some(branch),
         last_commit: head_commit_info(&repo),
+        remote_url: remote_url(&repo),
+        ahead,
+        behind,
     })
+}
+
+fn remote_url(repo: &Repository) -> Option<String> {
+    let remote = repo.find_remote("origin").ok()?;
+    remote.url().ok().map(str::to_string)
+}
+
+/// Whether an `origin` remote is configured — cheap (no status scan), for
+/// the auto-committer's per-tick "sync or just commit?" decision.
+pub fn has_remote(vault: &Path) -> bool {
+    open(vault).is_some_and(|r| r.find_remote("origin").is_ok())
+}
+
+/// HEAD branch shorthand; falls back to the symbolic HEAD target for an
+/// unborn branch (fresh repo before the first commit).
+fn current_branch(repo: &Repository) -> String {
+    if let Ok(head) = repo.head() {
+        if let Ok(name) = head.shorthand() {
+            return name.to_string();
+        }
+    }
+    repo.find_reference("HEAD")
+        .ok()
+        .and_then(|h| h.symbolic_target().ok().flatten().map(str::to_string))
+        .and_then(|t| t.strip_prefix("refs/heads/").map(str::to_string))
+        .unwrap_or_else(|| "main".to_string())
 }
 
 /// Working-tree paths that differ from HEAD (untracked + modified + deleted),
@@ -271,6 +343,254 @@ pub fn commit_all(vault: &Path, name: &str, email: &str) -> CoreResult<Option<Gi
     repo.commit(Some("HEAD"), &sig, &sig, &message, &tree, &parents)
         .map_err(gerr)?;
     Ok(head_commit_info(&repo))
+}
+
+/// Set, replace, or (with `None`/blank) remove the vault's `origin` remote.
+/// The repo's git config is the single source of truth for the URL. Scheme
+/// validation (https-only — this build carries no ssh transport) lives at
+/// the command boundary so tests can use local-path remotes.
+pub fn set_remote(vault: &Path, url: Option<&str>) -> CoreResult<()> {
+    let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
+    let repo = open(vault).ok_or_else(|| {
+        CoreError::BadRequest("vault is not a git repository — enable git sync first".to_string())
+    })?;
+    let existing = repo.find_remote("origin").is_ok();
+    match url.map(str::trim).filter(|u| !u.is_empty()) {
+        Some(u) if existing => repo.remote_set_url("origin", u).map_err(gerr),
+        Some(u) => repo.remote("origin", u).map(|_| ()).map_err(gerr),
+        None if existing => repo.remote_delete("origin").map_err(gerr),
+        None => Ok(()),
+    }
+}
+
+/// Attempt-bounded credential callbacks. libgit2 re-invokes the credentials
+/// callback on EVERY 401 — unbounded, a revoked token loops forever
+/// (verified live in the auth spike). The username is a dummy: GitHub and
+/// GitLab accept any non-empty username with a PAT/token as the password.
+fn auth_callbacks(token: Option<String>) -> RemoteCallbacks<'static> {
+    let mut cb = RemoteCallbacks::new();
+    let attempts = AtomicU32::new(0);
+    cb.credentials(move |_url, _username, _allowed| {
+        if attempts.fetch_add(1, Ordering::SeqCst) >= 3 {
+            return Err(git2::Error::from_str(
+                "authentication rejected after 3 attempts — check the access token",
+            ));
+        }
+        match &token {
+            Some(t) => Cred::userpass_plaintext("x-access-token", t),
+            None => Err(git2::Error::from_str(
+                "no access token configured for this vault",
+            )),
+        }
+    });
+    cb
+}
+
+/// One sync cycle against `origin` (P2a): fetch, then fast-forward OR push —
+/// never both, never a merge (P2b), never a force-push. Local pending
+/// changes are committed first; diverged histories stop the cycle with
+/// [`GitSyncKind::Diverged`]. An unborn local branch adopts a populated
+/// remote (first sync of a fresh vault) — there, `.novalis/` prefs are the
+/// only local files the adoption may replace (they are synced-by-design:
+/// the remote copy beats defaults written moments ago by "enable git sync").
+pub fn sync(
+    vault: &Path,
+    name: &str,
+    email: &str,
+    token: Option<&str>,
+) -> CoreResult<GitSyncOutcome> {
+    let _sync = SYNC_GATE.lock().unwrap_or_else(|p| p.into_inner());
+    ensure_network_timeouts();
+    ensure_repo(vault)?;
+    let repo = open(vault)
+        .ok_or_else(|| CoreError::Internal("git: repository vanished after init".to_string()))?;
+    if repo.find_remote("origin").is_err() {
+        return Ok(outcome(GitSyncKind::NoRemote, 0, 0));
+    }
+    let branch = current_branch(&repo);
+    {
+        let mut remote = repo.find_remote("origin").map_err(gerr)?;
+        let mut fo = FetchOptions::new();
+        fo.remote_callbacks(auth_callbacks(token.map(str::to_string)));
+        remote
+            .fetch(&[branch.as_str()], Some(&mut fo), None)
+            .map_err(gerr)?;
+    }
+    let local_ref = format!("refs/heads/{branch}");
+    let remote_ref = format!("refs/remotes/origin/{branch}");
+    let local = repo
+        .find_reference(&local_ref)
+        .ok()
+        .and_then(|r| r.target());
+    let remote_tip = repo
+        .find_reference(&remote_ref)
+        .ok()
+        .and_then(|r| r.target());
+
+    // First sync of a fresh vault against a populated remote: adopt the
+    // remote history BEFORE committing local state — otherwise the
+    // just-written .novalis/config.json becomes an unrelated root commit
+    // and every adoption ends permanently diverged.
+    if local.is_none() {
+        if let Some(tip) = remote_tip {
+            let behind = count_commits(&repo, tip)?;
+            {
+                let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
+                adopt_remote(&repo, &local_ref, tip)?;
+            }
+            // Local extras (e.g. device-specific pref deltas) become a
+            // normal follow-up commit; the next cycle pushes it.
+            commit_all(vault, name, email)?;
+            return Ok(outcome(GitSyncKind::Pulled, 0, behind));
+        }
+    }
+
+    commit_all(vault, name, email)?;
+    let local = repo
+        .find_reference(&local_ref)
+        .ok()
+        .and_then(|r| r.target());
+    let Some(local) = local else {
+        // Still unborn: the vault is truly empty and so is the remote.
+        return Ok(outcome(GitSyncKind::UpToDate, 0, 0));
+    };
+    let Some(remote_tip) = remote_tip else {
+        let ahead = count_commits(&repo, local)?;
+        push_branch(&repo, &branch, token)?;
+        return Ok(outcome(GitSyncKind::Pushed, ahead, 0));
+    };
+    if local == remote_tip {
+        return Ok(outcome(GitSyncKind::UpToDate, 0, 0));
+    }
+    let (ahead, behind) = repo
+        .graph_ahead_behind(local, remote_tip)
+        .map(|(a, b)| (a as u32, b as u32))
+        .map_err(gerr)?;
+    if behind == 0 {
+        push_branch(&repo, &branch, token)?;
+        Ok(outcome(GitSyncKind::Pushed, ahead, 0))
+    } else if ahead == 0 {
+        let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
+        fast_forward(&repo, &local_ref, remote_tip)?;
+        Ok(outcome(GitSyncKind::Pulled, 0, behind))
+    } else {
+        Ok(outcome(GitSyncKind::Diverged, ahead, behind))
+    }
+}
+
+fn outcome(kind: GitSyncKind, ahead: u32, behind: u32) -> GitSyncOutcome {
+    GitSyncOutcome {
+        kind,
+        ahead,
+        behind,
+    }
+}
+
+/// Total commit count reachable from `tip` (used for "pushed/pulled N").
+fn count_commits(repo: &Repository, tip: Oid) -> CoreResult<u32> {
+    let mut walk = repo.revwalk().map_err(gerr)?;
+    walk.push(tip).map_err(gerr)?;
+    Ok(walk.count() as u32)
+}
+
+/// Push the branch to `origin`. A server-side rejection (e.g. another
+/// device pushed between our fetch and push) surfaces as an error — the
+/// next cycle fetches and resolves; force-pushing is never an option.
+fn push_branch(repo: &Repository, branch: &str, token: Option<&str>) -> CoreResult<()> {
+    let mut remote = repo.find_remote("origin").map_err(gerr)?;
+    let rejected: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let sink = rejected.clone();
+    let mut cb = auth_callbacks(token.map(str::to_string));
+    cb.push_update_reference(move |name, status| {
+        if let Some(msg) = status {
+            if let Ok(mut slot) = sink.lock() {
+                *slot = Some(format!("{name}: {msg}"));
+            }
+        }
+        Ok(())
+    });
+    let mut po = PushOptions::new();
+    po.remote_callbacks(cb);
+    remote
+        .push(
+            &[format!("refs/heads/{branch}:refs/heads/{branch}")],
+            Some(&mut po),
+        )
+        .map_err(gerr)?;
+    let rejection = rejected.lock().ok().and_then(|mut s| s.take());
+    if let Some(r) = rejection {
+        return Err(CoreError::Internal(format!("git: push rejected: {r}")));
+    }
+    Ok(())
+}
+
+/// Fast-forward the local branch to `target`. The safe (non-force) checkout
+/// runs FIRST: with the clean tree we just committed it succeeds; a dirty
+/// tree (ms-scale race with a save) errors loudly and leaves the branch ref
+/// untouched for the next cycle. Never discards local content.
+fn fast_forward(repo: &Repository, local_ref: &str, target: Oid) -> CoreResult<()> {
+    let commit = repo.find_commit(target).map_err(gerr)?;
+    let mut co = CheckoutBuilder::new();
+    co.safe();
+    repo.checkout_tree(commit.as_object(), Some(&mut co))
+        .map_err(gerr)?;
+    repo.find_reference(local_ref)
+        .map_err(gerr)?
+        .set_target(target, "novalis: fast-forward")
+        .map_err(gerr)?;
+    Ok(())
+}
+
+/// Point an unborn branch at a populated remote and check the tree out.
+/// Conflicting untracked files abort the adoption — EXCEPT `.novalis/`
+/// prefs and `.gitignore`, where the remote copy wins (both are
+/// Novalis-maintained and were (re)written moments ago by the enable
+/// toggle; ignore lines missing from the remote copy are re-appended by
+/// the next `ensure_repo`). Note bodies are never replaced.
+fn adopt_remote(repo: &Repository, local_ref: &str, tip: Oid) -> CoreResult<()> {
+    let commit = repo.find_commit(tip).map_err(gerr)?;
+    let conflicts: RefCell<Vec<PathBuf>> = RefCell::new(Vec::new());
+    let first = {
+        let mut co = CheckoutBuilder::new();
+        co.safe();
+        co.notify_on(git2::CheckoutNotificationType::CONFLICT);
+        co.notify(|_kind, path, _, _, _| {
+            if let Some(p) = path {
+                conflicts.borrow_mut().push(p.to_path_buf());
+            }
+            true
+        });
+        repo.checkout_tree(commit.as_object(), Some(&mut co))
+    };
+    if let Err(e) = first {
+        let paths = conflicts.into_inner();
+        let replaceable = |p: &PathBuf| p.starts_with(".novalis") || p == Path::new(".gitignore");
+        let only_novalis = !paths.is_empty() && paths.iter().all(replaceable);
+        if !only_novalis {
+            if paths.is_empty() {
+                return Err(gerr(e));
+            }
+            return Err(CoreError::BadRequest(format!(
+                "adopting the remote would overwrite {} local file(s) (e.g. {}) — start from an empty folder",
+                paths.len(),
+                paths[0].display(),
+            )));
+        }
+        let workdir = repo
+            .workdir()
+            .ok_or_else(|| CoreError::Internal("git: bare repository has no worktree".into()))?;
+        for p in &paths {
+            let _ = std::fs::remove_file(workdir.join(p));
+        }
+        let mut co = CheckoutBuilder::new();
+        co.safe();
+        repo.checkout_tree(commit.as_object(), Some(&mut co))
+            .map_err(gerr)?;
+    }
+    repo.reference(local_ref, tip, true, "novalis: adopt remote")
+        .map_err(gerr)?;
+    repo.set_head(local_ref).map_err(gerr)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -525,5 +845,179 @@ mod tests {
         assert!(!status.initialized);
         assert_eq!(status.dirty, 0);
         assert!(status.last_commit.is_none());
+        assert!(status.remote_url.is_none());
+    }
+
+    // ── Sync (P2a) — local-path remotes, no network involved ────────────────
+
+    fn bare_remote() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let mut opts = RepositoryInitOptions::new();
+        opts.bare(true);
+        opts.initial_head("main");
+        Repository::init_opts(dir.path(), &opts).unwrap();
+        dir
+    }
+
+    fn remote_path(dir: &tempfile::TempDir) -> String {
+        dir.path().to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn sync_without_remote_reports_no_remote() {
+        let dir = vault();
+        ensure_repo(dir.path()).unwrap();
+        let out = sync(dir.path(), "Novalis", "novalis@localhost", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::NoRemote);
+    }
+
+    #[test]
+    fn first_sync_pushes_to_empty_remote_then_up_to_date() {
+        let dir = vault();
+        let bare = bare_remote();
+        ensure_repo(dir.path()).unwrap();
+        set_remote(dir.path(), Some(&remote_path(&bare))).unwrap();
+        let out = sync(dir.path(), "Novalis", "novalis@localhost", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Pushed);
+        assert_eq!(out.ahead, 1);
+        let bare_tip = Repository::open(bare.path())
+            .unwrap()
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap();
+        let local_tip = Repository::open(dir.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap();
+        assert_eq!(bare_tip, local_tip);
+        let out = sync(dir.path(), "Novalis", "novalis@localhost", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::UpToDate);
+        let status = repo_status(dir.path()).unwrap();
+        assert_eq!(
+            status.remote_url.as_deref(),
+            Some(remote_path(&bare).as_str())
+        );
+        assert_eq!((status.ahead, status.behind), (0, 0));
+    }
+
+    #[test]
+    fn fresh_vault_adopts_remote_then_pulls_fast_forward() {
+        // Device A pushes its vault…
+        let a = vault();
+        let bare = bare_remote();
+        ensure_repo(a.path()).unwrap();
+        set_remote(a.path(), Some(&remote_path(&bare))).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        // …device B starts from an empty folder holding only the fresh
+        // prefs that "enable git sync" just wrote.
+        let b = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(b.path().join(".novalis")).unwrap();
+        std::fs::write(b.path().join(".novalis/config.json"), "{\"fresh\":true}\n").unwrap();
+        ensure_repo(b.path()).unwrap();
+        set_remote(b.path(), Some(&remote_path(&bare))).unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Pulled);
+        assert!(b.path().join("a.md").exists(), "remote notes arrived");
+        // Remote prefs win over the just-written local defaults.
+        assert_eq!(
+            std::fs::read_to_string(b.path().join(".novalis/config.json")).unwrap(),
+            "{}\n"
+        );
+        // A edits and pushes; B fast-forwards and sees the new content.
+        std::fs::write(a.path().join("a.md"), "# A changed\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Pulled);
+        assert_eq!(out.behind, 1);
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# A changed\n"
+        );
+    }
+
+    #[test]
+    fn adoption_refuses_to_overwrite_user_notes() {
+        let a = vault();
+        let bare = bare_remote();
+        ensure_repo(a.path()).unwrap();
+        set_remote(a.path(), Some(&remote_path(&bare))).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        // B's folder already contains a DIFFERENT a.md — adopting would
+        // overwrite a note body, which is disqualifying.
+        let b = tempfile::tempdir().unwrap();
+        std::fs::write(b.path().join("a.md"), "# different local note\n").unwrap();
+        ensure_repo(b.path()).unwrap();
+        set_remote(b.path(), Some(&remote_path(&bare))).unwrap();
+        let err = sync(b.path(), "B", "b@x", None).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# different local note\n",
+            "local note must be untouched"
+        );
+    }
+
+    #[test]
+    fn diverged_histories_stop_without_force() {
+        let a = vault();
+        let bare = bare_remote();
+        ensure_repo(a.path()).unwrap();
+        set_remote(a.path(), Some(&remote_path(&bare))).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        let b = tempfile::tempdir().unwrap();
+        ensure_repo(b.path()).unwrap();
+        set_remote(b.path(), Some(&remote_path(&bare))).unwrap();
+        sync(b.path(), "B", "b@x", None).unwrap();
+        // Both sides edit the same note.
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        std::fs::write(b.path().join("a.md"), "# from B\n").unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Diverged);
+        assert_eq!((out.ahead, out.behind), (1, 1));
+        // Nothing was forced anywhere: the remote still has A's tip, B's
+        // worktree keeps B's edit, and the local commit preserves it.
+        let bare_repo = Repository::open(bare.path()).unwrap();
+        let remote_tip = bare_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap();
+        let a_tip = Repository::open(a.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap();
+        assert_eq!(remote_tip, a_tip);
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# from B\n"
+        );
+        let status = repo_status(b.path()).unwrap();
+        assert_eq!((status.ahead, status.behind), (1, 1));
+    }
+
+    #[test]
+    fn set_remote_replaces_and_removes() {
+        let dir = vault();
+        ensure_repo(dir.path()).unwrap();
+        set_remote(dir.path(), Some("https://example.com/a.git")).unwrap();
+        set_remote(dir.path(), Some("https://example.com/b.git")).unwrap();
+        assert_eq!(
+            repo_status(dir.path()).unwrap().remote_url.as_deref(),
+            Some("https://example.com/b.git")
+        );
+        set_remote(dir.path(), None).unwrap();
+        assert!(repo_status(dir.path()).unwrap().remote_url.is_none());
     }
 }
