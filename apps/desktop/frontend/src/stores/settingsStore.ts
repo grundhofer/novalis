@@ -1,5 +1,6 @@
 // Central store for vault-synced Preferences edited in the Settings dialog.
-// Owns the `taskView`, `appearance`, `editor`, `calendar`, and `general` blocks.
+// Owns the `taskView`, `appearance`, `editor`, `calendar`, `general`, and
+// `git` blocks.
 // `fileTree` is owned by vaultStore — we never write it (we re-read fresh and
 // carry it over) to avoid clobbering folder colors / manual order.
 //
@@ -16,6 +17,7 @@ import {
   type CalendarPrefs,
   type EditorPrefs,
   type GeneralPrefs,
+  type GitPrefs,
   type Preferences,
   type TaskViewPrefs,
 } from "../ipc/api";
@@ -31,7 +33,20 @@ interface SettingsState {
   setCalendar: (patch: Partial<CalendarPrefs>) => void;
   setGeneral: (patch: Partial<GeneralPrefs>) => void;
   setTaskView: (patch: Partial<TaskViewPrefs>) => void;
+  setGit: (patch: Partial<GitPrefs>) => void;
   flush: () => Promise<void>;
+}
+
+// Mirrors the Rust-side serde defaults — the `git` block and each of its
+// fields are optional on the wire (older configs lack them), so consumers
+// resolve to a complete value before patching or rendering.
+export function resolveGitPrefs(g: GitPrefs | undefined): Required<GitPrefs> {
+  return {
+    enabled: g?.enabled ?? false,
+    authorName: g?.authorName ?? "Novalis",
+    authorEmail: g?.authorEmail ?? "novalis@localhost",
+    autoCommitSecs: g?.autoCommitSecs ?? 300,
+  };
 }
 
 const PERSIST_DELAY = 400;
@@ -51,6 +66,7 @@ async function persist(get: () => SettingsState): Promise<void> {
       editor: p.editor,
       calendar: p.calendar,
       general: p.general,
+      git: p.git ?? fresh.git,
     });
   } catch {
     /* noVault / IO — in-memory state still drives the UI until next load */
@@ -112,6 +128,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const p = get().prefs;
     if (!p) return;
     set({ prefs: { ...p, taskView: { ...p.taskView, ...patch } } });
+    schedulePersist(get);
+  },
+
+  setGit: (patch) => {
+    const p = get().prefs;
+    if (!p) return;
+    set({ prefs: { ...p, git: { ...resolveGitPrefs(p.git), ...patch } } });
     schedulePersist(get);
   },
 

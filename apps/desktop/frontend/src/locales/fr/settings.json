@@ -151,6 +151,7 @@
     "keybindings": "Raccourcis",
     "language": "Langue",
     "plugins": "Plugins",
+    "sync": "Synchronisation",
     "tasks": "Tâches et Kanban",
     "templates": "Modèles",
     "vault": "Vault"
@@ -160,6 +161,40 @@
     "enableAria": "Activer {{name}}",
     "loadFailed": "Échec du chargement du plugin {{id}} : {{error}}",
     "section": "Plugins"
+  },
+  "sync": {
+    "authorEmail": {
+      "desc": "Enregistré comme e-mail de l'auteur du commit.",
+      "label": "E-mail de l'auteur"
+    },
+    "authorName": {
+      "desc": "Enregistré comme auteur du commit.",
+      "label": "Nom de l'auteur"
+    },
+    "enabled": {
+      "desc": "Crée un dépôt dans le Vault et valide les modifications automatiquement.",
+      "label": "Activer le versionnage Git"
+    },
+    "git": {
+      "desc": "Enregistre chaque modification du Vault dans un dépôt Git local. La synchronisation avec un dépôt distant arrivera dans une mise à jour ultérieure.",
+      "title": "Versionnage Git"
+    },
+    "interval": {
+      "desc": "Délai entre les commits automatiques.",
+      "label": "Intervalle d'auto-commit"
+    },
+    "repo": {
+      "commitFailed": "Échec du commit : {{message}}",
+      "commitNow": "Commiter maintenant",
+      "lastCommit": "Dernier commit",
+      "noCommits": "Aucun commit pour l'instant",
+      "onBranch": "Sur la branche {{branch}}",
+      "pending": "Modifications en attente",
+      "pendingCount": "{{n}} fichier(s)",
+      "title": "Dépôt",
+      "uninitialized": "Aucun dépôt pour l'instant",
+      "uninitializedDesc": "Activez le versionnage Git ou commitez une fois pour le créer."
+    }
   },
   "tasks": {
     "addColumn": "Ajouter une colonne",

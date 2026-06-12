@@ -151,6 +151,7 @@
     "keybindings": "Tastenkürzel",
     "language": "Sprache",
     "plugins": "Plugins",
+    "sync": "Sync",
     "tasks": "Aufgaben & Kanban",
     "templates": "Vorlagen",
     "vault": "Vault"
@@ -160,6 +161,40 @@
     "enableAria": "{{name}} aktivieren",
     "loadFailed": "Plugin {{id}} konnte nicht geladen werden: {{error}}",
     "section": "Plugins"
+  },
+  "sync": {
+    "authorEmail": {
+      "desc": "Wird als E-Mail des Commit-Autors eingetragen.",
+      "label": "Autor-E-Mail"
+    },
+    "authorName": {
+      "desc": "Wird als Commit-Autor eingetragen.",
+      "label": "Autorname"
+    },
+    "enabled": {
+      "desc": "Erstellt ein Repository im Vault und committet Änderungen automatisch.",
+      "label": "Git-Versionierung aktivieren"
+    },
+    "git": {
+      "desc": "Zeichnet jede Änderung am Vault in einem lokalen Git-Repository auf. Der Abgleich mit einem Remote folgt in einem späteren Update.",
+      "title": "Git-Versionierung"
+    },
+    "interval": {
+      "desc": "Wartezeit zwischen automatischen Commits.",
+      "label": "Auto-Commit-Intervall"
+    },
+    "repo": {
+      "commitFailed": "Commit fehlgeschlagen: {{message}}",
+      "commitNow": "Jetzt committen",
+      "lastCommit": "Letzter Commit",
+      "noCommits": "Noch keine Commits",
+      "onBranch": "Auf Branch {{branch}}",
+      "pending": "Ausstehende Änderungen",
+      "pendingCount": "{{n}} Datei(en)",
+      "title": "Repository",
+      "uninitialized": "Noch kein Repository",
+      "uninitializedDesc": "Git-Versionierung aktivieren oder einmal committen, um es zu erstellen."
+    }
   },
   "tasks": {
     "addColumn": "Spalte hinzufügen",

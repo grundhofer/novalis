@@ -84,6 +84,10 @@ export const api = {
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
   getPreferences: () => unwrap(commands.getPreferences()),
 
+  // Git sync (P1: local auto-commit)
+  gitStatus: () => unwrap(commands.gitStatus()),
+  gitCommitNow: () => unwrap(commands.gitCommitNow()),
+
   // Tasks
   listTasks: (status: "open" | "completed" | "all" = "open") =>
     unwrap(

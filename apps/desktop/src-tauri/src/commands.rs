@@ -12,7 +12,7 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
-    LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences,
+    GitStatus, LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences,
     PropertyValue, ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery,
     UpdateMetaRequest, VaultInfo, VaultStats,
 };
@@ -20,7 +20,7 @@ use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
 use novalis_core::versions::{DiffLine, VersionMeta};
-use novalis_core::{calendar, export, media, templates, AppInfo, CoreError};
+use novalis_core::{calendar, export, git, media, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
 
@@ -85,6 +85,8 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
         let generation =
             crate::watcher::WATCH_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         crate::watcher::start(app.clone(), vault_path.clone(), generation);
+        // Git auto-committer shares the watcher's generation/lifecycle.
+        crate::autocommit::start(vault_path.clone(), generation);
     }
 
     let _ = app.emit("reindexed-event", ());
@@ -137,6 +139,11 @@ pub fn close_vault(state: State<AppEngine>) -> CmdResult<()> {
         .0
         .lock()
         .map_err(|_| CommandError::internal("engine lock poisoned"))? = None;
+    // Invalidate the vault-scoped background threads (watcher + git
+    // auto-committer): they key their lifetime to this generation. Without
+    // the bump the committer would keep WRITING into the closed vault.
+    #[cfg(desktop)]
+    crate::watcher::WATCH_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
 
@@ -592,6 +599,49 @@ pub fn get_preferences(state: State<AppEngine>) -> CmdResult<Preferences> {
 #[specta::specta]
 pub fn set_preferences(state: State<AppEngine>, prefs: Preferences) -> CmdResult<()> {
     state.with(|e| config::write_preferences(&e.vault_path, &prefs))
+}
+
+// ── Git sync (P1: local auto-commit) ────────────────────────────────────────
+
+/// Vault path snapshot for commands whose heavy work must run OUTSIDE the
+/// engine lock — holding it would queue every other command (and the
+/// watcher) behind the git work.
+fn vault_path_snapshot(app: &AppHandle) -> CmdResult<PathBuf> {
+    app.state::<AppEngine>().with(|e| Ok(e.vault_path.clone()))
+}
+
+/// Local repository status of the open vault. Works without a repo —
+/// `initialized: false` means git sync isn't set up yet, not an error.
+/// `async` + `spawn_blocking`: the status scan walks the working tree.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_status(app: AppHandle) -> CmdResult<GitStatus> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        git::repo_status(&vault).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_status task panicked: {e}")))?
+}
+
+/// Initialize the vault repository if needed and commit everything pending
+/// with the configured author. Serves both the enable toggle (baseline
+/// commit) and the manual "commit now" button; the background auto-committer
+/// runs the same core path. `async` + `spawn_blocking` with the engine lock
+/// released: the baseline commit hashes EVERY file in the vault — on the
+/// main thread or under the lock it would freeze the app for its duration.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_commit_now(app: AppHandle) -> CmdResult<GitStatus> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        git::ensure_repo(&vault)?;
+        let prefs = config::read_preferences(&vault);
+        git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email)?;
+        git::repo_status(&vault).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_commit_now task panicked: {e}")))?
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────

@@ -151,6 +151,7 @@
     "keybindings": "Keybindings",
     "language": "Language",
     "plugins": "Plugins",
+    "sync": "Sync",
     "tasks": "Tasks & Kanban",
     "templates": "Templates",
     "vault": "Vault"
@@ -160,6 +161,40 @@
     "enableAria": "Enable {{name}}",
     "loadFailed": "Failed to load plugin {{id}}: {{error}}",
     "section": "Plugins"
+  },
+  "sync": {
+    "authorEmail": {
+      "desc": "Recorded as the commit author email.",
+      "label": "Author email"
+    },
+    "authorName": {
+      "desc": "Recorded as the commit author.",
+      "label": "Author name"
+    },
+    "enabled": {
+      "desc": "Creates a repository in the vault and commits changes automatically.",
+      "label": "Enable Git versioning"
+    },
+    "git": {
+      "desc": "Records every change to the vault in a local Git repository. Syncing to a remote comes in a later update.",
+      "title": "Git versioning"
+    },
+    "interval": {
+      "desc": "How long to wait between automatic commits.",
+      "label": "Auto-commit interval"
+    },
+    "repo": {
+      "commitFailed": "Commit failed: {{message}}",
+      "commitNow": "Commit now",
+      "lastCommit": "Last commit",
+      "noCommits": "No commits yet",
+      "onBranch": "On branch {{branch}}",
+      "pending": "Pending changes",
+      "pendingCount": "{{n}} file(s)",
+      "title": "Repository",
+      "uninitialized": "No repository yet",
+      "uninitializedDesc": "Enable Git versioning or commit once to create it."
+    }
   },
   "tasks": {
     "addColumn": "Add column",

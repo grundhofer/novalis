@@ -151,6 +151,7 @@
     "keybindings": "Atajos",
     "language": "Idioma",
     "plugins": "Plugins",
+    "sync": "Sincronización",
     "tasks": "Tareas y Kanban",
     "templates": "Plantillas",
     "vault": "Vault"
@@ -160,6 +161,40 @@
     "enableAria": "Activar {{name}}",
     "loadFailed": "Error al cargar el plugin {{id}}: {{error}}",
     "section": "Plugins"
+  },
+  "sync": {
+    "authorEmail": {
+      "desc": "Se registra como correo del autor del commit.",
+      "label": "Correo del autor"
+    },
+    "authorName": {
+      "desc": "Se registra como autor del commit.",
+      "label": "Nombre del autor"
+    },
+    "enabled": {
+      "desc": "Crea un repositorio en el Vault y confirma los cambios automáticamente.",
+      "label": "Activar versionado Git"
+    },
+    "git": {
+      "desc": "Registra cada cambio del Vault en un repositorio Git local. La sincronización con un remoto llegará en una actualización futura.",
+      "title": "Versionado Git"
+    },
+    "interval": {
+      "desc": "Tiempo de espera entre commits automáticos.",
+      "label": "Intervalo de auto-commit"
+    },
+    "repo": {
+      "commitFailed": "El commit falló: {{message}}",
+      "commitNow": "Confirmar ahora",
+      "lastCommit": "Último commit",
+      "noCommits": "Aún no hay commits",
+      "onBranch": "En la rama {{branch}}",
+      "pending": "Cambios pendientes",
+      "pendingCount": "{{n}} archivo(s)",
+      "title": "Repositorio",
+      "uninitialized": "Aún no hay repositorio",
+      "uninitializedDesc": "Activa el versionado Git o confirma una vez para crearlo."
+    }
   },
   "tasks": {
     "addColumn": "Añadir columna",

@@ -10,6 +10,7 @@ pub mod change;
 pub mod conflict;
 pub mod error;
 pub mod export;
+pub mod git;
 pub mod index;
 pub mod media;
 pub mod models;

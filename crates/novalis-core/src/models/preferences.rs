@@ -18,6 +18,8 @@ pub struct Preferences {
     pub calendar: CalendarPrefs,
     #[serde(default)]
     pub general: GeneralPrefs,
+    #[serde(default)]
+    pub git: GitPrefs,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -153,6 +155,25 @@ pub struct GeneralPrefs {
     pub default_app_view: String,
 }
 
+/// Local git versioning (Git sync P1 — no remotes yet). Synced with the vault
+/// like every block here, so enabling follows the vault across devices.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GitPrefs {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Commit author identity — always explicit, never read from the user's
+    /// global git config (a machine without one must behave the same).
+    #[serde(default = "default_git_author_name")]
+    pub author_name: String,
+    #[serde(default = "default_git_author_email")]
+    pub author_email: String,
+    /// Auto-commit interval in seconds; the background committer also
+    /// enforces a 30s floor.
+    #[serde(default = "default_git_interval_secs")]
+    pub auto_commit_secs: u32,
+}
+
 fn default_task_mode() -> String {
     "list".to_string()
 }
@@ -219,6 +240,18 @@ fn default_time_format() -> String {
 
 fn default_app_view() -> String {
     "notes".to_string()
+}
+
+fn default_git_author_name() -> String {
+    "Novalis".to_string()
+}
+
+fn default_git_author_email() -> String {
+    "novalis@localhost".to_string()
+}
+
+fn default_git_interval_secs() -> u32 {
+    300
 }
 
 fn default_kanban_columns() -> Vec<KanbanColumnDef> {
@@ -317,6 +350,17 @@ impl Default for GeneralPrefs {
     }
 }
 
+impl Default for GitPrefs {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            author_name: default_git_author_name(),
+            author_email: default_git_author_email(),
+            auto_commit_secs: default_git_interval_secs(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -386,6 +430,20 @@ mod tests {
         assert_eq!(prefs.editor.autosave_ms, 600);
         assert_eq!(prefs.calendar.week_start, "monday");
         assert_eq!(prefs.general.default_app_view, "notes");
+    }
+
+    #[test]
+    fn git_prefs_default_off_and_legacy_backfilled() {
+        let p = Preferences::default();
+        assert!(!p.git.enabled);
+        assert_eq!(p.git.author_name, "Novalis");
+        assert_eq!(p.git.author_email, "novalis@localhost");
+        assert_eq!(p.git.auto_commit_secs, 300);
+        // A config.json written before the git block existed must backfill it.
+        let legacy: Preferences =
+            serde_json::from_str(r#"{ "general": { "defaultAppView": "tasks" } }"#).unwrap();
+        assert!(!legacy.git.enabled);
+        assert_eq!(legacy.git.auto_commit_secs, 300);
     }
 
     #[test]

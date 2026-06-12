@@ -5,6 +5,8 @@
 //! declared once in [`specta_builder`] and is the single source of truth for
 //! the auto-generated TypeScript bindings (`frontend/src/ipc/bindings.ts`).
 
+#[cfg(desktop)]
+mod autocommit;
 mod commands;
 mod engine;
 mod oauth;
@@ -93,6 +95,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::restore_version,
             commands::get_preferences,
             commands::set_preferences,
+            commands::git_status,
+            commands::git_commit_now,
             commands::list_tasks,
             commands::create_task,
             commands::toggle_task,

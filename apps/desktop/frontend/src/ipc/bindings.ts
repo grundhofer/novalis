@@ -135,6 +135,21 @@ export const commands = {
 	restoreVersion: (path: string, versionId: string) => typedError<Note, CommandError>(__TAURI_INVOKE("restore_version", { path, versionId })),
 	getPreferences: () => typedError<Preferences, CommandError>(__TAURI_INVOKE("get_preferences")),
 	setPreferences: (prefs: Preferences) => typedError<null, CommandError>(__TAURI_INVOKE("set_preferences", { prefs })),
+	/**
+	 *  Local repository status of the open vault. Works without a repo —
+	 *  `initialized: false` means git sync isn't set up yet, not an error.
+	 *  `async` + `spawn_blocking`: the status scan walks the working tree.
+	 */
+	gitStatus: () => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_status")),
+	/**
+	 *  Initialize the vault repository if needed and commit everything pending
+	 *  with the configured author. Serves both the enable toggle (baseline
+	 *  commit) and the manual "commit now" button; the background auto-committer
+	 *  runs the same core path. `async` + `spawn_blocking` with the engine lock
+	 *  released: the baseline commit hashes EVERY file in the vault — on the
+	 *  main thread or under the lock it would freeze the app for its duration.
+	 */
+	gitCommitNow: () => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_commit_now")),
 	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
 	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
@@ -431,6 +446,49 @@ export type GeneralPrefs = {
 	defaultAppView?: string,
 };
 
+/**  One commit, as surfaced in the Sync settings panel. */
+export type GitCommitInfo = {
+	/**  Full commit id (hex); the UI shortens it for display. */
+	id: string,
+	/**  First line of the commit message. */
+	message: string,
+	/**  Commit time, RFC 3339 in UTC. */
+	time: string,
+};
+
+/**
+ *  Local git versioning (Git sync P1 — no remotes yet). Synced with the vault
+ *  like every block here, so enabling follows the vault across devices.
+ */
+export type GitPrefs = {
+	enabled?: boolean,
+	/**
+	 *  Commit author identity — always explicit, never read from the user's
+	 *  global git config (a machine without one must behave the same).
+	 */
+	authorName?: string,
+	authorEmail?: string,
+	/**
+	 *  Auto-commit interval in seconds; the background committer also
+	 *  enforces a 30s floor.
+	 */
+	autoCommitSecs?: number,
+};
+
+/**  Local repository state of the open vault (Git sync P1 — no remotes yet). */
+export type GitStatus = {
+	/**  Whether the vault root is a git repository. */
+	initialized: boolean,
+	/**
+	 *  Working-tree paths differing from HEAD (untracked + modified +
+	 *  deleted), with `.gitignore` respected.
+	 */
+	dirty: number,
+	/**  HEAD branch shorthand (`main` for repos Novalis created). */
+	branch: string | null,
+	lastCommit: GitCommitInfo | null,
+};
+
 /**  A directed `[[link]]` edge between two notes, by path. */
 export type GraphEdge = {
 	source: string,
@@ -583,6 +641,7 @@ export type Preferences = {
 	editor?: EditorPrefs,
 	calendar?: CalendarPrefs,
 	general?: GeneralPrefs,
+	git?: GitPrefs,
 };
 
 /**

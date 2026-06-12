@@ -3,6 +3,7 @@
 //! [`specta::Type`] so the frontend bindings stay in lockstep with Rust.
 
 pub mod calendar;
+pub mod git;
 pub mod note;
 pub mod plugin;
 pub mod preferences;
@@ -12,6 +13,7 @@ pub mod template;
 pub mod vault;
 
 pub use calendar::*;
+pub use git::*;
 pub use note::*;
 pub use plugin::*;
 pub use preferences::*;

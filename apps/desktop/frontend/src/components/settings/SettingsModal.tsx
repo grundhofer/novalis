@@ -13,6 +13,7 @@ import { GeneralPanel } from "./panels/GeneralPanel";
 import { KeybindingsPanel } from "./panels/KeybindingsPanel";
 import { LanguagePanel } from "./panels/LanguagePanel";
 import { PluginsPanel } from "./panels/PluginsPanel";
+import { SyncPanel } from "./panels/SyncPanel";
 import { TasksPanel } from "./panels/TasksPanel";
 import { TemplatesPanel } from "./panels/TemplatesPanel";
 import { VaultPanel } from "./panels/VaultPanel";
@@ -110,6 +111,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           >
             {active === "general" && <GeneralPanel />}
             {active === "vault" && <VaultPanel onSwitched={() => void close()} />}
+            {active === "sync" && <SyncPanel />}
             {active === "appearance" && <AppearancePanel />}
             {active === "language" && <LanguagePanel />}
             {active === "editor" && <EditorPanel />}

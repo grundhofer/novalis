@@ -4,6 +4,7 @@ import {
   CalendarDays,
   FileText,
   FolderOpen,
+  GitBranch,
   Info,
   KanbanSquare,
   Keyboard,
@@ -18,6 +19,7 @@ import { useTranslation } from "react-i18next";
 export type CategoryId =
   | "general"
   | "vault"
+  | "sync"
   | "appearance"
   | "language"
   | "editor"
@@ -33,6 +35,7 @@ type IconType = ComponentType<{ size?: number | string; className?: string }>;
 export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "general", icon: SlidersHorizontal },
   { id: "vault", icon: FolderOpen },
+  { id: "sync", icon: GitBranch },
   { id: "appearance", icon: Palette },
   { id: "language", icon: Languages },
   { id: "editor", icon: PenLine },
@@ -51,6 +54,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
   return {
     general: t("nav.general"),
     vault: t("nav.vault"),
+    sync: t("nav.sync"),
     appearance: t("nav.appearance"),
     language: t("nav.language"),
     editor: t("nav.editor"),
