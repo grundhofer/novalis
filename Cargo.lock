@@ -2662,7 +2662,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "docx-rs",
@@ -2688,7 +2688,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2716,7 +2716,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-extension"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "novalis-core",
  "serde",
