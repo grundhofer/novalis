@@ -47,6 +47,7 @@ export const api = {
     ),
   updateNote: (path: string, content: string) => unwrap(commands.updateNote(path, content)),
   deleteNote: (path: string) => unwrap(commands.deleteNote(path)),
+  revealInFileManager: (path: string) => unwrap(commands.revealInFileManager(path)),
   resolveOrCreateWikiLink: (title: string) => unwrap(commands.resolveOrCreateWikiLink(title)),
   moveNote: (path: string, newPath: string) => unwrap(commands.moveNote(path, newPath)),
   duplicateNote: (path: string) => unwrap(commands.duplicateNote(path)),
@@ -127,6 +128,7 @@ export const api = {
   ) =>
     unwrap(commands.updateTask(id, field, value)),
   deleteTask: (id: string) => unwrap(commands.deleteTask(id)),
+  moveTask: (id: string, destNote: string) => unwrap(commands.moveTask(id, destNote)),
 
   // Templates / export / media
   listTemplates: () => unwrap(commands.listTemplates()),

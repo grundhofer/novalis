@@ -296,6 +296,56 @@ pub fn delete_note(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &path))
 }
 
+/// Reveal a note file or folder in the OS file manager (Finder/Explorer/file
+/// manager), selecting the item. `path` is vault-relative (forward-slashed); an
+/// empty string reveals the vault root. If the target no longer exists (e.g. a
+/// brand-new note not yet flushed to disk), falls back to revealing its parent.
+#[tauri::command]
+#[specta::specta]
+pub fn reveal_in_file_manager(
+    app: AppHandle,
+    state: State<AppEngine>,
+    path: String,
+) -> CmdResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+
+    // Resolve against the vault, rejecting `..` traversal (core's read_note does
+    // not guard this, so guard here).
+    let abs = state.with(|e| {
+        let rel = std::path::Path::new(&path);
+        if rel
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err(CoreError::BadRequest(format!("path escapes the vault: {path}")));
+        }
+        let joined = e.vault_path.join(rel);
+        // Defense in depth: when both sides canonicalize, the target must stay
+        // inside the vault root.
+        if let (Ok(root), Ok(target)) = (e.vault_path.canonicalize(), joined.canonicalize()) {
+            if !target.starts_with(&root) {
+                return Err(CoreError::BadRequest(format!("path escapes the vault: {path}")));
+            }
+        }
+        Ok(joined)
+    })?;
+
+    // reveal_item_in_dir needs an existing path; fall back to the parent dir for
+    // not-yet-flushed / freshly-removed items.
+    let target = if abs.exists() {
+        abs
+    } else if let Some(parent) = abs.parent().filter(|p| p.exists()) {
+        parent.to_path_buf()
+    } else {
+        return Err(CoreError::NotFound(format!("path not found: {path}")).into());
+    };
+
+    app.opener()
+        .reveal_item_in_dir(&target)
+        .map_err(|e| CommandError::internal(format!("could not reveal in file manager: {e}")))?;
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn resolve_or_create_wiki_link(state: State<AppEngine>, title: String) -> CmdResult<String> {
@@ -780,6 +830,14 @@ pub fn update_task(
 #[specta::specta]
 pub fn delete_task(state: State<AppEngine>, id: String) -> CmdResult<()> {
     state.with(|e| task_svc::delete_task(&e.db, &e.vault_path, &id))
+}
+
+/// Move a task (and its subtask block) to another note. The task id changes
+/// after the move (id = hash of path + line); the frontend reloads.
+#[tauri::command]
+#[specta::specta]
+pub fn move_task(state: State<AppEngine>, id: String, dest_note: String) -> CmdResult<()> {
+    state.with(|e| task_svc::move_task(&e.db, &e.vault_path, &id, &dest_note))
 }
 
 #[tauri::command]

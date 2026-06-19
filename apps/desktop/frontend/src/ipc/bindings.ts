@@ -66,6 +66,13 @@ export const commands = {
 	moveNote: (path: string, newPath: string) => typedError<Note, CommandError>(__TAURI_INVOKE("move_note", { path, newPath })),
 	duplicateNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("duplicate_note", { path })),
 	deleteNote: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_note", { path })),
+	/**
+	 *  Reveal a note file or folder in the OS file manager (Finder/Explorer/file
+	 *  manager), selecting the item. `path` is vault-relative (forward-slashed); an
+	 *  empty string reveals the vault root. If the target no longer exists (e.g. a
+	 *  brand-new note not yet flushed to disk), falls back to revealing its parent.
+	 */
+	revealInFileManager: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("reveal_in_file_manager", { path })),
 	resolveOrCreateWikiLink: (title: string) => typedError<string, CommandError>(__TAURI_INVOKE("resolve_or_create_wiki_link", { title })),
 	getFolderTree: () => typedError<FolderNode, CommandError>(__TAURI_INVOKE("get_folder_tree")),
 	createFolder: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("create_folder", { path })),
@@ -182,6 +189,11 @@ export const commands = {
 	updateTask: (id: string, field: string, value: string | null) => typedError<null, CommandError>(__TAURI_INVOKE("update_task", { id, field, value })),
 	/**  Delete a task (remove its checkbox line from the source note). */
 	deleteTask: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_task", { id })),
+	/**
+	 *  Move a task (and its subtask block) to another note. The task id changes
+	 *  after the move (id = hash of path + line); the frontend reloads.
+	 */
+	moveTask: (id: string, destNote: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_task", { id, destNote })),
 	quickCapture: (req: CaptureRequest) => typedError<string, CommandError>(__TAURI_INVOKE("quick_capture", { req })),
 	/**
 	 *  Export a note to HTML or DOCX, prompting for a save location. Returns the

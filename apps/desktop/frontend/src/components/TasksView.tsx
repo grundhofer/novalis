@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderInput, Plus, Search, X } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 
 import type { Task } from "../ipc/api";
@@ -22,6 +22,7 @@ import {
 } from "../stores/taskStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
+import { NotePickerModal } from "./NotePickerModal";
 import { TaskCardMenu } from "./TaskCardMenu";
 import { DueBadge, PriorityBadge, SubtaskBadge, TagChip } from "./TaskBadges";
 
@@ -89,17 +90,32 @@ export function TasksView() {
 function NewTaskBar() {
   const { t } = useTranslation("tasks");
   const [text, setText] = useState("");
+  const [picking, setPicking] = useState(false);
   const addTask = useTasks((s) => s.addTask);
+  const pinnedNotePath = useTasks((s) => s.pinnedNotePath);
+  const setPinnedNotePath = useTasks((s) => s.setPinnedNotePath);
+  const recentDestinations = useTasks((s) => s.recentDestinations);
+  const pushRecentDestination = useTasks((s) => s.pushRecentDestination);
   const activePath = useVault((s) => s.activePath);
   const taskCreation = useSettings((s) => s.prefs?.taskView?.taskCreation);
   const submit = () => {
+    // Session pin wins over the creation strategy (active note / inbox).
     const notePath =
-      taskCreation?.strategy === "active-note" && activePath ? activePath : undefined;
+      pinnedNotePath ??
+      (taskCreation?.strategy === "active-note" && activePath ? activePath : undefined);
     void addTask(text, { notePath });
     setText("");
   };
+  const strategy = taskCreation?.strategy ?? "inbox";
+  const destName = pinnedNotePath
+    ? noteTitleFromPath(pinnedNotePath)
+    : strategy === "active-note"
+      ? t("dest.activeNote")
+      : strategy === "daily"
+        ? t("dest.dailyNote")
+        : noteTitleFromPath(taskCreation?.inboxPath ?? "_Inbox.md");
   return (
-    <div className="border-b border-border px-4 py-2">
+    <div className="flex items-center gap-2 border-b border-border px-4 py-2">
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -107,7 +123,36 @@ function NewTaskBar() {
           if (e.key === "Enter") submit();
         }}
         placeholder={t("addPlaceholder")}
-        className="w-full rounded-md bg-surface px-3 py-1.5 text-sm text-fg outline-none ring-1 ring-border placeholder:text-fg-faint focus:ring-accent/50"
+        className="min-w-0 flex-1 rounded-md bg-surface px-3 py-1.5 text-sm text-fg outline-none ring-1 ring-border placeholder:text-fg-faint focus:ring-accent/50"
+      />
+      <div className="flex shrink-0 items-center rounded-md ring-1 ring-border">
+        <button
+          onClick={() => setPicking(true)}
+          title={t("dest.pickTitle")}
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+        >
+          <FolderInput size={13} />
+          <span className="max-w-[10rem] truncate">{t("dest.toLabel", { note: destName })}</span>
+        </button>
+        {pinnedNotePath && (
+          <button
+            onClick={() => setPinnedNotePath(null)}
+            title={t("dest.clear")}
+            className="rounded-md px-1.5 py-1.5 text-fg-faint transition-colors hover:bg-hover hover:text-fg"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+      <NotePickerModal
+        open={picking}
+        onClose={() => setPicking(false)}
+        onPick={(path) => {
+          setPinnedNotePath(path);
+          pushRecentDestination(path);
+        }}
+        title={t("dest.pickTitle")}
+        recentPaths={recentDestinations}
       />
     </div>
   );
@@ -339,6 +384,7 @@ function AddCard({ columnId, notePathOverride }: { columnId: string; notePathOve
   const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const addTask = useTasks((s) => s.addTask);
+  const pinnedNotePath = useTasks((s) => s.pinnedNotePath);
   const activePath = useVault((s) => s.activePath);
   const taskCreation = useSettings((s) => s.prefs?.taskView?.taskCreation);
   const submit = () => {
@@ -348,9 +394,10 @@ function AddCard({ columnId, notePathOverride }: { columnId: string; notePathOve
       return;
     }
     // In a per-note swimlane, add straight to that note; otherwise honor the
-    // creation strategy (active note / inbox).
+    // session pin, then the creation strategy (active note / inbox).
     const notePath =
       notePathOverride ??
+      pinnedNotePath ??
       (taskCreation?.strategy === "active-note" && activePath ? activePath : undefined);
     void addTask(trimmed, { notePath, status: columnId });
     setText(""); // keep the input open for rapid entry

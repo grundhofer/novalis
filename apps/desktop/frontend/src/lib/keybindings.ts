@@ -85,6 +85,14 @@ export function isMac(): boolean {
   return typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent);
 }
 
+/** Coarse OS bucket for platform-specific labels (e.g. "Reveal in Finder" vs
+ *  "Show in Explorer"). Built on the same `navigator` primitive as `isMac`. */
+export function platformKind(): "mac" | "windows" | "linux" {
+  if (isMac()) return "mac";
+  const s = (typeof navigator !== "undefined" ? navigator.platform || navigator.userAgent : "").toLowerCase();
+  return /win/.test(s) ? "windows" : "linux";
+}
+
 export function parseChord(s: string): ParsedChord {
   const parts = s.toLowerCase().split("+");
   return {

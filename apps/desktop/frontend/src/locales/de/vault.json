@@ -8,6 +8,7 @@
   "cmdNewNote": "Neue Notiz",
   "cmdPlaceholder": "Befehl ausführen…",
   "cmdReindex": "Vault neu indizieren",
+  "cmdRevealInFm": "Im Dateimanager anzeigen",
   "dismiss": "Ausblenden",
   "error": {
     "folderExists": "„{{name}}“ existiert bereits.",

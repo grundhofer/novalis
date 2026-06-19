@@ -520,6 +520,61 @@ pub fn delete_task_line(vault: &Path, note_path: &str, line: usize) -> CoreResul
     Ok(())
 }
 
+/// Cut a task's checkbox line plus its contiguous, more-indented child block
+/// (subtasks and their wrapped/continuation lines) from the source note,
+/// returning the removed lines verbatim. Guards that the target line is still a
+/// task checkbox (the line-derived id is not stable across edits) before
+/// touching anything. Indent is measured as the parser does — leading
+/// whitespace character count — so the block boundary matches `parent_id`.
+pub fn cut_task_block(vault: &Path, note_path: &str, line: usize) -> CoreResult<Vec<String>> {
+    let abs = vault.join(note_path);
+    if !abs.exists() {
+        return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
+    }
+
+    let content = std::fs::read_to_string(&abs)?;
+    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+
+    let idx = line
+        .checked_sub(1)
+        .ok_or_else(|| CoreError::BadRequest("Invalid line number".to_string()))?;
+    if idx >= lines.len() {
+        return Err(CoreError::BadRequest(format!(
+            "Line {line} out of range (file has {} lines)",
+            lines.len()
+        )));
+    }
+
+    let task_re = Regex::new(r"^([ \t]*)- \[[ xX]\] ").unwrap();
+    let parent_indent = match task_re.captures(&lines[idx]) {
+        Some(caps) => caps.get(1).unwrap().as_str().chars().count(),
+        None => {
+            return Err(CoreError::BadRequest(format!(
+                "Line {line} is not a task checkbox"
+            )))
+        }
+    };
+
+    // Extend over following lines indented strictly deeper than the parent.
+    // Stop at the first blank line or a sibling/shallower line.
+    let mut end = idx + 1;
+    while end < lines.len() {
+        let l = &lines[end];
+        if l.trim().is_empty() {
+            break;
+        }
+        let indent = l.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+        if indent <= parent_indent {
+            break;
+        }
+        end += 1;
+    }
+
+    let removed: Vec<String> = lines.drain(idx..end).collect();
+    write_lines(&abs, &content, &lines)?;
+    Ok(removed)
+}
+
 /// Join lines and write, preserving a trailing newline if the original had one.
 fn write_lines(abs: &Path, original: &str, lines: &[String]) -> CoreResult<()> {
     let mut joined = lines.join("\n");
@@ -693,6 +748,71 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("n.md"), "Just a paragraph\n").unwrap();
         assert!(update_task_annotation(&dir, "n.md", 1, "project", Some("work")).is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn cut_task_block_returns_verbatim_and_removes_only_its_line() {
+        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let abs = dir.join("n.md");
+        std::fs::write(&abs, "- [ ] First @priority(high)\n- [ ] Second\n").unwrap();
+
+        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        assert_eq!(removed, vec!["- [ ] First @priority(high)".to_string()]);
+        assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Second\n");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn cut_task_block_includes_subtasks_and_stops_at_sibling() {
+        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let abs = dir.join("n.md");
+        std::fs::write(
+            &abs,
+            "- [ ] Parent\n  - [ ] Child A\n  - [x] Child B\n- [ ] Sibling\n",
+        )
+        .unwrap();
+
+        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        assert_eq!(
+            removed,
+            vec![
+                "- [ ] Parent".to_string(),
+                "  - [ ] Child A".to_string(),
+                "  - [x] Child B".to_string(),
+            ]
+        );
+        assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Sibling\n");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn cut_task_block_stops_at_blank_line() {
+        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let abs = dir.join("n.md");
+        std::fs::write(&abs, "- [ ] Parent\n\n  orphaned note\n").unwrap();
+
+        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        assert_eq!(removed, vec!["- [ ] Parent".to_string()]);
+        assert_eq!(
+            std::fs::read_to_string(&abs).unwrap(),
+            "\n  orphaned note\n"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn cut_task_block_rejects_non_task_line() {
+        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("n.md"), "Just a paragraph\n").unwrap();
+        assert!(cut_task_block(&dir, "n.md", 1).is_err());
         std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -8,6 +8,7 @@
   "cmdNewNote": "New note",
   "cmdPlaceholder": "Run a command…",
   "cmdReindex": "Reindex vault",
+  "cmdRevealInFm": "Reveal in file manager",
   "dismiss": "Dismiss",
   "error": {
     "folderExists": "\"{{name}}\" already exists.",

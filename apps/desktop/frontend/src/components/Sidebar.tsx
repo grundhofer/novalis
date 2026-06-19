@@ -27,6 +27,8 @@ import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
 import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { formatChord } from "../lib/keybindings";
+import { flattenNotes } from "../lib/noteTree";
+import { revealLabel } from "../lib/reveal";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
 import { useKeymap } from "../stores/keymapStore";
 import { useUi } from "../stores/uiStore";
@@ -335,6 +337,7 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
         label: pinned ? i18n.t("sidebar:menu.unpin") : i18n.t("sidebar:menu.pin"),
         onClick: () => void s.togglePin(target.path, !pinned),
       },
+      { label: revealLabel(), onClick: () => void s.revealInFileManager(target.path) },
       {
         label: i18n.t("sidebar:menu.delete"),
         danger: true,
@@ -360,6 +363,7 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
       label: i18n.t("sidebar:menu.setColor"),
       onClick: () => actions.openColorPicker(target.path, x, y),
     },
+    { label: revealLabel(), onClick: () => void s.revealInFileManager(target.path) },
     {
       label: i18n.t("sidebar:menu.delete"),
       danger: true,
@@ -534,11 +538,6 @@ function ColorPopover({
 }
 
 // ── Pinned & Recent sections ────────────────────────────────────────────────
-function flattenNotes(node: FolderNode, out: NoteSummary[]): void {
-  for (const n of node.notes) out.push(n);
-  for (const c of node.children) flattenNotes(c, out);
-}
-
 function PinnedSection() {
   const tree = useVault((s) => s.tree);
   const { t } = useTranslation("sidebar");

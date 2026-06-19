@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, FolderInput } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { displayText, noteTitleFromPath } from "../lib/taskDisplay";
 import { allEpics, allProjects, useTasks } from "../stores/taskStore";
 import { useUi } from "../stores/uiStore";
+import { NotePickerModal } from "./NotePickerModal";
 import { SlugField } from "./SlugField";
 import { TagChip } from "./TaskBadges";
 
@@ -27,6 +28,9 @@ export function TaskCardMenu() {
   const setStatus = useTasks((s) => s.setStatus);
   const updateField = useTasks((s) => s.updateField);
   const deleteTask = useTasks((s) => s.deleteTask);
+  const moveTask = useTasks((s) => s.moveTask);
+  const recentDestinations = useTasks((s) => s.recentDestinations);
+  const pushRecentDestination = useTasks((s) => s.pushRecentDestination);
   const openNoteFrom = useUi((s) => s.openNoteFrom);
 
   const task = useMemo(
@@ -41,8 +45,10 @@ export function TaskCardMenu() {
   const epics = useMemo(() => allEpics(tasks), [tasks]);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [moving, setMoving] = useState(false);
   useEffect(() => {
     setConfirmDelete(false);
+    setMoving(false);
   }, [menu?.taskId]);
 
   const ref = useRef<HTMLDivElement>(null);
@@ -89,6 +95,12 @@ export function TaskCardMenu() {
     close();
   };
 
+  const handleMove = (dest: string) => {
+    pushRecentDestination(dest);
+    void moveTask(task.id, dest); // moveTask reloads and closes the card menu
+    setMoving(false);
+  };
+
   return (
     <div
       ref={ref}
@@ -127,6 +139,14 @@ export function TaskCardMenu() {
       >
         <ArrowUpRight size={13} />
         {t("detail.openNote")}
+      </button>
+
+      <button
+        onClick={() => setMoving(true)}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover"
+      >
+        <FolderInput size={13} />
+        {t("menu.moveToNote")}
       </button>
 
       <div className="my-1 border-t border-border" />
@@ -270,6 +290,14 @@ export function TaskCardMenu() {
           </button>
         </div>
       )}
+
+      <NotePickerModal
+        open={moving}
+        onClose={() => setMoving(false)}
+        onPick={handleMove}
+        title={t("notePicker.moveTitle")}
+        recentPaths={recentDestinations}
+      />
     </div>
   );
 }

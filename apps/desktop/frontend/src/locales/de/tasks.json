@@ -24,6 +24,13 @@
     "subtasks": "Unteraufgaben {{done}}/{{total}}",
     "tags": "Tags"
   },
+  "dest": {
+    "activeNote": "Aktive Notiz",
+    "clear": "Auf Standardziel zurücksetzen",
+    "dailyNote": "Tagesnotiz",
+    "pickTitle": "Neue Aufgaben hinzufügen zu…",
+    "toLabel": "→ {{note}}"
+  },
   "empty": "Keine Aufgaben. Oben eine hinzufügen oder <1>- [ ] etwas</1> in einer Notiz schreiben.",
   "filter": {
     "all": "Alle",
@@ -57,7 +64,11 @@
   "menu": {
     "cancel": "Abbrechen",
     "confirmDelete": "Bestätigen",
-    "delete": "Aufgabe löschen"
+    "delete": "Aufgabe löschen",
+    "moveToNote": "In Notiz verschieben…"
+  },
+  "notePicker": {
+    "moveTitle": "Aufgabe verschieben nach…"
   },
   "priority": {
     "high": "Hoch",

@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  FolderOpen,
   History,
   Link2,
   ListTree,
@@ -26,6 +27,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { api } from "../ipc/api";
+import { revealLabel } from "../lib/reveal";
 import type { Pane } from "../lib/workspacePrefs";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
@@ -111,6 +113,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const saveNote = useVault((s) => s.saveNote);
   const loadNote = useVault((s) => s.loadNote);
   const revealPath = useVault((s) => s.revealPath);
+  const revealInFileManager = useVault((s) => s.revealInFileManager);
   const refreshTree = useVault((s) => s.refreshTree);
   const deleteNote = useVault((s) => s.deleteNote);
   const renameItem = useVault((s) => s.renameItem);
@@ -676,6 +679,15 @@ export function EditorPane({ pane }: { pane: Pane }) {
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
           >
             <History size={15} />
+          </button>
+          <button
+            onClick={() => {
+              if (path) void revealInFileManager(path);
+            }}
+            title={revealLabel()}
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
+          >
+            <FolderOpen size={15} />
           </button>
           <div className="relative">
             <button

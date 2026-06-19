@@ -363,6 +363,9 @@ interface VaultState {
   renameProperty: (path: string, from: string, to: string) => Promise<void>;
   deleteFolder: (path: string) => Promise<void>;
   duplicateNote: (path: string) => Promise<void>;
+  /** Reveal a note file or folder in the OS file manager. Distinct from
+   *  `revealPath`, which only expands the sidebar tree. */
+  revealInFileManager: (path: string) => Promise<void>;
   togglePin: (path: string, pinned: boolean) => Promise<void>;
   moveItem: (item: DragItem, target: DropTarget) => Promise<void>;
 }
@@ -1168,6 +1171,17 @@ export const useVault = create<VaultState>((set, get) => ({
       noteCache.set(note.path, note);
       await get().refreshTree();
       useUi.getState().openInWorkspace(note.path);
+    } catch (e) {
+      set({ error: displayError(e) });
+    }
+  },
+
+  // Read-only OS action — deliberately does NOT flush (unlike duplicate/delete),
+  // so an unsaved edit won't block revealing; the command falls back to the
+  // parent folder if the file isn't on disk yet.
+  revealInFileManager: async (path) => {
+    try {
+      await api.revealInFileManager(path);
     } catch (e) {
       set({ error: displayError(e) });
     }

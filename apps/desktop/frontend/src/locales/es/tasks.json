@@ -24,6 +24,13 @@
     "subtasks": "Subtareas {{done}}/{{total}}",
     "tags": "Etiquetas"
   },
+  "dest": {
+    "activeNote": "Nota activa",
+    "clear": "Restablecer el destino predeterminado",
+    "dailyNote": "Nota diaria",
+    "pickTitle": "Añadir tareas nuevas a…",
+    "toLabel": "→ {{note}}"
+  },
   "empty": "No hay tareas. Añadir una arriba o escribir <1>- [ ] algo</1> en una nota.",
   "filter": {
     "all": "Todas",
@@ -57,7 +64,11 @@
   "menu": {
     "cancel": "Cancelar",
     "confirmDelete": "Confirmar",
-    "delete": "Eliminar tarea"
+    "delete": "Eliminar tarea",
+    "moveToNote": "Mover a nota…"
+  },
+  "notePicker": {
+    "moveTitle": "Mover tarea a…"
   },
   "priority": {
     "high": "Alta",

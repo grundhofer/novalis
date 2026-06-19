@@ -8,6 +8,13 @@
     "today": "Today",
     "upcoming": "Upcoming"
   },
+  "dest": {
+    "activeNote": "Active note",
+    "clear": "Reset to default destination",
+    "dailyNote": "Daily note",
+    "pickTitle": "Add new tasks to…",
+    "toLabel": "→ {{note}}"
+  },
   "detail": {
     "completeHint": "Completed tasks are hidden from the board",
     "due": "Due",
@@ -57,7 +64,11 @@
   "menu": {
     "cancel": "Cancel",
     "confirmDelete": "Confirm",
-    "delete": "Delete task"
+    "delete": "Delete task",
+    "moveToNote": "Move to note…"
+  },
+  "notePicker": {
+    "moveTitle": "Move task to…"
   },
   "priority": {
     "high": "High",

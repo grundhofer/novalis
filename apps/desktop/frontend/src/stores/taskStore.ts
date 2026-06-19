@@ -161,6 +161,13 @@ interface TaskState {
   boardFilter: BoardFilter;
   /** How the Kanban board groups cards into swimlanes. Never persisted. */
   boardGroupBy: BoardGroupBy;
+  /** Session-only override of the task-creation destination, set via the
+   *  NewTaskBar chip. Null = follow the `taskCreation` strategy. Never persisted
+   *  (persistent policy lives in preferences). */
+  pinnedNotePath: string | null;
+  /** The most recent note paths picked as a task destination (create or move),
+   *  most-recent first, capped at 5. Surfaced atop the note picker. Session-only. */
+  recentDestinations: string[];
   /** Right-click card menu: target task id + cursor position, or null. */
   cardMenu: { taskId: string; x: number; y: number } | null;
 
@@ -177,10 +184,13 @@ interface TaskState {
     value: string | null,
   ) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  moveTask: (id: string, destNote: string) => Promise<void>;
   addTask: (text: string, opts?: { notePath?: string; status?: string }) => Promise<void>;
   setBoardFilter: (patch: Partial<BoardFilter>) => void;
   clearBoardFilter: () => void;
   setBoardGroupBy: (g: BoardGroupBy) => void;
+  setPinnedNotePath: (path: string | null) => void;
+  pushRecentDestination: (path: string) => void;
   openCardMenu: (taskId: string, x: number, y: number) => void;
   closeCardMenu: () => void;
 }
@@ -194,6 +204,8 @@ export const useTasks = create<TaskState>((set, get) => ({
   loading: false,
   boardFilter: EMPTY_BOARD_FILTER,
   boardGroupBy: "none",
+  pinnedNotePath: null,
+  recentDestinations: [],
   cardMenu: null,
 
   load: async () => {
@@ -270,6 +282,18 @@ export const useTasks = create<TaskState>((set, get) => ({
     }
   },
 
+  moveTask: async (id, destNote) => {
+    try {
+      await api.moveTask(id, destNote);
+      // The task id is derived from path+line, so it changes on move; a reload
+      // rebuilds the list under the new note.
+      await get().load();
+      get().closeCardMenu();
+    } catch {
+      /* surfaced elsewhere */
+    }
+  },
+
   addTask: async (text, opts) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -284,6 +308,9 @@ export const useTasks = create<TaskState>((set, get) => ({
   setBoardFilter: (patch) => set({ boardFilter: { ...get().boardFilter, ...patch } }),
   clearBoardFilter: () => set({ boardFilter: EMPTY_BOARD_FILTER }),
   setBoardGroupBy: (boardGroupBy) => set({ boardGroupBy }),
+  setPinnedNotePath: (pinnedNotePath) => set({ pinnedNotePath }),
+  pushRecentDestination: (path) =>
+    set({ recentDestinations: [path, ...get().recentDestinations.filter((p) => p !== path)].slice(0, 5) }),
   openCardMenu: (taskId, x, y) => set({ cardMenu: { taskId, x, y } }),
   closeCardMenu: () => set({ cardMenu: null }),
 }));

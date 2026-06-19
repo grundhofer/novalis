@@ -84,6 +84,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     ),
     builtin("today-note", t("today:openTodaysNote"), null, openTodaysNote),
     builtin("reindex", t("cmdReindex"), null, () => void api.reindexVault()),
+    builtin("reveal-in-fm", t("cmdRevealInFm"), null, () => {
+      const p = useVault.getState().activeNote?.path;
+      if (p) void useVault.getState().revealInFileManager(p);
+    }),
   ];
 
   const templateCmds: Command[] = templates.map((tpl) =>

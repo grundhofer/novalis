@@ -9,9 +9,18 @@
   },
   "loading": "Cargando…",
   "menu": "Menú",
+  "notePicker": {
+    "createNote": "Crear nota «{{name}}»",
+    "empty": "No se encontraron notas",
+    "placeholder": "Buscar notas o carpetas…",
+    "recent": "Recientes"
+  },
   "refresh": "Actualizar",
   "remove": "Quitar",
+  "revealInFinder": "Mostrar en Finder",
   "save": "Guardar",
+  "showInExplorer": "Mostrar en el Explorador",
+  "showInFileManager": "Mostrar en el gestor de archivos",
   "showSidebar": "Mostrar barra lateral",
   "taskModes": {
     "agenda": "Agenda",

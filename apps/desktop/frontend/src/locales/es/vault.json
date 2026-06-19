@@ -8,6 +8,7 @@
   "cmdNewNote": "Nueva nota",
   "cmdPlaceholder": "Ejecutar un comando…",
   "cmdReindex": "Reindexar el Vault",
+  "cmdRevealInFm": "Mostrar en el gestor de archivos",
   "dismiss": "Ocultar",
   "error": {
     "folderExists": "«{{name}}» ya existe.",

@@ -145,6 +145,36 @@ pub fn delete_task(db: &Connection, vault: &Path, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// Move a task — and its contiguous subtask block — from its current source
+/// note to `dest_note`, appending it to the destination. The task id is derived
+/// from path + line and therefore changes after the move, so callers reload.
+/// Reindexes BOTH the source and destination notes.
+pub fn move_task(db: &Connection, vault: &Path, id: &str, dest_note: &str) -> CoreResult<()> {
+    let dest = dest_note.trim();
+    if dest.is_empty() || !dest.ends_with(".md") {
+        return Err(CoreError::BadRequest(
+            "Destination note must be a .md path".to_string(),
+        ));
+    }
+
+    let (src_note, line) = index::task_location(db, id)?;
+    if src_note == dest {
+        return Ok(()); // no-op: already in the destination note
+    }
+
+    // Cut the task (and any indented children) verbatim from the source, then
+    // append to the destination. `append_line` creates the destination note
+    // with default frontmatter if it does not yet exist.
+    let block = index::cut_task_block(vault, &src_note, line)?;
+    for l in &block {
+        vault_fs::append_line(vault, dest, l)?;
+    }
+
+    change::reindex_path(db, vault, &src_note)?;
+    change::reindex_path(db, vault, dest)?;
+    Ok(())
+}
+
 /// A valid `@project` / `@epic` slug: non-empty, `[a-z0-9-]+`.
 fn is_slug(s: &str) -> bool {
     !s.is_empty()
@@ -350,6 +380,118 @@ mod tests {
         let remaining = list(&c.db, &TaskQuery::default()).unwrap();
         assert!(remaining.iter().all(|t| !t.text.starts_with("First")));
         assert!(remaining.iter().any(|t| t.text.starts_with("Second")));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn move_task_relocates_to_another_note() {
+        let c = ctx();
+        let task = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Relocate me".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(task.source_note, "_Inbox.md");
+
+        move_task(&c.db, &c.vault, &task.id, "Projects/Work.md").unwrap();
+
+        let after = list(&c.db, &TaskQuery::default()).unwrap();
+        let moved = after.iter().find(|t| t.text == "Relocate me").unwrap();
+        assert_eq!(moved.source_note, "Projects/Work.md");
+        // The destination note was created and the inbox no longer holds it.
+        assert!(c.vault.join("Projects/Work.md").exists());
+        assert!(!std::fs::read_to_string(c.vault.join("_Inbox.md"))
+            .unwrap()
+            .contains("Relocate me"));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn move_task_carries_subtasks() {
+        let c = ctx();
+        // Build a parent + two indented children directly in the source note.
+        crate::vault::fs::append_line(&c.vault, "_Inbox.md", "- [ ] Parent").unwrap();
+        crate::vault::fs::append_line(&c.vault, "_Inbox.md", "  - [ ] Child A").unwrap();
+        crate::vault::fs::append_line(&c.vault, "_Inbox.md", "  - [ ] Child B").unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "_Inbox.md").unwrap();
+
+        let parent = list(&c.db, &TaskQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|t| t.text == "Parent")
+            .unwrap();
+
+        move_task(&c.db, &c.vault, &parent.id, "Projects/Plan.md").unwrap();
+
+        let after = list(&c.db, &TaskQuery::default()).unwrap();
+        let new_parent = after.iter().find(|t| t.text == "Parent").unwrap();
+        assert_eq!(new_parent.source_note, "Projects/Plan.md");
+        // All three lines moved and the parent/child link survived the move.
+        for child in ["Child A", "Child B"] {
+            let c_task = after.iter().find(|t| t.text == child).unwrap();
+            assert_eq!(c_task.source_note, "Projects/Plan.md");
+            assert_eq!(c_task.parent_id.as_deref(), Some(new_parent.id.as_str()));
+        }
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn move_task_same_note_is_noop() {
+        let c = ctx();
+        let task = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Stay put".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+        let before = std::fs::read_to_string(c.vault.join("_Inbox.md")).unwrap();
+
+        move_task(&c.db, &c.vault, &task.id, "_Inbox.md").unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(c.vault.join("_Inbox.md")).unwrap(),
+            before
+        );
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn move_task_rejects_bad_dest_and_missing_task() {
+        let c = ctx();
+        let task = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Anchor".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+
+        // Non-.md / empty destinations are rejected before any write.
+        assert!(move_task(&c.db, &c.vault, &task.id, "Projects/Work").is_err());
+        assert!(move_task(&c.db, &c.vault, &task.id, "   ").is_err());
+        // Unknown id is a NotFound.
+        assert!(move_task(&c.db, &c.vault, "does-not-exist", "Projects/Work.md").is_err());
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
