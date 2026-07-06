@@ -360,11 +360,18 @@ pub fn count_for_model(db: &Connection, model: &str) -> CoreResult<usize> {
     Ok(n as usize)
 }
 
-/// Count of notes eligible for embedding (local, non-placeholder) — a cheap
-/// `COUNT(*)` for status display, without materializing the path list.
+/// SQL predicate for embed-eligible notes: locally present (not a cloud-only
+/// placeholder) and with a non-empty body (`word_count` is computed over the
+/// post-frontmatter body, so `0` ⇔ nothing to embed). This must stay the same
+/// filter [`collect_stale`] applies per note — if the count included notes the
+/// build skips, coverage (`embedded >= total`) could never converge.
+const ELIGIBLE_SQL: &str = "cloud_only = 0 AND word_count > 0";
+
+/// Count of notes eligible for embedding — a cheap `COUNT(*)` for status
+/// display, without materializing the path list.
 pub fn eligible_count(db: &Connection) -> CoreResult<usize> {
     let n: i64 = db.query_row(
-        "SELECT count(*) FROM note_meta WHERE cloud_only = 0",
+        &format!("SELECT count(*) FROM note_meta WHERE {ELIGIBLE_SQL}"),
         [],
         |r| r.get(0),
     )?;
@@ -372,10 +379,13 @@ pub fn eligible_count(db: &Connection) -> CoreResult<usize> {
 }
 
 /// (path, title) for every note eligible for embedding: real, locally-present
-/// notes only — cloud-only placeholders are excluded (reading them would block
-/// on a network download, and there's no body to embed).
+/// notes with a body — cloud-only placeholders are excluded (reading them would
+/// block on a network download) and so are empty notes (nothing to embed;
+/// [`collect_stale`] would skip them anyway).
 pub fn eligible_notes(db: &Connection) -> CoreResult<Vec<(String, String)>> {
-    let mut stmt = db.prepare("SELECT path, title FROM note_meta WHERE cloud_only = 0")?;
+    let mut stmt = db.prepare(&format!(
+        "SELECT path, title FROM note_meta WHERE {ELIGIBLE_SQL}"
+    ))?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
@@ -444,10 +454,14 @@ mod tests {
     }
 
     fn put_meta(db: &Connection, path: &str, title: &str, cloud_only: bool) {
+        put_meta_wc(db, path, title, cloud_only, 1);
+    }
+
+    fn put_meta_wc(db: &Connection, path: &str, title: &str, cloud_only: bool, word_count: i64) {
         db.execute(
             "INSERT INTO note_meta (path, title, folder, created, modified, size, word_count, cloud_only)
-             VALUES (?1, ?2, '', '', '', 0, 0, ?3)",
-            params![path, title, cloud_only as i32],
+             VALUES (?1, ?2, '', '', '', 0, ?3, ?4)",
+            params![path, title, word_count, cloud_only as i32],
         )
         .unwrap();
     }
@@ -595,13 +609,46 @@ mod tests {
     }
 
     #[test]
-    fn eligible_notes_excludes_cloud_only() {
+    fn eligible_notes_excludes_cloud_only_and_empty() {
         let db = mem_db();
         put_meta(&db, "local.md", "Local", false);
         put_meta(&db, "cloud.md", "Cloud", true);
+        put_meta_wc(&db, "empty.md", "Empty", false, 0);
         let eligible = eligible_notes(&db).unwrap();
         assert_eq!(eligible.len(), 1);
         assert_eq!(eligible[0].0, "local.md");
+        assert_eq!(eligible_count(&db).unwrap(), 1);
+    }
+
+    #[test]
+    fn coverage_converges_when_the_vault_has_empty_notes() {
+        // One empty + two non-empty notes: the eligible count must exclude
+        // exactly what collect_stale skips, so a build reaches
+        // embedded == total (the panel's "up to date" condition).
+        let dir = std::env::temp_dir().join(format!("novalis-cov-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.md"), "alpha body").unwrap();
+        std::fs::write(dir.join("b.md"), "beta body").unwrap();
+        std::fs::write(dir.join("empty.md"), "---\ntitle: E\n---\n   ").unwrap();
+
+        let db = mem_db();
+        put_meta_wc(&db, "a.md", "A", false, 2);
+        put_meta_wc(&db, "b.md", "B", false, 2);
+        put_meta_wc(&db, "empty.md", "E", false, 0);
+
+        // The build pipeline: eligible list → stale scan → one vector per job.
+        let eligible = eligible_notes(&db).unwrap();
+        let jobs = collect_stale(&dir, &eligible, &HashMap::new());
+        for job in &jobs {
+            upsert_vector(&db, &job.path, &job.content_hash, "m", &[1.0, 0.0]).unwrap();
+        }
+
+        let total = eligible_count(&db).unwrap();
+        let embedded = count_for_model(&db, "m").unwrap();
+        assert_eq!(total, 2, "empty note excluded from the eligible count");
+        assert_eq!(embedded, total, "coverage converges");
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
