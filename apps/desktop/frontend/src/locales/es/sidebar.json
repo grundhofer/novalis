@@ -5,6 +5,7 @@
   "collapseSidebar": "Contraer barra lateral",
   "confirm": {
     "deleteEmptyFolder": "¿Eliminar la carpeta vacía «{{name}}»?",
+    "deleteFolderTitle": "¿Eliminar la carpeta?",
     "trashFolder": "¿Mover la carpeta «{{name}}» y todo su contenido a la papelera?",
     "trashNote": "¿Mover «{{title}}» a la papelera?"
   },

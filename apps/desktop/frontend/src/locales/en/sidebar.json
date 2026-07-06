@@ -5,6 +5,7 @@
   "collapseSidebar": "Collapse sidebar",
   "confirm": {
     "deleteEmptyFolder": "Delete empty folder \"{{name}}\"?",
+    "deleteFolderTitle": "Delete folder?",
     "trashFolder": "Move folder \"{{name}}\" and all its contents to trash?",
     "trashNote": "Move \"{{title}}\" to trash?"
   },

@@ -5,6 +5,7 @@
   "collapseSidebar": "Réduire la barre latérale",
   "confirm": {
     "deleteEmptyFolder": "Supprimer le dossier vide « {{name}} » ?",
+    "deleteFolderTitle": "Supprimer le dossier ?",
     "trashFolder": "Mettre le dossier « {{name}} » et tout son contenu à la corbeille ?",
     "trashNote": "Mettre « {{title}} » à la corbeille ?"
   },

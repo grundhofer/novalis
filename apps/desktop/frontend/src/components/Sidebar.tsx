@@ -30,10 +30,12 @@ import { formatChord } from "../lib/keybindings";
 import { flattenNotes } from "../lib/noteTree";
 import { revealLabel } from "../lib/reveal";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
+import { useDismiss } from "../lib/useDismiss";
 import { useKeymap } from "../stores/keymapStore";
 import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 export type MainView = "notes" | "today" | "tasks" | "calendar" | "graph";
 
@@ -116,6 +118,8 @@ export function Sidebar({
   const [colorPicker, setColorPicker] = useState<{ x: number; y: number; path: string } | null>(
     null,
   );
+  // Pending delete from the context menu, confirmed via ConfirmDialog.
+  const [confirmTarget, setConfirmTarget] = useState<MenuTarget | null>(null);
 
   const ctx: SidebarCtx = {
     filter: filter.trim().toLowerCase(),
@@ -149,6 +153,7 @@ export function Sidebar({
     openColorPicker: (path: string, x: number, y: number) => setColorPicker({ x, y, path }),
     beginRename: ctx.beginRename,
     beginNewFolder: ctx.beginNewFolder,
+    requestDelete: (target: MenuTarget) => setConfirmTarget(target),
   };
 
   // Vault switcher: recent vaults + "open another" + jump to Vault settings.
@@ -313,8 +318,41 @@ export function Sidebar({
           onClose={() => setColorPicker(null)}
         />
       )}
+      {confirmTarget && (
+        <ConfirmDialog
+          open
+          danger
+          title={
+            confirmTarget.kind === "note"
+              ? t("trash:trashConfirmTitle")
+              : t("confirm.deleteFolderTitle")
+          }
+          body={
+            confirmTarget.kind === "note"
+              ? t("confirm.trashNote", { title: confirmTarget.note?.title ?? confirmTarget.path })
+              : folderIsEmpty(confirmTarget.node)
+                ? t("confirm.deleteEmptyFolder", { name: confirmTarget.node?.name })
+                : t("confirm.trashFolder", { name: confirmTarget.node?.name })
+          }
+          confirmLabel={t("common:delete")}
+          onConfirm={() => {
+            setConfirmTarget(null);
+            // Route through the store: it flushes pending edits into the
+            // trashed copy and closes the deleted tabs in every pane.
+            if (confirmTarget.kind === "note") void useVault.getState().deleteNote(confirmTarget.path);
+            else void useVault.getState().deleteFolder(confirmTarget.path);
+          }}
+          onCancel={() => setConfirmTarget(null)}
+        />
+      )}
     </aside>
   );
+}
+
+/** Is the folder node empty (no subfolders, no notes)? Drives the confirm copy
+ *  — the store's deleteFolder makes the hard-delete/trash call itself. */
+function folderIsEmpty(node: FolderNode | undefined): boolean {
+  return !!node && node.children.length === 0 && node.notes.length === 0;
 }
 
 // ── Context-menu item builder ───────────────────────────────────────────────
@@ -322,6 +360,8 @@ interface CtxActions {
   openColorPicker: (path: string, x: number, y: number) => void;
   beginRename: (path: string) => void;
   beginNewFolder: (parent: string | null) => void;
+  /** Ask the host to confirm (ConfirmDialog) and run the delete. */
+  requestDelete: (target: MenuTarget) => void;
 }
 
 function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number): MenuItem[] {
@@ -342,19 +382,10 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
         label: i18n.t("sidebar:menu.delete"),
         danger: true,
         separatorBefore: true,
-        onClick: () => {
-          if (!window.confirm(i18n.t("sidebar:confirm.trashNote", { title: note?.title ?? target.path }))) {
-            return;
-          }
-          // Route through the store: it flushes pending edits into the trashed
-          // copy and closes the note's tab in every pane that has it open.
-          void s.deleteNote(target.path);
-        },
+        onClick: () => actions.requestDelete(target),
       },
     ];
   }
-  const node = target.node;
-  const empty = !!node && node.children.length === 0 && node.notes.length === 0;
   return [
     { label: i18n.t("sidebar:menu.newNoteHere"), onClick: () => void s.newNote(target.path) },
     { label: i18n.t("sidebar:menu.newSubfolder"), onClick: () => actions.beginNewFolder(target.path) },
@@ -368,12 +399,7 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
       label: i18n.t("sidebar:menu.delete"),
       danger: true,
       separatorBefore: true,
-      onClick: () => {
-        const msg = empty
-          ? i18n.t("sidebar:confirm.deleteEmptyFolder", { name: node?.name })
-          : i18n.t("sidebar:confirm.trashFolder", { name: node?.name });
-        if (window.confirm(msg)) void s.deleteFolder(target.path);
-      },
+      onClick: () => actions.requestDelete(target),
     },
   ];
 }
@@ -385,6 +411,8 @@ function NewNoteButton() {
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const { t } = useTranslation("sidebar");
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, open, () => setOpen(false));
 
   const toggle = () => {
     const next = !open;
@@ -393,7 +421,7 @@ function NewNoteButton() {
   };
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         title={target ? t("newNoteIn", { target }) : t("newNote")}
         onClick={toggle}
@@ -440,6 +468,8 @@ function SortButton() {
   const setSortMode = useVault((s) => s.setSortMode);
   const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, open, () => setOpen(false));
   const opts: { label: string; by: SortBy; dir?: "asc" | "desc" }[] = [
     { label: t("sort.nameAsc"), by: "name", dir: "asc" },
     { label: t("sort.nameDesc"), by: "name", dir: "desc" },
@@ -448,7 +478,7 @@ function SortButton() {
     { label: t("sort.manual"), by: "manual" },
   ];
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         title={t("sortTitle", { mode: sortBy })}
         onClick={() => setOpen((v) => !v)}
@@ -493,13 +523,8 @@ function ColorPopover({
   const current = useVault((s) => s.folderColors[path]);
   const { t } = useTranslation("sidebar");
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [onClose]);
+  // Mounted only while open (the host renders it conditionally, like ContextMenu).
+  useDismiss(ref, true, onClose);
   // Anchor near the cursor / viewport center when invoked from the menu.
   const left = x || Math.round(window.innerWidth / 2) - 90;
   const top = y || 120;

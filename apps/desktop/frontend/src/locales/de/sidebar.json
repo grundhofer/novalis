@@ -5,6 +5,7 @@
   "collapseSidebar": "Seitenleiste einklappen",
   "confirm": {
     "deleteEmptyFolder": "Leeren Ordner „{{name}}“ löschen?",
+    "deleteFolderTitle": "Ordner löschen?",
     "trashFolder": "Ordner „{{name}}“ und seinen gesamten Inhalt in den Papierkorb verschieben?",
     "trashNote": "„{{title}}“ in den Papierkorb verschieben?"
   },
