@@ -125,6 +125,14 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// Escape SQL LIKE wildcards (`%`, `_`) and the escape character itself so a
+/// user-typed value matches literally under an `ESCAPE '\\'` clause.
+pub(crate) fn escape_like(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 /// FTS5 search with snippets and optional folder/tag filters.
 pub fn search(
     db: &Connection,
@@ -136,7 +144,10 @@ pub fn search(
         return Ok(Vec::new());
     }
 
-    let fts_query = query.replace('"', "\"\"");
+    // Bind the quoted phrase as a value — user input is never interpolated
+    // into the SQL text (a stray apostrophe would be a syntax error), matching
+    // the pattern in `links::unlinked_mentions`.
+    let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
 
     let mut sql = String::from(
         "SELECT f.path, f.title, snippet(notes_fts, 1, '<mark>', '</mark>', '...', 40) as snippet,
@@ -144,21 +155,18 @@ pub fn search(
          FROM notes_fts f",
     );
 
-    let mut conditions = vec![format!("notes_fts MATCH '\"{}\"'", fts_query)];
+    let mut conditions = vec!["notes_fts MATCH ?1".to_string()];
+    let mut binds: Vec<String> = vec![fts_query];
 
     if let Some(folder_filter) = folder {
-        conditions.push(format!(
-            "f.path LIKE '{}%'",
-            folder_filter.replace('\'', "''")
-        ));
+        binds.push(format!("{}%", escape_like(folder_filter)));
+        conditions.push(format!("f.path LIKE ?{} ESCAPE '\\'", binds.len()));
     }
     if let Some(tag_filter) = tag {
         // Anchored on both quotes so the tag matches exactly within the stored
         // JSON array — `work` must not also match `workout`.
-        conditions.push(format!(
-            "f.tags LIKE '%\"{}\"%'",
-            tag_filter.replace('\'', "''")
-        ));
+        binds.push(format!("%\"{}\"%", escape_like(tag_filter)));
+        conditions.push(format!("f.tags LIKE ?{} ESCAPE '\\'", binds.len()));
     }
 
     sql.push_str(" WHERE ");
@@ -167,7 +175,7 @@ pub fn search(
 
     let mut stmt = db.prepare(&sql)?;
     let results = stmt
-        .query_map([], |row| {
+        .query_map(rusqlite::params_from_iter(binds.iter()), |row| {
             Ok(SearchResult {
                 path: row.get(0)?,
                 title: row.get(1)?,
@@ -187,12 +195,12 @@ pub fn quick_search(db: &Connection, query: &str) -> CoreResult<Vec<NoteSummary>
         return Ok(Vec::new());
     }
 
-    let pattern = format!("%{}%", query.replace('%', "\\%"));
+    let pattern = format!("%{}%", escape_like(query));
 
     let mut stmt = db.prepare(
         "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only, aliases
          FROM note_meta
-         WHERE title LIKE ?1 OR path LIKE ?1 OR aliases LIKE ?1
+         WHERE title LIKE ?1 ESCAPE '\\' OR path LIKE ?1 ESCAPE '\\' OR aliases LIKE ?1 ESCAPE '\\'
          ORDER BY modified DESC
          LIMIT 20",
     )?;
@@ -341,8 +349,16 @@ mod tests {
 
         // A full reindex must leave NO orphan rows behind.
         build_index(&db, &dir).unwrap();
-        assert_eq!(count("tasks", "source_note"), 0, "orphan task survived reindex");
-        assert_eq!(count("events", "note_path"), 0, "orphan local event survived reindex");
+        assert_eq!(
+            count("tasks", "source_note"),
+            0,
+            "orphan task survived reindex"
+        );
+        assert_eq!(
+            count("events", "note_path"),
+            0,
+            "orphan local event survived reindex"
+        );
     }
 
     #[test]
@@ -381,6 +397,67 @@ mod tests {
         let hits = search(&db, "shared", None, Some("work")).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].path, "a.md");
+    }
+
+    #[test]
+    fn search_handles_hostile_query_input() {
+        let db = mem_db();
+        index_note(
+            &db,
+            &summary("a.md", "A"),
+            "---\ntitle: A\n---\nwe don't panic at 100% or a_b or \"quoted\" text",
+        )
+        .unwrap();
+        index_note(
+            &db,
+            &summary("b.md", "B"),
+            "---\ntitle: B\n---\nplain other prose",
+        )
+        .unwrap();
+
+        // An apostrophe must not be a SQL syntax error (it used to be — the
+        // query was interpolated into the MATCH literal).
+        let hits = search(&db, "don't", None, None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "a.md");
+        // None of these may error either.
+        for q in ["100%", "a_b", "\"quoted\"", "50% off", "it's"] {
+            search(&db, q, None, None).unwrap();
+        }
+        // Filter values with quotes/LIKE metacharacters bind as literals.
+        assert!(search(&db, "prose", Some("100%"), None).unwrap().is_empty());
+        assert!(search(&db, "prose", None, Some("a_b")).unwrap().is_empty());
+        assert!(search(&db, "prose", None, Some("it's")).unwrap().is_empty());
+    }
+
+    #[test]
+    fn quick_search_escapes_like_wildcards() {
+        let db = mem_db();
+        index_note(&db, &summary("pct.md", "100% done"), "x").unwrap();
+        index_note(&db, &summary("num.md", "1000 things"), "x").unwrap();
+        index_note(&db, &summary("und.md", "a_b"), "x").unwrap();
+        index_note(&db, &summary("mid.md", "aXb"), "x").unwrap();
+
+        // `%` matches literally, not as a LIKE wildcard...
+        let pct = quick_search(&db, "100%").unwrap();
+        assert_eq!(
+            pct.len(),
+            1,
+            "got: {:?}",
+            pct.iter().map(|n| &n.path).collect::<Vec<_>>()
+        );
+        assert_eq!(pct[0].path, "pct.md");
+        // ...and `_` doesn't match arbitrary single characters.
+        let und = quick_search(&db, "a_b").unwrap();
+        assert_eq!(
+            und.len(),
+            1,
+            "got: {:?}",
+            und.iter().map(|n| &n.path).collect::<Vec<_>>()
+        );
+        assert_eq!(und[0].path, "und.md");
+        // A backslash in the query is literal too, not the escape character.
+        assert!(quick_search(&db, "back\\slash").unwrap().is_empty());
     }
 
     #[test]

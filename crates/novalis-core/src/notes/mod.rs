@@ -359,9 +359,9 @@ fn resolve_note_path(db: &Connection, target: &str) -> CoreResult<Option<String>
     }
 
     // 2. Existing note by alias (case-insensitive exact match).
-    let pattern = format!("%{}%", target.replace('%', "\\%"));
+    let pattern = format!("%{}%", crate::index::search::escape_like(target));
     let mut stmt = db.prepare(
-        "SELECT path, aliases FROM note_meta WHERE aliases LIKE ?1 ORDER BY modified DESC",
+        "SELECT path, aliases FROM note_meta WHERE aliases LIKE ?1 ESCAPE '\\' ORDER BY modified DESC",
     )?;
     let rows = stmt.query_map(params![pattern], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -1213,6 +1213,25 @@ mod tests {
         let al = resolve_or_create_wiki_link(&c.db, &c.vault, "al").unwrap();
         assert_eq!(al, "al.md");
         assert!(c.vault.join("al.md").exists());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_wiki_link_alias_with_like_metacharacters() {
+        let c = ctx();
+        std::fs::write(
+            c.vault.join("Sale.md"),
+            "---\ntitle: Sale\naliases:\n  - \"100% off\"\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Sale.md").unwrap();
+
+        // The `%` in the alias must bind literally: the old escaping (`\%`
+        // without an ESCAPE clause) missed the row and CREATED a new note.
+        let resolved = resolve_or_create_wiki_link(&c.db, &c.vault, "100% off").unwrap();
+        assert_eq!(resolved, "Sale.md");
+        assert!(!c.vault.join("100% off.md").exists());
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
