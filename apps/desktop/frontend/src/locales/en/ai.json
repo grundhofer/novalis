@@ -59,7 +59,8 @@
     "discard": "Discard",
     "generating": "Generating rewrite…",
     "kept": "{{kept}}/{{total}} changes kept",
-    "label": "AI rewrite"
+    "label": "AI rewrite",
+    "staleSelection": "The text changed while the rewrite was being generated. Make a new selection and try again."
   },
   "settings": {
     "add": "Add",

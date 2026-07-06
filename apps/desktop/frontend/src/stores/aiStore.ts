@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { getMarkdown, type Editor } from "@novalis/editor";
 
+import i18n from "../lib/i18n";
 import {
   api,
   events,
@@ -309,9 +310,16 @@ export const useAi = create<AiState>((set, get) => ({
         userInput: userInput ?? null,
       });
       const trimmed = text.trim();
-      // The selection may have shifted while streaming; proposeRewrite guards
-      // its own range and no-ops on an empty / unchanged proposal.
-      if (trimmed) editor.commands.proposeRewrite(from, to, trimmed);
+      if (trimmed) {
+        // The document may have changed while the rewrite streamed. If the
+        // captured range no longer holds the original selection, proposing
+        // would overlay the wrong text — fail visibly instead.
+        const { doc } = editor.state;
+        const intact =
+          to <= doc.content.size && doc.textBetween(from, to, "\n") === selection;
+        if (!intact) throw new Error(i18n.t("ai:rewrite.staleSelection"));
+        editor.commands.proposeRewrite(from, to, trimmed);
+      }
     } catch (e) {
       // Surface the failure through the floating panel's error state.
       set({

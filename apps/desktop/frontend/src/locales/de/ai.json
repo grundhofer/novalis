@@ -50,7 +50,8 @@
     "discard": "Verwerfen",
     "generating": "Umformulierung wird erstellt …",
     "kept": "{{kept}}/{{total}} Änderungen übernommen",
-    "label": "KI-Umformulierung"
+    "label": "KI-Umformulierung",
+    "staleSelection": "Der Text hat sich geändert, während die Umformulierung erstellt wurde. Markiere den Text neu und versuche es erneut."
   },
   "panel": {
     "cancel": "Abbrechen",

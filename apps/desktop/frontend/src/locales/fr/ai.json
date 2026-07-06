@@ -50,7 +50,8 @@
     "discard": "Abandonner",
     "generating": "Génération de la réécriture…",
     "kept": "{{kept}}/{{total}} modifications conservées",
-    "label": "Réécriture IA"
+    "label": "Réécriture IA",
+    "staleSelection": "Le texte a été modifié pendant la génération de la réécriture. Refaites une sélection et réessayez."
   },
   "panel": {
     "cancel": "Annuler",
