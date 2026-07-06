@@ -37,9 +37,8 @@ pub fn create(
 
     let final_content = match req.template {
         Some(template_id) => {
-            let tpl_path = data_dir
-                .join("templates")
-                .join(format!("{template_id}.json"));
+            let tpl_path =
+                vault_fs::vault_rel(&data_dir.join("templates"), &format!("{template_id}.json"))?;
             if tpl_path.exists() {
                 let data = std::fs::read_to_string(&tpl_path)?;
                 let tpl: NoteTemplate = serde_json::from_str(&data)?;
@@ -123,7 +122,7 @@ pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> Cor
     fm.modified = chrono::Utc::now().to_rfc3339();
 
     let new_content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault.join(&path), &new_content)?;
+    std::fs::write(vault_fs::vault_rel(vault, &path)?, &new_content)?;
 
     let updated = vault_fs::read_note(vault, &path)?;
     change::reindex_path(db, vault, &path)?;
@@ -241,7 +240,7 @@ fn mutate_extra(
     fm.modified = chrono::Utc::now().to_rfc3339();
 
     let new_content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault.join(path), &new_content)?;
+    std::fs::write(vault_fs::vault_rel(vault, path)?, &new_content)?;
 
     let updated = vault_fs::read_note(vault, path)?;
     change::reindex_path(db, vault, path)?;

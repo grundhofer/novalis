@@ -15,7 +15,7 @@ use crate::vault::fs as vault_fs;
 /// Re-index the note at `relative`, or remove it from the index if the file no
 /// longer exists on disk.
 pub fn reindex_path(db: &Connection, vault: &Path, relative: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_fs::vault_rel(vault, relative)?;
     if !abs.exists() {
         return search::remove_note(db, relative);
     }

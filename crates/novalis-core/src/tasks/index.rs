@@ -339,7 +339,7 @@ pub fn task_location(db: &Connection, id: &str) -> CoreResult<(String, usize)> {
 
 /// Toggle a task checkbox in the source markdown file. Returns the new state.
 pub fn toggle_task(vault: &Path, note_path: &str, line: usize) -> CoreResult<bool> {
-    let abs = vault.join(note_path);
+    let abs = crate::vault::fs::vault_rel(vault, note_path)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
     }
@@ -387,7 +387,7 @@ pub fn update_task_status(
     line: usize,
     new_status: &str,
 ) -> CoreResult<()> {
-    let abs = vault.join(note_path);
+    let abs = crate::vault::fs::vault_rel(vault, note_path)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
     }
@@ -434,7 +434,7 @@ pub fn update_task_annotation(
     key: &str,
     value: Option<&str>,
 ) -> CoreResult<()> {
-    let abs = vault.join(note_path);
+    let abs = crate::vault::fs::vault_rel(vault, note_path)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
     }
@@ -490,7 +490,7 @@ pub fn update_task_annotation(
 /// line is still a task checkbox (the line-derived id is not stable across
 /// edits) before removing it.
 pub fn delete_task_line(vault: &Path, note_path: &str, line: usize) -> CoreResult<()> {
-    let abs = vault.join(note_path);
+    let abs = crate::vault::fs::vault_rel(vault, note_path)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
     }
@@ -527,7 +527,7 @@ pub fn delete_task_line(vault: &Path, note_path: &str, line: usize) -> CoreResul
 /// touching anything. Indent is measured as the parser does — leading
 /// whitespace character count — so the block boundary matches `parent_id`.
 pub fn cut_task_block(vault: &Path, note_path: &str, line: usize) -> CoreResult<Vec<String>> {
-    let abs = vault.join(note_path);
+    let abs = crate::vault::fs::vault_rel(vault, note_path)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {note_path}")));
     }
@@ -739,6 +739,20 @@ mod tests {
         update_task_annotation(&dir, rel, 1, "project", None).unwrap();
         assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Task\n");
 
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn task_edits_reject_escaping_note_paths() {
+        let dir = std::env::temp_dir().join(format!("novalis-esc-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for bad in ["../n.md", "a/../../n.md"] {
+            assert!(toggle_task(&dir, bad, 1).is_err());
+            assert!(update_task_status(&dir, bad, 1, "todo").is_err());
+            assert!(update_task_annotation(&dir, bad, 1, "due", None).is_err());
+            assert!(delete_task_line(&dir, bad, 1).is_err());
+            assert!(cut_task_block(&dir, bad, 1).is_err());
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 

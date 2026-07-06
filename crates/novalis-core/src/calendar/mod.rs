@@ -100,7 +100,7 @@ pub fn update_event(db: &Connection, vault: &Path, input: EventInput) -> CoreRes
     let (_, body) = frontmatter::parse_frontmatter(&note.content);
     let fm = build_frontmatter(&input);
     let content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault.join(&rel), &content)?;
+    std::fs::write(vault_fs::vault_rel(vault, &rel)?, &content)?;
     change::reindex_path(db, vault, &rel)?;
 
     events::event_from_note(&fm.extra, &input.title, &rel)

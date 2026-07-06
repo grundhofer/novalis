@@ -67,7 +67,8 @@ pub fn diff(
     version_id: &str,
 ) -> CoreResult<Vec<DiffLine>> {
     let old = cap(&read_version(data_dir, relative, version_id)?);
-    let new = cap(&std::fs::read_to_string(vault.join(relative)).unwrap_or_default());
+    let current = crate::vault::fs::vault_rel(vault, relative)?;
+    let new = cap(&std::fs::read_to_string(current).unwrap_or_default());
 
     let text_diff = similar::TextDiff::from_lines(&old, &new);
     let mut out = Vec::new();
@@ -138,7 +139,7 @@ pub fn snapshot_now(data_dir: &Path, vault: &Path, relative: &str) -> CoreResult
 }
 
 fn snapshot_inner(data_dir: &Path, vault: &Path, relative: &str, throttle: bool) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = crate::vault::fs::vault_rel(vault, relative)?;
     if !abs.exists() {
         return Ok(());
     }
@@ -210,7 +211,10 @@ pub fn list_versions(data_dir: &Path, relative: &str) -> CoreResult<Vec<VersionM
 
 /// Read the content of one snapshot.
 pub fn read_version(data_dir: &Path, relative: &str, version_id: &str) -> CoreResult<String> {
-    let path = version_dir(data_dir, relative).join(format!("{version_id}.md"));
+    let path = crate::vault::fs::vault_rel(
+        &version_dir(data_dir, relative),
+        &format!("{version_id}.md"),
+    )?;
     if !path.exists() {
         return Err(CoreError::NotFound(format!(
             "Version not found: {version_id}"
@@ -262,6 +266,17 @@ mod tests {
         let v = list_versions(&data, "n.md").unwrap();
         assert_eq!(v.len(), 1);
         assert_eq!(read_version(&data, "n.md", &v[0].id).unwrap(), "ORIGINAL");
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn versions_reject_escaping_paths() {
+        let (vault, data) = dirs();
+        assert!(snapshot_now(&data, &vault, "../outside.md").is_err());
+        // A version id must stay inside the note's snapshot directory.
+        std::fs::write(vault.join("n.md"), "x").unwrap();
+        snapshot_now(&data, &vault, "n.md").unwrap();
+        assert!(read_version(&data, "n.md", "../../../n").is_err());
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 

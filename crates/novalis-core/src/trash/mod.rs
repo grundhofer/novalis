@@ -13,6 +13,7 @@ use specta::Type;
 
 use crate::error::{CoreError, CoreResult};
 use crate::vault::config;
+use crate::vault::fs::vault_rel;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +31,7 @@ fn trash_root(vault: &Path) -> PathBuf {
 
 /// Move a note to the vault's trash.
 pub fn trash_note(vault: &Path, relative: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -60,7 +61,7 @@ pub fn trash_note(vault: &Path, relative: &str) -> CoreResult<()> {
 /// relocated under a single trash id; the `.meta` sidecar stores the original
 /// vault-relative folder path so it can be restored as a unit.
 pub fn trash_folder(vault: &Path, relative: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Folder not found: {relative}")));
     }
@@ -134,8 +135,8 @@ pub fn list_trash(vault: &Path) -> CoreResult<Vec<TrashItem>> {
 /// Restore a trashed note to its original location. Returns the restored path.
 pub fn restore_note(vault: &Path, trash_id: &str) -> CoreResult<String> {
     let trash_dir = trash_root(vault);
-    let trash_file = trash_dir.join(trash_id);
-    let meta_file = trash_dir.join(format!("{trash_id}.meta"));
+    let trash_file = vault_rel(&trash_dir, trash_id)?;
+    let meta_file = vault_rel(&trash_dir, &format!("{trash_id}.meta"))?;
 
     if !trash_file.exists() {
         return Err(CoreError::NotFound(format!(
@@ -149,7 +150,9 @@ pub fn restore_note(vault: &Path, trash_id: &str) -> CoreResult<String> {
         trash_id.to_string()
     };
 
-    let restore_to = vault.join(&original_path);
+    // The `.meta` sidecar could have been tampered with by a sync peer —
+    // never restore outside the vault.
+    let restore_to = vault_rel(vault, &original_path)?;
     if let Some(parent) = restore_to.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -167,8 +170,8 @@ pub fn restore_note(vault: &Path, trash_id: &str) -> CoreResult<String> {
 /// Permanently delete a single trash item (and its `.meta` sidecar).
 pub fn delete_trash_item(vault: &Path, trash_id: &str) -> CoreResult<()> {
     let trash_dir = trash_root(vault);
-    let item = trash_dir.join(trash_id);
-    let meta = trash_dir.join(format!("{trash_id}.meta"));
+    let item = vault_rel(&trash_dir, trash_id)?;
+    let meta = vault_rel(&trash_dir, &format!("{trash_id}.meta"))?;
 
     if item.is_dir() {
         std::fs::remove_dir_all(&item)?;
@@ -286,6 +289,30 @@ mod tests {
             "trash should live under <vault>/.novalis/trash"
         );
         assert!(!vault.join("loose.md").exists());
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn trash_rejects_escaping_paths_and_tampered_meta() {
+        let vault = temp_vault();
+        assert!(trash_note(&vault, "../outside.md").is_err());
+        assert!(trash_folder(&vault, "/etc").is_err());
+        assert!(delete_trash_item(&vault, "../real.md").is_err());
+
+        // A `.meta` sidecar pointing outside the vault must not be restorable
+        // to that location.
+        std::fs::write(vault.join("victim.md"), "x").unwrap();
+        trash_note(&vault, "victim.md").unwrap();
+        let items = list_trash(&vault).unwrap();
+        let meta = vault
+            .join(".novalis/trash")
+            .join(format!("{}.meta", items[0].id));
+        std::fs::write(&meta, "../escaped.md").unwrap();
+        assert!(restore_note(&vault, &items[0].id).is_err());
+        assert!(!vault.parent().unwrap().join("escaped.md").exists());
+        // Restoring by an escaping trash id is rejected too.
+        assert!(restore_note(&vault, "../victim.md").is_err());
+
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 

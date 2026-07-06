@@ -2,7 +2,7 @@
 //! Pure functions over a `vault: &Path` — no shared state, fully testable.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use chrono::Utc;
 use walkdir::WalkDir;
@@ -41,6 +41,30 @@ pub fn is_cloud_placeholder(_meta: &std::fs::Metadata) -> bool {
 fn system_time_rfc3339(t: std::io::Result<std::time::SystemTime>) -> String {
     t.map(|t| chrono::DateTime::<Utc>::from(t).to_rfc3339())
         .unwrap_or_default()
+}
+
+/// Join a caller-supplied relative path under `base` (the vault root or one of
+/// its data dirs), rejecting anything that could escape it: absolute paths
+/// (`PathBuf::join` REPLACES the base when the operand is absolute) and any
+/// `..` component. The check is purely lexical — no `canonicalize` — so it
+/// also holds for paths that don't exist yet (create/move destinations).
+/// Every filesystem operation that receives a path over IPC must go through
+/// this.
+pub fn vault_rel(base: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let rel = Path::new(relative);
+    let escapes = rel.is_absolute()
+        || rel.components().any(|c| {
+            matches!(
+                c,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        });
+    if escapes {
+        return Err(CoreError::BadRequest(format!(
+            "Path escapes vault: {relative}"
+        )));
+    }
+    Ok(base.join(rel))
 }
 
 /// Convert an absolute path to a vault-relative, forward-slashed path.
@@ -90,7 +114,7 @@ pub fn list_notes(vault: &Path) -> Vec<NoteSummary> {
 
 /// Build a [`NoteSummary`] for a single note.
 pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
 
     let filename = abs
         .file_name()
@@ -158,7 +182,7 @@ pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
 
 /// Read a full note from disk.
 pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -186,7 +210,7 @@ pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
 
 /// Write content to a note, updating the modified timestamp.
 pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -198,7 +222,7 @@ pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()>
 
 /// Create a new note. Generates frontmatter with created/modified timestamps.
 pub fn create_note(vault: &Path, relative: &str, content: &str) -> CoreResult<Note> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if abs.exists() {
         return Err(CoreError::AlreadyExists(format!(
             "Note already exists: {relative}"
@@ -251,7 +275,7 @@ pub fn create_note(vault: &Path, relative: &str, content: &str) -> CoreResult<No
 /// Append a single line to a note's body, creating the note (with default
 /// frontmatter) if it does not yet exist. Does not re-index — the caller does.
 pub fn append_line(vault: &Path, relative: &str, line: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         create_note(vault, relative, "")?;
     }
@@ -274,8 +298,8 @@ pub fn delete_note(vault: &Path, relative: &str) -> CoreResult<()> {
 
 /// Move/rename a note.
 pub fn move_note(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
-    let abs_from = vault.join(from);
-    let abs_to = vault.join(to);
+    let abs_from = vault_rel(vault, from)?;
+    let abs_to = vault_rel(vault, to)?;
 
     if !abs_from.exists() {
         return Err(CoreError::NotFound(format!(
@@ -298,7 +322,7 @@ pub fn move_note(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
 
 /// Duplicate a note with a " (copy)" suffix.
 pub fn duplicate_note(vault: &Path, relative: &str) -> CoreResult<Note> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -408,7 +432,7 @@ fn build_folder_node(
 
 /// Create a folder in the vault.
 pub fn create_folder(vault: &Path, relative: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if abs.exists() {
         return Err(CoreError::AlreadyExists(format!(
             "Folder already exists: {relative}"
@@ -420,7 +444,7 @@ pub fn create_folder(vault: &Path, relative: &str) -> CoreResult<()> {
 
 /// Delete a folder (only if empty).
 pub fn delete_folder(vault: &Path, relative: &str) -> CoreResult<()> {
-    let abs = vault.join(relative);
+    let abs = vault_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Folder not found: {relative}")));
     }
@@ -438,8 +462,8 @@ pub fn delete_folder(vault: &Path, relative: &str) -> CoreResult<()> {
 
 /// Move/rename a folder.
 pub fn move_folder(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
-    let abs_from = vault.join(from);
-    let abs_to = vault.join(to);
+    let abs_from = vault_rel(vault, from)?;
+    let abs_to = vault_rel(vault, to)?;
 
     if !abs_from.exists() {
         return Err(CoreError::NotFound(format!(
@@ -468,6 +492,60 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("novalis-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn vault_rel_rejects_escaping_paths() {
+        let vault = temp_vault();
+        std::fs::write(vault.join("real.md"), "x").unwrap();
+
+        // Parent traversal, an absolute path (which `PathBuf::join` would let
+        // REPLACE the vault base), and a mid-path `..` are all rejected.
+        let outside = std::env::temp_dir().join(format!("novalis-esc-{}.md", uuid::Uuid::new_v4()));
+        let abs_str = outside.to_string_lossy().to_string();
+        for bad in ["../escape.md", abs_str.as_str(), "foo/../../bar.md"] {
+            assert!(
+                vault_rel(&vault, bad).is_err(),
+                "vault_rel must reject {bad}"
+            );
+            assert!(
+                read_note(&vault, bad).is_err(),
+                "read_note must reject {bad}"
+            );
+            assert!(
+                write_note(&vault, bad, "pwned").is_err(),
+                "write_note must reject {bad}"
+            );
+            assert!(
+                create_note(&vault, bad, "pwned").is_err(),
+                "create_note must reject {bad}"
+            );
+            assert!(append_line(&vault, bad, "- [ ] x").is_err());
+            assert!(
+                move_note(&vault, "real.md", bad).is_err(),
+                "move_note must reject destination {bad}"
+            );
+            assert!(move_note(&vault, bad, "elsewhere.md").is_err());
+            assert!(create_folder(&vault, bad).is_err());
+        }
+        // Nothing was created outside the vault, and the source never moved.
+        assert!(!outside.exists());
+        assert!(vault.join("real.md").exists());
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn vault_rel_allows_nested_and_unicode_paths() {
+        let vault = temp_vault();
+        let rel = "Ordner/Unter/Über Nötes ✅.md";
+        create_note(&vault, rel, "hällo wörld").unwrap();
+        assert!(read_note(&vault, rel)
+            .unwrap()
+            .content
+            .contains("hällo wörld"));
+        write_note(&vault, rel, "---\ntitle: Ü\n---\nneu").unwrap();
+        assert!(read_note(&vault, rel).unwrap().content.contains("neu"));
+        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]

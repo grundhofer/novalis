@@ -5,7 +5,7 @@
 //! detect them, expose a diff, and resolve by keeping the original, promoting
 //! the conflict, or preserving both. Pure filesystem work plus index upkeep.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use chrono::Utc;
 use regex::Regex;
@@ -16,6 +16,7 @@ use walkdir::WalkDir;
 use crate::change;
 use crate::error::{CoreError, CoreResult};
 use crate::models::{ConflictDiff, ConflictFile, ResolveConflictRequest};
+use crate::vault::fs as vault_fs;
 
 fn conflict_patterns() -> [Regex; 3] {
     [
@@ -90,8 +91,8 @@ pub fn list_conflicts(vault: &Path) -> Vec<ConflictFile> {
 
 /// Read both sides of a conflict for diffing (each capped at 1 MiB).
 pub fn conflict_diff(vault: &Path, original: &str, conflict: &str) -> CoreResult<ConflictDiff> {
-    let original_abs = safe_vault_join(vault, original)?;
-    let conflict_abs = safe_vault_join(vault, conflict)?;
+    let original_abs = vault_fs::vault_rel(vault, original)?;
+    let conflict_abs = vault_fs::vault_rel(vault, conflict)?;
 
     if !conflict_abs.exists() {
         return Err(CoreError::NotFound(format!(
@@ -131,8 +132,8 @@ pub fn resolve_conflict(
         ));
     }
 
-    let original_abs = safe_vault_join(vault, original_rel)?;
-    let conflict_abs = safe_vault_join(vault, conflict_rel)?;
+    let original_abs = vault_fs::vault_rel(vault, original_rel)?;
+    let conflict_abs = vault_fs::vault_rel(vault, conflict_rel)?;
 
     if !conflict_abs.exists() {
         return Err(CoreError::NotFound(format!(
@@ -167,24 +168,6 @@ pub fn resolve_conflict(
     }
 }
 
-/// Join `relative` under `vault`, rejecting paths that escape the vault root.
-fn safe_vault_join(vault: &Path, relative: &str) -> CoreResult<PathBuf> {
-    let rel = relative.trim_start_matches('/');
-    let candidate = vault.join(rel);
-
-    let check = candidate
-        .canonicalize()
-        .unwrap_or_else(|_| candidate.clone());
-    let vault_check = vault.canonicalize().unwrap_or_else(|_| vault.to_path_buf());
-
-    if !check.starts_with(&vault_check) {
-        return Err(CoreError::BadRequest(format!(
-            "Path escapes vault: {relative}"
-        )));
-    }
-    Ok(candidate)
-}
-
 fn read_capped(path: &Path, max_bytes: u64) -> CoreResult<String> {
     let meta = std::fs::metadata(path)?;
     if meta.len() > max_bytes {
@@ -196,7 +179,7 @@ fn read_capped(path: &Path, max_bytes: u64) -> CoreResult<String> {
 /// Rename the conflict to `Foo (from sync 2026-05-24 1344).md` next to itself,
 /// choosing a name that won't re-trigger the conflict-detection regex.
 fn rename_conflict_preserving_both(vault: &Path, conflict_rel: &str) -> CoreResult<String> {
-    let conflict_abs = vault.join(conflict_rel);
+    let conflict_abs = vault_fs::vault_rel(vault, conflict_rel)?;
     let parent = conflict_abs
         .parent()
         .ok_or_else(|| CoreError::Internal("Conflict file has no parent".to_string()))?;
@@ -247,7 +230,7 @@ fn rename_conflict_preserving_both(vault: &Path, conflict_rel: &str) -> CoreResu
 mod tests {
     use super::*;
 
-    fn temp_vault() -> PathBuf {
+    fn temp_vault() -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("novalis-conflict-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         dir

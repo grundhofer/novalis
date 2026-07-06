@@ -120,7 +120,7 @@ pub fn create(
 
 /// Delete a template by id.
 pub fn delete(data_dir: &Path, id: &str) -> CoreResult<()> {
-    let path = templates_dir(data_dir).join(format!("{id}.json"));
+    let path = crate::vault::fs::vault_rel(&templates_dir(data_dir), &format!("{id}.json"))?;
     if !path.exists() {
         return Err(CoreError::NotFound(format!("Template not found: {id}")));
     }
@@ -143,6 +143,16 @@ mod tests {
         delete(&dir, &tpl.id).unwrap();
         assert!(list(&dir).unwrap().is_empty());
 
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn delete_rejects_escaping_template_ids() {
+        let dir = std::env::temp_dir().join(format!("novalis-tpl-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("templates")).unwrap();
+        std::fs::write(dir.join("secret.json"), "{}").unwrap();
+        assert!(delete(&dir, "../secret").is_err());
+        assert!(dir.join("secret.json").exists());
         std::fs::remove_dir_all(&dir).ok();
     }
 
