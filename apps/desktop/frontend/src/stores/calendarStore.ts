@@ -69,6 +69,11 @@ function step(mode: CalMode, anchor: Date, dir: number): Date {
   return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + dir * days);
 }
 
+// Monotonic token for load() (mirrors vaultStore's adoptSeq): rapid prev/next
+// steps fire overlapping fetches, and a slow earlier period's response must
+// not overwrite a newer one (last-call-wins).
+let loadSeq = 0;
+
 export const useCalendar = create<CalState>((set, get) => ({
   mode: "month",
   anchor: new Date(),
@@ -76,14 +81,17 @@ export const useCalendar = create<CalState>((set, get) => ({
   loading: false,
 
   load: async () => {
+    const seq = ++loadSeq;
     set({ loading: true });
     const grid = gridFor(get().mode, get().anchor, currentWeekStart());
     const start = isoDate(grid[0]);
     const end = isoDate(grid[grid.length - 1]);
     try {
-      set({ events: await api.listEvents(start, end), loading: false });
+      const events = await api.listEvents(start, end);
+      if (seq !== loadSeq) return; // superseded by a newer load
+      set({ events, loading: false });
     } catch {
-      set({ loading: false });
+      if (seq === loadSeq) set({ loading: false });
     }
   },
 
@@ -103,5 +111,8 @@ export const useCalendar = create<CalState>((set, get) => ({
     set({ anchor: new Date() });
     void get().load();
   },
-  reset: () => set({ events: [], anchor: new Date(), loading: false }),
+  reset: () => {
+    loadSeq++; // drop any in-flight load from the previous vault
+    set({ events: [], anchor: new Date(), loading: false });
+  },
 }));

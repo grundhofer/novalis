@@ -36,6 +36,11 @@ export const EMPTY_BOARD_FILTER: BoardFilter = {
   project: null,
 };
 
+// Monotonic token for load() (mirrors vaultStore's adoptSeq): rapid re-loads
+// (filter flips, quick successive mutations) can resolve out of order, and a
+// slow earlier response must not overwrite a newer one (last-call-wins).
+let loadSeq = 0;
+
 export function boardFilterActive(f: BoardFilter): boolean {
   return (
     f.text.trim() !== "" ||
@@ -214,12 +219,14 @@ export const useTasks = create<TaskState>((set, get) => ({
   cardMenu: null,
 
   load: async () => {
+    const seq = ++loadSeq;
     set({ loading: true });
     try {
       const [tasks, prefs] = await Promise.all([
         api.listTasks(get().filter),
         api.getPreferences(),
       ]);
+      if (seq !== loadSeq) return; // superseded by a newer load
       const next: Partial<TaskState> = {
         tasks,
         columns: normalizeColumns(prefs.taskView?.kanbanColumns),
@@ -235,7 +242,7 @@ export const useTasks = create<TaskState>((set, get) => ({
       }
       set(next);
     } catch {
-      set({ loading: false });
+      if (seq === loadSeq) set({ loading: false });
     }
   },
 

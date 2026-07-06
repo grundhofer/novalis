@@ -16,6 +16,11 @@ export function addDays(iso: string, delta: number): string {
   return isoDay(new Date(y, m - 1, d + delta));
 }
 
+// Monotonic token for load() (mirrors vaultStore's adoptSeq): rapid day steps
+// fire overlapping fetches, and a slow earlier day's response must not
+// overwrite a newer one (last-call-wins).
+let loadSeq = 0;
+
 interface AgendaState {
   /** ISO date of the focused day. */
   focus: string;
@@ -35,6 +40,7 @@ export const useAgenda = create<AgendaState>((set) => ({
   overdue: [],
   loading: false,
   load: async (focus) => {
+    const seq = ++loadSeq;
     set({ loading: true, focus });
     const today = isoDay(new Date());
     try {
@@ -45,10 +51,14 @@ export const useAgenda = create<AgendaState>((set) => ({
         const past = await api.getAgenda("0001-01-01", addDays(focus, -1));
         overdue = past.filter((i) => i.kind === "task");
       }
+      if (seq !== loadSeq) return; // superseded by a newer load
       set({ items, overdue, loading: false });
     } catch {
-      set({ items: [], overdue: [], loading: false });
+      if (seq === loadSeq) set({ items: [], overdue: [], loading: false });
     }
   },
-  reset: () => set({ items: [], overdue: [], focus: isoDay(new Date()), loading: false }),
+  reset: () => {
+    loadSeq++; // drop any in-flight load from the previous vault
+    set({ items: [], overdue: [], focus: isoDay(new Date()), loading: false });
+  },
 }));
