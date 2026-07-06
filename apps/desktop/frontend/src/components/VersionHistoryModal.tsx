@@ -23,6 +23,7 @@ export function VersionHistoryModal({
   const [diff, setDiff] = useState<DiffLine[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reloadActive = useVault((s) => s.reloadActive);
+  const reportError = useVault((s) => s.reportError);
 
   const load = (p: string) =>
     void api
@@ -61,8 +62,8 @@ export function VersionHistoryModal({
       await api.restoreVersion(path, selected.id);
       await reloadActive();
       load(path); // a restore snapshots the replaced content, so the list grows
-    } catch {
-      /* surfaced via the global error banner */
+    } catch (e) {
+      reportError(e);
     }
   };
 
