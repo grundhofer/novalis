@@ -14,6 +14,7 @@ pub mod registry;
 pub mod templates;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use tokio::sync::Notify;
@@ -41,6 +42,29 @@ pub struct AiRequest {
     /// The directory to run a CLI in (the vault, for agentic runs). When unset,
     /// CLI runs default to a temp dir so the agent cannot touch the vault.
     pub workdir: Option<std::path::PathBuf>,
+}
+
+/// TCP connect timeout for every AI HTTP client — a peer that never accepts
+/// the connection must not hang a run forever.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Client for streaming completions: connect timeout only. No total request
+/// deadline — long streams are legitimate.
+fn streaming_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .build()
+        .expect("failed to build HTTP client")
+}
+
+/// Client for non-streaming calls: connect timeout plus a total per-request
+/// deadline, so a stalled response can't wedge the caller.
+pub(crate) fn bounded_client(total: Duration) -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .timeout(total)
+        .build()
+        .expect("failed to build HTTP client")
 }
 
 /// Wire role string shared by the provider request builders.
@@ -91,7 +115,7 @@ pub async fn run_stream<F: FnMut(&str)>(
     cancel: Arc<Notify>,
     on_text: F,
 ) -> Result<Usage, CommandError> {
-    let client = reqwest::Client::new();
+    let client = streaming_client();
     match req.kind {
         AiProviderKind::Anthropic => {
             let rb = anthropic::build_request(&client, &req);
@@ -127,7 +151,7 @@ pub async fn test_connection(
     base_url: Option<&str>,
     api_key: Option<&str>,
 ) -> Result<(), CommandError> {
-    let client = reqwest::Client::new();
+    let client = bounded_client(Duration::from_secs(30));
     let (rb, provider) = match kind {
         AiProviderKind::Anthropic => (
             anthropic::build_test(&client, base_url, api_key),

@@ -399,7 +399,9 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
     let total = jobs.len() as u32;
     let _ = app.emit("ai-embed-progress", AiEmbedProgress { done: 0, total });
 
-    let client = reqwest::Client::new();
+    // Generous per-batch deadline: a build has no cancel affordance, so a
+    // stalled embeddings endpoint must fail the batch rather than hang forever.
+    let client = crate::ai::bounded_client(std::time::Duration::from_secs(120));
     let mut done = 0u32;
     for batch in jobs.chunks(EMBED_BATCH) {
         let inputs: Vec<String> = batch.iter().map(|j| j.text.clone()).collect();
