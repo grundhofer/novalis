@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ArrowDownUp,
@@ -60,20 +60,34 @@ interface MenuTarget {
   node?: FolderNode;
   note?: NoteSummary;
 }
-interface SidebarCtx {
+/** Tree state that changes while the user works (filter keystrokes, inline
+ *  rename / new-folder sessions). Rows do NOT consume this context — the
+ *  memoized TreeChildren narrows it into per-row props, so a filter keystroke
+ *  re-runs the (cheap) filtering but leaves the row components memo-cached. */
+interface SidebarTreeState {
   filter: string;
   renaming: string | null;
+  newFolderParent: string | null | undefined; // undefined = inactive
+}
+/** Stable action bundle (every callback is memoized in Sidebar), safe for the
+ *  memoized rows to consume without breaking their memo. */
+interface SidebarActions {
   beginRename: (path: string) => void;
   endRename: () => void;
-  newFolderParent: string | null | undefined; // undefined = inactive
   beginNewFolder: (parent: string | null) => void;
   endNewFolder: () => void;
-  openMenu: (e: React.MouseEvent, target: MenuTarget) => void;
+  openMenu: (pos: { x: number; y: number }, target: MenuTarget) => void;
 }
-const Ctx = createContext<SidebarCtx | null>(null);
-const useSidebarCtx = (): SidebarCtx => {
-  const c = useContext(Ctx);
-  if (!c) throw new Error("SidebarCtx missing");
+const StateCtx = createContext<SidebarTreeState | null>(null);
+const ActionsCtx = createContext<SidebarActions | null>(null);
+const useSidebarState = (): SidebarTreeState => {
+  const c = useContext(StateCtx);
+  if (!c) throw new Error("SidebarTreeState missing");
+  return c;
+};
+const useSidebarActions = (): SidebarActions => {
+  const c = useContext(ActionsCtx);
+  if (!c) throw new Error("SidebarActions missing");
   return c;
 };
 
@@ -121,40 +135,53 @@ export function Sidebar({
   // Pending delete from the context menu, confirmed via ConfirmDialog.
   const [confirmTarget, setConfirmTarget] = useState<MenuTarget | null>(null);
 
-  const ctx: SidebarCtx = {
-    filter: filter.trim().toLowerCase(),
-    renaming,
-    beginRename: (path) => {
-      setNewFolderParent(undefined);
-      setRenaming(path);
-    },
-    endRename: () => setRenaming(null),
-    newFolderParent,
-    beginNewFolder: (parent) => {
-      setRenaming(null);
-      // Make sure the parent is expanded so the inline input is visible.
-      if (parent) {
-        const st = useVault.getState();
-        if (st.collapsed.has(parent)) st.toggleCollapsed(parent);
-      }
-      setNewFolderParent(parent);
-    },
-    endNewFolder: () => setNewFolderParent(undefined),
-    openMenu: (e, target) =>
+  // All callbacks are stable (setState functions are, and store access goes
+  // through getState) so the memoized actions context never invalidates and
+  // the React.memo on the rows can hold.
+  const beginRename = useCallback((path: string) => {
+    setNewFolderParent(undefined);
+    setRenaming(path);
+  }, []);
+  const endRename = useCallback(() => setRenaming(null), []);
+  const beginNewFolder = useCallback((parent: string | null) => {
+    setRenaming(null);
+    // Make sure the parent is expanded so the inline input is visible.
+    if (parent) {
+      const st = useVault.getState();
+      if (st.collapsed.has(parent)) st.toggleCollapsed(parent);
+    }
+    setNewFolderParent(parent);
+  }, []);
+  const endNewFolder = useCallback(() => setNewFolderParent(undefined), []);
+  const openMenu = useCallback(
+    (pos: { x: number; y: number }, target: MenuTarget) =>
       setMenu({
-        x: e.clientX,
-        y: e.clientY,
-        items: buildMenu(target, ctxActions, e.clientX, e.clientY),
+        x: pos.x,
+        y: pos.y,
+        items: buildMenu(
+          target,
+          // Action bundle the menu builder closes over.
+          {
+            openColorPicker: (path, x, y) => setColorPicker({ x, y, path }),
+            beginRename,
+            beginNewFolder,
+            requestDelete: (delTarget) => setConfirmTarget(delTarget),
+          },
+          pos.x,
+          pos.y,
+        ),
       }),
-  };
+    [beginRename, beginNewFolder],
+  );
 
-  // Action bundle the menu builder closes over.
-  const ctxActions = {
-    openColorPicker: (path: string, x: number, y: number) => setColorPicker({ x, y, path }),
-    beginRename: ctx.beginRename,
-    beginNewFolder: ctx.beginNewFolder,
-    requestDelete: (target: MenuTarget) => setConfirmTarget(target),
-  };
+  const actions = useMemo<SidebarActions>(
+    () => ({ beginRename, endRename, beginNewFolder, endNewFolder, openMenu }),
+    [beginRename, endRename, beginNewFolder, endNewFolder, openMenu],
+  );
+  const treeState = useMemo<SidebarTreeState>(
+    () => ({ filter: filter.trim().toLowerCase(), renaming, newFolderParent }),
+    [filter, renaming, newFolderParent],
+  );
 
   // Vault switcher: recent vaults + "open another" + jump to Vault settings.
   const openVaultMenu = async (e: React.MouseEvent) => {
@@ -243,7 +270,7 @@ export function Sidebar({
           <NewNoteButton />
           <button
             title={t("newFolder")}
-            onClick={() => ctx.beginNewFolder(useVault.getState().selectedFolder)}
+            onClick={() => beginNewFolder(useVault.getState().selectedFolder)}
             className={iconBtn}
           >
             <FolderPlus size={15} />
@@ -285,17 +312,38 @@ export function Sidebar({
           if (currentDrag) void moveItem(currentDrag, { type: "into", folder: "" });
         }}
       >
-        <Ctx.Provider value={ctx}>
-          <PinnedSection />
-          <RecentSection />
-          <TagsSection />
-          {newFolderParent === null && <NewFolderInput parent={null} />}
-          {tree ? (
-            <TreeChildren node={tree} depth={0} />
-          ) : (
-            <p className="px-3 py-2 text-xs text-fg-faint">{t("common:loading")}</p>
-          )}
-        </Ctx.Provider>
+        <ActionsCtx.Provider value={actions}>
+          <StateCtx.Provider value={treeState}>
+            <PinnedSection />
+            <RecentSection />
+            <TagsSection />
+            {newFolderParent === null && <NewFolderInput parent={null} />}
+            {tree ? (
+              <div
+                role="tree"
+                aria-label={t("notesHeading")}
+                // The tree is a single tab stop: the container is tabbable and
+                // forwards focus to the active (else first) row; rows are
+                // tabIndex={-1} and reached with the arrow keys.
+                tabIndex={0}
+                className="outline-none"
+                onFocus={(e) => {
+                  if (e.target !== e.currentTarget) return; // a row got focus, not us
+                  if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+                  const active = e.currentTarget.querySelector<HTMLElement>(
+                    '[role="treeitem"][aria-selected="true"]',
+                  );
+                  (active ?? e.currentTarget.querySelector<HTMLElement>('[role="treeitem"]'))?.focus();
+                }}
+                onKeyDown={handleTreeKeyDown}
+              >
+                <TreeChildren node={tree} depth={0} />
+              </div>
+            ) : (
+              <p className="px-3 py-2 text-xs text-fg-faint">{t("common:loading")}</p>
+            )}
+          </StateCtx.Provider>
+        </ActionsCtx.Provider>
       </div>
 
       {/* Recently deleted lives at the bottom as a destination, not a toolbar tool. */}
@@ -846,11 +894,66 @@ function folderMatches(node: FolderNode, q: string): boolean {
   return node.children.some((c) => folderMatches(c, q));
 }
 
-function TreeChildren({ node, depth }: { node: FolderNode; depth: number }) {
+/** Arrow-key navigation for the notes tree (WAI-ARIA tree pattern), attached
+ *  to the `role="tree"` container so bubbled row keydowns land here. Works on
+ *  the rendered `[role="treeitem"]` elements in DOM order, which automatically
+ *  honors filtering, sort order and collapsed folders. Enter and the
+ *  context-menu keys are handled on the rows themselves (they need the row's
+ *  data). Expand/collapse goes through the store via each row's data attrs. */
+function handleTreeKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  const key = e.key;
+  if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "ArrowRight" && key !== "ArrowLeft") {
+    return;
+  }
+  const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
+  if (!row) return;
+  const rows = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]')];
+  const idx = rows.indexOf(row);
+  if (idx < 0) return;
+  e.preventDefault(); // keep arrows from scrolling the rail
+
+  const level = (el: HTMLElement) => Number(el.getAttribute("aria-level") ?? "1");
+  const expandedAttr = row.getAttribute("aria-expanded"); // null on note rows
+  const path = row.getAttribute("data-tree-path") ?? "";
+
+  if (key === "ArrowDown") {
+    rows[idx + 1]?.focus();
+  } else if (key === "ArrowUp") {
+    rows[idx - 1]?.focus();
+  } else if (key === "ArrowRight") {
+    if (expandedAttr === "false") {
+      useVault.getState().toggleCollapsed(path);
+    } else if (expandedAttr === "true") {
+      // Into the first child, if the folder has one rendered.
+      const next = rows[idx + 1];
+      if (next && level(next) > level(row)) next.focus();
+    }
+  } else {
+    // ArrowLeft: collapse an expanded folder, otherwise hop to the parent.
+    if (expandedAttr === "true") {
+      useVault.getState().toggleCollapsed(path);
+    } else {
+      for (let i = idx - 1; i >= 0; i--) {
+        if (level(rows[i]) < level(row)) {
+          rows[i].focus();
+          break;
+        }
+      }
+    }
+  }
+}
+
+const TreeChildren = memo(function TreeChildren({
+  node,
+  depth,
+}: {
+  node: FolderNode;
+  depth: number;
+}) {
   const sortBy = useVault((s) => s.sortBy);
   const sortDir = useVault((s) => s.sortDir);
   const itemOrder = useVault((s) => s.itemOrder);
-  const { filter, newFolderParent } = useSidebarCtx();
+  const { filter, renaming, newFolderParent } = useSidebarState();
 
   let items: TreeItem[] = orderedItems(node, sortBy, sortDir, itemOrder);
   if (filter) {
@@ -869,6 +972,9 @@ function TreeChildren({ node, depth }: { node: FolderNode; depth: number }) {
             depth={depth}
             parentPath={node.path}
             nextKey={items[idx + 1]?.key ?? null}
+            isRenaming={renaming === it.folder.path}
+            forceOpen={filter !== ""}
+            dragDisabled={renaming !== null}
           />
         ) : (
           <NoteRow
@@ -877,6 +983,7 @@ function TreeChildren({ node, depth }: { node: FolderNode; depth: number }) {
             depth={depth}
             parentPath={node.path}
             nextKey={items[idx + 1]?.key ?? null}
+            isRenaming={renaming === it.note.path}
           />
         ),
       )}
@@ -886,7 +993,7 @@ function TreeChildren({ node, depth }: { node: FolderNode; depth: number }) {
       )}
     </>
   );
-}
+});
 
 /** Vertical zone of a drag-over within a row. */
 function zoneOf(e: React.DragEvent, allowInto: boolean): "into" | "before" | "after" {
@@ -906,42 +1013,61 @@ function dragInvalidOnto(path: string): boolean {
   return false;
 }
 
-function FolderRow({
+const FolderRow = memo(function FolderRow({
   node,
   depth,
   parentPath,
   nextKey,
+  isRenaming,
+  forceOpen,
+  dragDisabled,
 }: {
   node: FolderNode;
   depth: number;
   parentPath: string;
   nextKey: string | null;
+  isRenaming: boolean;
+  forceOpen: boolean;
+  dragDisabled: boolean;
 }) {
-  const collapsedSet = useVault((s) => s.collapsed);
-  const selectedFolder = useVault((s) => s.selectedFolder);
+  // Narrow, row-local store slices (booleans / own color) so unrelated
+  // changes — another folder collapsing, the selection moving — don't
+  // re-render every row.
+  const collapsed = useVault((s) => s.collapsed.has(node.path));
+  const selected = useVault((s) => s.selectedFolder === node.path);
   const color = useVault((s) => s.folderColors[node.path]);
   const selectFolder = useVault((s) => s.selectFolder);
   const toggleCollapsed = useVault((s) => s.toggleCollapsed);
   const moveItem = useVault((s) => s.moveItem);
   const newNote = useVault((s) => s.newNote);
-  const ctx = useSidebarCtx();
+  const { openMenu } = useSidebarActions();
   const { t } = useTranslation("sidebar");
 
-  const forceOpen = ctx.filter !== "";
-  const open = forceOpen || !collapsedSet.has(node.path);
-  const selected = selectedFolder === node.path;
+  const open = forceOpen || !collapsed;
   const hex = color ? COLOR_HEX[color] : undefined;
   const noteCount = node.notes.length + node.children.length;
   const [zone, setZone] = useState<"into" | "before" | "after" | null>(null);
 
-  if (ctx.renaming === node.path) {
+  if (isRenaming) {
     return <RenameInput path={node.path} kind="folder" initial={node.name} depth={depth} isFolder />;
   }
+
+  const activate = () => {
+    selectFolder(node.path);
+    if (collapsed) toggleCollapsed(node.path);
+  };
+  const openRowMenu = (pos: { x: number; y: number }) =>
+    openMenu(pos, { kind: "folder", path: node.path, node });
 
   return (
     <div>
       <div
-        draggable={!ctx.renaming}
+        role="treeitem"
+        aria-expanded={open}
+        aria-level={depth + 1}
+        tabIndex={-1}
+        data-tree-path={node.path}
+        draggable={!dragDisabled}
         onDragStart={(e) => {
           currentDrag = { kind: "folder", path: node.path };
           e.dataTransfer.setData("text/plain", JSON.stringify(currentDrag));
@@ -981,14 +1107,22 @@ function FolderRow({
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          ctx.openMenu(e, { kind: "folder", path: node.path, node });
+          openRowMenu({ x: e.clientX, y: e.clientY });
         }}
-        onClick={() => {
-          selectFolder(node.path);
-          if (collapsedSet.has(node.path)) toggleCollapsed(node.path);
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            activate();
+          } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+            e.preventDefault();
+            e.stopPropagation();
+            const r = e.currentTarget.getBoundingClientRect();
+            openRowMenu({ x: r.left + 8, y: r.bottom });
+          }
         }}
         style={{ paddingLeft: 8 + depth * 12 }}
-        className={`group relative flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-1.5 text-left text-sm font-medium transition-colors ${
+        className={`group relative flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-1.5 text-left text-sm font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/50 ${
           selected
             ? "bg-active text-fg"
             : "text-fg-muted hover:bg-hover hover:text-fg"
@@ -1037,28 +1171,35 @@ function FolderRow({
           </span>
         )}
       </div>
-      {open && <TreeChildren node={node} depth={depth + 1} />}
+      {open && (
+        <div role="group">
+          <TreeChildren node={node} depth={depth + 1} />
+        </div>
+      )}
     </div>
   );
-}
+});
 
-function NoteRow({
+const NoteRow = memo(function NoteRow({
   note,
   depth,
   parentPath,
   nextKey,
+  isRenaming,
 }: {
   note: NoteSummary;
   depth: number;
   parentPath: string;
   nextKey: string | null;
+  isRenaming: boolean;
 }) {
-  const activePath = useVault((s) => s.activePath);
+  // Row-local boolean instead of the whole activePath: switching notes only
+  // re-renders the two affected rows, not every note in the tree.
+  const active = useVault((s) => s.activePath === note.path);
   const openInWorkspace = useUi((s) => s.openInWorkspace);
   const prefetchNote = useVault((s) => s.prefetchNote);
   const moveItem = useVault((s) => s.moveItem);
-  const ctx = useSidebarCtx();
-  const active = activePath === note.path;
+  const { openMenu } = useSidebarActions();
   const [zone, setZone] = useState<"before" | "after" | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -1069,13 +1210,21 @@ function NoteRow({
     if (active) rowRef.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
-  if (ctx.renaming === note.path) {
+  if (isRenaming) {
     return <RenameInput path={note.path} kind="note" initial={note.title} depth={depth} />;
   }
+
+  const openRowMenu = (pos: { x: number; y: number }) =>
+    openMenu(pos, { kind: "note", path: note.path, note });
 
   return (
     <div
       ref={rowRef}
+      role="treeitem"
+      aria-selected={active}
+      aria-level={depth + 1}
+      tabIndex={-1}
+      data-tree-path={note.path}
       draggable
       onDragStart={(e) => {
         currentDrag = { kind: "note", path: note.path };
@@ -1110,9 +1259,20 @@ function NoteRow({
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        ctx.openMenu(e, { kind: "note", path: note.path, note });
+        openRowMenu({ x: e.clientX, y: e.clientY });
       }}
       onClick={(e) => openInWorkspace(note.path, { background: e.metaKey || e.ctrlKey })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          openInWorkspace(note.path, { background: e.metaKey || e.ctrlKey });
+        } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const r = e.currentTarget.getBoundingClientRect();
+          openRowMenu({ x: r.left + 8, y: r.bottom });
+        }
+      }}
       onAuxClick={(e) => {
         if (e.button === 1) {
           e.preventDefault();
@@ -1122,7 +1282,7 @@ function NoteRow({
       onMouseEnter={() => prefetchNote(note.path)}
       title={note.path}
       style={{ paddingLeft: 24 + depth * 12 }}
-      className={`group relative flex w-full cursor-pointer items-center gap-1.5 rounded-md py-1 pr-2 text-left text-sm transition-colors ${
+      className={`group relative flex w-full cursor-pointer items-center gap-1.5 rounded-md py-1 pr-2 text-left text-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/50 ${
         active ? "bg-accent-soft font-medium text-accent" : "text-fg-muted hover:bg-hover hover:text-fg"
       }`}
     >
@@ -1134,7 +1294,7 @@ function NoteRow({
       <NoteBadges note={note} />
     </div>
   );
-}
+});
 
 function NoteBadges({ note }: { note: NoteSummary }) {
   const { t } = useTranslation("sidebar");
@@ -1198,7 +1358,7 @@ function IndentGuides({ depth }: { depth: number }) {
 // ── Inline inputs ───────────────────────────────────────────────────────────
 function NewFolderInput({ parent, depth = 0 }: { parent: string | null; depth?: number }) {
   const createFolder = useVault((s) => s.createFolder);
-  const { endNewFolder } = useSidebarCtx();
+  const { endNewFolder } = useSidebarActions();
   const { t } = useTranslation("sidebar");
   const [name, setName] = useState("");
   const commit = () => {
@@ -1239,7 +1399,7 @@ function RenameInput({
   isFolder?: boolean;
 }) {
   const renameItem = useVault((s) => s.renameItem);
-  const { endRename } = useSidebarCtx();
+  const { endRename } = useSidebarActions();
   const [name, setName] = useState(initial);
   const commit = () => {
     renameItem(path, kind, name);
