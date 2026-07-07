@@ -49,6 +49,49 @@ pub struct GitSyncOutcome {
     pub behind: u32,
 }
 
+/// One conflicted path of a diverged merge (P3a), all three sides
+/// materialized from their blob OIDs. `None` = that side has no entry — the
+/// delete-vs-edit case. Content is capped like the OneDrive conflict
+/// preview: oversized or non-UTF-8 (binary) blobs are replaced by a
+/// bracketed placeholder rather than failing — resolving by "ours"/"theirs"
+/// stays lossless regardless, because finalization re-reads the blob OID,
+/// never this preview text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GitConflict {
+    /// Vault-relative path (forward-slashed).
+    pub path: String,
+    /// Content at the merge base (common ancestor).
+    pub base: Option<String>,
+    /// Content on the local branch tip.
+    pub ours: Option<String>,
+    /// Content on the remote-tracking tip.
+    pub theirs: Option<String>,
+}
+
+/// The user's decision for one conflicted path of a diverged merge.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GitResolution {
+    /// Vault-relative path (forward-slashed), as reported by `GitConflict`.
+    pub path: String,
+    pub resolution: GitResolutionChoice,
+}
+
+/// Externally tagged like [`GitSyncKind`]: `"ours"`/`"theirs"` cross IPC as
+/// plain strings, manual content as `{ manual: { content } }`. Choosing a
+/// side whose entry is absent (delete-vs-edit) resolves to the deletion.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum GitResolutionChoice {
+    /// Keep the local branch's version (or its deletion).
+    Ours,
+    /// Keep the remote's version (or its deletion).
+    Theirs,
+    /// Replace the file with hand-merged content.
+    Manual { content: String },
+}
+
 /// Externally tagged (serde default): unit variants cross IPC as plain
 /// strings (`"upToDate"`), the data-carrying [`GitSyncKind::Conflicted`]
 /// as `{ conflicted: { paths } }` — the TS side narrows on

@@ -22,7 +22,10 @@ use git2::{
 };
 
 use crate::error::{CoreError, CoreResult};
-use crate::models::{GitCommitInfo, GitStatus, GitSyncKind, GitSyncOutcome};
+use crate::models::{
+    GitCommitInfo, GitConflict, GitResolution, GitResolutionChoice, GitStatus, GitSyncKind,
+    GitSyncOutcome,
+};
 
 /// Lines Novalis maintains in the vault's `.gitignore`. `.novalis/config.json`
 /// is deliberately NOT ignored — per-vault preferences are synced-by-design
@@ -580,6 +583,37 @@ fn merge_diverged(
         paths.dedup();
         return Ok(GitSyncKind::Conflicted { paths });
     }
+    materialize_merge(
+        repo,
+        branch,
+        &mut merged,
+        &ours,
+        &theirs,
+        name,
+        email,
+        token,
+    )?;
+    Ok(GitSyncKind::Merged)
+}
+
+/// Materialize a conflict-free in-memory merge index: 2-parent commit, safe
+/// checkout + branch move under [`MUTATE_GATE`] (checkout FIRST — a dirty
+/// tree errors loudly and leaves ref and worktree untouched), then a normal
+/// push under [`SYNC_GATE`] only. Shared finalize path of the automatic
+/// merge ([`merge_diverged`]) and the resolved one ([`finalize_merge`]).
+/// The caller holds [`SYNC_GATE`]; lock order SYNC_GATE → MUTATE_GATE is
+/// preserved, and the gate is released before the network push.
+#[allow(clippy::too_many_arguments)]
+fn materialize_merge(
+    repo: &Repository,
+    branch: &str,
+    merged: &mut git2::Index,
+    ours: &git2::Commit<'_>,
+    theirs: &git2::Commit<'_>,
+    name: &str,
+    email: &str,
+    token: Option<&str>,
+) -> CoreResult<()> {
     // Same author fallback as commit_all: a cleared settings field must
     // degrade the identity, not kill the sync cycle.
     let defaults = crate::models::GitPrefs::default();
@@ -604,7 +638,7 @@ fn merge_diverged(
         // failed checkout leaves the branch untouched (the object is
         // harmless and gc-able).
         let merge_oid = repo
-            .commit(None, &sig, &sig, &message, &tree, &[&ours, &theirs])
+            .commit(None, &sig, &sig, &message, &tree, &[ours, theirs])
             .map_err(gerr)?;
         let mut co = CheckoutBuilder::new();
         co.safe();
@@ -619,7 +653,318 @@ fn merge_diverged(
         repo.cleanup_state().map_err(gerr)?;
     }
     push_branch(repo, branch, token)?;
-    Ok(GitSyncKind::Merged)
+    Ok(())
+}
+
+// ── P3a: 3-way conflict resolution ──────────────────────────────────────────
+//
+// DESIGN (deviates from the original TIER3 sketch, which predates P2b): the
+// resolution flow stays STATELESS, like P2b's detection. There is no
+// persistent MERGING state, no MERGE_HEAD, no per-path `add_path` into the
+// on-disk index — the working tree and `.git` are never touched until the
+// user finalizes. [`merge_conflicts`] re-derives the same in-memory merge as
+// [`merge_diverged`] on every call, and [`finalize_merge`] re-derives it once
+// more, applies ALL resolutions to the in-memory index, and only then runs
+// the proven finalize path (2-parent commit → safe checkout → push). Crash
+// recovery is therefore trivial: nothing was persisted, a restart just
+// reports `Conflicted` again and the UI reopens. The detect→finalize race
+// (remote tip moved in between) is handled INSIDE finalize: it fetches
+// first, re-derives against the remote's current tip, and errors with a
+// clear "conflict set changed — re-open" when the resolutions no longer
+// match; a same-conflict-set remote move merges the newer tip directly.
+
+/// Cap for materializing a conflict side into UI text — same 1 MiB budget as
+/// the OneDrive conflict preview (`conflict::conflict_diff`). That helper
+/// reads worktree files; this flow reads blobs, so the cap logic is mirrored
+/// here rather than shared.
+const CONFLICT_TEXT_CAP: usize = 1024 * 1024;
+
+/// A conflict side as UI text: `None` if the entry is absent (that side
+/// deleted the file); a bracketed placeholder for oversized or non-UTF-8
+/// (binary) blobs — degrade, never fail. Resolution by "ours"/"theirs" is
+/// lossless regardless: it keeps the blob OID, never this preview text.
+fn conflict_side_text(
+    repo: &Repository,
+    entry: Option<&git2::IndexEntry>,
+) -> CoreResult<Option<String>> {
+    let Some(entry) = entry else {
+        return Ok(None);
+    };
+    let blob = repo.find_blob(entry.id).map_err(gerr)?;
+    let content = blob.content();
+    if content.len() > CONFLICT_TEXT_CAP {
+        return Ok(Some(format!(
+            "[File too large to preview: {} bytes]",
+            content.len()
+        )));
+    }
+    Ok(Some(match std::str::from_utf8(content) {
+        Ok(s) => s.to_string(),
+        Err(_) => format!("[Binary content: {} bytes]", content.len()),
+    }))
+}
+
+/// The re-derived in-memory merge of a diverged branch: both tips plus the
+/// merge index (conflicts still in it). Refuses on a busy repository (user
+/// mid-merge/rebase in an adopted repo — that case stays manual, matching
+/// P2b) and when the histories aren't actually diverged.
+struct DerivedMerge<'r> {
+    branch: String,
+    ours: git2::Commit<'r>,
+    theirs: git2::Commit<'r>,
+    index: git2::Index,
+}
+
+fn derive_merge(repo: &Repository) -> CoreResult<DerivedMerge<'_>> {
+    if repo.state() != git2::RepositoryState::Clean {
+        return Err(CoreError::BadRequest(format!(
+            "repository is busy ({:?}) — finish that operation first",
+            repo.state()
+        )));
+    }
+    let branch = current_branch(repo);
+    let local = repo
+        .find_reference(&format!("refs/heads/{branch}"))
+        .ok()
+        .and_then(|r| r.target());
+    let remote_tip = repo
+        .find_reference(&format!("refs/remotes/origin/{branch}"))
+        .ok()
+        .and_then(|r| r.target());
+    let (Some(local), Some(remote_tip)) = (local, remote_tip) else {
+        return Err(CoreError::BadRequest(
+            "no diverged histories to resolve — sync first".to_string(),
+        ));
+    };
+    let (ahead, behind) = repo.graph_ahead_behind(local, remote_tip).map_err(gerr)?;
+    if ahead == 0 || behind == 0 {
+        return Err(CoreError::BadRequest(
+            "histories are not diverged — close the conflict view and sync again".to_string(),
+        ));
+    }
+    let ours = repo.find_commit(local).map_err(gerr)?;
+    let theirs = repo.find_commit(remote_tip).map_err(gerr)?;
+    let index = repo.merge_commits(&ours, &theirs, None).map_err(gerr)?;
+    Ok(DerivedMerge {
+        branch,
+        ours,
+        theirs,
+        index,
+    })
+}
+
+/// The conflicted paths of the diverged merge, all three sides materialized
+/// (P3a). Stateless: re-runs the same in-memory `merge_commits` as
+/// [`merge_diverged`] — nothing on disk marks the conflict, so a crash or
+/// restart between detection and resolution costs nothing. Read-only, so no
+/// gates: refs are read atomically and the merge touches neither worktree
+/// nor `.git` state. Sorted by path; empty when the re-derived merge is
+/// clean (the remote moved and the divergence now merges without conflicts).
+pub fn merge_conflicts(vault: &Path) -> CoreResult<Vec<GitConflict>> {
+    let repo = open(vault).ok_or_else(|| {
+        CoreError::BadRequest("vault is not a git repository — enable git sync first".to_string())
+    })?;
+    let derived = derive_merge(&repo)?;
+    let mut out = Vec::new();
+    for entry in derived.index.conflicts().map_err(gerr)? {
+        let entry = entry.map_err(gerr)?;
+        // All three sides are Option — delete-vs-edit leaves one absent.
+        let Some(side) = entry
+            .our
+            .as_ref()
+            .or(entry.their.as_ref())
+            .or(entry.ancestor.as_ref())
+        else {
+            continue;
+        };
+        let path = String::from_utf8_lossy(&side.path).into_owned();
+        out.push(GitConflict {
+            path,
+            base: conflict_side_text(&repo, entry.ancestor.as_ref())?,
+            ours: conflict_side_text(&repo, entry.our.as_ref())?,
+            theirs: conflict_side_text(&repo, entry.their.as_ref())?,
+        });
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(out)
+}
+
+/// Stage bits of `IndexEntry::flags` (libgit2 `GIT_INDEX_ENTRY_STAGEMASK`):
+/// a conflict side carries stage 1/2/3, the resolved entry must be stage 0.
+const INDEX_STAGE_MASK: u16 = 0x3000;
+
+/// Field-wise copy — `git2::IndexEntry` doesn't derive `Clone`.
+fn copy_entry(e: &git2::IndexEntry) -> git2::IndexEntry {
+    git2::IndexEntry {
+        ctime: e.ctime,
+        mtime: e.mtime,
+        dev: e.dev,
+        ino: e.ino,
+        mode: e.mode,
+        uid: e.uid,
+        gid: e.gid,
+        file_size: e.file_size,
+        id: e.id,
+        flags: e.flags,
+        flags_extended: e.flags_extended,
+        path: e.path.clone(),
+    }
+}
+
+/// Resolve one conflicted path in the in-memory merge index. `remove_path`
+/// drops every stage for the path (libgit2 moves the conflict to the REUC
+/// section); keeping a side or manual content then adds the stage-0 entry
+/// back. A kept side that is absent (delete-vs-edit) resolves to deletion —
+/// the removal already did it.
+fn resolve_entry(
+    index: &mut git2::Index,
+    repo: &Repository,
+    conflict: &git2::IndexConflict,
+    path: &str,
+    choice: &GitResolutionChoice,
+) -> CoreResult<()> {
+    index.remove_path(Path::new(path)).map_err(gerr)?;
+    let kept = match choice {
+        GitResolutionChoice::Ours => conflict.our.as_ref().map(copy_entry),
+        GitResolutionChoice::Theirs => conflict.their.as_ref().map(copy_entry),
+        GitResolutionChoice::Manual { content } => {
+            // Structurally a conflict has at least one side; the template
+            // provides path/mode metadata for the new blob.
+            let Some(template) = conflict
+                .our
+                .as_ref()
+                .or(conflict.their.as_ref())
+                .or(conflict.ancestor.as_ref())
+            else {
+                return Ok(());
+            };
+            let mut entry = copy_entry(template);
+            entry.id = repo.blob(content.as_bytes()).map_err(gerr)?;
+            entry.file_size = u32::try_from(content.len()).unwrap_or(0);
+            Some(entry)
+        }
+    };
+    if let Some(mut entry) = kept {
+        entry.flags &= !INDEX_STAGE_MASK;
+        index.add(&entry).map_err(gerr)?;
+    }
+    Ok(())
+}
+
+/// Complete a conflicted merge (P3a): one resolution per conflicted path,
+/// applied to a freshly re-derived in-memory merge, then the shared finalize
+/// path — 2-parent commit, safe checkout under [`MUTATE_GATE`],
+/// `cleanup_state()`, push. Stateless like detection, so the whole
+/// operation either lands atomically or leaves the repository exactly as it
+/// was (the only partial failure is a rejected push, which the next sync
+/// cycle resolves by merging again — never a force-push).
+///
+/// The detect→finalize race: the remote tip may have moved since the
+/// conflicts were read. Finalize therefore FETCHES first and re-derives
+/// against the current tip. If the conflict set still matches the given
+/// resolutions, the merge simply incorporates the newer tip; if it differs
+/// (new or vanished conflicts), this errors without touching anything and
+/// the UI re-opens with the fresh list.
+pub fn finalize_merge(
+    vault: &Path,
+    name: &str,
+    email: &str,
+    token: Option<&str>,
+    resolutions: &[GitResolution],
+) -> CoreResult<()> {
+    let _sync = SYNC_GATE.lock().unwrap_or_else(|p| p.into_inner());
+    ensure_network_timeouts();
+    let repo = open(vault).ok_or_else(|| {
+        CoreError::BadRequest("vault is not a git repository — enable git sync first".to_string())
+    })?;
+    // Refuse a busy repository BEFORE any network work (derive_merge checks
+    // again, but commit_all would silently skip on a busy repo first).
+    if repo.state() != git2::RepositoryState::Clean {
+        return Err(CoreError::BadRequest(format!(
+            "repository is busy ({:?}) — finish that operation first",
+            repo.state()
+        )));
+    }
+    if repo.find_remote("origin").is_err() {
+        return Err(CoreError::BadRequest(
+            "no origin remote configured".to_string(),
+        ));
+    }
+    let branch = current_branch(&repo);
+    {
+        let mut remote = repo.find_remote("origin").map_err(gerr)?;
+        let mut fo = FetchOptions::new();
+        fo.remote_callbacks(auth_callbacks(token.map(str::to_string)));
+        remote
+            .fetch(&[branch.as_str()], Some(&mut fo), None)
+            .map_err(gerr)?;
+    }
+    // Commit pending local changes first (mirrors sync()): the final safe
+    // checkout needs a clean tree, and edits made while the conflict view
+    // was open become part of the local side — "ours" means the local tip
+    // as of NOW.
+    commit_all(vault, name, email)?;
+    let mut derived = derive_merge(&repo)?;
+
+    // The conflict iterator borrows the index — collect before mutating.
+    let conflicts: Vec<git2::IndexConflict> = derived
+        .index
+        .conflicts()
+        .map_err(gerr)?
+        .collect::<Result<_, _>>()
+        .map_err(gerr)?;
+    let by_path: std::collections::HashMap<&str, &GitResolutionChoice> = resolutions
+        .iter()
+        .map(|r| (r.path.as_str(), &r.resolution))
+        .collect();
+    let mut seen: Vec<String> = Vec::new();
+    let mut unresolved: Vec<String> = Vec::new();
+    for conflict in &conflicts {
+        let Some(side) = conflict
+            .our
+            .as_ref()
+            .or(conflict.their.as_ref())
+            .or(conflict.ancestor.as_ref())
+        else {
+            continue;
+        };
+        let path = String::from_utf8_lossy(&side.path).into_owned();
+        match by_path.get(path.as_str()) {
+            Some(choice) => resolve_entry(&mut derived.index, &repo, conflict, &path, choice)?,
+            None => unresolved.push(path.clone()),
+        }
+        seen.push(path);
+    }
+    if !unresolved.is_empty() {
+        unresolved.sort();
+        return Err(CoreError::BadRequest(format!(
+            "unresolved conflict(s): {} — the remote may have changed; re-open the conflict view",
+            unresolved.join(", ")
+        )));
+    }
+    if resolutions.iter().any(|r| !seen.contains(&r.path)) {
+        // A resolution for a path that no longer conflicts: the remote moved
+        // and the user's choices were made against an outdated list —
+        // applying them could silently override a now-clean merge.
+        return Err(CoreError::BadRequest(
+            "the remote changed and the conflicts no longer match — re-open the conflict view"
+                .to_string(),
+        ));
+    }
+    if derived.index.has_conflicts() {
+        return Err(CoreError::Internal(
+            "git: merge index still conflicted after applying all resolutions".to_string(),
+        ));
+    }
+    let DerivedMerge {
+        branch,
+        ours,
+        theirs,
+        mut index,
+    } = derived;
+    materialize_merge(
+        &repo, &branch, &mut index, &ours, &theirs, name, email, token,
+    )
 }
 
 fn outcome(kind: GitSyncKind, ahead: u32, behind: u32) -> GitSyncOutcome {
@@ -1513,6 +1858,422 @@ mod tests {
         let author = head.author();
         assert_eq!(author.name().unwrap(), "Novalis");
         assert_eq!(author.email().unwrap(), "novalis@localhost");
+    }
+
+    // ── Conflict resolution (P3a) ────────────────────────────────────────────
+
+    /// Two synced clones with a committed conflicting edit to `a.md` on both
+    /// sides: A pushed "# a from A", B holds "# a from B" and its last sync
+    /// reported `Conflicted`.
+    fn conflicted_clones() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+        let (a, bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# a from A\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        std::fs::write(b.path().join("a.md"), "# a from B\n").unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        (a, bare, b)
+    }
+
+    fn res(path: &str, choice: GitResolutionChoice) -> GitResolution {
+        GitResolution {
+            path: path.to_string(),
+            resolution: choice,
+        }
+    }
+
+    /// Post-finalize invariants: clean non-MERGING repo, HEAD is a 2-parent
+    /// merge commit (the only one in history), the remote tip IS that merge
+    /// commit, and the worktree matches HEAD.
+    fn assert_finalized(vault: &Path, bare: &Path) {
+        let repo = Repository::open(vault).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        assert!(!vault.join(".git/MERGE_HEAD").exists());
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(head.parent_count(), 2, "HEAD is the merge commit");
+        let mut walk = repo.revwalk().unwrap();
+        walk.push(head.id()).unwrap();
+        let merges = walk
+            .flatten()
+            .filter(|oid| repo.find_commit(*oid).unwrap().parent_count() > 1)
+            .count();
+        assert_eq!(merges, 1, "exactly one merge commit in history");
+        let remote_tip = Repository::open(bare)
+            .unwrap()
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap();
+        assert_eq!(remote_tip, head.id(), "merge commit was pushed");
+        assert_eq!(count_dirty(&repo).unwrap(), 0, "worktree matches HEAD");
+    }
+
+    #[test]
+    fn merge_conflicts_returns_all_three_sides() {
+        let (_a, _bare, b) = conflicted_clones();
+        let conflicts = merge_conflicts(b.path()).unwrap();
+        assert_eq!(conflicts.len(), 1);
+        let c = &conflicts[0];
+        assert_eq!(c.path, "a.md");
+        assert_eq!(c.base.as_deref(), Some("# A\n"));
+        assert_eq!(c.ours.as_deref(), Some("# a from B\n"));
+        assert_eq!(c.theirs.as_deref(), Some("# a from A\n"));
+        // Stateless: listing again is idempotent and never touches the repo.
+        assert_eq!(merge_conflicts(b.path()).unwrap(), conflicts);
+        let repo = Repository::open(b.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        assert!(!b.path().join(".git/MERGE_HEAD").exists());
+    }
+
+    #[test]
+    fn merge_conflicts_errors_when_not_diverged() {
+        let (_a, _bare, b) = two_synced_clones();
+        let err = merge_conflicts(b.path()).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)), "got: {err:?}");
+    }
+
+    #[test]
+    fn finalize_with_ours_keeps_local_content() {
+        let (_a, bare, b) = conflicted_clones();
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# a from B\n"
+        );
+        // Nothing left to transfer.
+        assert_eq!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::UpToDate
+        );
+    }
+
+    #[test]
+    fn finalize_with_theirs_adopts_remote_content() {
+        let (_a, bare, b) = conflicted_clones();
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Theirs)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# a from A\n"
+        );
+    }
+
+    #[test]
+    fn finalize_with_manual_content_writes_it_and_the_other_clone_converges() {
+        let (a, bare, b) = conflicted_clones();
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res(
+                "a.md",
+                GitResolutionChoice::Manual {
+                    content: "# hand-merged\n".to_string(),
+                },
+            )],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# hand-merged\n"
+        );
+        // The other device pulls the merge and converges byte-identically.
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pulled
+        );
+        assert_eq!(
+            std::fs::read_to_string(a.path().join("a.md")).unwrap(),
+            "# hand-merged\n"
+        );
+        assert_eq!(head_tree_id(a.path()), head_tree_id(b.path()));
+    }
+
+    #[test]
+    fn finalize_with_missing_resolution_errors_listing_the_path() {
+        let (_a, _bare, b) = conflicted_clones();
+        let before_head = head_id(b.path()).unwrap();
+        let before = worktree_snapshot(b.path());
+        let err = finalize_merge(b.path(), "B", "b@x", None, &[]).unwrap_err();
+        match &err {
+            CoreError::BadRequest(msg) => assert!(msg.contains("a.md"), "got: {msg}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        // Nothing was touched — same HEAD, same bytes, still resolvable.
+        assert_eq!(head_id(b.path()).unwrap(), before_head);
+        assert_eq!(worktree_snapshot(b.path()), before);
+        let repo = Repository::open(b.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        assert_eq!(merge_conflicts(b.path()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn finalize_with_stale_resolution_errors() {
+        // A resolution for a path that isn't conflicted (the list the user
+        // saw no longer matches) must abort, not silently apply.
+        let (_a, _bare, b) = conflicted_clones();
+        let err = finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[
+                res("a.md", GitResolutionChoice::Ours),
+                res("sub/b.md", GitResolutionChoice::Ours),
+            ],
+        )
+        .unwrap_err();
+        match &err {
+            CoreError::BadRequest(msg) => assert!(msg.contains("re-open"), "got: {msg}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(merge_conflicts(b.path()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn delete_vs_edit_keep_deleted_removes_the_file() {
+        // Remote deleted, local edited; the user keeps the deletion.
+        let (a, bare, b) = two_synced_clones();
+        std::fs::remove_file(a.path().join("a.md")).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("a.md"), "# edited on B\n").unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        let conflicts = merge_conflicts(b.path()).unwrap();
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].base.as_deref(), Some("# A\n"));
+        assert_eq!(conflicts[0].ours.as_deref(), Some("# edited on B\n"));
+        assert_eq!(conflicts[0].theirs, None, "deleted on the remote");
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Theirs)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert!(!b.path().join("a.md").exists(), "keep-deleted removes it");
+        assert!(!head_tree_paths(b.path()).contains(&"a.md".to_string()));
+    }
+
+    #[test]
+    fn delete_vs_edit_keep_edited_restores_the_file() {
+        let (a, bare, b) = two_synced_clones();
+        std::fs::remove_file(a.path().join("a.md")).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("a.md"), "# edited on B\n").unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# edited on B\n"
+        );
+        // The deleting device pulls the merge and gets the file back.
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pulled
+        );
+        assert_eq!(
+            std::fs::read_to_string(a.path().join("a.md")).unwrap(),
+            "# edited on B\n"
+        );
+    }
+
+    #[test]
+    fn delete_vs_edit_deleted_locally_reports_ours_absent() {
+        // Mirror direction: LOCAL deleted, remote edited — `ours` is absent
+        // and keeping "ours" keeps the deletion.
+        let (a, bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# edited on A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::remove_file(b.path().join("a.md")).unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        let conflicts = merge_conflicts(b.path()).unwrap();
+        assert_eq!(conflicts[0].ours, None, "deleted locally");
+        assert_eq!(conflicts[0].theirs.as_deref(), Some("# edited on A\n"));
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert!(!b.path().join("a.md").exists());
+    }
+
+    #[test]
+    fn finalize_after_remote_moved_incorporates_the_new_tip() {
+        // The remote gains another (non-conflicting) commit between detect
+        // and finalize: finalize re-fetches and derives against the NEW tip,
+        // so the merge lands without a rejected push.
+        let (a, bare, b) = conflicted_clones();
+        std::fs::write(a.path().join("sub/b.md"), "# late from A\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        let a_tip = head_id(a.path()).unwrap();
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        // The merge's remote parent is A's NEW tip, and its content arrived.
+        let repo = Repository::open(b.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(head.parent(1).unwrap().id().to_string(), a_tip);
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("sub/b.md")).unwrap(),
+            "# late from A\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# a from B\n"
+        );
+    }
+
+    #[test]
+    fn finalize_after_remote_moved_with_new_conflicts_errors() {
+        let (a, _bare, b) = conflicted_clones();
+        // B also edits sub/b.md (committed locally)…
+        std::fs::write(b.path().join("sub/b.md"), "# b from B\n").unwrap();
+        commit_all(b.path(), "B", "b@x").unwrap().unwrap();
+        // …and A pushes a DIFFERENT edit to the same file after detection.
+        std::fs::write(a.path().join("sub/b.md"), "# b from A\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        let before_head = head_id(b.path()).unwrap();
+        let err = finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap_err();
+        match &err {
+            CoreError::BadRequest(msg) => assert!(msg.contains("sub/b.md"), "got: {msg}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        // Untouched: same HEAD, clean state — re-listing shows BOTH conflicts.
+        assert_eq!(head_id(b.path()).unwrap(), before_head);
+        let repo = Repository::open(b.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        let paths: Vec<String> = merge_conflicts(b.path())
+            .unwrap()
+            .into_iter()
+            .map(|c| c.path)
+            .collect();
+        assert_eq!(paths, ["a.md", "sub/b.md"]);
+    }
+
+    #[test]
+    fn busy_repository_refuses_listing_and_finalize() {
+        let (_a, _bare, b) = conflicted_clones();
+        std::fs::write(b.path().join(".git/MERGE_HEAD"), "0000\n").unwrap();
+        assert!(matches!(
+            merge_conflicts(b.path()).unwrap_err(),
+            CoreError::BadRequest(_)
+        ));
+        let err = finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("a.md", GitResolutionChoice::Ours)],
+        )
+        .unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+        assert!(
+            b.path().join(".git/MERGE_HEAD").exists(),
+            "the user's merge state must survive"
+        );
+    }
+
+    #[test]
+    fn binary_conflict_degrades_to_placeholder_and_resolves_losslessly() {
+        let (a, bare, b) = two_synced_clones();
+        // Both sides ADD different non-UTF-8 content at the same new path.
+        let bytes_a: &[u8] = &[0xFF, 0xFE, 0x00, 0x01, b'A'];
+        let bytes_b: &[u8] = &[0xFF, 0xFE, 0x00, 0x02, b'B'];
+        std::fs::write(a.path().join("blob.bin"), bytes_a).unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        std::fs::write(b.path().join("blob.bin"), bytes_b).unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        let conflicts = merge_conflicts(b.path()).unwrap();
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].base, None, "added on both sides");
+        for side in [&conflicts[0].ours, &conflicts[0].theirs] {
+            assert!(
+                side.as_deref().unwrap().starts_with("[Binary content:"),
+                "got: {side:?}"
+            );
+        }
+        // Keeping a side is OID-based, so the exact bytes survive the
+        // placeholder preview.
+        finalize_merge(
+            b.path(),
+            "B",
+            "b@x",
+            None,
+            &[res("blob.bin", GitResolutionChoice::Theirs)],
+        )
+        .unwrap();
+        assert_finalized(b.path(), bare.path());
+        assert_eq!(std::fs::read(b.path().join("blob.bin")).unwrap(), bytes_a);
     }
 
     #[test]
