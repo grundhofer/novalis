@@ -224,6 +224,20 @@ pub fn run() {
     let builder = specta_builder();
 
     tauri::Builder::default()
+        // Without a logger every `log::warn!` in core and the shell is a
+        // no-op — and a bundled app's stderr goes nowhere, so log to the OS
+        // log dir as well as stdout (visible under `pnpm dev`).
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: None,
+                    }),
+                ])
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
