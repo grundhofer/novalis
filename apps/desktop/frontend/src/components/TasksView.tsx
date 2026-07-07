@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ChevronDown, ChevronRight, FolderInput, Plus, Search, X } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
@@ -13,7 +13,6 @@ import {
   boardFilterActive,
   DEFAULT_COLUMNS,
   filterTasks,
-  subtaskProgress,
   topFolders,
   useTasks,
   type BoardGroupBy,
@@ -264,12 +263,41 @@ function FilterBar() {
   );
 }
 
-function TaskRow({ task }: { task: Task }) {
+/** Direct-children completion rollup per parent task id, in one pass over the
+ *  full task list. Replaces the per-row `subtaskProgress(tasks, id)` scan
+ *  (O(rows × tasks)); the parent views memoize one map per tasks array and
+ *  pass each row/card its own narrow entry. */
+function progressByParent(tasks: Task[]): Map<string, SubtaskCount> {
+  const map = new Map<string, SubtaskCount>();
+  for (const t of tasks) {
+    if (!t.parentId) continue;
+    let entry = map.get(t.parentId);
+    if (!entry) {
+      entry = { done: 0, total: 0 };
+      map.set(t.parentId, entry);
+    }
+    entry.total += 1;
+    if (t.completed) entry.done += 1;
+  }
+  return map;
+}
+
+interface SubtaskCount {
+  done: number;
+  total: number;
+}
+
+const TaskRow = memo(function TaskRow({
+  task,
+  progress,
+}: {
+  task: Task;
+  /** This task's subtask rollup, if it has any subtasks. */
+  progress?: SubtaskCount;
+}) {
   const toggle = useTasks((s) => s.toggle);
   const openNoteFrom = useUi((s) => s.openNoteFrom);
   const openCardMenu = useTasks((s) => s.openCardMenu);
-  const tasks = useTasks((s) => s.tasks);
-  const progress = subtaskProgress(tasks, task.id);
   return (
     <div
       className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-hover"
@@ -294,7 +322,9 @@ function TaskRow({ task }: { task: Task }) {
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-subtle">
           {task.priority && <PriorityBadge priority={task.priority} />}
           {task.dueDate && <DueBadge due={task.dueDate} completed={task.completed} />}
-          {progress.total > 0 && <SubtaskBadge done={progress.done} total={progress.total} />}
+          {progress && progress.total > 0 && (
+            <SubtaskBadge done={progress.done} total={progress.total} />
+          )}
           {task.tags.map((tag) => (
             <TagChip key={tag} tag={tag} />
           ))}
@@ -312,7 +342,7 @@ function TaskRow({ task }: { task: Task }) {
       </div>
     </div>
   );
-}
+});
 
 /** The single non-Kanban mode: a task list grouped into due-date sections
  *  (Overdue / Today / Upcoming / No date), with a trailing Completed section.
@@ -325,6 +355,9 @@ function ListView() {
   const boardFilter = useTasks((s) => s.boardFilter);
   const visible = useMemo(() => filterTasks(tasks, boardFilter), [tasks, boardFilter]);
   const groups = useMemo(() => groupByDue(visible), [visible]);
+  // From the FULL list: subtasks count toward their parent even when a filter
+  // hides them (matches the old per-row subtaskProgress(s.tasks, …) behavior).
+  const progress = useMemo(() => progressByParent(tasks), [tasks]);
   if (visible.length === 0) return <Empty />;
   const labels: Record<DueGroupKey, string> = {
     overdue: t("agenda.overdue"),
@@ -343,7 +376,7 @@ function ListView() {
                 {labels[g.key]}
               </h3>
               {g.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
+                <TaskRow key={task.id} task={task} progress={progress.get(task.id)} />
               ))}
             </div>
           ),
@@ -352,13 +385,20 @@ function ListView() {
   );
 }
 
-function KanbanCard({ task, showNoteTitle }: { task: Task; showNoteTitle?: boolean }) {
+const KanbanCard = memo(function KanbanCard({
+  task,
+  showNoteTitle,
+  progress,
+}: {
+  task: Task;
+  showNoteTitle?: boolean;
+  /** This task's subtask rollup, if it has any subtasks. */
+  progress?: SubtaskCount;
+}) {
   const openNoteFrom = useUi((s) => s.openNoteFrom);
   const openCardMenu = useTasks((s) => s.openCardMenu);
-  const tasks = useTasks((s) => s.tasks);
   const folderColors = useVault((s) => s.folderColors);
   const projectColors = useSettings((s) => s.prefs?.taskView?.projectColors);
-  const progress = subtaskProgress(tasks, task.id);
   // Stripe precedence: project color → top-folder color → first tag's color.
   const colorToken =
     (task.project ? projectColors?.[task.project] : undefined) ??
@@ -372,7 +412,7 @@ function KanbanCard({ task, showNoteTitle }: { task: Task; showNoteTitle?: boole
   const noteTitle = task.noteTitle || noteTitleFromPath(task.sourceNote);
   const context = [showNoteTitle ? noteTitle : null, task.heading].filter(Boolean).join(" › ");
   const hasMeta =
-    !!task.priority || !!task.dueDate || progress.total > 0 || task.tags.length > 0;
+    !!task.priority || !!task.dueDate || (progress?.total ?? 0) > 0 || task.tags.length > 0;
   return (
     <div
       draggable
@@ -392,7 +432,9 @@ function KanbanCard({ task, showNoteTitle }: { task: Task; showNoteTitle?: boole
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {task.priority && <PriorityBadge priority={task.priority} />}
           {task.dueDate && <DueBadge due={task.dueDate} completed={task.completed} />}
-          {progress.total > 0 && <SubtaskBadge done={progress.done} total={progress.total} />}
+          {progress && progress.total > 0 && (
+            <SubtaskBadge done={progress.done} total={progress.total} />
+          )}
           {task.tags.map((tag) => (
             <TagChip key={tag} tag={tag} />
           ))}
@@ -400,7 +442,7 @@ function KanbanCard({ task, showNoteTitle }: { task: Task; showNoteTitle?: boole
       )}
     </div>
   );
-}
+});
 
 function AddCard({ columnId, notePathOverride }: { columnId: string; notePathOverride?: string }) {
   const { t } = useTranslation("tasks");
@@ -468,11 +510,14 @@ function BoardColumns({
   fill,
   showNoteTitle,
   addToNotePath,
+  progress,
 }: {
   tasks: Task[];
   fill: boolean;
   showNoteTitle: boolean;
   addToNotePath?: string;
+  /** Subtask rollups per parent task id (memoized by the view). */
+  progress: Map<string, SubtaskCount>;
 }) {
   const { t } = useTranslation("tasks");
   const columns = useTasks((s) => s.columns);
@@ -514,7 +559,12 @@ function BoardColumns({
             {tasks
               .filter((task) => !task.completed && columnFor(task) === col.id)
               .map((task) => (
-                <KanbanCard key={task.id} task={task} showNoteTitle={showNoteTitle} />
+                <KanbanCard
+                  key={task.id}
+                  task={task}
+                  showNoteTitle={showNoteTitle}
+                  progress={progress.get(task.id)}
+                />
               ))}
             <AddCard columnId={col.id} notePathOverride={addToNotePath} />
           </div>
@@ -602,9 +652,12 @@ function KanbanView() {
   const folderColors = useVault((s) => s.folderColors);
   const projectColors = useSettings((s) => s.prefs?.taskView?.projectColors);
   const visible = useMemo(() => filterTasks(tasks, boardFilter), [tasks, boardFilter]);
+  // From the FULL list: subtasks count toward their parent even when a filter
+  // hides them (matches the old per-card subtaskProgress(s.tasks, …) behavior).
+  const progress = useMemo(() => progressByParent(tasks), [tasks]);
 
   if (groupBy === "none") {
-    return <BoardColumns tasks={visible} fill showNoteTitle />;
+    return <BoardColumns tasks={visible} fill showNoteTitle progress={progress} />;
   }
 
   const open = visible.filter((task) => !task.completed);
@@ -633,6 +686,7 @@ function KanbanView() {
               fill={false}
               showNoteTitle={groupBy !== "note"}
               addToNotePath={groupBy === "note" ? (g.notePath ?? undefined) : undefined}
+              progress={progress}
             />
           </Swimlane>
         );
