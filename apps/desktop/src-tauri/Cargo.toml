@@ -43,6 +43,12 @@ futures-util = "0.3"
 tokio = { version = "1", default-features = false, features = ["sync", "macros", "process", "io-util", "rt"] }
 novalis-core.workspace = true
 
+[dev-dependencies]
+# Tests only: `net` powers the hand-rolled localhost server that mocks the AI
+# providers' HTTP endpoints; `time` bounds those tests with timeouts. These are
+# feature additions to the tokio dependency above — no new crate.
+tokio = { version = "1", default-features = false, features = ["net", "time"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }
 

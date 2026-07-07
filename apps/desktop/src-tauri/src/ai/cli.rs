@@ -10,7 +10,7 @@
 //!   claude: `claude -p --output-format text --allowedTools "" [--model M]`  (stdin = prompt)
 //!   codex:  `codex exec --skip-git-repo-check --sandbox read-only [--model M] -`  (stdin = prompt)
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -200,6 +200,18 @@ fn drain_utf8(pending: &mut Vec<u8>) -> String {
     }
 }
 
+/// Agentic runs execute INSIDE the vault with file tools; everything else
+/// runs in a temp dir with no tools so the CLI can't touch the user's notes.
+/// Agentic is honored only when a working dir (the vault) was provided.
+fn effective_workdir(agentic_requested: bool, workdir: Option<&Path>) -> (bool, PathBuf) {
+    let agentic = agentic_requested && workdir.is_some();
+    let dir = match workdir {
+        Some(dir) if agentic => dir.to_path_buf(),
+        _ => std::env::temp_dir(),
+    };
+    (agentic, dir)
+}
+
 /// Run a one-shot CLI completion, streaming stdout via `on_text`. Cooperatively
 /// cancellable: a cancel kills the child and returns the partial result.
 pub async fn stream<F: FnMut(&str)>(
@@ -210,14 +222,7 @@ pub async fn stream<F: FnMut(&str)>(
     let bin =
         resolve_binary(req.kind, req.base_url.as_deref()).ok_or_else(|| not_found(req.kind))?;
 
-    // Agentic runs execute INSIDE the vault with file tools; everything else
-    // runs in a temp dir with no tools so the CLI can't touch the user's notes.
-    // Agentic is honored only when a working dir (the vault) was provided.
-    let agentic = req.agentic && req.workdir.is_some();
-    let workdir = match &req.workdir {
-        Some(dir) if agentic => dir.clone(),
-        _ => std::env::temp_dir(),
-    };
+    let (agentic, workdir) = effective_workdir(req.agentic, req.workdir.as_deref());
 
     let mut cmd = tokio::process::Command::new(&bin);
     cmd.args(build_args(req.kind, &req.model, agentic))
@@ -323,5 +328,176 @@ pub async fn test(kind: AiProviderKind, override_path: Option<&str>) -> Result<(
             kind: "aiServer".to_string(),
             message: format!("`{} --version` failed", bin_name(kind)),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use novalis_core::models::{ChatMessage, ChatRole};
+
+    #[test]
+    fn claude_args_non_agentic_disable_all_tools() {
+        let args = build_args(AiProviderKind::ClaudeCli, "sonnet", false);
+        assert_eq!(
+            args,
+            vec![
+                "-p",
+                "--output-format",
+                "text",
+                "--allowedTools",
+                "",
+                "--model",
+                "sonnet"
+            ]
+        );
+    }
+
+    #[test]
+    fn claude_args_agentic_use_curated_tools_and_accept_edits() {
+        let args = build_args(AiProviderKind::ClaudeCli, "", true);
+        assert_eq!(
+            args,
+            vec![
+                "-p",
+                "--output-format",
+                "text",
+                "--allowedTools",
+                AGENTIC_CLAUDE_TOOLS,
+                "--permission-mode",
+                "acceptEdits"
+            ]
+        );
+        // No tool that could reach outside the vault's files.
+        for forbidden in ["Bash", "WebFetch", "WebSearch"] {
+            assert!(!AGENTIC_CLAUDE_TOOLS.split(' ').any(|t| t == forbidden));
+        }
+    }
+
+    #[test]
+    fn claude_args_skip_model_flag_for_blank_model() {
+        let args = build_args(AiProviderKind::ClaudeCli, "   ", false);
+        assert!(!args.iter().any(|a| a == "--model"));
+    }
+
+    #[test]
+    fn codex_args_read_only_unless_agentic_and_end_with_stdin_marker() {
+        let ro = build_args(AiProviderKind::CodexCli, "", false);
+        assert_eq!(
+            ro,
+            vec![
+                "exec",
+                "--skip-git-repo-check",
+                "--sandbox",
+                "read-only",
+                "-"
+            ]
+        );
+
+        let rw = build_args(AiProviderKind::CodexCli, "gpt-5.5", true);
+        assert_eq!(
+            rw,
+            vec![
+                "exec",
+                "--skip-git-repo-check",
+                "--sandbox",
+                "workspace-write",
+                "--model",
+                "gpt-5.5",
+                "-"
+            ]
+        );
+        // The stdin marker must stay last or the model flag would swallow it.
+        assert_eq!(rw.last().map(String::as_str), Some("-"));
+    }
+
+    #[test]
+    fn http_kinds_build_no_cli_args() {
+        assert!(build_args(AiProviderKind::Anthropic, "m", false).is_empty());
+        assert!(build_args(AiProviderKind::OpenAiCompatible, "m", true).is_empty());
+    }
+
+    #[test]
+    fn render_prompt_flattens_system_and_messages() {
+        let prompt = BuiltPrompt {
+            system: "You are terse.".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: ChatRole::User,
+                    content: "first".to_string(),
+                },
+                ChatMessage {
+                    role: ChatRole::Assistant,
+                    content: "second".to_string(),
+                },
+            ],
+        };
+        assert_eq!(render_prompt(&prompt), "You are terse.\n\nfirst\n\nsecond");
+    }
+
+    #[test]
+    fn render_prompt_omits_blank_system() {
+        let prompt = BuiltPrompt {
+            system: "  ".to_string(),
+            messages: vec![ChatMessage {
+                role: ChatRole::User,
+                content: "only".to_string(),
+            }],
+        };
+        assert_eq!(render_prompt(&prompt), "only");
+    }
+
+    #[test]
+    fn effective_workdir_runs_agentic_inside_the_vault() {
+        let vault = PathBuf::from("/tmp/some-vault");
+        let (agentic, dir) = effective_workdir(true, Some(vault.as_path()));
+        assert!(agentic);
+        assert_eq!(dir, vault);
+    }
+
+    #[test]
+    fn effective_workdir_sandboxes_without_a_vault_or_when_not_agentic() {
+        // Agentic requested but no vault resolved: fall back to non-agentic temp.
+        let (agentic, dir) = effective_workdir(true, None);
+        assert!(!agentic);
+        assert_eq!(dir, std::env::temp_dir());
+
+        // Non-agentic never runs in the vault, even when one is available.
+        let vault = PathBuf::from("/tmp/some-vault");
+        let (agentic, dir) = effective_workdir(false, Some(vault.as_path()));
+        assert!(!agentic);
+        assert_eq!(dir, std::env::temp_dir());
+    }
+
+    #[test]
+    fn resolve_binary_honors_an_explicit_override_path() {
+        // base_url doubles as the binary override for CLI kinds: an existing
+        // file resolves to itself; a missing one must NOT fall back to PATH.
+        let dir = std::env::temp_dir().join(format!("novalis-cli-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = dir.join("fake-claude");
+        std::fs::write(&fake, b"#!/bin/sh\n").unwrap();
+
+        let resolved = resolve_binary(AiProviderKind::ClaudeCli, fake.to_str());
+        assert_eq!(resolved, Some(fake.clone()));
+
+        let missing = dir.join("does-not-exist");
+        assert_eq!(
+            resolve_binary(AiProviderKind::ClaudeCli, missing.to_str()),
+            None
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn drain_utf8_holds_back_a_split_multibyte_char() {
+        // "é" is 0xC3 0xA9; split it across two reads.
+        let mut pending = vec![b'a', 0xC3];
+        assert_eq!(drain_utf8(&mut pending), "a");
+        assert_eq!(pending, vec![0xC3]);
+        pending.push(0xA9);
+        assert_eq!(drain_utf8(&mut pending), "é");
+        assert!(pending.is_empty());
     }
 }

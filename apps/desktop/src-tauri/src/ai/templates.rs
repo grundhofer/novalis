@@ -93,3 +93,116 @@ pub fn delete(dir: &Path, id: &str) -> Result<(), CommandError> {
         Err(e) => Err(CommandError::internal(format!("delete template: {e}"))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Fresh unique dir under the OS temp dir (same no-dev-deps pattern as
+    /// `crate::commands::tests`).
+    fn tmp_dir() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("novalis-tpl-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn save_creates_a_template_and_list_round_trips_it() {
+        let root = tmp_dir();
+        let dir = root.join("ai-prompts"); // exercise the create_dir_all path
+        save(&dir, "Meeting Notes", "Summarize {selection}").unwrap();
+
+        let listed = list(&dir, AiTemplateScope::Vault).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "Meeting Notes.md");
+        assert_eq!(listed[0].name, "Meeting Notes");
+        assert_eq!(listed[0].body, "Summarize {selection}");
+        assert_eq!(listed[0].scope, AiTemplateScope::Vault);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn save_sanitizes_hostile_names_into_the_dir() {
+        let dir = tmp_dir();
+        save(&dir, "../escape", "x").unwrap();
+        save(&dir, "..", "y").unwrap();
+        save(&dir, "a/b\\c:d", "z").unwrap();
+
+        // Everything must land INSIDE dir; nothing above it.
+        let entries: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(entries.iter().all(|n| n.ends_with(".md")));
+        // "../escape" → path separators stripped, dots trimmed.
+        assert!(entries.iter().any(|n| n.contains("escape")));
+        // ".." sanitizes to the fallback name rather than a parent reference.
+        assert!(entries.iter().any(|n| n == "untitled.md"));
+        assert!(!dir.parent().unwrap().join("escape.md").exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn delete_ignores_traversal_in_hostile_ids() {
+        let root = tmp_dir();
+        let dir = root.join("ai-prompts");
+        std::fs::create_dir_all(&dir).unwrap();
+        // A sibling file OUTSIDE the templates dir that hostile ids aim at.
+        let victim = root.join("victim.md");
+        std::fs::write(&victim, "precious").unwrap();
+
+        delete(&dir, "../victim.md").unwrap();
+        assert!(
+            victim.exists(),
+            "relative traversal must not escape the dir"
+        );
+
+        delete(&dir, victim.to_str().unwrap()).unwrap();
+        assert!(
+            victim.exists(),
+            "an absolute id must not delete outside the dir"
+        );
+
+        delete(&dir, "..").unwrap();
+        assert!(root.exists(), "an id without a file name is a no-op");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn delete_removes_only_the_named_template_and_tolerates_missing_ones() {
+        let dir = tmp_dir();
+        save(&dir, "keep", "k").unwrap();
+        save(&dir, "gone", "g").unwrap();
+
+        delete(&dir, "gone.md").unwrap();
+        assert!(!dir.join("gone.md").exists());
+        assert!(dir.join("keep.md").exists());
+
+        // Already gone → still Ok (idempotent).
+        delete(&dir, "gone.md").unwrap();
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_skips_non_markdown_and_sorts_case_insensitively() {
+        let dir = tmp_dir();
+        save(&dir, "beta", "2").unwrap();
+        save(&dir, "Alpha", "1").unwrap();
+        std::fs::write(dir.join("notes.txt"), "not a template").unwrap();
+
+        let listed = list(&dir, AiTemplateScope::Global).unwrap();
+        let names: Vec<&str> = listed.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["Alpha", "beta"]);
+
+        // A missing directory lists as empty rather than erroring.
+        assert!(list(&dir.join("missing"), AiTemplateScope::Global)
+            .unwrap()
+            .is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

@@ -356,3 +356,84 @@ pub fn fetch_events(
         _ => Err(CommandError::internal("unknown provider")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn pkce_challenge_is_s256_of_the_verifier() {
+        let (verifier, challenge) = pkce();
+        // RFC 7636 S256: challenge = BASE64URL-NOPAD(SHA256(verifier)).
+        let expected = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+        assert_eq!(challenge, expected);
+        // 32 SHA-256 bytes → 43 unpadded base64url chars, URL-safe alphabet.
+        assert_eq!(challenge.len(), 43);
+        assert!(!challenge.contains(['+', '/', '=']));
+    }
+
+    #[test]
+    fn pkce_verifier_is_rfc7636_safe_and_unique() {
+        let (v1, _) = pkce();
+        let (v2, _) = pkce();
+        assert_ne!(v1, v2, "verifiers must be unpredictable per flow");
+        // Two simple-format UUIDs → 64 chars, all within the unreserved set.
+        assert_eq!(v1.len(), 64);
+        assert!(v1.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn token_response_parses_access_refresh_and_expiry() {
+        let before = now();
+        let t = tokens_from_resp(
+            &json!({ "access_token": "at", "refresh_token": "rt", "expires_in": 100 }),
+            None,
+        )
+        .unwrap();
+        let after = now();
+        assert_eq!(t.access, "at");
+        assert_eq!(t.refresh.as_deref(), Some("rt"));
+        assert!(t.expiry >= before + 100 && t.expiry <= after + 100);
+    }
+
+    #[test]
+    fn token_response_without_access_token_is_an_error() {
+        // (`match` instead of unwrap_err: `Tokens` deliberately has no Debug —
+        // it holds secrets.)
+        let err = match tokens_from_resp(&json!({ "expires_in": 100 }), None) {
+            Ok(_) => panic!("a response without access_token must fail"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind, "internal");
+        assert!(err.message.contains("no access_token"));
+    }
+
+    #[test]
+    fn refresh_keeps_the_previous_refresh_token_when_omitted() {
+        // Google refresh responses typically omit refresh_token — the stored
+        // one must survive, or the user gets logged out after one hour.
+        let t = tokens_from_resp(
+            &json!({ "access_token": "at2", "expires_in": 100 }),
+            Some("old-rt".to_string()),
+        )
+        .unwrap();
+        assert_eq!(t.refresh.as_deref(), Some("old-rt"));
+
+        // But a rotated refresh token in the response wins over the old one.
+        let t = tokens_from_resp(
+            &json!({ "access_token": "at3", "refresh_token": "new-rt" }),
+            Some("old-rt".to_string()),
+        )
+        .unwrap();
+        assert_eq!(t.refresh.as_deref(), Some("new-rt"));
+    }
+
+    #[test]
+    fn token_expiry_defaults_to_an_hour_when_missing() {
+        let before = now();
+        let t = tokens_from_resp(&json!({ "access_token": "at" }), None).unwrap();
+        assert!(t.expiry >= before + 3600);
+        assert!(t.refresh.is_none());
+    }
+}
