@@ -1,0 +1,74 @@
+name: Bundle smoke
+
+# Weekly canary that `tauri build` still produces installable bundles. CI never
+# bundles (it only compiles + tests), and releases are cut rarely — so bundling
+# breakage would otherwise go unnoticed until a release. Deliberately NOT run
+# per-PR: a full bundle is far slower than the CI build job.
+#
+# Linux-only for now: one OS is enough to catch the common breakages
+# (tauri.conf.json, icons, frontendDist wiring, bundler regressions).
+
+on:
+  schedule:
+    - cron: "17 5 * * 1" # Mondays 05:17 UTC
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bundle:
+    name: tauri build (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # WebKitGTK stack required for Tauri's Linux build (matches release.yml).
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            patchelf \
+            build-essential
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust (pinned by rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.93.0"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `tauri build` runs the frontend build first (beforeBuildCommand),
+      # compiles the release binary, and produces .deb/.AppImage bundles.
+      - name: Build bundles
+        run: pnpm --filter @novalis/desktop build
+
+      # Belt and braces: fail if the bundler exited 0 without artifacts.
+      - name: Verify bundle artifacts exist
+        run: |
+          ls -R target/release/bundle
+          found="$(find target/release/bundle -name '*.deb' -o -name '*.AppImage' | wc -l)"
+          if [ "$found" -eq 0 ]; then
+            echo "::error::tauri build produced no .deb/.AppImage artifacts"
+            exit 1
+          fi
