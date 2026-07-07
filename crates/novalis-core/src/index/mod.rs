@@ -14,6 +14,19 @@ use rusqlite::{Connection, Statement};
 use crate::error::CoreResult;
 use crate::models::NoteSummary;
 
+/// `filter_map` adapter for query mappers: keep `Ok` rows and log-and-drop
+/// unreadable ones, so a single corrupt row doesn't fail the whole query but
+/// is never swallowed silently.
+pub(crate) fn ok_row_or_warn<T>(table: &str, row: rusqlite::Result<T>) -> Option<T> {
+    match row {
+        Ok(v) => Some(v),
+        Err(e) => {
+            log::warn!("index: dropping unreadable {table} row: {e}");
+            None
+        }
+    }
+}
+
 /// All note summaries straight from the index — no disk reads. Used to build
 /// the folder tree without reading (or hydrating) every file in the vault.
 pub fn list_summaries(db: &Connection) -> CoreResult<Vec<NoteSummary>> {
@@ -52,7 +65,7 @@ pub(crate) fn rows_to_summaries(
                 cloud_only: row.get::<_, i32>(10)? != 0,
             })
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| ok_row_or_warn("note_meta", r))
         .collect();
     Ok(results)
 }

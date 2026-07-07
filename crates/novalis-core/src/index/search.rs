@@ -191,7 +191,7 @@ pub fn search(
                 score: row.get::<_, f64>(3)?.abs(),
             })
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("notes_fts", r))
         .collect();
 
     Ok(results)
@@ -225,7 +225,7 @@ pub fn list_tags(db: &Connection) -> CoreResult<Vec<TagCount>> {
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
 
     let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    for row in rows.filter_map(|r| r.ok()) {
+    for row in rows.filter_map(|r| crate::index::ok_row_or_warn("note_meta", r)) {
         let tags: Vec<String> = serde_json::from_str(&row).unwrap_or_default();
         for tag in tags {
             *counts.entry(tag).or_insert(0) += 1;
@@ -249,10 +249,10 @@ mod tests {
     use super::*;
     use crate::index::schema;
 
-    fn mem_db() -> Connection {
-        let dir = std::env::temp_dir().join(format!("novalis-idx-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        schema::open_db(&dir.join("notes.db")).unwrap()
+    fn mem_db() -> (tempfile::TempDir, Connection) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = schema::open_db(&dir.path().join("notes.db")).unwrap();
+        (dir, db)
     }
 
     fn summary(path: &str, title: &str) -> NoteSummary {
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn index_and_full_text_search() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         index_note(
             &db,
             &summary("notes/alpha.md", "Alpha"),
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn cloud_only_flag_round_trips_through_the_index() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         let mut s = summary("a.md", "A");
         s.cloud_only = true;
         index_note(&db, &s, "").unwrap();
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn remove_note_clears_index() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         index_note(&db, &summary("a.md", "A"), "hello world").unwrap();
         // A stored semantic vector must be cleared alongside the other indexes.
         crate::index::vectors::upsert_vector(&db, "a.md", "h", "m", &[1.0, 2.0]).unwrap();
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn list_tags_aggregates_and_sorts() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         let mut a = summary("a.md", "A");
         a.tags = vec!["work".into(), "idea".into()];
         let mut b = summary("b.md", "B");
@@ -388,13 +388,13 @@ mod tests {
 
     #[test]
     fn list_tags_empty_vault_is_empty() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         assert!(list_tags(&db).unwrap().is_empty());
     }
 
     #[test]
     fn search_tag_filter_is_exact_not_prefix() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         let mut a = summary("a.md", "Alpha");
         a.tags = vec!["work".into()];
         let mut b = summary("b.md", "Beta");
@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn quick_search_matches_aliases_and_round_trips_them() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         let mut s = summary("widget.md", "Widget Co");
         s.aliases = vec!["Globex".to_string()];
         index_note(&db, &s, "body").unwrap();

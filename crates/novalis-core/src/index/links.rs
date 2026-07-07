@@ -165,7 +165,7 @@ pub fn note_graph(db: &Connection, path: &str) -> CoreResult<NoteGraph> {
     )?;
     let outgoing: Vec<(String, String)> = out
         .query_map(params![center_path], |r| Ok((r.get(0)?, r.get(1)?)))?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("links", r))
         .collect();
     for (p, t) in outgoing {
         if seen.insert(p.clone()) {
@@ -191,7 +191,7 @@ pub fn note_graph(db: &Connection, path: &str) -> CoreResult<NoteGraph> {
         .query_map(params![center_title, center_path], |r| {
             Ok((r.get(0)?, r.get(1)?))
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("links", r))
         .collect();
     for (p, t) in incoming {
         if seen.insert(p.clone()) {
@@ -233,7 +233,7 @@ pub fn full_graph(db: &Connection) -> CoreResult<FullGraph> {
                 folder: r.get(2)?,
             })
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("note_meta", r))
         .collect();
 
     let mut edge_stmt = db.prepare(
@@ -244,7 +244,7 @@ pub fn full_graph(db: &Connection) -> CoreResult<FullGraph> {
     let mut seen = std::collections::HashSet::new();
     let edges: Vec<GraphEdge> = edge_stmt
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("links", r))
         .filter(|(s, t)| seen.insert((s.clone(), t.clone())))
         .map(|(source, target)| GraphEdge { source, target })
         .collect();
@@ -334,7 +334,7 @@ fn collect_rows(
                 cloud_only: r.get::<_, i32>(4)? != 0,
             })
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("note_meta", r))
         .collect();
     Ok(rows)
 }
@@ -506,9 +506,8 @@ mod tests {
         use crate::index::{schema, search};
         use crate::models::NoteSummary;
 
-        let dir = std::env::temp_dir().join(format!("novalis-graph-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db = schema::open_db(&dir.path().join("notes.db")).unwrap();
 
         let summary = |path: &str, title: &str| NoteSummary {
             path: path.to_string(),
@@ -543,8 +542,6 @@ mod tests {
             .edges
             .iter()
             .any(|e| e.source == "Inbound.md" && e.target == "Hub.md"));
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     fn graph_summary(path: &str, title: &str, folder: &str) -> crate::models::NoteSummary {
@@ -568,9 +565,8 @@ mod tests {
     fn full_graph_resolves_title_edges_and_excludes_self_loops() {
         use crate::index::{schema, search};
 
-        let dir = std::env::temp_dir().join(format!("novalis-fullgraph-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db = schema::open_db(&dir.path().join("notes.db")).unwrap();
 
         // Hub → Spoke, Inbound → Hub; Loner has no links; Selfie links to its
         // own title (must NOT produce a self-loop edge). Case-insensitive
@@ -629,17 +625,14 @@ mod tests {
                 ("Inbound.md".to_string(), "Hub.md".to_string()),
             ]
         );
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn full_graph_title_collision_fans_out_documented() {
         use crate::index::{schema, search};
 
-        let dir = std::env::temp_dir().join(format!("novalis-collide-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let db = schema::open_db(&dir.path().join("notes.db")).unwrap();
 
         // Two notes share the title "Notes": a `[[Notes]]` link fans out to
         // BOTH (the documented v1 limitation of title-keyed resolution — this
@@ -658,7 +651,5 @@ mod tests {
             .collect();
         assert_eq!(from_src.len(), 2);
         assert!(from_src.contains(&"a/Notes.md") && from_src.contains(&"b/Notes.md"));
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 }

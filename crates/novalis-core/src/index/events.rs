@@ -118,7 +118,7 @@ pub fn all_events(db: &Connection) -> CoreResult<Vec<CalendarEvent>> {
     )?;
     let events = stmt
         .query_map([], row_to_event)?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("events", r))
         .collect();
     Ok(events)
 }
@@ -221,10 +221,10 @@ mod tests {
     use super::*;
     use crate::index::schema;
 
-    fn db() -> Connection {
-        let dir = std::env::temp_dir().join(format!("novalis-ev-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        schema::open_db(&dir.join("notes.db")).unwrap()
+    fn db() -> (tempfile::TempDir, Connection) {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = schema::open_db(&dir.path().join("notes.db")).unwrap();
+        (dir, conn)
     }
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn weekly_recurrence_expands_within_window() {
-        let conn = db();
+        let (_tmp, conn) = db();
         upsert(
             &conn,
             &CalendarEvent {
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn non_recurring_event_filtered_by_range() {
-        let conn = db();
+        let (_tmp, conn) = db();
         upsert(
             &conn,
             &CalendarEvent {

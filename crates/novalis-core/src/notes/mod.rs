@@ -366,7 +366,7 @@ fn resolve_note_path(db: &Connection, target: &str) -> CoreResult<Option<String>
     let rows = stmt.query_map(params![pattern], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
-    for (path, aliases_str) in rows.filter_map(|r| r.ok()) {
+    for (path, aliases_str) in rows.filter_map(|r| crate::index::ok_row_or_warn("note_meta", r)) {
         let aliases: Vec<String> = serde_json::from_str(&aliases_str).unwrap_or_default();
         if aliases
             .iter()
@@ -581,19 +581,25 @@ mod tests {
     use crate::index::{schema, search};
 
     struct Ctx {
+        _tmp: tempfile::TempDir,
         vault: std::path::PathBuf,
         data: std::path::PathBuf,
         db: Connection,
     }
 
     fn ctx() -> Ctx {
-        let base = std::env::temp_dir().join(format!("novalis-notes-{}", uuid::Uuid::new_v4()));
-        let vault = base.join("vault");
-        let data = base.join("data");
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
+        let data = base.path().join("data");
         std::fs::create_dir_all(&vault).unwrap();
         std::fs::create_dir_all(data.join("db")).unwrap();
         let db = schema::open_db(&data.join("db/notes.db")).unwrap();
-        Ctx { vault, data, db }
+        Ctx {
+            _tmp: base,
+            vault,
+            data,
+            db,
+        }
     }
 
     #[test]
@@ -636,8 +642,6 @@ mod tests {
         assert!(search::search(&c.db, "osprey", None, None)
             .unwrap()
             .is_empty());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -672,8 +676,6 @@ mod tests {
                 .len(),
             2
         );
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -713,8 +715,6 @@ mod tests {
             vault_fs::build_summary(&c.vault, "Note.md").unwrap().title,
             "Renamed"
         );
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -843,8 +843,6 @@ mod tests {
         let raw = std::fs::read_to_string(c.vault.join("P.md")).unwrap();
         assert_eq!(raw.matches("status:").count(), 1);
         assert!(raw.contains("status: final"));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -919,8 +917,6 @@ mod tests {
             !raw3.contains("9223372036854775807"),
             "must not saturate:\n{raw3}"
         );
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1003,8 +999,6 @@ mod tests {
         );
         remove_property(&c.db, &c.vault, "R2.md", "Title").unwrap();
         assert_eq!(prop_of(&c, "R2.md", "Title"), None);
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1053,8 +1047,6 @@ mod tests {
         remove_property(&c.db, &c.vault, "M.md", "state").unwrap();
         assert_eq!(prop_of(&c, "M.md", "state"), None);
         assert!(remove_property(&c.db, &c.vault, "M.md", "state").is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1108,8 +1100,6 @@ mod tests {
                 .join("\n")
         };
         assert_eq!(strip_modified(&raw1), strip_modified(&raw2));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1143,8 +1133,6 @@ mod tests {
             prop_of(&c, "X.md", "meta"),
             Some(PropertyValue::Text("{\"count\":3,\"deep\":true}".into()))
         );
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1180,8 +1168,6 @@ mod tests {
 
         // Empty title errors.
         assert!(resolve_or_create_wiki_link(&c.db, &c.vault, "   ").is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1213,8 +1199,6 @@ mod tests {
         let al = resolve_or_create_wiki_link(&c.db, &c.vault, "al").unwrap();
         assert_eq!(al, "al.md");
         assert!(c.vault.join("al.md").exists());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1258,8 +1242,6 @@ mod tests {
         assert!(body.contains("The body of the note."));
         assert!(!body.contains("title: Recipes"));
         assert!(!body.contains("---"));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1283,8 +1265,6 @@ mod tests {
         let partial = resolve_embed(&c.db, &c.vault, "Cook").unwrap();
         assert!(matches!(partial.kind, EmbedTargetKind::Missing));
         assert!(!c.vault.join("Cook.md").exists());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1302,8 +1282,6 @@ mod tests {
 
         // An empty target is a bad request, not a silent miss.
         assert!(resolve_embed(&c.db, &c.vault, "   ").is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1324,8 +1302,6 @@ mod tests {
         assert!(body.contains("Plain body text."));
         assert!(body.contains("No frontmatter here."));
         assert!(!body.starts_with("---"));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1362,8 +1338,6 @@ mod tests {
                 .as_deref(),
             Some(body),
         );
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -1387,8 +1361,6 @@ mod tests {
             resolve_embed(&c.db, &c.vault, "Ghost#Tasks").unwrap().kind,
             EmbedTargetKind::Missing
         ));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]

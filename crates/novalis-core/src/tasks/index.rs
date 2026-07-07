@@ -339,7 +339,7 @@ pub fn query_tasks(db: &Connection, query: &TaskQuery) -> CoreResult<Vec<Task>> 
                 remind: row.get(16)?,
             })
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(|r| crate::index::ok_row_or_warn("tasks", r))
         .collect();
 
     Ok(results)
@@ -734,31 +734,28 @@ mod tests {
 
     #[test]
     fn update_task_annotation_sets_replaces_and_removes() {
-        let dir = std::env::temp_dir().join(format!("novalis-ann-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = tempfile::tempdir().unwrap();
         let rel = "n.md";
-        let abs = dir.join(rel);
+        let abs = dir.path().join(rel);
         std::fs::write(&abs, "- [ ] Task\n").unwrap();
 
         // Append when absent.
-        update_task_annotation(&dir, rel, 1, "project", Some("work")).unwrap();
+        update_task_annotation(dir.path(), rel, 1, "project", Some("work")).unwrap();
         assert_eq!(
             std::fs::read_to_string(&abs).unwrap(),
             "- [ ] Task @project(work)\n"
         );
 
         // Replace existing in place.
-        update_task_annotation(&dir, rel, 1, "project", Some("home")).unwrap();
+        update_task_annotation(dir.path(), rel, 1, "project", Some("home")).unwrap();
         assert_eq!(
             std::fs::read_to_string(&abs).unwrap(),
             "- [ ] Task @project(home)\n"
         );
 
         // Remove (drops the leading space too).
-        update_task_annotation(&dir, rel, 1, "project", None).unwrap();
+        update_task_annotation(dir.path(), rel, 1, "project", None).unwrap();
         assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Task\n");
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -807,39 +804,33 @@ mod tests {
 
     #[test]
     fn update_task_annotation_rejects_non_task_line() {
-        let dir = std::env::temp_dir().join(format!("novalis-ann-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("n.md"), "Just a paragraph\n").unwrap();
-        assert!(update_task_annotation(&dir, "n.md", 1, "project", Some("work")).is_err());
-        std::fs::remove_dir_all(&dir).ok();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("n.md"), "Just a paragraph\n").unwrap();
+        assert!(update_task_annotation(dir.path(), "n.md", 1, "project", Some("work")).is_err());
     }
 
     #[test]
     fn cut_task_block_returns_verbatim_and_removes_only_its_line() {
-        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let abs = dir.join("n.md");
+        let dir = tempfile::tempdir().unwrap();
+        let abs = dir.path().join("n.md");
         std::fs::write(&abs, "- [ ] First @priority(high)\n- [ ] Second\n").unwrap();
 
-        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        let removed = cut_task_block(dir.path(), "n.md", 1).unwrap();
         assert_eq!(removed, vec!["- [ ] First @priority(high)".to_string()]);
         assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Second\n");
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn cut_task_block_includes_subtasks_and_stops_at_sibling() {
-        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let abs = dir.join("n.md");
+        let dir = tempfile::tempdir().unwrap();
+        let abs = dir.path().join("n.md");
         std::fs::write(
             &abs,
             "- [ ] Parent\n  - [ ] Child A\n  - [x] Child B\n- [ ] Sibling\n",
         )
         .unwrap();
 
-        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        let removed = cut_task_block(dir.path(), "n.md", 1).unwrap();
         assert_eq!(
             removed,
             vec![
@@ -849,33 +840,26 @@ mod tests {
             ]
         );
         assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Sibling\n");
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn cut_task_block_stops_at_blank_line() {
-        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let abs = dir.join("n.md");
+        let dir = tempfile::tempdir().unwrap();
+        let abs = dir.path().join("n.md");
         std::fs::write(&abs, "- [ ] Parent\n\n  orphaned note\n").unwrap();
 
-        let removed = cut_task_block(&dir, "n.md", 1).unwrap();
+        let removed = cut_task_block(dir.path(), "n.md", 1).unwrap();
         assert_eq!(removed, vec!["- [ ] Parent".to_string()]);
         assert_eq!(
             std::fs::read_to_string(&abs).unwrap(),
             "\n  orphaned note\n"
         );
-
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn cut_task_block_rejects_non_task_line() {
-        let dir = std::env::temp_dir().join(format!("novalis-cut-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("n.md"), "Just a paragraph\n").unwrap();
-        assert!(cut_task_block(&dir, "n.md", 1).is_err());
-        std::fs::remove_dir_all(&dir).ok();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("n.md"), "Just a paragraph\n").unwrap();
+        assert!(cut_task_block(dir.path(), "n.md", 1).is_err());
     }
 }
