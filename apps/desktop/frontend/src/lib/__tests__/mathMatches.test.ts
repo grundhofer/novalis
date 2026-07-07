@@ -19,6 +19,16 @@ describe("findMath", () => {
     expect(findMath("$5 and $10")).toEqual([]);
   });
 
+  it("ignores adjacent currency amounts (closing $ followed by a digit)", () => {
+    expect(findMath("$5,$10")).toEqual([]);
+  });
+
+  it("still matches inline math followed by punctuation", () => {
+    expect(findMath("Euler: $e^{i\\pi} + 1 = 0$.").map((m) => m.content)).toEqual([
+      "e^{i\\pi} + 1 = 0",
+    ]);
+  });
+
   it("requires non-space just inside the delimiters", () => {
     expect(findMath("$ x $")).toEqual([]);
   });

@@ -6,8 +6,10 @@ export interface MathMatch {
 }
 
 // Block `$$…$$` (tried first) or inline `$…$` with no space just inside the
-// delimiters — so "$5 and $10" is not mistaken for math.
-const MATH_RE = /\$\$([^$]+?)\$\$|\$(?!\s)([^$\n]+?)(?<!\s)\$/g;
+// delimiters — so "$5 and $10" is not mistaken for math — and no digit right
+// after the closing `$` (the Pandoc/Obsidian convention), so "$5,$10" isn't
+// either.
+const MATH_RE = /\$\$([^$]+?)\$\$|\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g;
 
 /** Find inline and block math spans within a single text node's string. Pure. */
 export function findMath(text: string): MathMatch[] {
