@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "Core capabilities for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "notification:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy",
+    "dialog:default",
+    "notification:default"
+  ]
 }

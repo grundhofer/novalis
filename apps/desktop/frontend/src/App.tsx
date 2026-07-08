@@ -216,7 +216,12 @@ export default function App() {
         } catch {
           /* best-effort */
         }
-        void win.destroy();
+        // preventDefault above swallowed the close — if destroy is rejected
+        // (e.g. a missing `core:window:allow-destroy` capability), the window
+        // becomes unclosable. Fail loud instead of silent.
+        win.destroy().catch((e: unknown) => {
+          console.error("window destroy failed — close is blocked:", e);
+        });
       })
       .then((u) => {
         unlisten = u;
