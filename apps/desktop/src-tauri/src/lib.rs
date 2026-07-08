@@ -11,6 +11,7 @@ mod autocommit;
 mod commands;
 mod engine;
 mod oauth;
+mod secrets;
 mod settings;
 #[cfg(desktop)]
 mod watcher;
@@ -260,6 +261,17 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
 
+            // Android's file-backed secret store needs the app-private data
+            // dir, which only the path resolver knows (see secrets.rs).
+            #[cfg(target_os = "android")]
+            {
+                use tauri::Manager;
+                match app.path().app_data_dir() {
+                    Ok(dir) => secrets::init_store(dir),
+                    Err(e) => log::error!("secret store: no app data dir: {e}"),
+                }
+            }
+
             // Reopen the last vault in the background so the window appears fast.
             let handle = app.handle().clone();
             if let Some(last) = settings::load_last_vault(&handle) {
@@ -287,5 +299,9 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 autocommit::commit_on_quit(app);
             }
+            // Mobile lifecycle (resume-rescan / pause-sync) lands with the
+            // Android alpha (MOBILE.md Phase 1).
+            #[cfg(mobile)]
+            let _ = (app, event);
         });
 }

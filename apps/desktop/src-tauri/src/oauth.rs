@@ -19,8 +19,6 @@ use novalis_core::models::CalendarEvent;
 
 use crate::engine::CommandError;
 
-pub(crate) const KEYRING_SERVICE: &str = "app.novalis";
-
 struct Provider {
     auth_url: &'static str,
     token_url: &'static str,
@@ -64,21 +62,17 @@ fn now() -> u64 {
         .unwrap_or(0)
 }
 
-fn kerr(e: keyring::Error) -> CommandError {
-    CommandError::internal(format!("keychain error: {e}"))
-}
-
-fn entry(provider_id: &str) -> Result<keyring::Entry, CommandError> {
-    keyring::Entry::new(KEYRING_SERVICE, &format!("oauth:{provider_id}")).map_err(kerr)
+fn account(provider_id: &str) -> String {
+    format!("oauth:{provider_id}")
 }
 
 fn store_tokens(provider_id: &str, t: &Tokens) -> Result<(), CommandError> {
     let json = serde_json::to_string(t).map_err(|e| CommandError::internal(e.to_string()))?;
-    entry(provider_id)?.set_password(&json).map_err(kerr)
+    crate::secrets::set(&account(provider_id), &json)
 }
 
 fn load_tokens(provider_id: &str) -> Option<Tokens> {
-    let json = entry(provider_id).ok()?.get_password().ok()?;
+    let json = crate::secrets::get(&account(provider_id))?;
     serde_json::from_str(&json).ok()
 }
 
@@ -87,9 +81,7 @@ pub fn is_connected(provider_id: &str) -> bool {
 }
 
 pub fn disconnect(provider_id: &str) -> Result<(), CommandError> {
-    if let Ok(e) = entry(provider_id) {
-        let _ = e.delete_credential();
-    }
+    let _ = crate::secrets::delete(&account(provider_id));
     Ok(())
 }
 

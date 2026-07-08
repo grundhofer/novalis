@@ -56,6 +56,7 @@ pub(crate) fn mark_self_write(path: &str) {
 }
 
 /// Whether the app wrote `path` within the suppression window.
+#[cfg(desktop)] // consumed by the file watcher, which is desktop-only
 pub(crate) fn is_recent_self_write(path: &str) -> bool {
     RECENT_SELF_WRITES
         .lock()
@@ -189,17 +190,28 @@ pub async fn open_vault(app: AppHandle, path: String) -> CmdResult<VaultInfo> {
 #[tauri::command]
 #[specta::specta]
 pub async fn pick_vault_folder(app: AppHandle) -> Option<String> {
-    use tauri_plugin_dialog::DialogExt;
-    tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .blocking_pick_folder()
-            .and_then(|fp| fp.into_path().ok())
-            .map(|p| p.to_string_lossy().to_string())
-    })
-    .await
-    .ok()
-    .flatten()
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_dialog::DialogExt;
+        tauri::async_runtime::spawn_blocking(move || {
+            app.dialog()
+                .file()
+                .blocking_pick_folder()
+                .and_then(|fp| fp.into_path().ok())
+                .map(|p| p.to_string_lossy().to_string())
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+    // Mobile has no blocking folder picker — and the mobile vault strategy
+    // (MOBILE.md) never needs one: the vault lives app-private and is
+    // populated via the git adoption path.
+    #[cfg(mobile)]
+    {
+        let _ = app;
+        None
+    }
 }
 
 /// Close the current vault (drops the index connection).
@@ -875,17 +887,11 @@ pub async fn git_reset_hard(app: AppHandle, commit_id: String) -> CmdResult<GitS
     .map_err(|e| CommandError::internal(format!("git_reset_hard task panicked: {e}")))?
 }
 
-/// The vault's git access token from the OS keychain, if stored. Shared by
+/// The vault's git access token from secret storage, if stored. Shared by
 /// the sync command and the background auto-committer; the token itself
 /// never crosses the IPC boundary to the frontend.
 pub(crate) fn read_git_token(vault: &std::path::Path) -> Option<String> {
-    keyring::Entry::new(
-        crate::oauth::KEYRING_SERVICE,
-        &format!("git:{}", vault.display()),
-    )
-    .ok()?
-    .get_password()
-    .ok()
+    crate::secrets::get(&format!("git:{}", vault.display()))
 }
 
 /// Set or clear the vault's `origin` remote. HTTPS only — this build
@@ -913,28 +919,12 @@ pub async fn git_set_remote(app: AppHandle, url: Option<String>) -> CmdResult<Gi
 }
 
 /// Store (or, with an empty string, remove) the vault's git access token in
-/// the OS keychain.
+/// secret storage.
 #[tauri::command]
 #[specta::specta]
 pub fn git_set_token(state: State<AppEngine>, token: String) -> CmdResult<()> {
-    state.with(|e| {
-        let entry = keyring::Entry::new(
-            crate::oauth::KEYRING_SERVICE,
-            &format!("git:{}", e.vault_path.display()),
-        )
-        .map_err(|err| CoreError::Internal(format!("keychain: {err}")))?;
-        let token = token.trim();
-        if token.is_empty() {
-            match entry.delete_credential() {
-                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-                Err(err) => Err(CoreError::Internal(format!("keychain: {err}"))),
-            }
-        } else {
-            entry
-                .set_password(token)
-                .map_err(|err| CoreError::Internal(format!("keychain: {err}")))
-        }
-    })
+    let account = state.with(|e| Ok(format!("git:{}", e.vault_path.display())))?;
+    crate::secrets::set(&account, &token)
 }
 
 /// Whether a git access token is stored for this vault (the UI shows state
