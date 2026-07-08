@@ -249,13 +249,13 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-app text-fg">
+    <div className="nv-safe-shell flex h-screen w-screen overflow-hidden bg-app text-fg">
       {/* Left chrome: activity rail + content sidebar. Static from md up (the
           rail stays visible even with the sidebar collapsed — it carries view
           navigation and the reopen toggle); below md both slide in together as
           one drawer, so the rail never eats phone width when closed. */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 flex transition-transform md:static md:z-auto md:translate-x-0 ${
+        className={`nv-safe-top fixed inset-y-0 left-0 z-40 flex transition-transform md:static md:z-auto md:translate-x-0 ${
           navOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -321,7 +321,7 @@ export default function App() {
         {/* Mobile topbar: hamburger for the rail+sidebar drawer. On md+ the
             always-visible rail carries navigation and the reopen toggle, so no
             desktop bar is needed even when the sidebar is collapsed. */}
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
+        <div className="nv-safe-top flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
           <button
             onClick={() => setNavOpen(true)}
             title={t("menu")}
