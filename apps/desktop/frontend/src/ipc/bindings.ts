@@ -188,7 +188,7 @@ export const commands = {
 	gitSetRemote: (url: string | null) => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_set_remote", { url })),
 	/**
 	 *  Store (or, with an empty string, remove) the vault's git access token in
-	 *  the OS keychain.
+	 *  secret storage.
 	 */
 	gitSetToken: (token: string) => typedError<null, CommandError>(__TAURI_INVOKE("git_set_token", { token })),
 	/**
