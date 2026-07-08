@@ -42,6 +42,8 @@
   },
   "sortTitle": "Sortierung: {{mode}}",
   "tags": "Tags",
+  "tagsShowAll": "Alle anzeigen ({{total}})",
+  "tagsShowFewer": "Weniger anzeigen",
   "vaultMenu": {
     "openAnother": "Anderen Vault öffnen…",
     "settings": "Vault-Einstellungen…"

@@ -244,13 +244,15 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="flex gap-1 p-2 pb-1">
+      {/* Segmented control: the bordered track visually separates the view
+          options — as bare text they read as one run-on line. */}
+      <div className="mx-2 mb-1 mt-2 flex gap-0.5 rounded-lg border border-border bg-surface p-0.5">
         {/* eslint-disable-next-line i18next/no-literal-string -- view ids (logic keys); labels come from viewLabels */}
         {(["notes", "today", "tasks", "calendar", "graph"] as const).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}
-            className={`flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-colors ${
+            className={`min-w-0 flex-1 truncate rounded-md px-1 py-1.5 text-xs font-medium capitalize transition-colors ${
               view === v
                 ? "bg-active text-fg shadow-sm ring-1 ring-border"
                 : "text-fg-muted hover:bg-hover hover:text-fg"
@@ -660,10 +662,15 @@ type TagNode =
 /** Tag browser: distinct tags (frontmatter + inline `#tags`) with note counts,
  *  derived from the loaded tree. Tags are grouped by their first `/` segment
  *  into a two-level tree; selecting a leaf expands the notes carrying it. */
+/** Top-level tag rows shown before the list is expanded — vaults with many
+ *  tags otherwise stretch the sidebar into an endless scroll. */
+const TAG_LIST_LIMIT = 12;
+
 function TagsSection() {
   const tree = useVault((s) => s.tree);
   const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -713,6 +720,19 @@ function TagsSection() {
 
   if (nodes.length === 0) return null;
 
+  // Keep a selected tag reachable even when it sits past the cutoff.
+  const visible =
+    showAll || nodes.length <= TAG_LIST_LIMIT
+      ? nodes
+      : nodes.filter(
+          (n, i) =>
+            i < TAG_LIST_LIMIT ||
+            (selected !== null &&
+              (n.kind === "leaf"
+                ? n.tag === selected
+                : n.children.some((c) => c.tag === selected))),
+        );
+
   const toggleSel = (tag: string) => setSelected((s) => (s === tag ? null : tag));
   const toggleGroup = (name: string) =>
     setCollapsedGroups((s) => {
@@ -729,7 +749,7 @@ function TagsSection() {
       open={open}
       onToggle={() => setOpen((v) => !v)}
     >
-      {nodes.map((node) =>
+      {visible.map((node) =>
         node.kind === "leaf" ? (
           <TagRow
             key={node.tag}
@@ -778,6 +798,14 @@ function TagsSection() {
             )}
           </div>
         ),
+      )}
+      {nodes.length > TAG_LIST_LIMIT && (
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="flex w-full items-center gap-1 rounded-md py-1 pl-1.5 pr-2 text-left text-xs text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
+        >
+          {showAll ? t("tagsShowFewer") : t("tagsShowAll", { total: nodes.length })}
+        </button>
       )}
     </SidebarSection>
   );
