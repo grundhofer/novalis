@@ -62,6 +62,24 @@ GNU-named `*-ranlib` wrappers, and vendored OpenSSL's Makefile needs `RANLIB`
 `openssl-sys`'s prebuilt/`vendored` NDK docs; last resort is rustls-based
 transport work (big — decide consciously).
 
+> **Phase 0 result (2026-07-09): PASSED on the Android emulator (API 36).**
+> Cross-compile clean; `android:init` + a debug APK build (arm64); on-device
+> the app boots, creates an app-private vault, creates a note, and the TipTap
+> editor renders — no crash, real file writes. Two first-boot bugs fixed en
+> route: the debug bindings-export panicked on a read-only FS (desktop-gated
+> now); NDK r23+ needs `RANLIB` for vendored OpenSSL (`scripts/android-env.sh`).
+> Safe-area insets fixed (webview drew under the status bar → hamburger barely
+> tappable).
+>
+> **Phase 1 touch pass — editor layout DONE (2026-07-09, verified on device):**
+> `useIsMobile` (<768px). The Links/Outline/Related right panel is a full-screen
+> overlay on phones instead of a 288px side column (and defaults closed), so the
+> editor gets full width — the title no longer wraps per-character and the
+> toolbar reflows to two rows. WorkspaceLayout renders only the focused pane on
+> phones (splits hidden, panes kept in the store for rotation). **Still open in
+> the touch pass:** the metadata strip is tall; consider collapsing it by
+> default on mobile. Then: lifecycle sync, keystore, deep-link OAuth.
+
 ## Phase 1 — Android alpha (L)
 
 - **Mobile VaultGate**: "create local vault" (app-private) + "connect remote"

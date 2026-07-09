@@ -1,5 +1,6 @@
 import { Fragment, useRef } from "react";
 
+import { useIsMobile } from "../lib/useIsMobile";
 import { useUi } from "../stores/uiStore";
 import { EditorPane } from "./EditorPane";
 import { TabStrip } from "./TabStrip";
@@ -17,6 +18,16 @@ export function WorkspaceLayout() {
   const resizePanes = useUi((s) => s.resizePanes);
   const containerRef = useRef<HTMLDivElement>(null);
   const row = workspace.direction === "row";
+  const isMobile = useIsMobile();
+
+  // A phone can't show side-by-side splits — render only the focused pane (its
+  // tabs still work). The other panes stay in the store, so rotating to a
+  // tablet width restores the split with no data loss.
+  const focused = workspace.panes.find((p) => p.id === workspace.focusedPaneId);
+  const panes =
+    isMobile && workspace.panes.length > 1
+      ? [focused ?? workspace.panes[0]]
+      : workspace.panes;
 
   // Divider drag between pane i-1 and i: redistribute the two panes' flex
   // shares, live while dragging, persisted once on release (the same pointer
@@ -57,7 +68,7 @@ export function WorkspaceLayout() {
       ref={containerRef}
       className={`flex min-h-0 min-w-0 flex-1 ${row ? "flex-row" : "flex-col"}`}
     >
-      {workspace.panes.map((pane, i) => (
+      {panes.map((pane, i) => (
         <Fragment key={pane.id}>
           {i > 0 && (
             <div

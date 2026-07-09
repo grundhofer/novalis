@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { api, type PropertyValue } from "../ipc/api";
 import { revealLabel } from "../lib/reveal";
 import { useDismiss } from "../lib/useDismiss";
+import { useIsMobile } from "../lib/useIsMobile";
 import type { Pane } from "../lib/workspacePrefs";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
@@ -65,7 +66,11 @@ function loadRightPanels(): RightPanels {
       const p = JSON.parse(v) as Partial<RightPanels>;
       return { links: !!p.links, outline: !!p.outline, related: !!p.related };
     }
-    return { links: true, outline: false, related: false }; // default open on linked references
+    // No stored preference. On a phone the panel is a full-screen overlay, so
+    // it must start closed or it would hide the editor on first open; on
+    // desktop it opens on linked references beside the editor.
+    const phone = window.matchMedia("(max-width: 767px)").matches;
+    return { links: !phone, outline: false, related: false };
   } catch {
     return { links: true, outline: false, related: false };
   }
@@ -164,6 +169,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
   // Non-null while the header title is being edited inline (holds the draft).
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [panels, setPanels] = useState<RightPanels>(loadRightPanels);
+  const isMobile = useIsMobile();
   const [metaOpen, setMetaOpen] = useState(loadMetaOpen);
   const readingDefault = editorPrefs?.defaultReadingMode ?? false;
   // Per-note, ephemeral: reading mode resets to the configured default on every
@@ -887,7 +893,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           />
         </div>
       </div>
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor
             key={`${pane.id}:${path}:${epoch}`}
@@ -936,7 +942,13 @@ export function EditorPane({ pane }: { pane: Pane }) {
           />
         </div>
         {(panels.links || panels.outline || panels.related) && (
-          <div className="flex w-72 shrink-0 flex-col border-l border-border">
+          <div
+            className={
+              isMobile
+                ? "absolute inset-0 z-20 flex flex-col border-l border-border bg-app"
+                : "flex w-72 shrink-0 flex-col border-l border-border"
+            }
+          >
             {panels.outline && (
               <OutlinePanel
                 headings={headings}
