@@ -121,7 +121,8 @@ pub fn platform_info() -> String {
 }
 
 /// The app-private default vault location used by mobile onboarding. Works
-/// without a vault open; the directory is created lazily by `open_vault`.
+/// without a vault open. Creates the directory so the returned path passes
+/// the store's validate-before-open check on first use.
 #[tauri::command]
 #[specta::specta]
 pub fn default_vault_path(app: AppHandle) -> CmdResult<String> {
@@ -130,6 +131,7 @@ pub fn default_vault_path(app: AppHandle) -> CmdResult<String> {
         .app_data_dir()
         .map_err(|e| CommandError::internal(format!("cannot resolve app data dir: {e}")))?
         .join("vault");
+    std::fs::create_dir_all(&dir).map_err(CoreError::Io)?;
     Ok(dir.to_string_lossy().to_string())
 }
 
@@ -1485,6 +1487,7 @@ fn now_ms() -> i64 {
 mod tests {
     use super::*;
 
+    #[cfg(desktop)] // is_recent_self_write is desktop-only (watcher consumer)
     #[test]
     fn self_write_suppression_tracks_marked_paths() {
         assert!(

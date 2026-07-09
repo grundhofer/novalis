@@ -157,23 +157,7 @@ pub fn start(app: AppHandle, vault: PathBuf, generation: u64) {
     });
 }
 
-/// Run `work` on a detached thread and wait at most `timeout` for its result;
-/// `None` means the deadline passed. The thread is NOT cancelled — at quit
-/// (the only caller) it simply dies with the process. That is acceptable on
-/// desktop: the abandoned work is a fetch/push whose loss costs nothing (the
-/// local commit already secured the data, and the next launch's sync cycle
-/// converges); at worst an interrupted operation leaves a `.git` lock file,
-/// which `git::ensure_repo` clears once it goes stale.
-fn run_with_timeout<T: Send + 'static>(
-    timeout: Duration,
-    work: impl FnOnce() -> T + Send + 'static,
-) -> Option<T> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(work());
-    });
-    rx.recv_timeout(timeout).ok()
-}
+use crate::bg::run_with_timeout;
 
 /// Secure pending changes before the process exits (P3b): commit locally
 /// (always safe — no network), then, if a remote is configured, ONE
@@ -300,24 +284,5 @@ mod tests {
         assert!(conflict_transition(&mut last, &conflicted(&["a.md"])).is_some());
         assert_eq!(conflict_transition(&mut last, &GitSyncKind::Diverged), None);
         assert_eq!(conflict_transition(&mut last, &conflicted(&["a.md"])), None);
-    }
-
-    #[test]
-    fn run_with_timeout_returns_fast_work() {
-        assert_eq!(run_with_timeout(Duration::from_secs(5), || 42), Some(42));
-    }
-
-    #[test]
-    fn run_with_timeout_abandons_slow_work() {
-        let slow = || {
-            std::thread::sleep(Duration::from_secs(3));
-            42
-        };
-        let start = Instant::now();
-        assert_eq!(run_with_timeout(Duration::from_millis(50), slow), None);
-        assert!(
-            start.elapsed() < Duration::from_secs(2),
-            "must give up at the timeout, not wait for the work"
-        );
     }
 }

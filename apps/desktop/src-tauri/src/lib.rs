@@ -8,8 +8,11 @@
 mod ai;
 #[cfg(desktop)]
 mod autocommit;
+mod bg;
 mod commands;
 mod engine;
+#[cfg(mobile)]
+mod mobile;
 mod oauth;
 mod secrets;
 mod settings;
@@ -273,6 +276,22 @@ pub fn run() {
                 match app.path().app_data_dir() {
                     Ok(dir) => secrets::init_store(dir),
                     Err(e) => log::error!("secret store: no app data dir: {e}"),
+                }
+            }
+
+            // Mobile has no file watcher and no background sync thread — the
+            // Activity lifecycle drives rescan+pull (onResume) and commit+push
+            // (onPause) instead. Desktop uses the watcher + autocommit thread.
+            #[cfg(mobile)]
+            {
+                use tauri::{Manager, WindowEvent};
+                if let Some(win) = app.get_webview_window("main") {
+                    let handle = app.handle().clone();
+                    win.on_window_event(move |event| match event {
+                        WindowEvent::Resumed => mobile::on_resume(&handle),
+                        WindowEvent::Suspended => mobile::on_suspend(&handle),
+                        _ => {}
+                    });
                 }
             }
 
