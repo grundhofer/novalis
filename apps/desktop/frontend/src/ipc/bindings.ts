@@ -15,7 +15,8 @@ export const commands = {
 	platformInfo: () => __TAURI_INVOKE<string>("platform_info"),
 	/**
 	 *  The app-private default vault location used by mobile onboarding. Works
-	 *  without a vault open; the directory is created lazily by `open_vault`.
+	 *  without a vault open. Creates the directory so the returned path passes
+	 *  the store's validate-before-open check on first use.
 	 */
 	defaultVaultPath: () => typedError<string, CommandError>(__TAURI_INVOKE("default_vault_path")),
 	/**
