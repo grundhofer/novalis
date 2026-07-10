@@ -5,11 +5,13 @@
   "cmdCore": "Kern",
   "cmdEmpty": "Keine passenden Befehle.",
   "cmdExtractTasks": "Aufgaben aus Notiz extrahieren",
+  "cmdInsertDigest": "Wochenrückblick einfügen",
   "cmdInsertTemplate": "Vorlage einfügen: {{name}}",
   "cmdNewNote": "Neue Notiz",
   "cmdPlaceholder": "Befehl ausführen…",
   "cmdReindex": "Vault neu indizieren",
   "cmdRevealInFm": "Im Dateimanager anzeigen",
+  "cmdWeeklyReview": "KI-Wochenrückblick",
   "dismiss": "Ausblenden",
   "error": {
     "folderExists": "„{{name}}“ existiert bereits.",

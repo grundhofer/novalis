@@ -5,11 +5,13 @@
   "cmdCore": "core",
   "cmdEmpty": "No matching commands.",
   "cmdExtractTasks": "Extract tasks from note",
+  "cmdInsertDigest": "Insert weekly digest",
   "cmdInsertTemplate": "Insert template: {{name}}",
   "cmdNewNote": "New note",
   "cmdPlaceholder": "Run a command…",
   "cmdReindex": "Reindex vault",
   "cmdRevealInFm": "Reveal in file manager",
+  "cmdWeeklyReview": "AI weekly review",
   "dismiss": "Dismiss",
   "error": {
     "folderExists": "\"{{name}}\" already exists.",

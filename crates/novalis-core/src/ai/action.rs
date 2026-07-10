@@ -97,6 +97,18 @@ const ACTIONS: &[AiActionSpec] = &[
         insert_mode: AiInsertMode::PanelOnly,
         hidden: true,
     },
+    // Internal: turns a deterministic weekly-review digest (crate::review) into
+    // a short narrative + proposed carry-over tasks, as STRICT JSON. Hidden; the
+    // weekly-review card invokes it with the digest markdown as the note body and
+    // routes the carry-overs through the same accept/reject flow as extract-tasks.
+    AiActionSpec {
+        id: "weekly-review",
+        title_key: "",
+        input: AiInputKind::Optional,
+        scope: AiScope::WholeNote,
+        insert_mode: AiInsertMode::PanelOnly,
+        hidden: true,
+    },
     // Internal: the vehicle for user-defined prompt templates. The template
     // body is passed as the instruction (user_input); not shown in the menu.
     AiActionSpec {
@@ -195,6 +207,14 @@ pub fn build_messages(
                 ));
             }
             Ok(extract_tasks_prompt(ctx, &body))
+        }
+        "weekly-review" => {
+            if body.trim().is_empty() {
+                return Err(CoreError::BadRequest(
+                    "nothing to review: the digest is empty".into(),
+                ));
+            }
+            Ok(weekly_review_prompt(&body))
         }
         // A user-defined prompt template: the template body is the instruction,
         // applied to the note/selection (which may be empty).
@@ -405,6 +425,35 @@ Output JSON only."
         messages: vec![ChatMessage {
             role: ChatRole::User,
             content: user,
+        }],
+    }
+}
+
+fn weekly_review_prompt(digest: &str) -> BuiltPrompt {
+    // The `carryovers` shape and its optional-field rules mirror `extract-tasks`
+    // exactly (same task grammar) so the frontend reuses the same parse + review
+    // + apply path. Claude CLI has no JSON mode, hence the emphatic constraints.
+    let system = "You are a concise productivity coach reviewing a week for a note-taking app. \
+You are given a deterministic weekly-review digest (completed / overdue / due tasks, edited notes, and the calendar agenda). \
+Respond with STRICT JSON ONLY — no prose, no explanation, no code fences — a single object matching exactly this shape: \
+{\"narrative\":\"A short 2-4 sentence summary of the week.\",\"carryovers\":[{\"text\":\"Reschedule the vendor call\",\"due\":\"2026-07-15\",\"start\":\"2026-07-10\",\"project\":\"launch\",\"priority\":\"high\"}]}. \
+Rules for \"narrative\": plain text (no Markdown), 2-4 sentences, factual and encouraging, grounded ONLY in the digest — celebrate what got done and name what slipped. \
+Rules for \"carryovers\": propose concrete follow-up tasks for the overdue and still-open items — things the user should carry into next week; keep each \"text\" short and imperative and do NOT bake dates, projects, or priority into the text. \
+\"text\" is required and must be non-empty. \
+Include \"due\" or \"start\" ONLY as an explicit YYYY-MM-DD calendar date. \
+Include \"project\" ONLY as a lowercase hyphenated slug (letters, digits, and hyphens only). \
+Include \"priority\" ONLY as exactly one of: low, medium, high, urgent. \
+Omit any optional field you are not confident about — never guess or invent values. \
+If there is nothing worth carrying over, return an empty \"carryovers\" array. \
+Write the narrative in the same language as the digest. \
+Output JSON only."
+        .to_string();
+
+    BuiltPrompt {
+        system,
+        messages: vec![ChatMessage {
+            role: ChatRole::User,
+            content: format!("Weekly review digest:\n\n{digest}"),
         }],
     }
 }
@@ -662,6 +711,30 @@ mod tests {
     #[test]
     fn extract_tasks_rejects_an_empty_note() {
         let err = build_messages("extract-tasks", &ctx("   \n ", None), None).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+    }
+
+    #[test]
+    fn weekly_review_exists_but_is_hidden() {
+        assert!(action("weekly-review").is_some());
+        assert!(!action_views().iter().any(|a| a.id == "weekly-review"));
+    }
+
+    #[test]
+    fn weekly_review_builds_a_strict_json_prompt_over_the_digest() {
+        let digest = "## Weekly Review (2026-06-29 – 2026-07-05)\n\n### Overdue (1)\n- Ship it @due(2026-06-20)\n";
+        let p = build_messages("weekly-review", &ctx(digest, None), None).unwrap();
+        assert!(p.system.contains("JSON"));
+        assert!(p.system.contains("narrative"));
+        assert!(p.system.contains("carryovers"));
+        assert_eq!(p.messages.len(), 1);
+        assert_eq!(p.messages[0].role, ChatRole::User);
+        assert!(p.messages[0].content.contains("Ship it"));
+    }
+
+    #[test]
+    fn weekly_review_rejects_an_empty_digest() {
+        let err = build_messages("weekly-review", &ctx("   \n ", None), None).unwrap_err();
         assert!(matches!(err, CoreError::BadRequest(_)));
     }
 }

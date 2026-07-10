@@ -7,6 +7,7 @@ import { getMarkdown } from "@novalis/editor";
 import { api, type NoteTemplate } from "../ipc/api";
 import { fuzzyRank } from "../lib/fuzzy";
 import { type ActionId, formatChord } from "../lib/keybindings";
+import { localWeekRange } from "../lib/weeklyReview";
 import { useAi } from "../stores/aiStore";
 import { useKeymap } from "../stores/keymapStore";
 import { usePlugins } from "../stores/pluginStore";
@@ -60,6 +61,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     })();
   };
 
+  // Phase 1 (no AI): compute the current local week, fetch the deterministic
+  // digest, and insert its markdown at the cursor of the open note — the same
+  // cursor-insert path as templates. Works with no AI provider configured.
+  const insertWeeklyDigest = () => {
+    const ed = useUi.getState().activeEditor;
+    if (!ed) return;
+    void (async () => {
+      const { start, end } = localWeekRange();
+      const digest = await api.reviewDigest(start, end);
+      ed.chain().focus().insertContent(digest.markdown).run();
+    })();
+  };
+
   const builtin = (id: string, title: string, action: ActionId | null, run: () => void): Command => ({
     id: `builtin:${id}`,
     title,
@@ -98,6 +112,22 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       const note = useVault.getState().activeNote;
       if (ed && note) {
         useAi.getState().startTaskExtract({
+          editor: ed,
+          notePath: note.path,
+          noteTitle: note.title,
+          body: getMarkdown(ed),
+        });
+      }
+    }),
+    // Phase 1 deterministic digest — no AI required.
+    builtin("insert-weekly-digest", t("cmdInsertDigest"), null, insertWeeklyDigest),
+    // Phase 2 AI narrative + carry-overs — opens the review card (which needs a
+    // configured provider; it surfaces "no connections" itself when there's none).
+    builtin("weekly-review", t("cmdWeeklyReview"), null, () => {
+      const ed = useUi.getState().activeEditor;
+      const note = useVault.getState().activeNote;
+      if (ed && note) {
+        useAi.getState().startWeeklyReview({
           editor: ed,
           notePath: note.path,
           noteTitle: note.title,

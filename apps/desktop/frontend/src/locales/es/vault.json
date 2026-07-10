@@ -5,11 +5,13 @@
   "cmdCore": "Integrado",
   "cmdEmpty": "No hay comandos coincidentes.",
   "cmdExtractTasks": "Extraer tareas de la nota",
+  "cmdInsertDigest": "Insertar resumen semanal",
   "cmdInsertTemplate": "Insertar plantilla: {{name}}",
   "cmdNewNote": "Nueva nota",
   "cmdPlaceholder": "Ejecutar un comando…",
   "cmdReindex": "Reindexar el Vault",
   "cmdRevealInFm": "Mostrar en el gestor de archivos",
+  "cmdWeeklyReview": "Repaso semanal con IA",
   "dismiss": "Ocultar",
   "error": {
     "folderExists": "«{{name}}» ya existe.",

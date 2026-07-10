@@ -72,6 +72,20 @@
     "insert": "Insert",
     "streaming": "Generating…"
   },
+  "review": {
+    "add_one": "Add {{count}} task",
+    "add_other": "Add {{count}} tasks",
+    "analyzing": "Reviewing your week…",
+    "cancel": "Cancel",
+    "carryovers": "Carry over to next week",
+    "empty": "No carry-overs suggested.",
+    "error": "Couldn't generate the review.",
+    "include": "Include task",
+    "noConnections": "No AI connections configured.",
+    "retry": "Retry",
+    "saveError": "Couldn't add the tasks.",
+    "title": "AI weekly review"
+  },
   "rewrite": {
     "apply": "Apply",
     "discard": "Discard",

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ActivityRail } from "./components/ActivityRail";
 import { AiActionPanel } from "./components/ai/AiActionPanel";
 import { TaskExtractReview } from "./components/ai/TaskExtractReview";
+import { WeeklyReviewCard } from "./components/ai/WeeklyReviewCard";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
@@ -379,6 +380,9 @@ export default function App() {
       {/* Meeting-note → task extraction review — store-driven open (sibling of
           MergeConflictModal above), opened from the editor AI menu / palette. */}
       <TaskExtractReview />
+      {/* AI weekly review — narrative + carry-over proposals over the current
+          week's deterministic digest, opened from the command palette. */}
+      <WeeklyReviewCard />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

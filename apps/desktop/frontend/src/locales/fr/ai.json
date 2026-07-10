@@ -63,6 +63,20 @@
     "tags": "Étiquettes",
     "title": "Métadonnées suggérées"
   },
+  "review": {
+    "add_one": "Ajouter {{count}} tâche",
+    "add_other": "Ajouter {{count}} tâches",
+    "analyzing": "Analyse de votre semaine…",
+    "cancel": "Annuler",
+    "carryovers": "Reporter à la semaine prochaine",
+    "empty": "Aucun report suggéré.",
+    "error": "Impossible de générer le bilan.",
+    "include": "Inclure la tâche",
+    "noConnections": "Aucune connexion IA configurée.",
+    "retry": "Réessayer",
+    "saveError": "Impossible d'ajouter les tâches.",
+    "title": "Bilan hebdomadaire par IA"
+  },
   "rewrite": {
     "apply": "Appliquer",
     "discard": "Abandonner",

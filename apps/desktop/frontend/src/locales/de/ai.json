@@ -63,6 +63,20 @@
     "tags": "Tags",
     "title": "Vorgeschlagene Metadaten"
   },
+  "review": {
+    "add_one": "{{count}} Aufgabe hinzufügen",
+    "add_other": "{{count}} Aufgaben hinzufügen",
+    "analyzing": "Deine Woche wird ausgewertet …",
+    "cancel": "Abbrechen",
+    "carryovers": "In nächste Woche übernehmen",
+    "empty": "Keine Übernahmen vorgeschlagen.",
+    "error": "Rückblick konnte nicht erstellt werden.",
+    "include": "Aufgabe übernehmen",
+    "noConnections": "Keine KI-Verbindungen konfiguriert.",
+    "retry": "Erneut",
+    "saveError": "Aufgaben konnten nicht hinzugefügt werden.",
+    "title": "KI-Wochenrückblick"
+  },
   "rewrite": {
     "apply": "Übernehmen",
     "discard": "Verwerfen",

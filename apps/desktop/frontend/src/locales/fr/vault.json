@@ -5,11 +5,13 @@
   "cmdCore": "Intégré",
   "cmdEmpty": "Aucune commande correspondante.",
   "cmdExtractTasks": "Extraire les tâches de la note",
+  "cmdInsertDigest": "Insérer le récapitulatif hebdomadaire",
   "cmdInsertTemplate": "Insérer le modèle : {{name}}",
   "cmdNewNote": "Nouvelle note",
   "cmdPlaceholder": "Exécuter une commande…",
   "cmdReindex": "Réindexer le Vault",
   "cmdRevealInFm": "Afficher dans le gestionnaire de fichiers",
+  "cmdWeeklyReview": "Bilan hebdomadaire par IA",
   "dismiss": "Masquer",
   "error": {
     "folderExists": "« {{name}} » existe déjà.",

@@ -63,6 +63,20 @@
     "tags": "Etiquetas",
     "title": "Metadatos sugeridos"
   },
+  "review": {
+    "add_one": "Añadir {{count}} tarea",
+    "add_other": "Añadir {{count}} tareas",
+    "analyzing": "Repasando tu semana…",
+    "cancel": "Cancelar",
+    "carryovers": "Trasladar a la próxima semana",
+    "empty": "No se sugieren traslados.",
+    "error": "No se pudo generar el repaso.",
+    "include": "Incluir tarea",
+    "noConnections": "No hay conexiones de IA configuradas.",
+    "retry": "Reintentar",
+    "saveError": "No se pudieron añadir las tareas.",
+    "title": "Repaso semanal con IA"
+  },
   "rewrite": {
     "apply": "Aplicar",
     "discard": "Descartar",
