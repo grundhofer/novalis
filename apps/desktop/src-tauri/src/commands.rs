@@ -19,6 +19,7 @@ use novalis_core::models::{
     NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue, ResolveConflictRequest,
     SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
+use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
@@ -1232,6 +1233,22 @@ pub fn get_agenda(
     range_end: String,
 ) -> CmdResult<Vec<AgendaItem>> {
     state.with(|e| calendar::get_agenda(&e.db, &range_start, &range_end))
+}
+
+// ── Review ───────────────────────────────────────────────────────────────────
+
+/// Assemble the deterministic weekly-review digest for a window. `range_start`
+/// (inclusive) and `range_end` (exclusive) are offset-carrying RFC 3339 instants
+/// computed by the frontend in the user's local timezone — see
+/// [`novalis_core::review`] for the window contract. Read-only; no LLM.
+#[tauri::command]
+#[specta::specta]
+pub fn review_digest(
+    state: State<AppEngine>,
+    range_start: String,
+    range_end: String,
+) -> CmdResult<ReviewDigest> {
+    state.with(|e| review::review_digest(&e.db, &range_start, &range_end))
 }
 
 #[tauri::command]

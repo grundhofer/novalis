@@ -17,6 +17,7 @@ pub mod media;
 pub mod models;
 pub mod notes;
 pub mod plugins;
+pub mod review;
 pub mod tasks;
 pub mod templates;
 pub mod trash;

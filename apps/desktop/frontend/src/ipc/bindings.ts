@@ -274,6 +274,13 @@ export const commands = {
 	updateEvent: (input: EventInput) => typedError<CalendarEvent, CommandError>(__TAURI_INVOKE("update_event", { input })),
 	deleteEvent: (notePath: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_event", { notePath })),
 	getAgenda: (rangeStart: string, rangeEnd: string) => typedError<AgendaItem[], CommandError>(__TAURI_INVOKE("get_agenda", { rangeStart, rangeEnd })),
+	/**
+	 *  Assemble the deterministic weekly-review digest for a window. `range_start`
+	 *  (inclusive) and `range_end` (exclusive) are offset-carrying RFC 3339 instants
+	 *  computed by the frontend in the user's local timezone — see
+	 *  [`novalis_core::review`] for the window contract. Read-only; no LLM.
+	 */
+	reviewDigest: (rangeStart: string, rangeEnd: string) => typedError<ReviewDigest, CommandError>(__TAURI_INVOKE("review_digest", { rangeStart, rangeEnd })),
 	listCalendarSources: () => typedError<CalendarSourceConfig[], CommandError>(__TAURI_INVOKE("list_calendar_sources")),
 	addCalendarSource: (cfg: CalendarSourceConfig) => typedError<null, CommandError>(__TAURI_INVOKE("add_calendar_source", { cfg })),
 	removeCalendarSource: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("remove_calendar_source", { id })),
@@ -1168,6 +1175,30 @@ export type ResolveConflictRequest = {
 	originalPath: string,
 	/**  Vault-relative path to the conflict file as reported by list_conflicts. */
 	conflictPath: string,
+};
+
+/**
+ *  The assembled weekly-review digest. `range_start`/`range_end` are the
+ *  *inclusive* local dates of the window (for display); `markdown` is the
+ *  ready-to-insert section rendered from the buckets.
+ */
+export type ReviewDigest = {
+	/**  Inclusive window start, local date `YYYY-MM-DD`. */
+	rangeStart: string,
+	/**  Inclusive window end, local date `YYYY-MM-DD`. */
+	rangeEnd: string,
+	/**  Tasks completed with an effective date in the window (see module docs). */
+	completed: Task[],
+	/**  Open tasks whose `@due` is before the window start (slipped). */
+	overdue: Task[],
+	/**  Open tasks whose `@due` is within the window. */
+	dueThisWeek: Task[],
+	/**  Notes whose `modified` instant falls within the window. */
+	notesTouched: NoteSummary[],
+	/**  Scheduled tasks + calendar events over the window. */
+	agenda: AgendaItem[],
+	/**  Canonical markdown section, ready to insert into a note. */
+	markdown: string,
 };
 
 /**  A full-text search hit with an FTS5 snippet and rank-derived score. */

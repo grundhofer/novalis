@@ -153,6 +153,8 @@ export const api = {
   // Calendar
   listEvents: (start: string, end: string) => unwrap(commands.listEvents(start, end)),
   getAgenda: (start: string, end: string) => unwrap(commands.getAgenda(start, end)),
+  reviewDigest: (rangeStart: string, rangeEnd: string) =>
+    unwrap(commands.reviewDigest(rangeStart, rangeEnd)),
   createEvent: (input: EventDraft) => unwrap(commands.createEvent(toEventInput(input))),
   updateEvent: (input: EventDraft) => unwrap(commands.updateEvent(toEventInput(input))),
   deleteEvent: (notePath: string) => unwrap(commands.deleteEvent(notePath)),
