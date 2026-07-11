@@ -35,6 +35,17 @@ pub fn event_from_note(
         _ => None,
     };
 
+    // Attendees are a frontmatter string array; anything else yields none.
+    let attendees = extra
+        .get("attendees")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
     Some(CalendarEvent {
         id: format!("local:{note_path}"),
         source_id: "local".to_string(),
@@ -45,6 +56,7 @@ pub fn event_from_note(
         rrule: get("rrule").map(String::from),
         location: get("location").map(String::from),
         note_path: Some(note_path.to_string()),
+        attendees,
     })
 }
 
@@ -108,6 +120,8 @@ fn row_to_event(row: &rusqlite::Row) -> rusqlite::Result<CalendarEvent> {
         rrule: row.get(6)?,
         location: row.get(7)?,
         note_path: row.get(8)?,
+        // The `events` table has no attendees column (see CalendarEvent docs).
+        attendees: Vec::new(),
     })
 }
 
@@ -259,6 +273,7 @@ mod tests {
                 rrule: Some("FREQ=WEEKLY;BYDAY=MO".into()),
                 location: None,
                 note_path: Some("standup.md".into()),
+                attendees: Vec::new(),
             },
         )
         .unwrap();
@@ -285,6 +300,7 @@ mod tests {
                 rrule: None,
                 location: None,
                 note_path: Some("once.md".into()),
+                attendees: Vec::new(),
             },
         )
         .unwrap();

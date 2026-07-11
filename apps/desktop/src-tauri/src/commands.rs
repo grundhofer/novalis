@@ -15,9 +15,10 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
-    GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, Note, NoteGraph,
-    NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue, ResolveConflictRequest,
-    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, MeetingNoteResult, Note,
+    NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue,
+    ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo,
+    VaultStats,
 };
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
@@ -1235,6 +1236,33 @@ pub fn get_agenda(
     state.with(|e| calendar::get_agenda(&e.db, &range_start, &range_end))
 }
 
+/// Materialize a meeting note for an own event (feature W1.3): append a dated,
+/// backlinked entry to the day's journal note and a dated backlink to each
+/// attendee note. `note_path` is the event's own-note (attendees come from its
+/// frontmatter — the events index has no attendees column). `date` is the
+/// occurrence the user acted on (`YYYY-MM-DD`). Idempotent per event+date.
+#[tauri::command]
+#[specta::specta]
+pub fn add_meeting_note(
+    state: State<AppEngine>,
+    note_path: String,
+    date: String,
+) -> CmdResult<MeetingNoteResult> {
+    let res = state.with(|e| {
+        let mut event = calendar::read_event(&e.vault_path, &note_path)?;
+        // Materialize against the clicked occurrence, not the event's base date.
+        event.start = date;
+        calendar::add_meeting_note(&e.db, &e.vault_path, &event)
+    })?;
+    // The journal + attendee notes are app-initiated writes; keep the watcher
+    // from echoing them back as external edits.
+    mark_self_write(&res.journal_path);
+    for p in &res.attendee_notes {
+        mark_self_write(p);
+    }
+    Ok(res)
+}
+
 // ── Review ───────────────────────────────────────────────────────────────────
 
 /// Assemble the deterministic weekly-review digest for a window. `range_start`
@@ -1459,6 +1487,7 @@ fn event_to_input(e: &CalendarEvent) -> EventInput {
         rrule: e.rrule.clone(),
         location: e.location.clone(),
         note_path: None,
+        attendees: e.attendees.clone(),
     }
 }
 

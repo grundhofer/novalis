@@ -158,6 +158,8 @@ export const api = {
   createEvent: (input: EventDraft) => unwrap(commands.createEvent(toEventInput(input))),
   updateEvent: (input: EventDraft) => unwrap(commands.updateEvent(toEventInput(input))),
   deleteEvent: (notePath: string) => unwrap(commands.deleteEvent(notePath)),
+  addMeetingNote: (notePath: string, date: string) =>
+    unwrap(commands.addMeetingNote(notePath, date)),
   listCalendarSources: () => unwrap(commands.listCalendarSources()),
   addCalendarSource: (cfg: { id: string; kind: string; name: string; url?: string; enabled: boolean }) =>
     unwrap(commands.addCalendarSource({ ...cfg, url: cfg.url ?? null })),
@@ -234,6 +236,7 @@ export interface EventDraft {
   rrule?: string;
   location?: string;
   notePath?: string;
+  attendees?: string[];
 }
 
 function toEventInput(d: EventDraft) {
@@ -246,5 +249,6 @@ function toEventInput(d: EventDraft) {
     rrule: d.rrule ?? null,
     location: d.location ?? null,
     notePath: d.notePath ?? null,
+    attendees: d.attendees ?? [],
   };
 }

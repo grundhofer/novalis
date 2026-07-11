@@ -1,5 +1,7 @@
 {
+  "addMeetingNote": "Add meeting note",
   "allDay": "All day",
+  "attendees": "Attendees",
   "day": "Day",
   "editEvent": "Edit event",
   "eventTitle": "Event title",

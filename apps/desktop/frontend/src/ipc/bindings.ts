@@ -275,6 +275,14 @@ export const commands = {
 	deleteEvent: (notePath: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_event", { notePath })),
 	getAgenda: (rangeStart: string, rangeEnd: string) => typedError<AgendaItem[], CommandError>(__TAURI_INVOKE("get_agenda", { rangeStart, rangeEnd })),
 	/**
+	 *  Materialize a meeting note for an own event (feature W1.3): append a dated,
+	 *  backlinked entry to the day's journal note and a dated backlink to each
+	 *  attendee note. `note_path` is the event's own-note (attendees come from its
+	 *  frontmatter — the events index has no attendees column). `date` is the
+	 *  occurrence the user acted on (`YYYY-MM-DD`). Idempotent per event+date.
+	 */
+	addMeetingNote: (notePath: string, date: string) => typedError<MeetingNoteResult, CommandError>(__TAURI_INVOKE("add_meeting_note", { notePath, date })),
+	/**
 	 *  Assemble the deterministic weekly-review digest for a window. `range_start`
 	 *  (inclusive) and `range_end` (exclusive) are offset-carrying RFC 3339 instants
 	 *  computed by the frontend in the user's local timezone — see
@@ -634,6 +642,13 @@ export type CalendarEvent = {
 	location: string | null,
 	/**  Vault-relative note path for own events. */
 	notePath: string | null,
+	/**
+	 *  Attendee display names (own events: from note frontmatter; remote:
+	 *  parsed from Google/MS payloads). Empty when none are known. NOTE: the
+	 *  `events` index has no attendees column, so remote attendees are dropped
+	 *  on cache — only own-event (frontmatter) attendees survive a reload.
+	 */
+	attendees?: string[],
 };
 
 /**  Calendar display preferences. */
@@ -775,6 +790,8 @@ export type EventInput = {
 	location: string | null,
 	/**  Existing note path when updating; `None` to create a new event note. */
 	notePath: string | null,
+	/**  Attendee display names, persisted to the note's frontmatter. */
+	attendees?: string[],
 };
 
 export type FileTreePrefs = {
@@ -1017,6 +1034,17 @@ export type LinkReference = {
 	folder: string,
 	modified: string,
 	matches: LinkMatch[],
+};
+
+/**
+ *  Result of materializing a meeting note ([`crate::calendar::add_meeting_note`]):
+ *  the day's journal note plus every attendee note that was created or linked.
+ */
+export type MeetingNoteResult = {
+	/**  Vault-relative path of the journal note the entry was appended to. */
+	journalPath: string,
+	/**  Vault-relative paths of the attendee notes (created or resolved). */
+	attendeeNotes: string[],
 };
 
 /**  A full note: raw markdown `content` (frontmatter included) plus a parsed view. */

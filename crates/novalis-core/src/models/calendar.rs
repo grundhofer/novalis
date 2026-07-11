@@ -19,6 +19,12 @@ pub struct CalendarEvent {
     pub location: Option<String>,
     /// Vault-relative note path for own events.
     pub note_path: Option<String>,
+    /// Attendee display names (own events: from note frontmatter; remote:
+    /// parsed from Google/MS payloads). Empty when none are known. NOTE: the
+    /// `events` index has no attendees column, so remote attendees are dropped
+    /// on cache — only own-event (frontmatter) attendees survive a reload.
+    #[serde(default)]
+    pub attendees: Vec<String>,
 }
 
 /// Request to create/update an own event (written to a markdown note).
@@ -36,6 +42,20 @@ pub struct EventInput {
     pub location: Option<String>,
     /// Existing note path when updating; `None` to create a new event note.
     pub note_path: Option<String>,
+    /// Attendee display names, persisted to the note's frontmatter.
+    #[serde(default)]
+    pub attendees: Vec<String>,
+}
+
+/// Result of materializing a meeting note ([`crate::calendar::add_meeting_note`]):
+/// the day's journal note plus every attendee note that was created or linked.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingNoteResult {
+    /// Vault-relative path of the journal note the entry was appended to.
+    pub journal_path: String,
+    /// Vault-relative paths of the attendee notes (created or resolved).
+    pub attendee_notes: Vec<String>,
 }
 
 /// A configured calendar source (subscription). `kind` is `"icsUrl"`,
