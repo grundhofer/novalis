@@ -1,5 +1,16 @@
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownUp,
   ChevronDown,
@@ -21,11 +32,12 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
+import { flattenTree, type FlatTreeRow } from "../lib/flattenTree";
 import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { flattenNotes } from "../lib/noteTree";
 import { revealLabel } from "../lib/reveal";
-import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
+import { type SortBy } from "../lib/treeOrder";
 import { useDismiss } from "../lib/useDismiss";
 import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
@@ -56,9 +68,9 @@ interface MenuTarget {
   note?: NoteSummary;
 }
 /** Tree state that changes while the user works (filter keystrokes, inline
- *  rename / new-folder sessions). Rows do NOT consume this context — the
- *  memoized TreeChildren narrows it into per-row props, so a filter keystroke
- *  re-runs the (cheap) filtering but leaves the row components memo-cached. */
+ *  rename / new-folder sessions). Rows do NOT consume this context — VirtualTree
+ *  narrows it into per-row props, so a filter keystroke re-runs the (cheap)
+ *  flatten but leaves the memoized row components cached. */
 interface SidebarTreeState {
   filter: string;
   renaming: string | null;
@@ -111,6 +123,11 @@ export function Sidebar({
   );
   // Pending delete from the context menu, confirmed via ConfirmDialog.
   const [confirmTarget, setConfirmTarget] = useState<MenuTarget | null>(null);
+  // The scroll element the virtualized tree measures against, and the block of
+  // (variable-height) sections above it — the tree offsets itself past this
+  // block via the virtualizer's `scrollMargin`.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // All callbacks are stable (setState functions are, and store access goes
   // through getState) so the memoized actions context never invalidates and
@@ -240,6 +257,7 @@ export function Sidebar({
       </div>
 
       <div
+        ref={scrollRef}
         className="flex-1 overflow-y-auto px-1.5 pb-3"
         // Root drop zone: dropping in empty space moves the item to the vault root.
         onDragOver={(e) => {
@@ -252,31 +270,14 @@ export function Sidebar({
       >
         <ActionsCtx.Provider value={actions}>
           <StateCtx.Provider value={treeState}>
-            <PinnedSection />
-            <RecentSection />
-            <TagsSection />
-            {newFolderParent === null && <NewFolderInput parent={null} />}
+            <div ref={headerRef}>
+              <PinnedSection />
+              <RecentSection />
+              <TagsSection />
+              {newFolderParent === null && <NewFolderInput parent={null} />}
+            </div>
             {tree ? (
-              <div
-                role="tree"
-                aria-label={t("notesHeading")}
-                // The tree is a single tab stop: the container is tabbable and
-                // forwards focus to the active (else first) row; rows are
-                // tabIndex={-1} and reached with the arrow keys.
-                tabIndex={0}
-                className="outline-none"
-                onFocus={(e) => {
-                  if (e.target !== e.currentTarget) return; // a row got focus, not us
-                  if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-                  const active = e.currentTarget.querySelector<HTMLElement>(
-                    '[role="treeitem"][aria-selected="true"]',
-                  );
-                  (active ?? e.currentTarget.querySelector<HTMLElement>('[role="treeitem"]'))?.focus();
-                }}
-                onKeyDown={handleTreeKeyDown}
-              >
-                <TreeChildren node={tree} depth={0} />
-              </div>
+              <VirtualTree tree={tree} scrollRef={scrollRef} headerRef={headerRef} />
             ) : (
               <p className="px-3 py-2 text-xs text-fg-faint">{t("common:loading")}</p>
             )}
@@ -838,115 +839,243 @@ function FlatNoteRow({ note }: { note: NoteSummary }) {
 }
 
 // ── Tree ────────────────────────────────────────────────────────────────────
-function noteMatches(n: NoteSummary, q: string): boolean {
-  return n.title.toLowerCase().includes(q);
+/** `data-tree-path` for a row, or null for the inline new-folder input. */
+function pathOfRow(r: FlatTreeRow): string | null {
+  return r.kind === "folder" ? r.folder.path : r.kind === "note" ? r.note.path : null;
 }
-function folderMatches(node: FolderNode, q: string): boolean {
-  if (node.name.toLowerCase().includes(q)) return true;
-  if (node.notes.some((n) => noteMatches(n, q))) return true;
-  return node.children.some((c) => folderMatches(c, q));
+/** A navigable (roving-tabindex) row — folders and notes, not the input row. */
+function isTreeItemRow(r: FlatTreeRow): boolean {
+  return r.kind === "folder" || r.kind === "note";
 }
-
-/** Arrow-key navigation for the notes tree (WAI-ARIA tree pattern), attached
- *  to the `role="tree"` container so bubbled row keydowns land here. Works on
- *  the rendered `[role="treeitem"]` elements in DOM order, which automatically
- *  honors filtering, sort order and collapsed folders. Enter and the
- *  context-menu keys are handled on the rows themselves (they need the row's
- *  data). Expand/collapse goes through the store via each row's data attrs. */
-function handleTreeKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-  const key = e.key;
-  if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "ArrowRight" && key !== "ArrowLeft") {
-    return;
-  }
-  const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
-  if (!row) return;
-  const rows = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]')];
-  const idx = rows.indexOf(row);
-  if (idx < 0) return;
-  e.preventDefault(); // keep arrows from scrolling the rail
-
-  const level = (el: HTMLElement) => Number(el.getAttribute("aria-level") ?? "1");
-  const expandedAttr = row.getAttribute("aria-expanded"); // null on note rows
-  const path = row.getAttribute("data-tree-path") ?? "";
-
-  if (key === "ArrowDown") {
-    rows[idx + 1]?.focus();
-  } else if (key === "ArrowUp") {
-    rows[idx - 1]?.focus();
-  } else if (key === "ArrowRight") {
-    if (expandedAttr === "false") {
-      useVault.getState().toggleCollapsed(path);
-    } else if (expandedAttr === "true") {
-      // Into the first child, if the folder has one rendered.
-      const next = rows[idx + 1];
-      if (next && level(next) > level(row)) next.focus();
-    }
-  } else {
-    // ArrowLeft: collapse an expanded folder, otherwise hop to the parent.
-    if (expandedAttr === "true") {
-      useVault.getState().toggleCollapsed(path);
-    } else {
-      for (let i = idx - 1; i >= 0; i--) {
-        if (level(rows[i]) < level(row)) {
-          rows[i].focus();
-          break;
-        }
-      }
-    }
-  }
+function cssEscape(s: string): string {
+  return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, "\\$&");
 }
 
-const TreeChildren = memo(function TreeChildren({
-  node,
-  depth,
+/** The vault tree, virtualized. The currently-visible tree is flattened into a
+ *  single ordered array (honoring sort, filter and per-folder collapse state)
+ *  and only the on-screen rows are mounted — the initial mount is O(viewport),
+ *  not O(vault). Every existing behavior is preserved by reusing the same
+ *  `FolderRow`/`NoteRow` rows unchanged and driving arrow-key navigation and
+ *  reveal off the flat model, so they can reach rows that aren't rendered yet
+ *  (`scrollToIndex` mounts the target, then focus lands on it).
+ *
+ *  The rows share the sidebar's scroll element with the Pinned/Recent/Tags
+ *  sections above them; `scrollMargin` offsets the virtual list past that
+ *  (variable-height) block so everything still scrolls as one. */
+function VirtualTree({
+  tree,
+  scrollRef,
+  headerRef,
 }: {
-  node: FolderNode;
-  depth: number;
+  tree: FolderNode;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  headerRef: React.RefObject<HTMLDivElement | null>;
 }) {
+  const { t } = useTranslation("sidebar");
   const sortBy = useVault((s) => s.sortBy);
   const sortDir = useVault((s) => s.sortDir);
   const itemOrder = useVault((s) => s.itemOrder);
+  const collapsed = useVault((s) => s.collapsed);
+  const activePath = useVault((s) => s.activePath);
   const { filter, renaming, newFolderParent } = useSidebarState();
 
-  let items: TreeItem[] = orderedItems(node, sortBy, sortDir, itemOrder);
-  if (filter) {
-    items = items.filter((it) =>
-      it.kind === "note" ? noteMatches(it.note, filter) : folderMatches(it.folder, filter),
+  const rows = useMemo(
+    () => flattenTree(tree, { sortBy, sortDir, itemOrder, collapsed, filter, newFolderParent }),
+    [tree, sortBy, sortDir, itemOrder, collapsed, filter, newFolderParent],
+  );
+
+  const treeRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 28,
+    overscan: 12,
+    scrollMargin,
+    getItemKey: (i) => rows[i].key,
+  });
+
+  // Keep `scrollMargin` equal to the tree's offset past the sections above it,
+  // so item positions stay correct as those (collapsible) sections resize. Runs
+  // before paint, so the measured margin is applied before the first frame.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const scrollEl = scrollRef.current;
+      const treeEl = treeRef.current;
+      if (!scrollEl || !treeEl) return;
+      const margin =
+        treeEl.getBoundingClientRect().top -
+        scrollEl.getBoundingClientRect().top +
+        scrollEl.scrollTop;
+      setScrollMargin((prev) => (Math.abs(prev - margin) > 0.5 ? margin : prev));
+    };
+    measure();
+    const header = headerRef.current;
+    if (!header) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, [scrollRef, headerRef]);
+
+  const focusByPath = useCallback((path: string): boolean => {
+    const el = treeRef.current?.querySelector<HTMLElement>(
+      `[data-tree-path="${cssEscape(path)}"]`,
     );
-  }
+    if (el) {
+      el.focus();
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Move roving focus to a flat-model row, mounting it first if it's scrolled
+  // out of the virtual window (up to two frames for the virtualizer to render).
+  const navigateTo = useCallback(
+    (targetIdx: number) => {
+      if (targetIdx < 0 || targetIdx >= rows.length) return;
+      const path = pathOfRow(rows[targetIdx]);
+      if (!path) return;
+      virtualizer.scrollToIndex(targetIdx, { align: "auto" });
+      if (focusByPath(path)) return;
+      requestAnimationFrame(() => {
+        if (!focusByPath(path)) requestAnimationFrame(() => focusByPath(path));
+      });
+    },
+    [rows, virtualizer, focusByPath],
+  );
+
+  // WAI-ARIA tree arrow-key navigation, driven off the flat model so it reaches
+  // rows outside the render window. Enter / context-menu keys stay on the rows.
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const key = e.key;
+      if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "ArrowRight" && key !== "ArrowLeft")
+        return;
+      const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
+      if (!rowEl) return;
+      const path = rowEl.getAttribute("data-tree-path") ?? "";
+      const idx = rows.findIndex((r) => isTreeItemRow(r) && pathOfRow(r) === path);
+      if (idx < 0) return;
+      e.preventDefault(); // keep arrows from scrolling the rail
+
+      const cur = rows[idx];
+      const nextTreeItem = (dir: 1 | -1): number => {
+        for (let i = idx + dir; i >= 0 && i < rows.length; i += dir) {
+          if (isTreeItemRow(rows[i])) return i;
+        }
+        return -1;
+      };
+      // A folder is shown open while filtering (forceOpen) or when not collapsed.
+      const folderOpen = (p: string) => filter !== "" || !collapsed.has(p);
+
+      if (key === "ArrowDown") {
+        navigateTo(nextTreeItem(1));
+      } else if (key === "ArrowUp") {
+        navigateTo(nextTreeItem(-1));
+      } else if (key === "ArrowRight") {
+        if (cur.kind !== "folder") return;
+        if (!folderOpen(cur.folder.path)) {
+          useVault.getState().toggleCollapsed(cur.folder.path); // expand
+        } else {
+          const n = nextTreeItem(1);
+          if (n >= 0 && rows[n].depth > cur.depth) navigateTo(n); // into first child
+        }
+      } else {
+        // ArrowLeft: collapse an expanded folder, otherwise hop to the parent.
+        if (cur.kind === "folder" && folderOpen(cur.folder.path)) {
+          useVault.getState().toggleCollapsed(cur.folder.path);
+        } else {
+          for (let i = idx - 1; i >= 0; i--) {
+            if (isTreeItemRow(rows[i]) && rows[i].depth < cur.depth) {
+              navigateTo(i);
+              break;
+            }
+          }
+        }
+      }
+    },
+    [rows, filter, collapsed, navigateTo],
+  );
+
+  // Reveal: when a note becomes active (opened from search / a wiki-link /
+  // Recent), scroll its row into view even if it's outside the render window.
+  // `openNote` expands the ancestors in the same update, so the row is present
+  // in `rows` by the time this runs.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const prevActive = useRef<string | null>(null);
+  useEffect(() => {
+    if (activePath && activePath !== prevActive.current) {
+      const idx = rowsRef.current.findIndex((r) => r.kind === "note" && r.note.path === activePath);
+      if (idx >= 0) virtualizer.scrollToIndex(idx, { align: "auto" });
+    }
+    prevActive.current = activePath;
+  }, [activePath, virtualizer]);
 
   return (
-    <>
-      {items.map((it, idx) =>
-        it.kind === "folder" ? (
-          <FolderRow
-            key={it.key}
-            node={it.folder}
-            depth={depth}
-            parentPath={node.path}
-            nextKey={items[idx + 1]?.key ?? null}
-            isRenaming={renaming === it.folder.path}
-            forceOpen={filter !== ""}
-            dragDisabled={renaming !== null}
-          />
-        ) : (
-          <NoteRow
-            key={it.key}
-            note={it.note}
-            depth={depth}
-            parentPath={node.path}
-            nextKey={items[idx + 1]?.key ?? null}
-            isRenaming={renaming === it.note.path}
-          />
-        ),
-      )}
-      {/* Inline "new subfolder" input rendered at the end of its parent. */}
-      {newFolderParent === node.path && node.path !== "" && (
-        <NewFolderInput parent={node.path} depth={depth} />
-      )}
-    </>
+    <div
+      ref={treeRef}
+      role="tree"
+      aria-label={t("notesHeading")}
+      // The tree is a single tab stop: the container is tabbable and forwards
+      // focus to the active (else first rendered) row; rows are tabIndex={-1}
+      // and reached with the arrow keys.
+      tabIndex={0}
+      className="relative w-full outline-none"
+      style={{ height: virtualizer.getTotalSize() }}
+      onFocus={(e) => {
+        if (e.target !== e.currentTarget) return; // a row got focus, not us
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        const active = e.currentTarget.querySelector<HTMLElement>(
+          '[role="treeitem"][aria-selected="true"]',
+        );
+        (active ?? e.currentTarget.querySelector<HTMLElement>('[role="treeitem"]'))?.focus();
+      }}
+      onKeyDown={onKeyDown}
+    >
+      {virtualizer.getVirtualItems().map((vi) => {
+        const row = rows[vi.index];
+        return (
+          <div
+            key={vi.key}
+            data-index={vi.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${vi.start - scrollMargin}px)`,
+            }}
+          >
+            {row.kind === "folder" ? (
+              <FolderRow
+                node={row.folder}
+                depth={row.depth}
+                parentPath={row.parentPath}
+                nextKey={row.nextKey}
+                isRenaming={renaming === row.folder.path}
+                forceOpen={filter !== ""}
+                dragDisabled={renaming !== null}
+              />
+            ) : row.kind === "note" ? (
+              <NoteRow
+                note={row.note}
+                depth={row.depth}
+                parentPath={row.parentPath}
+                nextKey={row.nextKey}
+                isRenaming={renaming === row.note.path}
+              />
+            ) : (
+              <NewFolderInput parent={row.parent} depth={row.depth} />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
-});
+}
 
 /** Vertical zone of a drag-over within a row. */
 function zoneOf(e: React.DragEvent, allowInto: boolean): "into" | "before" | "after" {
@@ -1124,11 +1253,8 @@ const FolderRow = memo(function FolderRow({
           </span>
         )}
       </div>
-      {open && (
-        <div role="group">
-          <TreeChildren node={node} depth={depth + 1} />
-        </div>
-      )}
+      {/* Children are rendered as sibling rows by the flat virtualized list
+          (VirtualTree), not recursively here. */}
     </div>
   );
 });
