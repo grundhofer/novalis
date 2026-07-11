@@ -9,6 +9,7 @@ import {
   KanbanSquare,
   Keyboard,
   Languages,
+  PanelLeft,
   Palette,
   PenLine,
   Puzzle,
@@ -22,6 +23,7 @@ export type CategoryId =
   | "vault"
   | "sync"
   | "appearance"
+  | "navigation"
   | "language"
   | "editor"
   | "tasks"
@@ -39,6 +41,7 @@ export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "vault", icon: FolderOpen },
   { id: "sync", icon: GitBranch },
   { id: "appearance", icon: Palette },
+  { id: "navigation", icon: PanelLeft },
   { id: "language", icon: Languages },
   { id: "editor", icon: PenLine },
   { id: "tasks", icon: KanbanSquare },
@@ -59,6 +62,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
     vault: t("nav.vault"),
     sync: t("nav.sync"),
     appearance: t("nav.appearance"),
+    navigation: t("nav.navigation"),
     language: t("nav.language"),
     editor: t("nav.editor"),
     tasks: t("nav.tasks"),

@@ -14,6 +14,7 @@ import { EditorPanel } from "./panels/EditorPanel";
 import { GeneralPanel } from "./panels/GeneralPanel";
 import { KeybindingsPanel } from "./panels/KeybindingsPanel";
 import { LanguagePanel } from "./panels/LanguagePanel";
+import { NavigationPanel } from "./panels/NavigationPanel";
 import { PluginsPanel } from "./panels/PluginsPanel";
 import { SyncPanel } from "./panels/SyncPanel";
 import { TasksPanel } from "./panels/TasksPanel";
@@ -94,6 +95,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           {active === "vault" && <VaultPanel onSwitched={() => void close()} />}
           {active === "sync" && <SyncPanel />}
           {active === "appearance" && <AppearancePanel />}
+          {active === "navigation" && <NavigationPanel />}
           {active === "language" && <LanguagePanel />}
           {active === "editor" && <EditorPanel />}
           {active === "tasks" && <TasksPanel />}

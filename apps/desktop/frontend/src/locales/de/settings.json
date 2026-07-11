@@ -151,11 +151,19 @@
     "heading": "Einstellungen",
     "keybindings": "Tastenkürzel",
     "language": "Sprache",
+    "navigation": "Navigation",
     "plugins": "Plugins",
     "sync": "Sync",
     "tasks": "Aufgaben & Kanban",
     "templates": "Vorlagen",
     "vault": "Vault"
+  },
+  "navigation": {
+    "moveDown": "{{view}} nach unten verschieben",
+    "moveUp": "{{view}} nach oben verschieben",
+    "railDesc": "Wähle, welche Ansichten in der linken Aktivitätsleiste erscheinen und in welcher Reihenfolge.",
+    "sectionRail": "Aktivitätsleiste",
+    "toggleAria": "{{view}} in der Aktivitätsleiste anzeigen"
   },
   "plugins": {
     "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
