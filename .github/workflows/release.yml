@@ -4,16 +4,34 @@ name: Release
 #   git tag -a v0.1.0 -m "v0.1.0"
 #   git push origin v0.1.0
 #
-# This workflow builds installers on Linux, macOS (universal), and Windows,
-# and attaches them to a *draft* GitHub release. Review and publish manually.
+# Builds installers and attaches them to a *draft* GitHub release (review and
+# publish manually). Builds are currently unsigned — see RELEASING.md.
 #
-# Builds are currently unsigned — see RELEASING.md for the Phase B signing TODO.
+# Runner policy (per maintainer): the self-hosted macOS runner (mac-mini-m4 in
+# the sebaroVentures "Default" group) is the DEFAULT for everything it can do —
+# macOS (.dmg) natively and Linux (.deb/.rpm/.AppImage) via a container
+# (scripts/build-linux-container.sh). Windows can't be built on macOS, so it
+# stays on a GitHub-hosted runner (the one unavoidable hosted piece).
+# GitHub-hosted is otherwise a manual emergency fallback only: run this workflow
+# via "Run workflow" with use_hosted=true when the mac mini is offline.
+#
+# Runner prerequisites (mac-mini-m4): Docker (for the Linux container build),
+# Xcode CLT, Rust via rustup, Node/pnpm — the setup steps install the rest.
+#
+# Linux release artifacts are arm64 (aarch64), matching the mini's native arch.
+# To also ship x86_64 Linux, add `linux/amd64` to build-linux-container.sh (it
+# is qemu-emulated and slower) — deliberately omitted for now.
 
 on:
   push:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      use_hosted:
+        description: "Emergency fallback: build macOS + Linux on GitHub-hosted runners instead of the self-hosted mac mini"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,76 +40,36 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: build (${{ matrix.platform }})
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            # Single universal .dmg covers Intel + Apple Silicon.
-            args: --target universal-apple-darwin
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-          - platform: ubuntu-latest
-            args: ""
-            rust-targets: ""
-          - platform: windows-latest
-            args: ""
-            rust-targets: ""
-
+  # ── macOS (.dmg, universal) — self-hosted mini by default ──────────────────
+  macos:
+    name: build (macOS)
+    runs-on: ${{ (inputs.use_hosted && fromJSON('["macos-latest"]')) || fromJSON('["self-hosted","macOS"]') }}
     steps:
       - uses: actions/checkout@v6
-
-      # WebKitGTK stack required for Tauri's Linux build (matches ci.yml).
-      - name: Install Linux system dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            librsvg2-dev \
-            libayatana-appindicator3-dev \
-            libxdo-dev \
-            patchelf \
-            build-essential
-
       - name: Install pnpm
         uses: pnpm/action-setup@v6
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
-
-      # dtolnay/rust-toolchain can't read rust-toolchain.toml (its `toolchain`
-      # input is required at @master), so the pin is duplicated here — keep it
-      # in sync with rust-toolchain.toml when bumping.
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.93.0"
-          targets: ${{ matrix.rust-targets }}
-
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
-
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Build & publish (tauri-action)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Phase B: add APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /
-          # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
-          # here for macOS signing+notarization, and
-          # WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD for Windows.
-          # tauri-action reads them automatically when present.
+          # Phase B signing secrets (APPLE_*) go here — tauri-action reads them
+          # automatically when present.
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
@@ -103,8 +81,110 @@ jobs:
             for the warnings you'll see on first launch and how to bypass them.
 
             - **macOS:** universal `.dmg` (Intel + Apple Silicon)
-            - **Linux:** `.AppImage` and `.deb`
+            - **Linux (arm64):** `.AppImage`, `.deb`, `.rpm`
             - **Windows:** `.msi` and `.exe`
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          args: --target universal-apple-darwin
+
+  # ── Windows (.msi/.exe) — always GitHub-hosted (no Windows on macOS) ────────
+  windows:
+    name: build (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.93.0"
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build & publish (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Phase B: WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD here.
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Novalis ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
+
+  # ── Linux (.deb/.rpm/.AppImage) — container on the self-hosted mini ─────────
+  # Default: build in a Linux container on the mac mini (arm64). Fallback:
+  # build natively on ubuntu-latest (x86_64) via tauri-action when use_hosted.
+  linux:
+    name: build (Linux)
+    # The container upload attaches to the draft release that `macos` creates.
+    needs: macos
+    runs-on: ${{ (inputs.use_hosted && fromJSON('["ubuntu-latest"]')) || fromJSON('["self-hosted","macOS"]') }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # the container build exports a clean tree via `git archive HEAD`
+
+      # Self-hosted mac: build the Linux bundle in a container, then upload the
+      # arm64 artifacts to the draft release.
+      - name: Build Linux bundle in a container (arm64)
+        if: runner.os == 'macOS'
+        run: sh scripts/build-linux-container.sh
+      - name: Attach Linux artifacts to the draft release
+        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            dist-linux/deb/*.deb
+            dist-linux/rpm/*.rpm
+            dist-linux/appimage/*.AppImage
+
+      # Emergency fallback (ubuntu-latest): the original native path (x86_64).
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev libxdo-dev patchelf \
+            xdg-utils desktop-file-utils build-essential
+      - name: Install pnpm
+        if: runner.os == 'Linux'
+        uses: pnpm/action-setup@v6
+      - name: Setup Node
+        if: runner.os == 'Linux'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Setup Rust
+        if: runner.os == 'Linux'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.93.0"
+      - name: Install JS dependencies
+        if: runner.os == 'Linux'
+        run: pnpm install --frozen-lockfile
+      - name: Build & publish (tauri-action)
+        if: runner.os == 'Linux'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Novalis ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
