@@ -1,5 +1,7 @@
 {
+  "addMeetingNote": "Besprechungsnotiz hinzufügen",
   "allDay": "Ganztägig",
+  "attendees": "Teilnehmer",
   "day": "Tag",
   "editEvent": "Termin bearbeiten",
   "eventTitle": "Titel des Termins",

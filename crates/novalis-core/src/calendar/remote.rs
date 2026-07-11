@@ -7,6 +7,20 @@ use serde_json::Value;
 
 use crate::models::CalendarEvent;
 
+/// Collect attendee display names from a provider event's `attendees` array,
+/// via `pick` (which maps one attendee object to a name). Skips empties.
+fn attendees_from(it: &Value, pick: impl Fn(&Value) -> Option<String>) -> Vec<String> {
+    it.get("attendees")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(&pick)
+                .filter(|s| !s.trim().is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Normalize a provider datetime to our format: `YYYY-MM-DDTHH:MM` (timed) or
 /// `YYYY-MM-DD` (date-only). Drops any timezone offset / sub-second part.
 fn norm_dt(s: &str) -> String {
@@ -48,6 +62,13 @@ pub fn parse_google_events(json: &Value, source_id: &str) -> Vec<CalendarEvent> 
                 .map(norm_dt)
                 .or_else(|| e.get("date").and_then(|v| v.as_str()).map(String::from))
         });
+        // Prefer the human `displayName`, fall back to the email address.
+        let attendees = attendees_from(it, |a| {
+            a.get("displayName")
+                .and_then(|v| v.as_str())
+                .or_else(|| a.get("email").and_then(|v| v.as_str()))
+                .map(String::from)
+        });
         out.push(CalendarEvent {
             id: format!("{source_id}:{id}"),
             source_id: source_id.to_string(),
@@ -65,6 +86,7 @@ pub fn parse_google_events(json: &Value, source_id: &str) -> Vec<CalendarEvent> 
                 .and_then(|v| v.as_str())
                 .map(String::from),
             note_path: None,
+            attendees,
         });
     }
     out
@@ -113,6 +135,20 @@ pub fn parse_ms_events(json: &Value, source_id: &str) -> Vec<CalendarEvent> {
                 }
             });
 
+        // MS Graph nests the name/email under `emailAddress`.
+        let attendees = attendees_from(it, |a| {
+            let email = a.get("emailAddress");
+            email
+                .and_then(|e| e.get("name"))
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .or_else(|| {
+                    email
+                        .and_then(|e| e.get("address"))
+                        .and_then(|v| v.as_str())
+                })
+                .map(String::from)
+        });
         out.push(CalendarEvent {
             id: format!("{source_id}:{id}"),
             source_id: source_id.to_string(),
@@ -132,6 +168,7 @@ pub fn parse_ms_events(json: &Value, source_id: &str) -> Vec<CalendarEvent> {
                 .filter(|s| !s.is_empty())
                 .map(String::from),
             note_path: None,
+            attendees,
         });
     }
     out
@@ -147,7 +184,12 @@ mod tests {
             "items": [
                 { "id": "a", "summary": "Standup",
                   "start": { "dateTime": "2026-06-02T09:00:00+02:00" },
-                  "end": { "dateTime": "2026-06-02T09:15:00+02:00" } },
+                  "end": { "dateTime": "2026-06-02T09:15:00+02:00" },
+                  "attendees": [
+                      { "displayName": "Ada Lovelace", "email": "ada@example.com" },
+                      { "email": "grace@example.com" },
+                      { "displayName": "", "email": "" }
+                  ] },
                 { "id": "b", "summary": "Holiday",
                   "start": { "date": "2026-07-04" }, "end": { "date": "2026-07-05" } }
             ]
@@ -157,8 +199,14 @@ mod tests {
         assert_eq!(events[0].id, "google:a");
         assert_eq!(events[0].start, "2026-06-02T09:00");
         assert!(!events[0].all_day);
+        // Display name preferred, email fallback, empties dropped.
+        assert_eq!(
+            events[0].attendees,
+            vec!["Ada Lovelace", "grace@example.com"]
+        );
         assert_eq!(events[1].start, "2026-07-04");
         assert!(events[1].all_day);
+        assert!(events[1].attendees.is_empty());
     }
 
     #[test]
@@ -168,7 +216,13 @@ mod tests {
                 { "id": "x", "subject": "Review", "isAllDay": false,
                   "start": { "dateTime": "2026-06-02T14:00:00.0000000", "timeZone": "UTC" },
                   "end": { "dateTime": "2026-06-02T15:00:00.0000000", "timeZone": "UTC" },
-                  "location": { "displayName": "Room 4" } }
+                  "location": { "displayName": "Room 4" },
+                  "attendees": [
+                      { "type": "required",
+                        "emailAddress": { "name": "Grace Hopper", "address": "grace@example.com" } },
+                      { "type": "optional",
+                        "emailAddress": { "address": "alan@example.com" } }
+                  ] }
             ]
         });
         let events = parse_ms_events(&json, "outlook");
@@ -176,5 +230,10 @@ mod tests {
         assert_eq!(events[0].start, "2026-06-02T14:00");
         assert_eq!(events[0].location.as_deref(), Some("Room 4"));
         assert_eq!(events[0].id, "outlook:x");
+        // Name preferred, address fallback.
+        assert_eq!(
+            events[0].attendees,
+            vec!["Grace Hopper", "alan@example.com"]
+        );
     }
 }

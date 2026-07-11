@@ -94,6 +94,9 @@ pub fn import_ics(bytes: &[u8], source_id: &str) -> CoreResult<Vec<CalendarEvent
             rrule,
             location,
             note_path: None,
+            // ICS `ATTENDEE` parsing is not implemented; own-event materialization
+            // relies on frontmatter attendees, not `.ics` subscriptions.
+            attendees: Vec::new(),
         });
     }
     Ok(out)
@@ -176,6 +179,7 @@ mod tests {
             rrule: None,
             location: Some("Room 4".into()),
             note_path: None,
+            attendees: Vec::new(),
         }];
         let ics = export_ics(&events);
         assert!(ics.contains("SUMMARY:Launch"));

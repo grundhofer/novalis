@@ -1,5 +1,7 @@
 {
+  "addMeetingNote": "Ajouter une note de réunion",
   "allDay": "Toute la journée",
+  "attendees": "Participants",
   "day": "Jour",
   "editEvent": "Modifier l'événement",
   "eventTitle": "Titre de l'événement",

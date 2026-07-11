@@ -2,8 +2,11 @@
 //! `type: event` frontmatter, so they sync as plain files like everything else.
 //! Remote sources and `.ics` interchange are added in the source layer.
 
+pub mod meeting;
 pub mod remote;
 pub mod source;
+
+pub use meeting::add_meeting_note;
 
 use std::path::Path;
 
@@ -32,6 +35,9 @@ fn build_frontmatter(input: &EventInput) -> NoteFrontmatter {
     }
     if let Some(l) = &input.location {
         extra.insert("location".into(), json!(l));
+    }
+    if !input.attendees.is_empty() {
+        extra.insert("attendees".into(), json!(input.attendees));
     }
     NoteFrontmatter {
         title: Some(input.title.clone()),
@@ -137,6 +143,13 @@ pub fn update_event(db: &Connection, vault: &Path, input: EventInput) -> CoreRes
     set_or_clear(&mut extra, "endTime", input.end_time.as_deref());
     set_or_clear(&mut extra, "rrule", input.rrule.as_deref());
     set_or_clear(&mut extra, "location", input.location.as_deref());
+    // Attendees are MERGE-preserved, not cleared on empty: the events index has
+    // no attendees column, so the edit modal can't reliably show existing
+    // attendees — treating an empty input as "clear" would silently wipe them on
+    // an unrelated edit. Overwrite only when the caller supplies some.
+    if !input.attendees.is_empty() {
+        extra.insert("attendees".into(), json!(input.attendees));
+    }
     fm.extra = serde_json::Value::Object(extra);
 
     let content = frontmatter::serialize_frontmatter(&fm, &body);
@@ -150,6 +163,16 @@ pub fn update_event(db: &Connection, vault: &Path, input: EventInput) -> CoreRes
 /// Delete an own event (trashes its note).
 pub fn delete_event(db: &Connection, vault: &Path, note_path: &str) -> CoreResult<()> {
     crate::notes::delete(db, vault, note_path)
+}
+
+/// Read an own event back from its note. Unlike [`list_events`] (which reads the
+/// events index), this reads the note's frontmatter directly so ATTENDEES are
+/// included — the index has no attendees column. Errors if the note is not an
+/// event note.
+pub fn read_event(vault: &Path, note_path: &str) -> CoreResult<CalendarEvent> {
+    let note = vault_fs::read_note(vault, note_path)?;
+    events::event_from_note(&note.frontmatter.extra, &note.title, note_path)
+        .ok_or_else(|| CoreError::BadRequest(format!("{note_path} is not an event note")))
 }
 
 /// List events (own + cached remote) within a date range, recurrences expanded.
@@ -239,6 +262,7 @@ mod tests {
                 rrule: None,
                 location: None,
                 note_path: None,
+                attendees: Vec::new(),
             },
         )
         .unwrap();
@@ -276,6 +300,7 @@ mod tests {
                 rrule: None,
                 location: Some("Room 2".into()),
                 note_path: Some("Calendar/Standup.md".into()),
+                attendees: Vec::new(),
             },
         )
         .unwrap();
@@ -323,6 +348,57 @@ mod tests {
         // ...and not on its due date.
         let on_due = get_agenda(&db, "2026-06-20", "2026-06-20").unwrap();
         assert!(!on_due.iter().any(|i| i.kind == "task"));
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn update_event_preserves_attendees_when_input_omits_them() {
+        let (vault, db) = ctx();
+        let created = create_event(
+            &db,
+            &vault,
+            EventInput {
+                title: "1:1".into(),
+                date: "2026-06-02".into(),
+                all_day: false,
+                start_time: Some("09:00".into()),
+                end_time: None,
+                rrule: None,
+                location: None,
+                note_path: None,
+                attendees: vec!["Ada Lovelace".into()],
+            },
+        )
+        .unwrap();
+        let path = created.note_path.unwrap();
+        assert_eq!(
+            read_event(&vault, &path).unwrap().attendees,
+            ["Ada Lovelace"]
+        );
+
+        // An unrelated edit that carries no attendees must NOT wipe them (the
+        // edit modal can't reliably preload them; see update_event).
+        update_event(
+            &db,
+            &vault,
+            EventInput {
+                title: "1:1 (renamed)".into(),
+                date: "2026-06-02".into(),
+                all_day: false,
+                start_time: Some("10:00".into()),
+                end_time: None,
+                rrule: None,
+                location: None,
+                note_path: Some(path.clone()),
+                attendees: Vec::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            read_event(&vault, &path).unwrap().attendees,
+            ["Ada Lovelace"]
+        );
 
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }

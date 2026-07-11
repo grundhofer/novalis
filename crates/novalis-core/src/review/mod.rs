@@ -383,6 +383,7 @@ mod tests {
                 rrule: None,
                 location: None,
                 note_path: None,
+                attendees: Vec::new(),
             },
         )
         .unwrap();

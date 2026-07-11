@@ -88,6 +88,7 @@ export function CalendarView() {
       rrule: e.rrule ?? undefined,
       location: e.location ?? undefined,
       notePath: e.notePath ?? undefined,
+      attendees: e.attendees ?? [],
     });
 
   return (
@@ -325,6 +326,17 @@ function EventModal({
     }
   };
 
+  // Materialize a backlinked journal entry + a note per attendee for this event.
+  const addMeeting = async () => {
+    if (!d.notePath) return;
+    try {
+      await api.addMeetingNote(d.notePath, d.date);
+      onSaved();
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <Modal
       label={editing ? t("editEvent") : t("newEvent")}
@@ -383,12 +395,31 @@ function EventModal({
             className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
           />
         </div>
+        <input
+          value={(d.attendees ?? []).join(", ")}
+          onChange={(e) =>
+            setD({
+              ...d,
+              attendees: e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            })
+          }
+          placeholder={t("attendees")}
+          className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
+        />
       </div>
       <div className="mt-4 flex items-center justify-between">
         {editing ? (
-          <button onClick={() => void remove()} className="text-xs text-danger hover:text-danger">
-            {t("common:delete")}
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => void addMeeting()} className="text-xs text-fg-muted hover:text-fg">
+              {t("addMeetingNote")}
+            </button>
+            <button onClick={() => void remove()} className="text-xs text-danger hover:text-danger">
+              {t("common:delete")}
+            </button>
+          </div>
         ) : (
           <span />
         )}

@@ -180,6 +180,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::update_event,
             commands::delete_event,
             commands::get_agenda,
+            commands::add_meeting_note,
             commands::review_digest,
             commands::list_calendar_sources,
             commands::add_calendar_source,
