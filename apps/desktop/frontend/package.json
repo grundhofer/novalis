@@ -16,6 +16,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@novalis/editor": "workspace:*",
     "@novalis/ui": "workspace:*",
+    "@tanstack/react-virtual": "^3.14.5",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-notification": "^2",
     "d3-force": "^3.0.0",

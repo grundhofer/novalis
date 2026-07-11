@@ -1,5 +1,6 @@
-import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, ChevronRight, FolderInput, Plus, Search, X } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -349,16 +350,23 @@ const TaskRow = memo(function TaskRow({
  *  Honors the open/all/completed filter, so completed tasks appear only when the
  *  filter loads them (then collected under "Completed" rather than scattered
  *  through the date buckets). */
+/** The list flattened for virtualization: a group header followed by its task
+ *  rows, so a single virtualizer drives the whole (grouped) list and only the
+ *  on-screen rows mount. `first` suppresses the leading group gap. */
+type ListRow =
+  | { type: "header"; key: string; label: string; first: boolean }
+  | { type: "task"; key: string; task: Task; progress?: SubtaskCount };
+
 function ListView() {
   const { t } = useTranslation("tasks");
   const tasks = useTasks((s) => s.tasks);
   const boardFilter = useTasks((s) => s.boardFilter);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const visible = useMemo(() => filterTasks(tasks, boardFilter), [tasks, boardFilter]);
   const groups = useMemo(() => groupByDue(visible), [visible]);
   // From the FULL list: subtasks count toward their parent even when a filter
   // hides them (matches the old per-row subtaskProgress(s.tasks, …) behavior).
   const progress = useMemo(() => progressByParent(tasks), [tasks]);
-  if (visible.length === 0) return <Empty />;
   const labels: Record<DueGroupKey, string> = {
     overdue: t("agenda.overdue"),
     today: t("agenda.today"),
@@ -366,21 +374,59 @@ function ListView() {
     noDate: t("agenda.noDate"),
     completed: t("agenda.completed"),
   };
+  const flat: ListRow[] = [];
+  for (const g of groups) {
+    if (g.tasks.length === 0) continue;
+    flat.push({ type: "header", key: `h:${g.key}`, label: labels[g.key], first: flat.length === 0 });
+    for (const task of g.tasks) {
+      flat.push({ type: "task", key: task.id, task, progress: progress.get(task.id) });
+    }
+  }
+  const virtualizer = useVirtualizer({
+    count: flat.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 44,
+    overscan: 10,
+    // Reproduce the container's p-3 (vertical) inside the virtual coordinate
+    // space, so item positions don't drift from the scroll offset.
+    paddingStart: 12,
+    paddingEnd: 12,
+    getItemKey: (i) => flat[i].key,
+  });
+  if (visible.length === 0) return <Empty />;
   return (
-    <div className="h-full space-y-5 overflow-y-auto p-3">
-      {groups.map(
-        (g) =>
-          g.tasks.length > 0 && (
-            <div key={g.key}>
-              <h3 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                {labels[g.key]}
-              </h3>
-              {g.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} progress={progress.get(task.id)} />
-              ))}
+    <div ref={scrollRef} className="h-full overflow-y-auto px-3">
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const row = flat[vi.index];
+          return (
+            <div
+              key={vi.key}
+              data-index={vi.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${vi.start}px)`,
+              }}
+            >
+              {row.type === "header" ? (
+                <h3
+                  className={`px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle ${
+                    row.first ? "" : "pt-5"
+                  }`}
+                >
+                  {row.label}
+                </h3>
+              ) : (
+                <TaskRow task={row.task} progress={row.progress} />
+              )}
             </div>
-          ),
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -502,6 +548,65 @@ function AddCard({ columnId, notePathOverride }: { columnId: string; notePathOve
   );
 }
 
+/** A single flat-board column's card list, virtualized: only the on-screen
+ *  cards mount (initial mount is O(viewport), not O(cards)). The scroll element
+ *  is this column's own `overflow-y-auto` div — drag-and-drop still fires on the
+ *  cards (each `KanbanCard` is `draggable`) and bubbles its drop to the column,
+ *  and the `AddCard` stays pinned at the bottom below the virtual list. */
+function VirtualCardList({
+  tasks,
+  showNoteTitle,
+  progress,
+  columnId,
+  addToNotePath,
+}: {
+  tasks: Task[];
+  showNoteTitle: boolean;
+  progress: Map<string, SubtaskCount>;
+  columnId: string;
+  addToNotePath?: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: tasks.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 64,
+    overscan: 8,
+    gap: 8, // matches the old space-y-2 between cards
+    getItemKey: (i) => tasks[i].id,
+  });
+  return (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-2">
+      {tasks.length > 0 && (
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
+          {virtualizer.getVirtualItems().map((vi) => {
+            const task = tasks[vi.index];
+            return (
+              <div
+                key={vi.key}
+                data-index={vi.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${vi.start}px)`,
+                }}
+              >
+                <KanbanCard task={task} showNoteTitle={showNoteTitle} progress={progress.get(task.id)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className={tasks.length > 0 ? "mt-2" : ""}>
+        <AddCard columnId={columnId} notePathOverride={addToNotePath} />
+      </div>
+    </div>
+  );
+}
+
 /** The 5 status columns rendered for a set of tasks. Reused by the flat board
  *  (`fill` = full height, own scroll) and by each swimlane band (`fill` = false,
  *  sizes to content; the band itself scrolls). */
@@ -555,19 +660,32 @@ function BoardColumns({
           <div className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-fg-muted">
             {columnTitle(col)}
           </div>
-          <div className={`space-y-2 p-2 ${fill ? "flex-1 overflow-y-auto" : ""}`}>
-            {tasks
-              .filter((task) => !task.completed && columnFor(task) === col.id)
-              .map((task) => (
-                <KanbanCard
-                  key={task.id}
-                  task={task}
-                  showNoteTitle={showNoteTitle}
-                  progress={progress.get(task.id)}
-                />
-              ))}
-            <AddCard columnId={col.id} notePathOverride={addToNotePath} />
-          </div>
+          {fill ? (
+            // Flat board: this column owns its scroll, so virtualize its cards.
+            <VirtualCardList
+              tasks={tasks.filter((task) => !task.completed && columnFor(task) === col.id)}
+              showNoteTitle={showNoteTitle}
+              progress={progress}
+              columnId={col.id}
+              addToNotePath={addToNotePath}
+            />
+          ) : (
+            // Swimlane band: no per-column scroll (the band scrolls) and the
+            // group is already small — render the cards directly.
+            <div className="space-y-2 p-2">
+              {tasks
+                .filter((task) => !task.completed && columnFor(task) === col.id)
+                .map((task) => (
+                  <KanbanCard
+                    key={task.id}
+                    task={task}
+                    showNoteTitle={showNoteTitle}
+                    progress={progress.get(task.id)}
+                  />
+                ))}
+              <AddCard columnId={col.id} notePathOverride={addToNotePath} />
+            </div>
+          )}
         </div>
       ))}
     </div>
