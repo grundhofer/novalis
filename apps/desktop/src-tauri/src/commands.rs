@@ -11,14 +11,14 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use novalis_core::change;
 use novalis_core::conflict;
-use novalis_core::index::{links, properties, schema, search};
+use novalis_core::index::{links, properties, query as index_query, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
     GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, MeetingNoteResult, Note,
     NoteGraph, NotePropertyEntry, NoteRelations, NoteSummary, NoteTemplate, PluginInfo,
-    Preferences, PropertyValue, ResolveConflictRequest, RollupOp, RollupResult, SearchResult,
-    TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    Preferences, PropertyValue, QueryResult, ResolveConflictRequest, RollupOp, RollupResult,
+    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
@@ -690,6 +690,50 @@ pub fn note_rollup(
     op: RollupOp,
 ) -> CmdResult<RollupResult> {
     state.with(|e| properties::rollup_relation(&e.db, &path, &relation_key, &property_key, op))
+}
+
+/// Run a query-DSL string against the index and return matched notes (plus the
+/// tasks of those notes when the query touches tasks), for the query view's
+/// table / kanban / calendar renderers.
+///
+/// `async`: the index read runs on a blocking thread (off the UI), and a
+/// `sort:similarity:"phrase"` clause additionally embeds the phrase and re-ranks
+/// the results via the semantic index — that path errors loudly if no embedding
+/// model is configured (see [`crate::ai::commands::similarity_scores`]).
+#[tauri::command]
+#[specta::specta]
+pub async fn run_query(app: AppHandle, query: String) -> CmdResult<QueryResult> {
+    // Parse once here so a similarity sort can be detected after execution.
+    let parsed = index_query::parse(&query).map_err(CommandError::from)?;
+    let run_app = app.clone();
+    let run_parsed = parsed.clone();
+    let mut result = tauri::async_runtime::spawn_blocking(move || {
+        run_app
+            .state::<AppEngine>()
+            .with(|e| index_query::run(&e.db, &run_parsed))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("run_query task panicked: {e}")))??;
+
+    // Stretch: semantic ordering. Only when explicitly requested.
+    if let Some(phrase) = parsed.similarity_phrase() {
+        let scores = crate::ai::commands::similarity_scores(&app, phrase).await?;
+        rerank_by_similarity(&mut result, &scores);
+    }
+    Ok(result)
+}
+
+/// Reorder a result's notes by descending similarity score. Notes absent from
+/// the semantic index keep their (stable) base order after the scored ones.
+fn rerank_by_similarity(result: &mut QueryResult, scores: &HashMap<String, f32>) {
+    result
+        .notes
+        .sort_by(|a, b| match (scores.get(&a.path), scores.get(&b.path)) {
+            (Some(x), Some(y)) => y.partial_cmp(x).unwrap_or(std::cmp::Ordering::Equal),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        });
 }
 
 // ── Vault info / index ──────────────────────────────────────────────────────

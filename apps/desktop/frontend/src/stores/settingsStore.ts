@@ -19,6 +19,7 @@ import {
   type GeneralPrefs,
   type GitPrefs,
   type Preferences,
+  type SavedQuery,
   type TaskViewPrefs,
 } from "../ipc/api";
 import { applyAppearance } from "../lib/appearance";
@@ -34,6 +35,7 @@ interface SettingsState {
   setGeneral: (patch: Partial<GeneralPrefs>) => void;
   setTaskView: (patch: Partial<TaskViewPrefs>) => void;
   setGit: (patch: Partial<GitPrefs>) => void;
+  setSavedQueries: (queries: SavedQuery[]) => void;
   flush: () => Promise<void>;
 }
 
@@ -67,6 +69,7 @@ async function persist(get: () => SettingsState): Promise<void> {
       calendar: p.calendar,
       general: p.general,
       git: p.git ?? fresh.git,
+      savedQueries: p.savedQueries ?? fresh.savedQueries,
     });
   } catch {
     /* noVault / IO — in-memory state still drives the UI until next load */
@@ -135,6 +138,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const p = get().prefs;
     if (!p) return;
     set({ prefs: { ...p, git: { ...resolveGitPrefs(p.git), ...patch } } });
+    schedulePersist(get);
+  },
+
+  setSavedQueries: (queries) => {
+    const p = get().prefs;
+    if (!p) return;
+    set({ prefs: { ...p, savedQueries: queries } });
     schedulePersist(get);
   },
 

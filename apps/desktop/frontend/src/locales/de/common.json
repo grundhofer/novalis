@@ -16,6 +16,38 @@
     "placeholder": "Notizen oder Ordner durchsuchen…",
     "recent": "Zuletzt"
   },
+  "query": {
+    "columns": {
+      "folder": "Ordner",
+      "modified": "Geändert",
+      "title": "Titel"
+    },
+    "deleteSaved": "Gespeicherte Abfrage löschen",
+    "empty": "Keine Notizen gefunden.",
+    "hint": "feld:wert — type:, tag:, folder:, has:task, task.priority:high, sort:modified:desc",
+    "kanban": {
+      "done": "Erledigt",
+      "inProgress": "In Arbeit",
+      "none": "Kein Status",
+      "review": "Prüfung",
+      "todo": "Zu erledigen"
+    },
+    "namePrompt": "Diese Abfrage benennen",
+    "nextMonth": "Nächster Monat",
+    "noDates": "Keine datierten Notizen für den Kalender.",
+    "noTasks": "Diese Abfrage ergab keine Aufgaben.",
+    "placeholder": "type:meeting tag:urgent has:task",
+    "prevMonth": "Voriger Monat",
+    "prompt": "Führe eine Abfrage aus, um Ergebnisse zu sehen.",
+    "results": "{{n}} Ergebnisse",
+    "run": "Ausführen",
+    "save": "Abfrage speichern",
+    "view": {
+      "calendar": "Kalender",
+      "kanban": "Kanban",
+      "table": "Tabelle"
+    }
+  },
   "refresh": "Aktualisieren",
   "remove": "Entfernen",
   "revealInFinder": "Im Finder anzeigen",
@@ -31,6 +63,7 @@
     "calendar": "Kalender",
     "graph": "Graph",
     "notes": "Notizen",
+    "query": "Abfrage",
     "tasks": "Aufgaben",
     "today": "Heute"
   }

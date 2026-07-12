@@ -18,7 +18,7 @@ const KEY = "novalis:device:railConfig";
 
 /** Canonical view order (mirrors ActivityRail's VIEW_ITEMS). The default config
  *  is these five, all enabled — so untouched installs see no change. */
-const DEFAULT_ORDER: MainView[] = ["notes", "today", "tasks", "calendar", "graph"];
+const DEFAULT_ORDER: MainView[] = ["notes", "today", "tasks", "calendar", "graph", "query"];
 const KNOWN = new Set<MainView>(DEFAULT_ORDER);
 
 export function defaultRailConfig(): RailConfig {

@@ -86,6 +86,7 @@ export const api = {
   rescanVault: () => unwrap(commands.rescanVault()),
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
   getPreferences: () => unwrap(commands.getPreferences()),
+  runQuery: (query: string) => unwrap(commands.runQuery(query)),
 
   // Git sync (P1 local auto-commit; P2 https remote)
   gitStatus: () => unwrap(commands.gitStatus()),

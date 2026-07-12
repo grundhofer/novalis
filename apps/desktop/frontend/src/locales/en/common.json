@@ -16,6 +16,38 @@
     "placeholder": "Search notes or folders…",
     "recent": "Recent"
   },
+  "query": {
+    "columns": {
+      "folder": "Folder",
+      "modified": "Modified",
+      "title": "Title"
+    },
+    "deleteSaved": "Delete saved query",
+    "empty": "No notes matched.",
+    "hint": "field:value — type:, tag:, folder:, has:task, task.priority:high, sort:modified:desc",
+    "kanban": {
+      "done": "Done",
+      "inProgress": "In Progress",
+      "none": "No Status",
+      "review": "Review",
+      "todo": "To Do"
+    },
+    "namePrompt": "Name this query",
+    "nextMonth": "Next month",
+    "noDates": "No dated notes to place on the calendar.",
+    "noTasks": "This query matched no tasks.",
+    "placeholder": "type:meeting tag:urgent has:task",
+    "prevMonth": "Previous month",
+    "prompt": "Run a query to see results.",
+    "results": "{{n}} results",
+    "run": "Run",
+    "save": "Save query",
+    "view": {
+      "calendar": "Calendar",
+      "kanban": "Kanban",
+      "table": "Table"
+    }
+  },
   "refresh": "Refresh",
   "remove": "Remove",
   "revealInFinder": "Reveal in Finder",
@@ -31,6 +63,7 @@
     "calendar": "Calendar",
     "graph": "Graph",
     "notes": "Notes",
+    "query": "Query",
     "tasks": "Tasks",
     "today": "Today"
   }

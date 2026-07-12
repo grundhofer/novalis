@@ -15,6 +15,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
 import { MergeConflictModal } from "./components/MergeConflictModal";
 import { Onboarding } from "./components/Onboarding";
+import { QueryView } from "./components/QueryView";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
@@ -163,6 +164,7 @@ export default function App() {
         "view-tasks": () => useUi.getState().setView("tasks"),
         "view-calendar": () => useUi.getState().setView("calendar"),
         "view-graph": () => useUi.getState().setView("graph"),
+        "view-query": () => useUi.getState().setView("query"),
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
         cheatsheet: () => setCheatsheetOpen((v) => !v),
@@ -251,6 +253,7 @@ export default function App() {
     tasks: t("views.tasks"),
     calendar: t("views.calendar"),
     graph: t("views.graph"),
+    query: t("views.query"),
   };
 
   return (
@@ -353,6 +356,8 @@ export default function App() {
             <TodayView />
           ) : view === "tasks" ? (
             <TasksView />
+          ) : view === "query" ? (
+            <QueryView />
           ) : view === "graph" ? (
             <Suspense
               fallback={

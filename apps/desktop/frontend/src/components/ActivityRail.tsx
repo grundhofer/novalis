@@ -9,6 +9,7 @@ import {
   Settings,
   SquareCheckBig,
   Sun,
+  Table2,
   Trash2,
   Waypoints,
   type LucideIcon,
@@ -34,6 +35,7 @@ const VIEW_ITEMS: Record<MainView, { action: ActionId; Icon: LucideIcon }> = {
   tasks: { action: "view-tasks", Icon: SquareCheckBig },
   calendar: { action: "view-calendar", Icon: Calendar },
   graph: { action: "view-graph", Icon: Waypoints },
+  query: { action: "view-query", Icon: Table2 },
 };
 
 /** Vertical activity rail (VS Code/Obsidian style): view switching on top,
@@ -77,6 +79,7 @@ export function ActivityRail({
     tasks: t("views.tasks"),
     calendar: t("views.calendar"),
     graph: t("views.graph"),
+    query: t("views.query"),
   };
   const toggleLabel = sidebarCollapsed ? t("showSidebar") : t("sidebar:collapseSidebar");
 

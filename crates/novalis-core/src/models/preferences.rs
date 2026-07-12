@@ -20,6 +20,10 @@ pub struct Preferences {
     pub general: GeneralPrefs,
     #[serde(default)]
     pub git: GitPrefs,
+    /// User-named saved queries for the query view. A preference (JSON), synced
+    /// with the vault like every block here — never a DB table.
+    #[serde(default)]
+    pub saved_queries: Vec<crate::models::query::SavedQuery>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

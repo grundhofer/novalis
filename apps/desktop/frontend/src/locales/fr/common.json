@@ -16,6 +16,38 @@
     "placeholder": "Rechercher des notes ou des dossiers…",
     "recent": "Récents"
   },
+  "query": {
+    "columns": {
+      "folder": "Dossier",
+      "modified": "Modifié",
+      "title": "Titre"
+    },
+    "deleteSaved": "Supprimer la requête enregistrée",
+    "empty": "Aucune note ne correspond.",
+    "hint": "champ:valeur — type:, tag:, folder:, has:task, task.priority:high, sort:modified:desc",
+    "kanban": {
+      "done": "Terminé",
+      "inProgress": "En cours",
+      "none": "Sans statut",
+      "review": "Revue",
+      "todo": "À faire"
+    },
+    "namePrompt": "Nommer cette requête",
+    "nextMonth": "Mois suivant",
+    "noDates": "Aucune note datée à placer dans le calendrier.",
+    "noTasks": "Cette requête n'a trouvé aucune tâche.",
+    "placeholder": "type:meeting tag:urgent has:task",
+    "prevMonth": "Mois précédent",
+    "prompt": "Exécutez une requête pour voir les résultats.",
+    "results": "{{n}} résultats",
+    "run": "Exécuter",
+    "save": "Enregistrer la requête",
+    "view": {
+      "calendar": "Calendrier",
+      "kanban": "Kanban",
+      "table": "Tableau"
+    }
+  },
   "refresh": "Actualiser",
   "remove": "Retirer",
   "revealInFinder": "Afficher dans le Finder",
@@ -31,6 +63,7 @@
     "calendar": "Calendrier",
     "graph": "Graphe",
     "notes": "Notes",
+    "query": "Requête",
     "tasks": "Tâches",
     "today": "Aujourd'hui"
   }
