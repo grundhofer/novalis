@@ -16,6 +16,7 @@ import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { useVaultChat } from "../stores/vaultChatStore";
+import { useVoice } from "../stores/voiceStore";
 import { Modal } from "./ui/Modal";
 
 interface Command {
@@ -27,12 +28,13 @@ interface Command {
 }
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useTranslation(["vault", "common", "today", "pdf"]);
+  const { t } = useTranslation(["vault", "common", "today", "pdf", "ai"]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const pluginCommands = usePlugins((s) => s.commands);
   const keymap = useKeymap((s) => s.keymap);
+  const voiceAvailable = useVoice((s) => s.available);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const openTodaysNote = () => {
@@ -128,6 +130,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         });
       }
     }),
+    // Native voice/meeting capture (W4.3): record → on-device transcript → note
+    // → task-extract review. Only offered where capture is available (desktop).
+    ...(voiceAvailable
+      ? [
+          builtin("record-meeting", t("ai:voice.record"), null, () => {
+            void useVoice.getState().start();
+          }),
+        ]
+      : []),
     // Chat with your vault — opens the right-docked RAG panel (which surfaces
     // "no connection configured" itself when there's none).
     builtin("chat-vault", t("cmdChatVault"), null, () => useVaultChat.getState().openPanel()),
