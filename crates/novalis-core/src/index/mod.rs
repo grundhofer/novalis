@@ -6,6 +6,7 @@
 pub mod events;
 pub mod links;
 pub mod properties;
+pub mod query;
 pub mod schema;
 pub mod search;
 pub mod vectors;

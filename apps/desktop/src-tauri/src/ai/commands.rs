@@ -666,6 +666,48 @@ pub fn ai_find_related(
     )
 }
 
+/// Rank the vault's embedded notes by semantic similarity to `phrase`, returning
+/// a `path → cosine-score` map. Backs the query engine's `sort:similarity:"…"`.
+///
+/// Reuses the exact embedding path as [`ai_find_related`] — resolve the model,
+/// embed the phrase, ANN-retrieve over the stored chunk vectors. A similarity
+/// sort is opt-in (the user typed it), so a missing model or empty index errors
+/// loudly rather than silently falling back to the default order.
+pub(crate) async fn similarity_scores(
+    app: &AppHandle,
+    phrase: &str,
+) -> CmdResult<HashMap<String, f32>> {
+    let resolved = resolve_embedding(app)?;
+    let model = resolved.model().to_string();
+    // Snapshot the candidate chunk rows under the engine lock; decode + ANN off it.
+    let rows = app
+        .state::<AppEngine>()
+        .with(|e| vectors::chunk_rows_for_model(&e.db, &model))?;
+    if rows.is_empty() {
+        return Err(CommandError {
+            kind: "aiEmbedStale".to_string(),
+            message: "the semantic index is empty — build embeddings before sorting by similarity"
+                .to_string(),
+        });
+    }
+    let embedder = build_embedder(app, &resolved).await?;
+    let qvec = embedder
+        .embed_batch(&model, &[phrase.to_string()])
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| CommandError::internal("embedding returned no vector"))?;
+    let cands = vectors::decode_chunk_rows(rows);
+    // k = every candidate note: we want a score for each so the query result can
+    // be fully re-ordered (best-chunk-per-note dedups internally).
+    let k = cands.len();
+    let scores = vectors::retrieve_related(&cands, &[qvec], k, "")
+        .into_iter()
+        .map(|h| (h.path, h.score))
+        .collect();
+    Ok(scores)
+}
+
 // ---------------------------------------------------------------------------
 // Chat with your vault (RAG): hybrid retrieval → grounded, cited, streamed answer.
 // ---------------------------------------------------------------------------

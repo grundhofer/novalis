@@ -151,6 +151,17 @@ export const commands = {
 	 *  `relation_key` (count/sum/avg/min/max). Index-only.
 	 */
 	noteRollup: (path: string, relationKey: string, propertyKey: string, op: RollupOp) => typedError<RollupResult, CommandError>(__TAURI_INVOKE("note_rollup", { path, relationKey, propertyKey, op })),
+	/**
+	 *  Run a query-DSL string against the index and return matched notes (plus the
+	 *  tasks of those notes when the query touches tasks), for the query view's
+	 *  table / kanban / calendar renderers.
+	 * 
+	 *  `async`: the index read runs on a blocking thread (off the UI), and a
+	 *  `sort:similarity:"phrase"` clause additionally embeds the phrase and re-ranks
+	 *  the results via the semantic index — that path errors loudly if no embedding
+	 *  model is configured (see [`crate::ai::commands::similarity_scores`]).
+	 */
+	runQuery: (query: string) => typedError<QueryResult, CommandError>(__TAURI_INVOKE("run_query", { query })),
 	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
 	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
 	/**
@@ -1218,6 +1229,11 @@ export type Preferences = {
 	calendar?: CalendarPrefs,
 	general?: GeneralPrefs,
 	git?: GitPrefs,
+	/**
+	 *  User-named saved queries for the query view. A preference (JSON), synced
+	 *  with the vault like every block here — never a DB table.
+	 */
+	savedQueries?: SavedQuery[],
 };
 
 /**
@@ -1233,6 +1249,53 @@ export type Preferences = {
  *  failure. The read mapper never produces `None`.
  */
 export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: number | null } | { kind: "checkbox"; value: boolean } | { kind: "list"; value: string[] };
+
+/**
+ *  One matched note in a query result. Carries the metadata a table view needs
+ *  plus the typed frontmatter properties (so property columns render without a
+ *  second round-trip) and a best-guess `date` for calendar placement.
+ */
+export type QueryNoteRow = {
+	path: string,
+	title: string,
+	folder: string,
+	modified: string,
+	created: string,
+	tags: string[],
+	/**  Typed frontmatter properties, in stored order — the extra table columns. */
+	properties: NotePropertyEntry[],
+	/**
+	 *  The note's date for the calendar view (`date`/`due`/`start` frontmatter,
+	 *  whichever resolves first), or `None` when the note isn't dated.
+	 */
+	date: string | null,
+};
+
+/**
+ *  The result of running a query: matched notes, the tasks belonging to those
+ *  notes (populated only when the query touches tasks), the suggested view, and
+ *  the union of property keys present across the rows (the table's dynamic
+ *  columns, in first-seen order).
+ */
+export type QueryResult = {
+	notes: QueryNoteRow[],
+	tasks: Task[],
+	view: QueryViewKind,
+	propertyKeys: string[],
+	/**
+	 *  True when at least one matched note is dated — lets the UI offer the
+	 *  calendar view even for a query that didn't explicitly request it.
+	 */
+	hasDates: boolean,
+};
+
+/**
+ *  Which result view the query engine suggests (or the query explicitly asked
+ *  for). The frontend can override, but this is the sensible default: a query
+ *  touching tasks defaults to `Kanban`, one whose notes carry dates can offer
+ *  `Calendar`, everything else renders as a `Table`.
+ */
+export type QueryViewKind = "table" | "kanban" | "calendar";
 
 /**
  *  One retrieved passage backing a "chat with your vault" answer. The model
@@ -1347,6 +1410,13 @@ export type RollupResult = {
 	op: RollupOp,
 	count: number,
 	value: number | null,
+};
+
+/**  A user-named saved query, persisted as a preference (JSON), never a DB row. */
+export type SavedQuery = {
+	name: string,
+	/**  The raw DSL string, re-parsed on run (the source of truth, not the AST). */
+	query: string,
 };
 
 /**  A full-text search hit with an FTS5 snippet and rank-derived score. */

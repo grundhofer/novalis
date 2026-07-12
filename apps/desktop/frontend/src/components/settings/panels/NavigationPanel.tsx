@@ -5,6 +5,7 @@ import {
   FileText,
   SquareCheckBig,
   Sun,
+  Table2,
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const VIEW_ICONS: Record<MainView, LucideIcon> = {
   tasks: SquareCheckBig,
   calendar: Calendar,
   graph: Waypoints,
+  query: Table2,
 };
 
 export function NavigationPanel() {
@@ -37,6 +39,7 @@ export function NavigationPanel() {
     tasks: t("common:views.tasks"),
     calendar: t("common:views.calendar"),
     graph: t("common:views.graph"),
+    query: t("common:views.query"),
   };
   const enabledCount = config.filter((i) => i.enabled).length;
 

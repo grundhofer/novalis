@@ -16,6 +16,38 @@
     "placeholder": "Buscar notas o carpetas…",
     "recent": "Recientes"
   },
+  "query": {
+    "columns": {
+      "folder": "Carpeta",
+      "modified": "Modificado",
+      "title": "Título"
+    },
+    "deleteSaved": "Eliminar consulta guardada",
+    "empty": "Ninguna nota coincidió.",
+    "hint": "campo:valor — type:, tag:, folder:, has:task, task.priority:high, sort:modified:desc",
+    "kanban": {
+      "done": "Hecho",
+      "inProgress": "En curso",
+      "none": "Sin estado",
+      "review": "Revisión",
+      "todo": "Por hacer"
+    },
+    "namePrompt": "Nombra esta consulta",
+    "nextMonth": "Mes siguiente",
+    "noDates": "No hay notas con fecha para el calendario.",
+    "noTasks": "Esta consulta no coincidió con ninguna tarea.",
+    "placeholder": "type:meeting tag:urgent has:task",
+    "prevMonth": "Mes anterior",
+    "prompt": "Ejecuta una consulta para ver resultados.",
+    "results": "{{n}} resultados",
+    "run": "Ejecutar",
+    "save": "Guardar consulta",
+    "view": {
+      "calendar": "Calendario",
+      "kanban": "Kanban",
+      "table": "Tabla"
+    }
+  },
   "refresh": "Actualizar",
   "remove": "Quitar",
   "revealInFinder": "Mostrar en Finder",
@@ -31,6 +63,7 @@
     "calendar": "Calendario",
     "graph": "Grafo",
     "notes": "Notas",
+    "query": "Consulta",
     "tasks": "Tareas",
     "today": "Hoy"
   }

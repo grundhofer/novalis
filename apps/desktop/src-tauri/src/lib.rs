@@ -134,6 +134,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::note_properties,
             commands::note_relations,
             commands::note_rollup,
+            commands::run_query,
             commands::get_vault_info,
             commands::get_vault_stats,
             commands::reindex_vault,
