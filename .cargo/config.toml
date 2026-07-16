@@ -1,0 +1,10 @@
+# Force the macOS deployment target to 10.15 for all native builds in this repo.
+#
+# whisper.cpp (compiled by whisper-rs-sys for the voice feature) uses
+# std::filesystem, which is "introduced in macOS 10.15". `tauri build`
+# otherwise injects MACOSX_DEPLOYMENT_TARGET=10.13 (its default) into the cargo
+# environment, and clang honors the *last* -mmacosx-version-min flag, so the
+# C++ compile targets 10.13 and fails. `force = true` overrides the value Tauri
+# sets, so every build script (whisper-rs-sys, ort, iroh, …) targets 10.15.
+[env]
+MACOSX_DEPLOYMENT_TARGET = { value = "10.15", force = true }
