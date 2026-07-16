@@ -205,6 +205,7 @@ export function EntitiesPanel({ path, onClose, stacked }: EntitiesPanelProps) {
 
       {/* Scope toggle: this note's entity backlinks vs. the whole vault. */}
       <div className="flex gap-1 border-b border-border px-3 py-1.5">
+        {/* eslint-disable-next-line i18next/no-literal-string -- scope ids (logic keys); labels come from t() below */}
         {(["note", "all"] as const).map((s) => (
           <button
             key={s}

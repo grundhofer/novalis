@@ -18,21 +18,22 @@
     "highlight": "Markieren"
   },
   "panel": {
-    "title": "Markierungen",
-    "empty": "Text im PDF auswählen und auf „Markieren“ klicken, um ihn zu annotieren.",
-    "jump": "Zur Markierung springen",
+    "addNote": "Notiz hinzufügen",
+    "addToNote": "Zur Notiz hinzufügen",
+    "cancel": "Abbrechen",
+    "copied": "In die Zwischenablage kopiert",
     "copyLink": "Link kopieren",
     "copyQuote": "Zitat kopieren",
-    "addToNote": "Zur Notiz hinzufügen",
-    "linkToNote": "Mit Notiz verknüpfen…",
     "delete": "Löschen",
-    "addNote": "Notiz hinzufügen",
-    "notePlaceholder": "Deine Notiz…",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
+    "empty": "Text im PDF auswählen und auf „Markieren“ klicken, um ihn zu annotieren.",
+    "jump": "Zur Markierung springen",
+    "linkPickerTitle": "Markierung mit Notiz verknüpfen",
+    "linkToNote": "Mit Notiz verknüpfen…",
     "linkedTo": "Verknüpft mit",
-    "copied": "In die Zwischenablage kopiert",
     "linkedToast": "Zu {{note}} hinzugefügt",
-    "linkPickerTitle": "Markierung mit Notiz verknüpfen"
+    "notePlaceholder": "Deine Notiz…",
+    "pageMeta": "· S. {{page}}",
+    "save": "Speichern",
+    "title": "Markierungen"
   }
 }

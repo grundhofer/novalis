@@ -18,21 +18,22 @@
     "highlight": "Surligner"
   },
   "panel": {
-    "title": "Surlignages",
-    "empty": "Sélectionnez du texte dans le PDF, puis cliquez sur Surligner pour l'annoter.",
-    "jump": "Aller au surlignage",
+    "addNote": "Ajouter une note",
+    "addToNote": "Ajouter à une note",
+    "cancel": "Annuler",
+    "copied": "Copié dans le presse-papiers",
     "copyLink": "Copier le lien",
     "copyQuote": "Copier la citation",
-    "addToNote": "Ajouter à une note",
-    "linkToNote": "Lier à une note…",
     "delete": "Supprimer",
-    "addNote": "Ajouter une note",
-    "notePlaceholder": "Votre note…",
-    "save": "Enregistrer",
-    "cancel": "Annuler",
+    "empty": "Sélectionnez du texte dans le PDF, puis cliquez sur Surligner pour l'annoter.",
+    "jump": "Aller au surlignage",
+    "linkPickerTitle": "Lier le surlignage à une note",
+    "linkToNote": "Lier à une note…",
     "linkedTo": "Lié à",
-    "copied": "Copié dans le presse-papiers",
     "linkedToast": "Ajouté à {{note}}",
-    "linkPickerTitle": "Lier le surlignage à une note"
+    "notePlaceholder": "Votre note…",
+    "pageMeta": "· p. {{page}}",
+    "save": "Enregistrer",
+    "title": "Surlignages"
   }
 }

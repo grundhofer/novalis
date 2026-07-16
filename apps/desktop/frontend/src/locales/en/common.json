@@ -27,6 +27,7 @@
   },
   "delete": "Delete",
   "errorBoundary": {
+    "close": "Close",
     "copied": "Copied",
     "copy": "Copy diagnostics",
     "reload": "Reload app",

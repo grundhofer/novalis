@@ -57,6 +57,10 @@ function Bomb() {
   return <p>recovered</p>;
 }
 
+function ChunkBomb() {
+  throw new Error("Failed to fetch dynamically imported module: /assets/CanvasView.js");
+}
+
 describe("ErrorBoundary", () => {
   it("catches a throwing child and renders the fallback with the message", async () => {
     await render(
@@ -109,6 +113,35 @@ describe("ErrorBoundary", () => {
     );
     expect(buttonByText("Reload app")).toBeDefined();
     expect(buttonByText("Try again")).toBeUndefined();
+  });
+
+  it("forces a full reload for a failed lazy-chunk load (re-mount would rethrow)", async () => {
+    await render(
+      <ErrorBoundary>
+        <ChunkBomb />
+      </ErrorBoundary>,
+    );
+    // A per-view boundary would normally offer "Try again", but a rejected
+    // React.lazy payload can only be recovered by reloading, so the label flips.
+    expect(buttonByText("Reload app")).toBeDefined();
+    expect(buttonByText("Try again")).toBeUndefined();
+  });
+
+  it("shows a Close action and honours Escape when onDismiss is set", async () => {
+    const onDismiss = vi.fn();
+    await render(
+      <ErrorBoundary onDismiss={onDismiss}>
+        <Bomb />
+      </ErrorBoundary>,
+    );
+    const close = buttonByText("Close");
+    expect(close).toBeDefined();
+    await act(async () => close!.click());
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(2);
   });
 
   it("copies diagnostics (stack) to the clipboard", async () => {

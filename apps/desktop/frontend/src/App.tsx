@@ -430,7 +430,11 @@ export default function App() {
           lazy full-screen viewer overlay (pdfjs-dist loads only on open). */}
       <PdfPicker />
       {pdfPath && (
-        <ErrorBoundary resetKeys={[pdfPath]} className="fixed inset-0 z-50 bg-app">
+        <ErrorBoundary
+          resetKeys={[pdfPath]}
+          onDismiss={() => usePdf.getState().close()}
+          className="fixed inset-0 z-50 bg-app"
+        >
           <Suspense fallback={null}>
             <PdfViewer />
           </Suspense>

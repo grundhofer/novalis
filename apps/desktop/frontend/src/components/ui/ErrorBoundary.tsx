@@ -4,9 +4,28 @@
 // the whole app. Two recovery modes: re-mount the children from scratch (the
 // default, for per-view boundaries) or a full window reload (`reloadOnRetry`,
 // for the app-root boundary where re-mounting can't help).
-import { Component, Fragment, useState, type ErrorInfo, type ReactNode } from "react";
+import {
+  Component,
+  Fragment,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 
 import { useTranslation } from "react-i18next";
+
+/** A failed dynamic `import()` (offline, or a stale deploy whose chunk 404s)
+ *  can't be recovered by re-mounting: React.lazy caches the rejected payload
+ *  and synchronously rethrows on the next render, so the fallback would just
+ *  reappear. Only a full reload re-runs the import, so we force reload-on-retry
+ *  for these. Matches the messages browsers/Vite emit for module-load failures. */
+function isChunkLoadError(error: Error | null): boolean {
+  if (!error) return false;
+  return /dynamically imported module|error loading dynamically|importing a module script failed|failed to fetch/i.test(
+    `${error.name}: ${error.message}`,
+  );
+}
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -19,6 +38,11 @@ interface ErrorBoundaryProps {
   resetKeys?: readonly unknown[];
   /** Extra classes on the fallback container (per-surface sizing/background). */
   className?: string;
+  /** When set, the fallback shows a Close action (and honours Escape) that
+   *  tears the surface down instead of retrying — for overlay surfaces like the
+   *  full-screen PDF viewer, where a deterministic crash would otherwise trap
+   *  the user behind an opaque fallback with no way out. */
+  onDismiss?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -36,16 +60,29 @@ function ErrorFallback({
   componentStack,
   reload,
   onRetry,
+  onDismiss,
   className,
 }: {
   error: Error;
   componentStack: string | null;
   reload: boolean;
   onRetry: () => void;
+  onDismiss?: () => void;
   className?: string;
 }) {
   const { t } = useTranslation("common");
   const [copied, setCopied] = useState(false);
+
+  // Escape closes a dismissable surface (the PDF overlay owned this key before
+  // it crashed, so the boundary has to take over while the fallback is shown).
+  useEffect(() => {
+    if (!onDismiss) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onDismiss();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
 
   const copyDiagnostics = () => {
     const parts = [error.stack ?? `${error.name}: ${error.message}`];
@@ -74,6 +111,14 @@ function ErrorFallback({
         >
           {reload ? t("errorBoundary.reload") : t("errorBoundary.retry")}
         </button>
+        {onDismiss && (
+          <button
+            onClick={onDismiss}
+            className="rounded-md px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+          >
+            {t("errorBoundary.close")}
+          </button>
+        )}
         <button
           onClick={copyDiagnostics}
           className="rounded-md px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-hover hover:text-fg"
@@ -108,7 +153,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private retry = (): void => {
-    if (this.props.reloadOnRetry) {
+    // A full reload is the only recovery for the app-root boundary and for a
+    // failed lazy chunk (re-mounting a rejected React.lazy just rethrows).
+    if (this.props.reloadOnRetry || isChunkLoadError(this.state.error)) {
       window.location.reload();
       return;
     }
@@ -122,8 +169,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <ErrorFallback
           error={error}
           componentStack={componentStack}
-          reload={this.props.reloadOnRetry ?? false}
+          reload={this.props.reloadOnRetry || isChunkLoadError(error)}
           onRetry={this.retry}
+          onDismiss={this.props.onDismiss}
           className={this.props.className}
         />
       );

@@ -27,6 +27,7 @@
   },
   "delete": "Eliminar",
   "errorBoundary": {
+    "close": "Cerrar",
     "copied": "Copiado",
     "copy": "Copiar diagnóstico",
     "reload": "Recargar la aplicación",

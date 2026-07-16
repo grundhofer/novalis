@@ -15,6 +15,7 @@
     "linkPickerTitle": "Link highlight to note",
     "linkToNote": "Link to note…",
     "notePlaceholder": "Your note…",
+    "pageMeta": "· p.{{page}}",
     "save": "Save",
     "title": "Highlights"
   },

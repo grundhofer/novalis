@@ -27,6 +27,7 @@
   },
   "delete": "Löschen",
   "errorBoundary": {
+    "close": "Schließen",
     "copied": "Kopiert",
     "copy": "Diagnose kopieren",
     "reload": "App neu laden",

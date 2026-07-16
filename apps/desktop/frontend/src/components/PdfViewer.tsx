@@ -666,7 +666,7 @@ function HighlightRow({
         />
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[10px] font-medium uppercase tracking-wide text-fg-faint">
-            {t("panel.title")} · p.{hl.page}
+            {t("panel.title")} {t("panel.pageMeta", { page: hl.page })}
           </span>
           <span className="line-clamp-3 text-xs text-fg">{hl.text}</span>
           {hl.note && !editing && (

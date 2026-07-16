@@ -347,6 +347,7 @@ const NodeCard = memo(function NodeCard({
 
       {/* Connection handles (one per side), shown on hover. */}
       {SIDES.map((side) => {
+        // eslint-disable-next-line i18next/no-literal-string -- CSS keyword, not display text
         const pos: React.CSSProperties = { position: "absolute" };
         if (side === "top") Object.assign(pos, { top: -5, left: "50%", marginLeft: -5 });
         if (side === "bottom") Object.assign(pos, { bottom: -5, left: "50%", marginLeft: -5 });

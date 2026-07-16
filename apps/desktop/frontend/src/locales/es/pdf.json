@@ -18,21 +18,22 @@
     "highlight": "Resaltar"
   },
   "panel": {
-    "title": "Resaltados",
-    "empty": "Selecciona texto en el PDF y haz clic en Resaltar para anotarlo.",
-    "jump": "Ir al resaltado",
+    "addNote": "Añadir nota",
+    "addToNote": "Añadir a una nota",
+    "cancel": "Cancelar",
+    "copied": "Copiado al portapapeles",
     "copyLink": "Copiar enlace",
     "copyQuote": "Copiar cita",
-    "addToNote": "Añadir a una nota",
-    "linkToNote": "Enlazar a una nota…",
     "delete": "Eliminar",
-    "addNote": "Añadir nota",
-    "notePlaceholder": "Tu nota…",
-    "save": "Guardar",
-    "cancel": "Cancelar",
+    "empty": "Selecciona texto en el PDF y haz clic en Resaltar para anotarlo.",
+    "jump": "Ir al resaltado",
+    "linkPickerTitle": "Enlazar resaltado a una nota",
+    "linkToNote": "Enlazar a una nota…",
     "linkedTo": "Enlazado a",
-    "copied": "Copiado al portapapeles",
     "linkedToast": "Añadido a {{note}}",
-    "linkPickerTitle": "Enlazar resaltado a una nota"
+    "notePlaceholder": "Tu nota…",
+    "pageMeta": "· pág. {{page}}",
+    "save": "Guardar",
+    "title": "Resaltados"
   }
 }
