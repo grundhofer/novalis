@@ -25,6 +25,13 @@ docx-rs = "0.4"
 icalendar = "0.17"
 rrule = "0.14"
 similar = "2"
+# Third-party importers (`import::`). `zip` unpacks a Notion "Export" archive;
+# `quick-xml` parses the Evernote ENEX envelope AND its ENML/XHTML note bodies
+# (one XML parser for both, so no html5ever/scraper enters the core tree — the
+# ENML→Markdown converter is in-house in `import::enex`). Both versions match
+# what `docx-rs` already pulls in, so neither adds a new transitive crate.
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+quick-xml = "0.36"
 uuid = { workspace = true }
 git2 = { workspace = true }
 # P2P sync (W4.4): pure crypto/framing/pairing logic. `chacha20poly1305`
