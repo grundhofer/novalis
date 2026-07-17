@@ -26,6 +26,13 @@ function freshCanvasPath(existing: CanvasFile[], folder: string): string {
   return `${dir}${base} ${Date.now()}.canvas`;
 }
 
+/** The open editor's pending-save drain, registered by `CanvasEditor` while it
+ *  is mounted and cleared on unmount. Kept off the reactive store so registering
+ *  it never re-renders subscribers. Never rejects (routes its own failure to
+ *  `reportError`); `flushPending` awaits it so a debounced write can't be lost
+ *  when the app quits. */
+let flushHandler: (() => Promise<void>) | null = null;
+
 interface CanvasState {
   /** Vault-relative path of the open canvas, or null to show the gallery. */
   activeCanvas: string | null;
@@ -35,6 +42,11 @@ interface CanvasState {
   closeCanvas: () => void;
   /** Create a fresh empty canvas in the selected folder and open it. */
   createAndOpen: () => Promise<void>;
+  /** Register (or clear, with `null`) the open editor's pending-save drain. */
+  setFlushHandler: (fn: (() => Promise<void>) | null) => void;
+  /** Await any pending/in-flight canvas write so it can't be lost on quit.
+   *  Safe to call with no canvas open (resolves immediately). */
+  flushPending: () => Promise<void>;
 }
 
 export const useCanvas = create<CanvasState>((set) => ({
@@ -48,10 +60,26 @@ export const useCanvas = create<CanvasState>((set) => ({
   closeCanvas: () => set({ activeCanvas: null }),
 
   createAndOpen: async () => {
-    const existing = await api.listCanvases().catch(() => []);
-    const path = freshCanvasPath(existing, targetFolder());
-    await api.createCanvas(path, serializeCanvas(emptyCanvas()));
-    set({ activeCanvas: path });
-    useUi.getState().setView("canvas");
+    try {
+      const existing = await api.listCanvases().catch(() => []);
+      const path = freshCanvasPath(existing, targetFolder());
+      await api.createCanvas(path, serializeCanvas(emptyCanvas()));
+      set({ activeCanvas: path });
+      useUi.getState().setView("canvas");
+    } catch (e) {
+      useVault.getState().reportError(e);
+    }
+  },
+
+  setFlushHandler: (fn) => {
+    flushHandler = fn;
+  },
+
+  flushPending: async () => {
+    try {
+      await flushHandler?.();
+    } catch (e) {
+      useVault.getState().reportError(e);
+    }
   },
 }));
