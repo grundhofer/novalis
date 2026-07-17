@@ -22,6 +22,7 @@ use regex::Regex;
 use rusqlite::{params, Connection};
 
 use crate::error::CoreResult;
+use crate::index::links::LinkRow;
 use crate::models::{BlockHit, BlockResolution, LinkMatch, LinkReference};
 
 /// A tagged block extracted from a note body: its stable id plus the block's
@@ -236,6 +237,14 @@ pub fn block_backlinks(
     vault: &Path,
     block_id: &str,
 ) -> CoreResult<Vec<LinkReference>> {
+    let rows = block_backlink_candidates(db, block_id)?;
+    Ok(block_backlink_snippets(vault, rows, block_id))
+}
+
+/// DB-only phase of [`block_backlinks`]: the candidate `note_meta` rows that
+/// reference `block_id`, safe under the engine lock. Read their bodies with
+/// [`block_backlink_snippets`] OFF the lock.
+pub fn block_backlink_candidates(db: &Connection, block_id: &str) -> CoreResult<Vec<LinkRow>> {
     let mut stmt = db.prepare(
         "SELECT m.path, m.title, m.folder, m.modified, m.cloud_only
          FROM note_meta m
@@ -246,37 +255,42 @@ pub fn block_backlinks(
     )?;
     let rows = stmt
         .query_map(params![block_id], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, String>(3)?,
-                r.get::<_, i32>(4)? != 0,
-            ))
+            Ok(LinkRow {
+                path: r.get(0)?,
+                title: r.get(1)?,
+                folder: r.get(2)?,
+                modified: r.get(3)?,
+                cloud_only: r.get::<_, i32>(4)? != 0,
+            })
         })?
         .filter_map(|r| crate::index::ok_row_or_warn("note_meta", r))
-        .collect::<Vec<_>>();
+        .collect();
+    Ok(rows)
+}
 
+/// Snippet phase of [`block_backlinks`]: read each candidate's body (skipping
+/// online-only placeholders) and extract the `((^id))` reference line(s). No DB
+/// access, so it runs OFF the engine lock. A candidate is always included even
+/// if no snippet could be extracted.
+pub fn block_backlink_snippets(
+    vault: &Path,
+    rows: Vec<LinkRow>,
+    block_id: &str,
+) -> Vec<LinkReference> {
     let needle = format!("((^{block_id}))");
     let mut out = Vec::with_capacity(rows.len());
-    for (path, title, folder, modified, cloud_only) in rows {
-        let matches = if cloud_only {
+    for row in rows {
+        let matches = if row.cloud_only {
             Vec::new()
         } else {
-            crate::vault::fs::read_note(vault, &path)
+            crate::vault::fs::read_note(vault, &row.path)
                 .ok()
                 .map(|n| ref_match_lines(&n.content, &needle))
                 .unwrap_or_default()
         };
-        out.push(LinkReference {
-            path,
-            title,
-            folder,
-            modified,
-            matches,
-        });
+        out.push(row.into_reference(matches));
     }
-    Ok(out)
+    out
 }
 
 /// Body lines (1-based, raw-file coordinates) containing the `((^id))` reference.

@@ -59,10 +59,10 @@ pub fn index_links(db: &Connection, source_path: &str, targets: &[String]) -> Co
     Ok(())
 }
 
-/// Notes that link to `title` (case-insensitive) via `[[title]]`, each with the
-/// line(s) where the link appears. A note known to link is always included even
-/// if no snippet could be extracted (e.g. an online-only file).
-pub fn backlinks(db: &Connection, vault: &Path, title: &str) -> CoreResult<Vec<LinkReference>> {
+/// DB-only phase of [`backlinks`]: the candidate `note_meta` rows that link to
+/// `title`, safe to run under the engine lock. Read their bodies with
+/// [`backlink_snippets`] OFF the lock.
+pub fn backlink_candidates(db: &Connection, title: &str) -> CoreResult<Vec<LinkRow>> {
     let mut stmt = db.prepare(
         "SELECT m.path, m.title, m.folder, m.modified, m.cloud_only
          FROM note_meta m
@@ -71,8 +71,14 @@ pub fn backlinks(db: &Connection, vault: &Path, title: &str) -> CoreResult<Vec<L
          GROUP BY m.path
          ORDER BY m.modified DESC",
     )?;
-    let rows = collect_rows(&mut stmt, params![title])?;
+    collect_rows(&mut stmt, params![title])
+}
 
+/// Snippet phase of [`backlinks`]: read each candidate's body (skipping
+/// online-only placeholders) and extract the linking line(s). No DB access, so
+/// it runs OFF the engine lock. A candidate is always included even if no
+/// snippet could be extracted.
+pub fn backlink_snippets(vault: &Path, rows: Vec<LinkRow>, title: &str) -> Vec<LinkReference> {
     let wiki = wiki_regex();
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
@@ -81,21 +87,33 @@ pub fn backlinks(db: &Connection, vault: &Path, title: &str) -> CoreResult<Vec<L
             .unwrap_or_default();
         out.push(row.into_reference(matches));
     }
-    Ok(out)
+    out
+}
+
+/// Notes that link to `title` (case-insensitive) via `[[title]]`, each with the
+/// line(s) where the link appears. A note known to link is always included even
+/// if no snippet could be extracted (e.g. an online-only file).
+pub fn backlinks(db: &Connection, vault: &Path, title: &str) -> CoreResult<Vec<LinkReference>> {
+    let rows = backlink_candidates(db, title)?;
+    Ok(backlink_snippets(vault, rows, title))
 }
 
 /// Notes whose content mentions `title` but do not yet link to it (excluding the
 /// note itself), each with the line(s) of the bare mention. Notes the FTS
 /// matched only inside frontmatter or an existing `[[…]]` are dropped.
-pub fn unlinked_mentions(
+/// DB-only phase of [`unlinked_mentions`]: candidate `note_meta` rows the FTS
+/// matched for `title` (excluding the note itself and ones that already link
+/// it), safe under the engine lock. Read their bodies with
+/// [`unlinked_mention_snippets`] OFF the lock.
+pub fn unlinked_mention_candidates(
     db: &Connection,
-    vault: &Path,
     title: &str,
     self_path: &str,
-) -> CoreResult<Vec<LinkReference>> {
-    let Some(mention) = mention_regex(title) else {
+) -> CoreResult<Vec<LinkRow>> {
+    // A title with no matchable word yields no mentions — skip the FTS work.
+    if mention_regex(title).is_none() {
         return Ok(Vec::new());
-    };
+    }
     let fts_query = title.replace('"', "\"\"");
     let mut stmt = db.prepare(
         "SELECT m.path, m.title, m.folder, m.modified, m.cloud_only
@@ -109,11 +127,24 @@ pub fn unlinked_mentions(
          ORDER BY m.modified DESC
          LIMIT 50",
     )?;
-    let rows = collect_rows(
+    collect_rows(
         &mut stmt,
         params![format!("\"{}\"", fts_query), self_path, title],
-    )?;
+    )
+}
 
+/// Snippet phase of [`unlinked_mentions`]: read each candidate's body (skipping
+/// online-only placeholders and notes whose match was only inside frontmatter or
+/// an existing `[[…]]`) and extract the bare-mention line(s). No DB access, so it
+/// runs OFF the engine lock.
+pub fn unlinked_mention_snippets(
+    vault: &Path,
+    rows: Vec<LinkRow>,
+    title: &str,
+) -> Vec<LinkReference> {
+    let Some(mention) = mention_regex(title) else {
+        return Vec::new();
+    };
     let wiki = wiki_regex();
     let mut out = Vec::new();
     for row in rows {
@@ -126,7 +157,17 @@ pub fn unlinked_mentions(
         }
         out.push(row.into_reference(matches));
     }
-    Ok(out)
+    out
+}
+
+pub fn unlinked_mentions(
+    db: &Connection,
+    vault: &Path,
+    title: &str,
+    self_path: &str,
+) -> CoreResult<Vec<LinkReference>> {
+    let rows = unlinked_mention_candidates(db, title, self_path)?;
+    Ok(unlinked_mention_snippets(vault, rows, title))
 }
 
 /// The 1-hop link neighborhood of `path`: outgoing links (resolved to existing
@@ -299,17 +340,19 @@ pub(crate) fn link_bare_mention_in_line(line: &str, title: &str) -> MentionLink 
 
 // ── internals ────────────────────────────────────────────────────────────────
 
-/// A `note_meta` row selected by the backlink/mention queries.
-struct LinkRow {
-    path: String,
-    title: String,
-    folder: String,
-    modified: String,
-    cloud_only: bool,
+/// A `note_meta` row selected by the backlink/mention queries — the DB-only
+/// half of a backlink/mention/block-backlink lookup. The snippet phase (which
+/// reads note bodies, potentially off the engine lock) consumes these.
+pub struct LinkRow {
+    pub path: String,
+    pub title: String,
+    pub folder: String,
+    pub modified: String,
+    pub cloud_only: bool,
 }
 
 impl LinkRow {
-    fn into_reference(self, matches: Vec<LinkMatch>) -> LinkReference {
+    pub(crate) fn into_reference(self, matches: Vec<LinkMatch>) -> LinkReference {
         LinkReference {
             path: self.path,
             title: self.title,
