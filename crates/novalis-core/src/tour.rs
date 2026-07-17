@@ -53,7 +53,11 @@ pub fn generate(target: &Path) -> CoreResult<()> {
     let now = Utc::now().to_rfc3339();
     // Local calendar dates relative to today, so the agenda lights up now.
     let today = Local::now().date_naive();
-    let day = |offset: i64| (today + Duration::days(offset)).format("%Y-%m-%d").to_string();
+    let day = |offset: i64| {
+        (today + Duration::days(offset))
+            .format("%Y-%m-%d")
+            .to_string()
+    };
 
     for (rel, content) in notes(&now, &day) {
         write_file(target, &rel, &content)?;
@@ -397,12 +401,18 @@ mod tests {
             .iter()
             .filter_map(|n| n["file"].as_str())
             .collect();
-        assert!(files.contains(&"Start Here.md"), "canvas references a real note");
+        assert!(
+            files.contains(&"Start Here.md"),
+            "canvas references a real note"
+        );
 
         // A block id is defined (the `^moatcore` marker in The Moat) and is
         // referenced via ((^moatcore)) from Start Here.
         let block = crate::index::blocks::resolve_block(&db, "moatcore").unwrap();
-        assert!(block.found, "((^moatcore)) should resolve to a tagged block");
+        assert!(
+            block.found,
+            "((^moatcore)) should resolve to a tagged block"
+        );
         let refs = crate::index::blocks::block_backlinks(&db, &vault, "moatcore").unwrap();
         assert!(
             refs.iter().any(|r| r.title == "Start Here"),
