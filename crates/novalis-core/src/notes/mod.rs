@@ -63,8 +63,36 @@ pub fn create(
     Ok(note)
 }
 
+/// File-IO phase of [`update`], safe to run OFF the engine lock: snapshot the
+/// pre-overwrite content into version history (best-effort), write the new
+/// content, and read it back — returning the fresh [`Note`] plus the
+/// [`NoteSummary`] the caller feeds to [`crate::index::search::index_note`]
+/// under the lock. Does no DB work, so a slow (e.g. cloud-synced) write never
+/// holds the lock.
+pub fn update_write(
+    vault: &Path,
+    data_dir: &Path,
+    path: &str,
+    content: &str,
+) -> CoreResult<(Note, NoteSummary)> {
+    if let Err(e) = crate::versions::snapshot(data_dir, vault, path) {
+        log::warn!("version snapshot failed for {path}: {e}");
+    }
+    vault_fs::write_note(vault, path, content)?;
+    let note = vault_fs::read_note(vault, path)?;
+    let summary = vault_fs::build_summary(vault, path)?;
+    Ok((note, summary))
+}
+
 /// Overwrite a note's content (updating `modified`) and re-index it. Snapshots
 /// the pre-overwrite content into version history first (best-effort).
+///
+/// The file-IO half is factored into [`update_write`] so the desktop command
+/// can run it off the engine lock and re-acquire only for the index upsert;
+/// this in-process variant keeps the one-call shape for internal callers
+/// (`link_mention`, `restore_version`). Indexing from the just-read `note`
+/// content + summary is identical to [`change::reindex_path`] (the file exists,
+/// so its existence branch never applies) — one fewer disk read.
 pub fn update(
     db: &Connection,
     vault: &Path,
@@ -72,12 +100,17 @@ pub fn update(
     path: &str,
     content: &str,
 ) -> CoreResult<Note> {
-    if let Err(e) = crate::versions::snapshot(data_dir, vault, path) {
-        log::warn!("version snapshot failed for {path}: {e}");
+    let (note, summary) = update_write(vault, data_dir, path, content)?;
+    crate::index::search::index_note(db, &summary, &note.content)?;
+    // Keep the on-disk mtime stamped so the incremental startup scan can skip
+    // this note next time (matches `change::reindex_path`).
+    if let Some(ms) = std::fs::metadata(vault_fs::vault_rel(vault, path)?)
+        .ok()
+        .as_ref()
+        .and_then(vault_fs::file_mtime_ms)
+    {
+        crate::index::search::stamp_mtime(db, path, ms)?;
     }
-    vault_fs::write_note(vault, path, content)?;
-    let note = vault_fs::read_note(vault, path)?;
-    change::reindex_path(db, vault, path)?;
     Ok(note)
 }
 
