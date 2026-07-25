@@ -1,0 +1,20 @@
+<!-- Android 13+ themed ("monochrome") icon: an alpha silhouette the launcher
+     tints with the user's wallpaper palette. Only the alpha channel is read,
+     so the flower's centre must be real transparency (the mask below), not a
+     dark disc — a filled centre would tint solid and lose the flower. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <mask id="bloom">
+    <g transform="translate(512 512) scale(1.16) translate(-512 -512)">
+      <g fill="#fff">
+        <ellipse cx="512" cy="347" rx="118" ry="165"/>
+        <ellipse cx="512" cy="347" rx="118" ry="165" transform="rotate(72 512 512)"/>
+        <ellipse cx="512" cy="347" rx="118" ry="165" transform="rotate(144 512 512)"/>
+        <ellipse cx="512" cy="347" rx="118" ry="165" transform="rotate(216 512 512)"/>
+        <ellipse cx="512" cy="347" rx="118" ry="165" transform="rotate(288 512 512)"/>
+      </g>
+      <circle cx="512" cy="512" r="104" fill="#000"/>
+      <circle cx="512" cy="512" r="54" fill="#fff"/>
+    </g>
+  </mask>
+  <rect width="1024" height="1024" fill="#fff" mask="url(#bloom)"/>
+</svg>
