@@ -2,7 +2,6 @@
   "guide": {
     "close": "Close",
     "enable": "Turn on",
-    "exampleCreated": "Example note created — find it in the file tree.",
     "exampleFailed": "Couldn't create the example note.",
     "groups": {
       "basics": "Basics"

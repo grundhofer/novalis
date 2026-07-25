@@ -257,21 +257,28 @@ export default function App() {
     useUi.getState().clearSettingsCategoryRequest();
   }, [settingsCategoryRequest]);
 
-  // No stacked dialogs, both directions: opening the guide (e.g. via a
-  // Features-row learn-more icon) closes the settings dialog — including the
-  // one-shot category latch, which onClose would normally clear but a forced
-  // close bypasses — and opening settings (mod+, over the guide) closes the
-  // guide. Pending debounced settings edits still persist — the
-  // schedulePersist timer runs independently of the modal.
+  // No stacked dialogs, both directions. Opening the guide (a Features-row
+  // learn-more icon, a panel's empty-state link, mod+shift+/ over an open
+  // dialog) closes every other App-owned overlay — two focus traps at once is
+  // never what the user asked for, and Modal's Escape is per-dialog, so the
+  // buried one would need a second Escape to go away. The settings close also
+  // drops the one-shot category latch, which onClose would normally clear but
+  // a forced close bypasses. Pending debounced settings edits still persist —
+  // the schedulePersist timer runs independently of the modal.
   useEffect(() => {
-    if (helpTopic !== null) {
-      setSettingsOpen(false);
-      setSettingsCategory(undefined);
-    }
+    if (helpTopic === null) return;
+    setSettingsOpen(false);
+    setSettingsCategory(undefined);
+    setSearchOpen(false);
+    setPaletteOpen(false);
+    setCheatsheetOpen(false);
   }, [helpTopic]);
+  // The reverse: any of those opening over the guide closes it.
   useEffect(() => {
-    if (settingsOpen) useUi.getState().closeHelp();
-  }, [settingsOpen]);
+    if (settingsOpen || searchOpen || paletteOpen || cheatsheetOpen) {
+      useUi.getState().closeHelp();
+    }
+  }, [settingsOpen, searchOpen, paletteOpen, cheatsheetOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

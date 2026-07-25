@@ -2,7 +2,6 @@
   "guide": {
     "close": "Schließen",
     "enable": "Einschalten",
-    "exampleCreated": "Beispielnotiz erstellt — du findest sie im Dateibaum.",
     "exampleFailed": "Die Beispielnotiz konnte nicht erstellt werden.",
     "groups": {
       "basics": "Grundlagen"

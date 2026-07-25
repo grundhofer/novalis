@@ -2,7 +2,6 @@
   "guide": {
     "close": "Fermer",
     "enable": "Activer",
-    "exampleCreated": "Note d'exemple créée — retrouvez-la dans l'arborescence de fichiers.",
     "exampleFailed": "Impossible de créer la note d'exemple.",
     "groups": {
       "basics": "Fondamentaux"

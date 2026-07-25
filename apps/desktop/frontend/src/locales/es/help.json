@@ -2,7 +2,6 @@
   "guide": {
     "close": "Cerrar",
     "enable": "Activar",
-    "exampleCreated": "Nota de ejemplo creada — la encontrarás en el árbol de archivos.",
     "exampleFailed": "No se pudo crear la nota de ejemplo.",
     "groups": {
       "basics": "Fundamentos"

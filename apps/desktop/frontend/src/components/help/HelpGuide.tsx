@@ -72,8 +72,12 @@ export function HelpGuide() {
   const categoryLabels = useCategoryLabels();
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  // Result line of the last "Create example note" click (reset on topic switch).
-  const [demoResult, setDemoResult] = useState<{ ok: boolean; text: string } | null>(null);
+  // The selected row, so a topic opened by deep link (or reached with the
+  // arrow keys) can be scrolled into view in the index.
+  const selectedRowRef = useRef<HTMLButtonElement>(null);
+  // Error line of the last "Create example note" click (reset on topic switch);
+  // success needs no line — the guide closes onto the new note.
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [demoBusy, setDemoBusy] = useState(false);
 
   // "index" lands on the first topic — the left pane always mirrors the
@@ -83,10 +87,48 @@ export function HelpGuide() {
     (helpTopic && helpTopic !== "index" ? HELP_TOPIC_BY_ID.get(helpTopic) : undefined) ??
     HELP_TOPICS[0];
 
+  // The index list in render order, flattened: the same order the grouped
+  // markup below emits, so arrow-key navigation can walk it linearly. With a
+  // query it is the flat ranked result set instead.
+  const q = query.trim();
+  const ranked =
+    q === ""
+      ? null
+      : fuzzyRank([...HELP_TOPICS], q, (topic) =>
+          // Title + both prose paragraphs + the syntax literals: searching
+          // "kanban" or "((" should find the topic that documents it, not
+          // just the ones with it in the summary line.
+          [
+            td(topic.titleKey),
+            td(`help:${topic.keyBase}.what`),
+            td(`help:${topic.keyBase}.where`),
+            ...(topic.syntax ?? []).map((row) => row.code),
+          ].join(" "),
+        );
+  const visible =
+    ranked ?? HELP_GROUPS.flatMap((g) => HELP_TOPICS.filter((topic) => topic.group === g));
+
   useEffect(() => {
-    setDemoResult(null);
+    setDemoError(null);
     setDemoBusy(false);
+    // Deep links (a Features-row learn-more icon, a panel's empty-state link)
+    // can land far down the index; without this the selection is off-screen
+    // until the user scrolls. "nearest" leaves an already-visible row alone.
+    selectedRowRef.current?.scrollIntoView({ block: "nearest" });
   }, [selected.id]);
+
+  // Typing filters the index — follow it with the detail pane, or the right
+  // half keeps showing a topic the list no longer offers. Only when the
+  // selection actually dropped out of the results, so arrowing through hits
+  // (which does not change the query) is never undone.
+  useEffect(() => {
+    if (!ranked || ranked.length === 0) return;
+    if (ranked.some((topic) => topic.id === selected.id)) return;
+    useUi.getState().openHelp(ranked[0].id);
+    // Query-driven only: `ranked`/`selected` are recomputed every render, and
+    // depending on them would fight the arrow keys.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   // The help catalogs load lazily (loadHelp.ts): until they're registered,
   // every help-ns t() would render raw keys — hold the whole body behind a
@@ -107,17 +149,23 @@ export function HelpGuide() {
   const gateOn = (topic: HelpTopic) => topicGateOn(prefs, topic);
   const select = (id: HelpTopicId) => useUi.getState().openHelp(id);
 
-  // Fuzzy search over title + "what" prose; with a query the list is a flat
-  // ranked result set (group headings only make sense in registry order).
-  const q = query.trim();
-  const ranked =
-    q === ""
-      ? null
-      : fuzzyRank(
-          [...HELP_TOPICS],
-          q,
-          (topic) => `${td(topic.titleKey)} ${td(`help:${topic.keyBase}.what`)}`,
-        );
+  /** Move the selection `delta` rows through the visible list (clamped). */
+  const move = (delta: number) => {
+    if (visible.length === 0) return;
+    const at = visible.findIndex((topic) => topic.id === selected.id);
+    const next = Math.min(Math.max((at < 0 ? 0 : at) + delta, 0), visible.length - 1);
+    select(visible[next].id);
+  };
+
+  // Arrow keys walk the index from wherever focus is in the left pane — the
+  // search box (where focus starts) or a topic button. Only Up/Down are taken:
+  // they do nothing in a single-line input, so typing is untouched, and
+  // Home/End stay with the caret. Escape/Tab belong to the Modal shell.
+  const onIndexKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    move(e.key === "ArrowDown" ? 1 : -1);
+  };
 
   const topicRow = (topic: HelpTopic) => {
     const Icon = topic.icon;
@@ -127,6 +175,8 @@ export function HelpGuide() {
       <li key={topic.id}>
         <button
           type="button"
+          ref={active ? selectedRowRef : undefined}
+          aria-current={active ? "true" : undefined}
           onClick={() => select(topic.id)}
           className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
             active ? "bg-active text-fg" : "text-fg-muted hover:bg-hover hover:text-fg"
@@ -181,19 +231,23 @@ export function HelpGuide() {
     setDemoBusy(true);
     try {
       const path = await api.createDemoNote(selected.demoTopic);
-      // The success copy points at the file tree — refresh it so the note is
-      // really there (same as the palette's open-today's-note flow).
+      // Refresh the tree so the new file is really there (same as the
+      // palette's open-today's-note flow).
       await useVault.getState().refreshTree();
-      setDemoResult({ ok: true, text: t("help:guide.exampleCreated") });
       // A .canvas demo can't open as a note tab — open the board directly
       // (openCanvas also switches the view; a plain setView would be a no-op
       // when the user is already in the canvas view, and the gallery only
       // refreshes on mount); .md demos open as a foreground tab.
       if (path.endsWith(".canvas")) useCanvas.getState().openCanvas(path);
       else useUi.getState().openInWorkspace(path);
+      // Then get out of the way: the example just opened BEHIND this overlay,
+      // and the note is the whole point of the click — a "created" line the
+      // user has to dismiss to see it isn't feedback, it's a second step.
+      // Failures keep the guide open (below) so the error is readable.
+      closeHelp();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      setDemoResult({ ok: false, text: `${t("help:guide.exampleFailed")} ${message}` });
+      setDemoError(`${t("help:guide.exampleFailed")} ${message}`);
     } finally {
       setDemoBusy(false);
     }
@@ -207,8 +261,13 @@ export function HelpGuide() {
       overlayClassName="z-50 items-center justify-center p-4"
       panelClassName="flex h-[80vh] max-h-[640px] w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
     >
-      {/* Left: search + grouped topic index. */}
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-app/40">
+      {/* Left: search + grouped topic index. The key handler sits on the pane
+          so Up/Down work from the search box and from a clicked topic row
+          alike (both bubble here). */}
+      <div
+        onKeyDown={onIndexKeyDown}
+        className="flex w-60 shrink-0 flex-col border-r border-border bg-app/40"
+      >
         <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-fg-faint">
           {t("help:guide.title")}
         </div>
@@ -319,12 +378,9 @@ export function HelpGuide() {
               </button>
             )}
           </div>
-          {demoResult && (
-            <p
-              className={`text-xs ${demoResult.ok ? "text-fg-subtle" : "text-danger"}`}
-              role={demoResult.ok ? undefined : "alert"}
-            >
-              {demoResult.text}
+          {demoError && (
+            <p className="text-xs text-danger" role="alert">
+              {demoError}
             </p>
           )}
         </div>

@@ -15,7 +15,7 @@
 // at runtime via t(`${topic.keyBase}.…`), so enumerate them all to keep them
 // (precedent: Onboarding.tsx). src/help/__tests__/registry.test.ts is the REAL
 // gate that these dynamic keys and the catalogs stay in sync.
-// t("help:guide.close") t("help:guide.enable") t("help:guide.exampleCreated")
+// t("help:guide.close") t("help:guide.enable")
 // t("help:guide.exampleFailed") t("help:guide.groups.basics") t("help:guide.insertExample")
 // t("help:guide.learnMore") t("help:guide.noResults") t("help:guide.offBadge")
 // t("help:guide.openSettings") t("help:guide.searchPlaceholder") t("help:guide.title")
