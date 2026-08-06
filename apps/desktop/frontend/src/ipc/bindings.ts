@@ -512,7 +512,12 @@ export const commands = {
 	/**  Disconnect a provider: clear tokens, its source, and its cached events. */
 	oauthDisconnect: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_disconnect", { provider })),
 	listPlugins: () => typedError<PluginInfo[], CommandError>(__TAURI_INVOKE("list_plugins")),
-	setPluginEnabled: (id: string, enabled: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("set_plugin_enabled", { id, enabled })),
+	/**
+	 *  `granted` is the capability set the user consented to in the enable dialog,
+	 *  which the frontend intersects with the manifest before every host call. It
+	 *  is ignored when disabling (disabling drops the grants).
+	 */
+	setPluginEnabled: (id: string, enabled: boolean, granted: string[]) => typedError<null, CommandError>(__TAURI_INVOKE("set_plugin_enabled", { id, enabled, granted })),
 	/**
 	 *  Source is what actually boots a plugin worker, so it hard-gates on the
 	 *  plugins feature flag (defense in depth under the frontend gate). Listing
@@ -698,6 +703,10 @@ export const events = {
 
 /* Constants */
 export const DEMO_TOPICS = ["wikilinks","taskTokens","blockRefs","transclusion","mermaid","math","callouts","properties","queryEngine","canvas"] as const;
+
+export const PLUGIN_API_VERSION = 1 as const;
+
+export const PLUGIN_CAPABILITIES = ["notes:read","notes:write","tasks:read","tasks:write","search"] as const;
 
 /* Types */
 /**  A unified agenda entry merging tasks and calendar events. */
@@ -1672,6 +1681,12 @@ export type PdfSummary = {
 export type PluginInfo = {
 	manifest: PluginManifest,
 	enabled: boolean,
+	/**
+	 *  What the *user* granted this plugin, from `plugins-enabled.json` — the
+	 *  half of the capability check the plugin cannot write. Empty for a
+	 *  disabled plugin.
+	 */
+	grantedCapabilities: string[],
 };
 
 /**
@@ -1685,8 +1700,21 @@ export type PluginManifest = {
 	description?: string,
 	entry?: string,
 	/**
-	 *  Capabilities the plugin may use, e.g. `["notes:read", "notes:write",
-	 *  "tasks:read", "search", "notify"]`. The host enforces these.
+	 *  Which host-API generation the plugin was written against
+	 *  (`crate::plugins::PLUGIN_API_VERSION`). `None` means the manifest
+	 *  predates the field; the frontend then assumes API 1, which is what
+	 *  every manifest written before the field existed targeted. New plugins
+	 *  must set it — see PLUGINS.md, "API version".
+	 */
+	apiVersion?: number | null,
+	/**
+	 *  Capabilities the plugin **asks for**. The full set the host understands
+	 *  is [`crate::plugins::PLUGIN_CAPABILITIES`]; anything else is ignored.
+	 * 
+	 *  Asking is not getting: the effective set is this list intersected with
+	 *  what the user granted ([`PluginInfo::granted_capabilities`]), so a
+	 *  plugin that widens this list after being enabled gains nothing until
+	 *  the user consents again.
 	 */
 	capabilities?: string[],
 };

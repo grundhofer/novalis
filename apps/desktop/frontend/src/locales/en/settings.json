@@ -421,9 +421,35 @@
     "sectionRail": "Activity rail"
   },
   "plugins": {
+    "apiMismatch": "{{id}} was written for plugin API {{declared}}; this version of Novalis provides API {{current}}. It was not loaded.",
+    "cap": {
+      "notesRead": "Read every note in this vault",
+      "notesWrite": "Create new notes anywhere in the vault",
+      "search": "Run full-text searches across the vault",
+      "tasksRead": "Read every task in this vault",
+      "tasksWrite": "Create tasks"
+    },
+    "consent": {
+      "confirm": "Enable and grant access",
+      "confirmReview": "Update access",
+      "intro": "Enabling this plugin runs its code inside Novalis. Grant only the access it needs, and only to plugins you trust.",
+      "newBadge": "new",
+      "none": "This plugin asks for no vault access. It can only add commands and show messages.",
+      "requests": "Requested access",
+      "reviewIntro": "This plugin now asks for access you have not granted. Until you grant it, those calls are refused.",
+      "reviewTitle": "{{name}} asks for more access",
+      "scope": "Access is per plugin and covers the whole vault: a plugin you grant note access to can read every note in it and create new ones anywhere. Switch the plugin off to revoke everything.",
+      "title": "Enable {{name}}?"
+    },
     "empty": "No plugins installed. Drop a plugin folder into <2>.novalis/plugins/</2> in your vault (see PLUGINS.md), then reopen Settings.",
     "enableAria": "Enable {{name}}",
+    "granted": "Granted: {{caps}}",
+    "grantedNone": "Enabled with no vault access",
+    "incompatible": "Needs plugin API {{declared}} — this version of Novalis provides {{current}}.",
     "loadFailed": "Failed to load plugin {{id}}: {{error}}",
+    "requests": "Requests: {{caps}}",
+    "requestsNone": "Requests no vault access",
+    "review": "Review new access: {{caps}}",
     "section": "Plugins"
   },
   "sync": {

@@ -1,8 +1,14 @@
+/// <reference path="../plugin-api.d.ts" />
 // Novalis example plugin.
 //
 // This runs sandboxed in a Web Worker. It has no DOM and no direct filesystem
 // or network access — it reaches the app only through the injected `novalis`
-// host API, and only for the capabilities declared in plugin.json.
+// host API, and only for the capabilities that plugin.json declares AND the
+// user granted when enabling the plugin. Declaring one is a request, not a
+// grant: a call whose capability was not granted rejects.
+//
+// The reference above is the whole toolchain — no install, no build step; an
+// editor picks up ../plugin-api.d.ts and types the `novalis` global.
 
 // A read-only command: sum word counts across the vault.
 novalis.registerCommand("word-count", "Example: count words in vault", async () => {

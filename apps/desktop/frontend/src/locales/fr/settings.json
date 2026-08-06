@@ -424,7 +424,33 @@
     "empty": "Aucun plugin installé. Placer un dossier de plugin dans <2>.novalis/plugins/</2> dans le Vault (voir PLUGINS.md), puis rouvrir les paramètres.",
     "enableAria": "Activer {{name}}",
     "loadFailed": "Échec du chargement du plugin {{id}} : {{error}}",
-    "section": "Plugins"
+    "section": "Plugins",
+    "apiMismatch": "{{id}} a été écrit pour l'API de plugins {{declared}} ; cette version de Novalis fournit l'API {{current}}. Il n'a pas été chargé.",
+    "cap": {
+      "notesRead": "Lire toutes les notes de ce Vault",
+      "notesWrite": "Créer de nouvelles notes n'importe où dans le Vault",
+      "tasksRead": "Lire toutes les tâches de ce Vault",
+      "tasksWrite": "Créer des tâches",
+      "search": "Lancer des recherches plein texte dans le Vault"
+    },
+    "consent": {
+      "title": "Activer {{name}} ?",
+      "reviewTitle": "{{name}} demande plus d'accès",
+      "intro": "L'activation exécute le code de ce plugin dans Novalis. N'accordez que l'accès dont il a besoin, et uniquement aux plugins de confiance.",
+      "reviewIntro": "Ce plugin demande désormais un accès que vous n'avez pas accordé. Tant qu'il ne l'est pas, ces appels sont refusés.",
+      "requests": "Accès demandé",
+      "none": "Ce plugin ne demande aucun accès au Vault. Il peut seulement ajouter des commandes et afficher des messages.",
+      "scope": "L'accès vaut par plugin et pour tout le Vault : un plugin autorisé à accéder aux notes peut lire n'importe laquelle et en créer de nouvelles n'importe où. Désactivez le plugin pour tout révoquer.",
+      "newBadge": "nouveau",
+      "confirm": "Activer et accorder l'accès",
+      "confirmReview": "Mettre à jour l'accès"
+    },
+    "granted": "Accordé : {{caps}}",
+    "grantedNone": "Activé sans accès au Vault",
+    "requests": "Demande : {{caps}}",
+    "requestsNone": "Ne demande aucun accès au Vault",
+    "review": "Vérifier le nouvel accès : {{caps}}",
+    "incompatible": "Nécessite l'API de plugins {{declared}} — cette version de Novalis fournit la {{current}}."
   },
   "sync": {
     "p2p": {

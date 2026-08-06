@@ -2044,10 +2044,18 @@ pub fn list_plugins(state: State<AppEngine>) -> CmdResult<Vec<PluginInfo>> {
     state.with(|e| Ok(novalis_core::plugins::list(&e.vault_path)))
 }
 
+/// `granted` is the capability set the user consented to in the enable dialog,
+/// which the frontend intersects with the manifest before every host call. It
+/// is ignored when disabling (disabling drops the grants).
 #[tauri::command]
 #[specta::specta]
-pub fn set_plugin_enabled(state: State<AppEngine>, id: String, enabled: bool) -> CmdResult<()> {
-    state.with(|e| novalis_core::plugins::set_enabled(&e.vault_path, &id, enabled))
+pub fn set_plugin_enabled(
+    state: State<AppEngine>,
+    id: String,
+    enabled: bool,
+    granted: Vec<String>,
+) -> CmdResult<()> {
+    state.with(|e| novalis_core::plugins::set_enabled(&e.vault_path, &id, enabled, &granted))
 }
 
 /// Source is what actually boots a plugin worker, so it hard-gates on the

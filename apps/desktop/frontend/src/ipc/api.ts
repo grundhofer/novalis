@@ -215,8 +215,8 @@ export const api = {
 
   // Plugins
   listPlugins: () => unwrap(commands.listPlugins()),
-  setPluginEnabled: (id: string, enabled: boolean) =>
-    unwrap(commands.setPluginEnabled(id, enabled)),
+  setPluginEnabled: (id: string, enabled: boolean, granted: string[]) =>
+    unwrap(commands.setPluginEnabled(id, enabled, granted)),
   readPluginSource: (id: string) => unwrap(commands.readPluginSource(id)),
 
   // Trash (Recently deleted)

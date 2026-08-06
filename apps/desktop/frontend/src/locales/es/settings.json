@@ -424,7 +424,33 @@
     "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",
     "enableAria": "Activar {{name}}",
     "loadFailed": "Error al cargar el plugin {{id}}: {{error}}",
-    "section": "Plugins"
+    "section": "Plugins",
+    "apiMismatch": "{{id}} se escribió para la API de plugins {{declared}}; esta versión de Novalis ofrece la API {{current}}. No se cargó.",
+    "cap": {
+      "notesRead": "Leer todas las notas de este Vault",
+      "notesWrite": "Crear notas nuevas en cualquier parte del Vault",
+      "tasksRead": "Leer todas las tareas de este Vault",
+      "tasksWrite": "Crear tareas",
+      "search": "Ejecutar búsquedas de texto completo en el Vault"
+    },
+    "consent": {
+      "title": "¿Activar {{name}}?",
+      "reviewTitle": "{{name}} solicita más acceso",
+      "intro": "Al activarlo, Novalis ejecuta el código de este plugin. Concede solo el acceso que necesite, y solo a plugins en los que confíes.",
+      "reviewIntro": "Este plugin solicita ahora un acceso que no has concedido. Hasta que lo concedas, esas llamadas se rechazan.",
+      "requests": "Acceso solicitado",
+      "none": "Este plugin no solicita acceso al Vault. Solo puede añadir comandos y mostrar mensajes.",
+      "scope": "El acceso es por plugin y abarca todo el Vault: un plugin con acceso a las notas puede leer cualquiera de ellas y crear notas nuevas en cualquier parte. Desactiva el plugin para revocarlo todo.",
+      "newBadge": "nuevo",
+      "confirm": "Activar y conceder acceso",
+      "confirmReview": "Actualizar acceso"
+    },
+    "granted": "Concedido: {{caps}}",
+    "grantedNone": "Activado sin acceso al Vault",
+    "requests": "Solicita: {{caps}}",
+    "requestsNone": "No solicita acceso al Vault",
+    "review": "Revisar el nuevo acceso: {{caps}}",
+    "incompatible": "Necesita la API de plugins {{declared}}: esta versión de Novalis ofrece la {{current}}."
   },
   "sync": {
     "p2p": {

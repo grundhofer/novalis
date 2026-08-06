@@ -424,7 +424,33 @@
     "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
     "enableAria": "{{name}} aktivieren",
     "loadFailed": "Plugin {{id}} konnte nicht geladen werden: {{error}}",
-    "section": "Plugins"
+    "section": "Plugins",
+    "apiMismatch": "{{id}} wurde für Plugin-API {{declared}} geschrieben; diese Novalis-Version stellt API {{current}} bereit. Es wurde nicht geladen.",
+    "cap": {
+      "notesRead": "Alle Notizen in diesem Vault lesen",
+      "notesWrite": "Überall im Vault neue Notizen anlegen",
+      "tasksRead": "Alle Aufgaben in diesem Vault lesen",
+      "tasksWrite": "Aufgaben anlegen",
+      "search": "Volltextsuche über den Vault ausführen"
+    },
+    "consent": {
+      "title": "{{name}} aktivieren?",
+      "reviewTitle": "{{name}} fordert mehr Zugriff an",
+      "intro": "Beim Aktivieren führt Novalis den Code dieses Plugins aus. Gewähren Sie nur den Zugriff, den es braucht, und nur Plugins, denen Sie vertrauen.",
+      "reviewIntro": "Dieses Plugin fordert jetzt Zugriff an, den Sie nicht gewährt haben. Bis Sie ihn gewähren, werden diese Aufrufe abgelehnt.",
+      "requests": "Angeforderter Zugriff",
+      "none": "Dieses Plugin fordert keinen Vault-Zugriff an. Es kann nur Befehle hinzufügen und Meldungen anzeigen.",
+      "scope": "Zugriff gilt pro Plugin und für den gesamten Vault: Ein Plugin mit Notizzugriff kann jede Notiz darin lesen und überall neue anlegen. Schalten Sie das Plugin aus, um alles zu entziehen.",
+      "newBadge": "neu",
+      "confirm": "Aktivieren und Zugriff gewähren",
+      "confirmReview": "Zugriff aktualisieren"
+    },
+    "granted": "Gewährt: {{caps}}",
+    "grantedNone": "Aktiviert ohne Vault-Zugriff",
+    "requests": "Fordert an: {{caps}}",
+    "requestsNone": "Fordert keinen Vault-Zugriff an",
+    "review": "Neuen Zugriff prüfen: {{caps}}",
+    "incompatible": "Benötigt Plugin-API {{declared}} — diese Novalis-Version stellt {{current}} bereit."
   },
   "sync": {
     "p2p": {

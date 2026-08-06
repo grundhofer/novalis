@@ -269,6 +269,21 @@ fn specta_builder() -> Builder<tauri::Wry> {
         // registry test gate the two against each other instead of finding a
         // drifted id at click time.
         .constant("DEMO_TOPICS", novalis_core::help_demo::DEMO_TOPICS)
+        // Also not IPC: the plugin boundary's two compile-time contracts. The
+        // host API is enforced in `pluginStore.ts` but documented in Rust, and
+        // those two drifted (the docs named a capability that was never
+        // enforced and omitted one that was). Exporting the set lets the
+        // frontend type its capability table against it, and exporting the API
+        // generation lets `reload()` refuse an incompatible plugin before it
+        // becomes a Worker.
+        .constant(
+            "PLUGIN_CAPABILITIES",
+            novalis_core::plugins::PLUGIN_CAPABILITIES,
+        )
+        .constant(
+            "PLUGIN_API_VERSION",
+            novalis_core::plugins::PLUGIN_API_VERSION,
+        )
         // Counts/sizes are small; render Rust integer types as TS `number`.
         .dangerously_cast_bigints_to_number()
 }

@@ -4,5 +4,6 @@
   "version": "0.1.0",
   "description": "Sample commands demonstrating the Novalis plugin API.",
   "entry": "main.js",
+  "apiVersion": 1,
   "capabilities": ["notes:read", "notes:write"]
 }
