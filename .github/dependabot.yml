@@ -1,0 +1,46 @@
+# Weekly dependency PRs, grouped so a solo maintainer gets three reviewable
+# PRs a week instead of thirty single-crate ones. Majors stay ungrouped on
+# purpose: those are the ones that need a human to read a changelog.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # Mirrors pnpm-workspace.yaml's `packages:` list (apps/desktop,
+  # apps/desktop/frontend, packages/*) plus the repo root, which holds the
+  # shared lockfile and the @tauri-apps/cli devDependency. The `/packages/*`
+  # glob is deliberate: a new workspace package is covered without editing this
+  # file. Pointing only at "/" would leave every member manifest unwatched.
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/apps/desktop"
+      - "/apps/desktop/frontend"
+      - "/packages/*"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # Keeps the 40-char SHA pins in .github/workflows/*.yml current. It can only
+  # do that for pins whose `# vX.Y.Z` comment names a real tag — the
+  # dtolnay/rust-toolchain pin is a master-branch SHA and stays manual.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions-minor-and-patch:
+        update-types: ["minor", "patch"]

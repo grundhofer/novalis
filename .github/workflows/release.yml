@@ -15,33 +15,59 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
-permissions:
-  contents: write
+# Nothing by default; `contents: write` is granted to the `release` job alone,
+# so the gate job below (which compiles third-party build scripts) never sees a
+# token that could push to the repo or edit a release.
+permissions: {}
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # A tag push does not trigger ci.yml (`push: branches: [main]` only), so
+  # without this a release would ship with zero fmt/clippy/test/lint/bindings
+  # checks. Calling ci.yml rather than copying its steps means the release gate
+  # cannot drift away from the PR gate. See RELEASING.md.
+  gate:
+    name: CI gates
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   release:
     name: build (${{ matrix.platform }})
+    needs: gate
     runs-on: ${{ matrix.platform }}
+    # tauri-action creates the draft release and uploads the installers.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-latest
-            # Single universal .dmg covers Intel + Apple Silicon.
-            args: --target universal-apple-darwin
+            # Single universal .dmg covers Intel + Apple Silicon. Everything
+            # after `--` is forwarded to cargo by the tauri CLI; `--locked`
+            # makes the shipped binary use the same Cargo.lock the `audit` job
+            # cleared, instead of whatever cargo would re-resolve at build time.
+            args: --target universal-apple-darwin -- --locked
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: ubuntu-latest
-            args: ""
+            args: -- --locked
             rust-targets: ""
           - platform: windows-latest
-            args: ""
+            args: -- --locked
             rust-targets: ""
 
     steps:
-      - uses: actions/checkout@v6
+      # `persist-credentials: false` matters most here: this job's token is
+      # write-scoped, and without it the token sits in .git/config while
+      # `pnpm install` runs esbuild's postinstall and ~925 crates' build.rs.
+      # tauri-action takes GITHUB_TOKEN from `env` below, not from .git/config,
+      # so removing it changes no behaviour.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       # WebKitGTK stack required for Tauri's Linux build (matches ci.yml);
       # libasound2-dev provides the ALSA headers cpal (native voice capture) links against.
@@ -60,25 +86,26 @@ jobs:
             build-essential
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
 
       # dtolnay/rust-toolchain can't read rust-toolchain.toml (its `toolchain`
-      # input is required at @master), so the pin is duplicated here — keep it
-      # in sync with rust-toolchain.toml when bumping.
+      # input is required), so the pin is duplicated here — keep it in sync
+      # with rust-toolchain.toml when bumping. SHA is master's head, not a tag;
+      # see the longer note in ci.yml for why, and how to re-resolve it.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           toolchain: "1.93.0"
           targets: ${{ matrix.rust-targets }}
 
       - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: "."
 
@@ -86,7 +113,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build & publish (tauri-action)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Phase B: add APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /

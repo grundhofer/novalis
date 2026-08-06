@@ -4,11 +4,24 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Advisory databases move without us. Without a clock trigger, `cargo audit`
+  # and `pnpm audit` only ever see a new RUSTSEC/GHSA entry when someone
+  # happens to push — RUSTSEC-2026-0235 landed ten days after the last run.
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  # release.yml calls this workflow as its gate, so a tag push runs exactly the
+  # same checks as a PR instead of a second, drifting copy (see RELEASING.md).
+  workflow_call:
 
 # Cancel superseded runs on the same ref.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+# Read-only by default; no job here needs to write to the repo. Explicit
+# because a fork PR runs the fork's copy of this file with our runners.
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,7 +35,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v6
+      # `persist-credentials: false` keeps the job's token out of .git/config
+      # while ~925 crates' build.rs and esbuild's postinstall run as this user.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       # Tauri's Linux build needs the WebKitGTK stack (see plan: Linux WebKitGTK risk);
       # libasound2-dev provides the ALSA headers cpal (native voice capture) links against.
@@ -41,25 +58,31 @@ jobs:
             build-essential
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
 
       # dtolnay/rust-toolchain can't read rust-toolchain.toml (its `toolchain`
-      # input is required at @master), so the pin is duplicated here — keep it
-      # in sync with rust-toolchain.toml when bumping.
+      # input is required), so the pin is duplicated here — keep it in sync
+      # with rust-toolchain.toml when bumping.
+      #
+      # The SHA is master's head, not a tag: this action's only tag (`v1`) is a
+      # year stale and predates RUSTUP_PERMIT_COPY_RENAME=1 on the install step,
+      # which the Windows leg needs. Dependabot cannot map a branch SHA to a
+      # version, so this pin is maintained by hand — re-resolve with
+      # `gh api repos/dtolnay/rust-toolchain/commits/master --jq .sha`.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           toolchain: "1.93.0"
           components: rustfmt, clippy
 
       - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: "."
 
@@ -101,11 +124,18 @@ jobs:
       - name: Rust format check
         run: cargo fmt --all --check
 
+      # `--locked` on the three build/test invocations below: without it cargo
+      # may silently re-resolve Cargo.lock, so CI would build a dependency set
+      # the `audit` job never looked at. It is the Rust half of
+      # `--frozen-lockfile`. (`pnpm gen:bindings` further down also shells out
+      # to cargo but is left alone — it runs after `cargo test --locked` has
+      # already proven the lockfile is in sync, and the flag lives in the root
+      # package.json script, where it would break local edits to Cargo.toml.)
       - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
 
       # The P2P sync end-to-end test drives a real two-endpoint QUIC loopback
       # (relays disabled) and is gated behind `p2p-loopback-test` so its
@@ -115,7 +145,7 @@ jobs:
       # installed above, for the desktop crate's cpal/ALSA link).
       - name: P2P loopback E2E (gated)
         if: matrix.os == 'ubuntu-latest'
-        run: cargo test -p novalis-desktop --features p2p-loopback-test
+        run: cargo test --locked -p novalis-desktop --features p2p-loopback-test
 
       # Guard against Rust/TS drift: regenerated bindings must match what's
       # committed. Linux-only: the generated file is OS-independent, and the
@@ -127,24 +157,61 @@ jobs:
           git diff --exit-code apps/desktop/frontend/src/ipc/bindings.ts
 
   audit:
-    name: cargo audit
+    name: dependency audit
     runs-on: ubuntu-latest
-    # Blocking. Accepted advisories live in `.cargo/audit.toml`, each with a
-    # written justification and a revisit condition — a new advisory fails CI.
-    # (`unmaintained`/`unsound` warnings — gtk3 bindings from Tauri's Linux
-    # stack, anyhow, glib, paste, proc-macro-error, instant, unic-* — are
-    # warnings, not failures.)
+    # The Rust half is blocking. Accepted advisories live in `.cargo/audit.toml`,
+    # each with a written justification and a revisit condition — a new advisory
+    # fails CI. (`unmaintained`/`unsound` warnings — gtk3 bindings from Tauri's
+    # Linux stack, anyhow, glib, paste, proc-macro-error, instant, unic-* — are
+    # warnings, not failures.) Deliberately carries no `if:` guard, so the
+    # weekly `schedule` trigger above actually reaches it.
     steps:
-      - uses: actions/checkout@v6
-      # Build the audit *tool* with a recent stable toolchain, NOT the repo's
-      # pinned 1.93 (rust-toolchain.toml): cargo-audit's deps (e.g. kstring)
-      # now require a newer rustc than the project pins, and the tool only
-      # reads Cargo.lock so its build toolchain is irrelevant to the audit.
-      # `--locked` uses cargo-audit's own lockfile to avoid pulling newer,
-      # higher-MSRV transitive deps at install time.
-      - name: Install a recent stable Rust for the audit tool
-        run: rustup toolchain install stable --profile minimal
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Node toolchain up front, and `!cancelled()` on the pnpm step below, so
+      # one run always reports *both* ecosystems — a failing `cargo audit`
+      # otherwise hides however many JS advisories landed the same week.
+      # `pnpm audit` reads only the lockfile, so there is no `pnpm install`.
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+
+      # A prebuilt cargo-audit release binary, not `cargo install`. The old
+      # step compiled the tool from source on every run (~3 min, measured) and
+      # needed a *second* stable toolchain because cargo-audit's deps (e.g.
+      # kstring) out-MSRV the repo's pinned 1.93 (rust-toolchain.toml). A
+      # downloaded binary has no build toolchain at all, so both the compile
+      # and that workaround are gone; the version is pinned here so a
+      # cargo-audit regression can't turn CI red on its own schedule.
       - name: Install cargo-audit
-        run: cargo +stable install cargo-audit --locked
+        uses: taiki-e/install-action@91ddec75689c4c78665b598d188dc821c5a43e5c # v2.85.9
+        with:
+          tool: cargo-audit@0.22.2
+
       - name: Run cargo audit
         run: cargo audit
+
+      # Blocking, like the Rust half. The lockfile was re-resolved from the
+      # committed manifests (`rm pnpm-lock.yaml && pnpm install
+      # --lockfile-only` in a copy without node_modules — with node_modules
+      # present pnpm short-circuits and writes nothing), which took `pnpm
+      # audit` from 29 findings / 16 `high` to zero without editing a single
+      # package.json and without a major bump: every fix was already inside the
+      # declared ranges.
+      #
+      # `--audit-level=high` so a fresh `moderate` in some dev tool does not
+      # wall off the repo overnight; anything `high` or `critical` does, which
+      # is the level at which the three chains that actually ship in the binary
+      # live (mermaid -> dompurify sanitizes user-authored diagrams arriving via
+      # import/git sync/P2P; tiptap-markdown -> markdown-it -> linkify-it).
+      # `!cancelled()` so one run always reports both ecosystems — a failing
+      # `cargo audit` must not hide however many JS advisories landed that week.
+      - name: pnpm audit
+        if: ${{ !cancelled() }}
+        run: pnpm audit --audit-level=high

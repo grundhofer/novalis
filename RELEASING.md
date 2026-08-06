@@ -26,11 +26,38 @@ maintainer reviews and publishes it manually.
    git push origin main v0.2.0
    ```
 
-3. The `Release` workflow runs on three runners (macOS, Ubuntu, Windows),
-   builds installers, and creates a draft release named `Novalis v0.2.0`
-   with the artifacts attached.
+3. The `Release` workflow first runs the **`CI gates` job**, then — only if it
+   passes — builds installers on three runners (macOS, Ubuntu, Windows) and
+   creates a draft release named `Novalis v0.2.0` with the artifacts attached.
 
 4. Open the draft on GitHub, edit the release notes, then **Publish**.
+
+## The release gate
+
+A tag push does **not** trigger `ci.yml` — its `on:` block covers
+`push: branches: [main]`, `pull_request` and a weekly `schedule`, and none of
+those fire on a tag. So without a gate, a tag could ship a build with no fmt,
+clippy, test, lint, i18n or bindings-drift check behind it.
+
+Of the two ways to fix that, this repo uses the second:
+
+- ~~Add `push: tags: ['v*.*.*']` to `ci.yml`~~ — rejected: CI and the release
+  build would run *in parallel*, so the installers could finish and be attached
+  to the draft before CI went red.
+- **`release.yml` calls `ci.yml` as a reusable workflow** (`gate:` job, then
+  `release: needs: gate`). The release build cannot start until every CI job is
+  green, and because it calls the same file, the release gate can never drift
+  away from the PR gate.
+
+Consequence: a release run is roughly *CI time + build time*, not the longer of
+the two. That is deliberate — releases are cut rarely.
+
+To re-run a failed release after fixing the cause, delete and re-push the tag,
+or use **Run workflow** (`workflow_dispatch`) on the Release workflow; the gate
+runs either way. If you use **Run workflow**, pick the *tag* in the ref
+dropdown, not a branch: `release.yml` derives both `tagName` and `releaseName`
+from `github.ref_name`, so dispatching from `main` would draft a release named
+`Novalis main`.
 
 ## What gets built
 
