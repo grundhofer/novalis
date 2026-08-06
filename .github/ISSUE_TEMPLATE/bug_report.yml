@@ -1,0 +1,117 @@
+name: Bug report
+description: Something in Novalis behaves incorrectly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities here — use
+        [private vulnerability reporting](https://github.com/sebaroVentures/novalis/security/advisories/new)
+        instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >
+        Numbered steps from a state someone else can reach. If the bug involves
+        a specific note, the smallest Markdown that triggers it is worth more
+        than a description of it.
+      placeholder: |
+        1. Open a vault with …
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Novalis version
+      description: >
+        Settings → About, or the installer filename. If you built from source,
+        give the commit hash.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux (.deb)
+        - Linux (.AppImage)
+        - Linux (built from source)
+        - Android (built from source)
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "macOS 15.3 / Windows 11 23H2 / Fedora 41"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: vault-sync
+    attributes:
+      label: Where does the vault live?
+      description: >
+        Cloud-synced folders change file timing and can rewrite files under the
+        app. A surprising number of bugs are only reproducible in one of these.
+      options:
+        - A plain local folder, not synced
+        - OneDrive
+        - iCloud Drive
+        - Dropbox
+        - Google Drive
+        - Syncthing or another file-sync tool
+        - Novalis git sync
+        - Novalis peer-to-peer sync
+        - Other (say which below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: features
+    attributes:
+      label: Which optional features are on?
+      description: >
+        Settings → Features. Most capabilities are off by default, so knowing
+        which are on narrows this considerably. Relevant only if the bug could
+        plausibly involve them.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error text
+      description: >
+        Paste any error the app showed. The app also writes a log file to the
+        OS log directory for `com.novalis.desktop` (on macOS:
+        `~/Library/Logs/com.novalis.desktop`).
+      render: text
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: >
+            I removed anything private from the text and logs above — note
+            content, file paths and API keys are not needed to fix a bug.
+          required: true

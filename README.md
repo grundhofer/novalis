@@ -80,13 +80,44 @@ for how to bypass it.
 
 ## Principles
 
-- **Local-first.** No server we run. All logic runs on-device; only `.md` files
-  sync. The only network use is the *optional, read-only* calendar import.
+- **Local-first.** No server we run. Your notes are plain `.md` files on your
+  disk, and every core feature — editor, search, tasks, calendar — works fully
+  offline.
 - **Own your data.** YAML frontmatter, `[[wikilinks]]`, plain Markdown — vaults
   aim to be Obsidian-compatible. No lock-in.
-- **Modular.** Notes, Tasks, and Calendar are internal modules built against an
-  extension API that becomes a public plugin API.
+- **Opt-in, not opt-out.** Everything that leaves your machine is a feature you
+  switched on. See the table below.
 - **Open source (MIT).**
+
+## Privacy & network
+
+Novalis contains **no telemetry, no analytics, no crash reporting, and no
+update check** — there is no build in which the app contacts us, because there
+is nothing for it to contact. You can verify this: there is no such dependency
+in `Cargo.toml` or `package.json`, and `tauri.conf.json` has no `updater` block.
+
+Out of the box, with a fresh vault and nothing enabled, Novalis makes **zero
+network requests**. Every connection below exists only if you turn that feature
+on, and goes to a host you chose or that is named here:
+
+| Feature (all off by default) | Talks to | What is sent |
+|---|---|---|
+| Calendar subscriptions | The `.ics` URL you enter | A read-only fetch. Nothing is uploaded. |
+| Google / Outlook calendar | `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`, `login.microsoftonline.com`, `graph.microsoft.com` | OAuth sign-in, then read-only event fetches. |
+| AI features | The provider you configure — `api.anthropic.com`, `api.openai.com`, `api.deepseek.com`, or any OpenAI-compatible endpoint (including a local one) | The note text or chat context of the action you invoke. Nothing runs until you invoke it. |
+| Voice / meeting capture | `huggingface.co`, once | Downloads the Whisper model (~142 MB, SHA-256 pinned). Transcription itself is **on-device** — no audio leaves your machine. |
+| Semantic search | `huggingface.co`, once — or your OpenAI-compatible endpoint | Downloads the embedding model (~130 MB) for on-device use. Lookups then stay local. |
+| Git sync | The remote **you** configure (HTTPS only) | Your vault, to your own repository. |
+| Peer-to-peer sync | Your paired devices directly; n0's public relay mesh assists NAT traversal | End-to-end encrypted. The relay carries only sealed bytes, never plaintext, and stores nothing. |
+
+AI provider keys are stored in your OS keychain (macOS Keychain, Windows
+Credential Manager, Linux Secret Service), never in the vault.
+[Android is an exception](MOBILE.md) — it currently stores them as plaintext
+JSON in app-private storage.
+
+Plugins are the one place this model does not hold: an enabled plugin runs your
+JavaScript with vault access. See [PLUGINS.md](PLUGINS.md) — only enable
+plugins you trust.
 
 ## Repository layout
 
@@ -130,6 +161,23 @@ export NOVALIS_MS_CLIENT_ID=…       # Azure app registration (public client)
 No client secret is needed — the flow uses loopback redirect + PKCE, and tokens
 are stored in the OS keychain.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the real prerequisites (including the
+Linux system packages), the gates a PR must pass, and the two things that
+reliably turn a first PR red: regenerating the IPC bindings, and translating new
+strings. [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) applies.
+
+## Security
+
+Report vulnerabilities privately — see [SECURITY.md](SECURITY.md), which also
+lists the known limitations (Android secret storage, the plugin trust model).
+Never open a public issue for one.
+
 ## License
 
-MIT © Sebastian Grundhoefer
+MIT © Sebastian Grundhoefer — see [LICENSE](LICENSE).
+
+Novalis links third-party code with its own terms, including a statically linked
+libgit2 (GPL-2.0 with a linking exception). See
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

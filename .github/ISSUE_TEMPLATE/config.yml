@@ -1,0 +1,9 @@
+# Security reports must never become public issues: this app holds its users'
+# whole note corpus, plus their AI and git credentials.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/sebaroVentures/novalis/security/advisories/new
+    about: >
+      Do not open a public issue. This opens a private thread visible only to
+      you and the maintainer. See SECURITY.md for scope and response times.

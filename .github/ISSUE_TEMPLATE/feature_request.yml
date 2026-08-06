@@ -1,0 +1,65 @@
+name: Feature request
+description: Suggest something Novalis should do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Novalis is maintained by one person. Requests that describe a concrete
+        problem get built; requests that describe a feature from another app
+        usually do not. Please lead with the problem.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do that you can't?
+      description: >
+        The situation, not the solution. What do you do today instead, and why
+        is that bad?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Novalis to do?
+      description: >
+        If you have a specific design in mind, describe it. If you only have the
+        problem, say so — that is a perfectly good request.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Editor
+        - Vault, navigation and search
+        - Tasks / Kanban / Today
+        - Calendar
+        - Sync (git, peer-to-peer, or a cloud folder)
+        - AI features
+        - Canvas, PDF or voice
+        - Knowledge graph, properties, query views
+        - Plugins
+        - Settings, onboarding, keybindings
+        - Something else / more than one
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything already close to this?
+      description: >
+        Existing Novalis features you tried, or how another tool solves it. Say
+        what you did not like about them — that is the useful part.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
