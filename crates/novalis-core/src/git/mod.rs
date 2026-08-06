@@ -31,7 +31,26 @@ use crate::models::{
 /// is deliberately NOT ignored — per-vault preferences are synced-by-design
 /// (they already travel with OneDrive-style vault sync); trash and version
 /// snapshots are local safety nets that would only bloat history.
-const IGNORE_LINES: [&str; 3] = [".novalis/trash/", ".novalis/versions/", ".DS_Store"];
+///
+/// `.novalis/plugins/` and its enabled-list are ignored for SECURITY, not size:
+/// plugins are arbitrary JavaScript that the frontend auto-loads into a Worker
+/// on vault open, so syncing them would turn "push to the vault's remote" into
+/// "run code on every device that pulls". Plugins are machine-local by design.
+/// The P2P transport refuses the same paths for the same reason (see
+/// `sync::session`); this is the git-side half of that rule.
+const IGNORE_LINES: [&str; 5] = [
+    ".novalis/trash/",
+    ".novalis/versions/",
+    ".novalis/plugins/",
+    ".novalis/plugins-enabled.json",
+    ".DS_Store",
+];
+
+/// Index paths that must never be tracked, matched as "equal to, or a child
+/// of". Kept in sync with the security entries of [`IGNORE_LINES`] — adding an
+/// ignore only stops *new* files from being staged, because `commit_all`'s
+/// `update_all` keeps staging changes to paths that are ALREADY tracked.
+const NEVER_TRACK_PREFIXES: [&str; 2] = [".novalis/plugins/", ".novalis/plugins-enabled.json"];
 
 /// Serializes every mutating git operation in this process — the manual
 /// "commit now" command and the background auto-committer would otherwise
@@ -99,7 +118,51 @@ pub fn ensure_repo(vault: &Path) -> CoreResult<()> {
             .map_err(gerr)?;
     }
     remove_stale_locks(vault, STALE_LOCK_AGE);
-    ensure_ignores(vault)
+    ensure_ignores(vault)?;
+    untrack_never_tracked(vault)
+}
+
+/// Drop [`NEVER_TRACK_PREFIXES`] paths from the index, leaving the working
+/// tree untouched.
+///
+/// Adding a `.gitignore` line is not enough on its own: `commit_all` calls
+/// `index.update_all`, which restages modifications to already-tracked paths
+/// regardless of ignore rules. A vault that synced plugins before this rule
+/// existed would keep syncing them forever. Running this on every
+/// [`ensure_repo`] makes the migration automatic and idempotent — once the
+/// paths are gone from the index, the walk finds nothing and writes nothing.
+///
+/// The resulting deletion propagates on pull, which is the point: a device
+/// that received an attacker-planted plugin stops tracking it. The files stay
+/// on local disk, so a user's own plugins keep working on the machine they
+/// were installed on.
+fn untrack_never_tracked(vault: &Path) -> CoreResult<()> {
+    let Some(repo) = open(vault) else {
+        return Ok(());
+    };
+    let mut index = repo.index().map_err(gerr)?;
+    let doomed: Vec<PathBuf> = index
+        .iter()
+        .filter_map(|entry| {
+            let path = String::from_utf8(entry.path).ok()?;
+            NEVER_TRACK_PREFIXES
+                .iter()
+                .any(|p| path == p.trim_end_matches('/') || path.starts_with(p))
+                .then(|| PathBuf::from(path))
+        })
+        .collect();
+    if doomed.is_empty() {
+        return Ok(());
+    }
+    log::warn!(
+        "git: untracking {} vault-synced plugin path(s) — plugin code must not travel with the vault",
+        doomed.len()
+    );
+    for path in &doomed {
+        index.remove_path(path).map_err(gerr)?;
+    }
+    index.write().map_err(gerr)?;
+    Ok(())
 }
 
 /// Remove `.git` lock files left behind by a crashed/killed process. Only
@@ -1114,6 +1177,90 @@ mod tests {
         .unwrap();
         paths.sort();
         paths
+    }
+
+    /// Plant a plugin the way an attacker-controlled remote would.
+    fn write_plugin(vault: &Path) {
+        std::fs::create_dir_all(vault.join(".novalis/plugins/evil")).unwrap();
+        std::fs::write(
+            vault.join(".novalis/plugins/evil/plugin.json"),
+            r#"{"id":"evil","name":"Evil","version":"1.0.0","main":"main.js"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            vault.join(".novalis/plugins/evil/main.js"),
+            "// arbitrary code, auto-loaded into a Worker on vault open\n",
+        )
+        .unwrap();
+        std::fs::write(vault.join(".novalis/plugins-enabled.json"), r#"["evil"]"#).unwrap();
+    }
+
+    /// Plugin code must never enter a commit: git sync would otherwise carry
+    /// executable JavaScript to every device that pulls, and the frontend
+    /// auto-loads enabled plugins on vault open.
+    #[test]
+    fn plugin_code_never_enters_history() {
+        let dir = vault();
+        write_plugin(dir.path());
+        ensure_repo(dir.path()).unwrap();
+        commit_all(dir.path(), "Novalis", "novalis@localhost")
+            .unwrap()
+            .expect("a commit is produced");
+        let tracked = head_tree_paths(dir.path());
+        assert!(
+            !tracked.iter().any(|p| p.starts_with(".novalis/plugins")),
+            "plugin paths must not be committed, got: {tracked:?}"
+        );
+        // The files stay on disk — this is a sync boundary, not a deletion.
+        assert!(dir.path().join(".novalis/plugins/evil/main.js").exists());
+        // …and normal notes are unaffected.
+        assert!(tracked.iter().any(|p| p == "a.md"), "got: {tracked:?}");
+    }
+
+    /// A vault that tracked plugins before this rule existed must be migrated:
+    /// `.gitignore` alone does not untrack, because `commit_all`'s
+    /// `update_all` keeps staging already-tracked paths.
+    #[test]
+    fn already_tracked_plugins_are_untracked_on_next_open() {
+        let dir = vault();
+        // Simulate the pre-fix state: a repo whose index really holds them.
+        ensure_repo(dir.path()).unwrap();
+        write_plugin(dir.path());
+        {
+            let repo = Repository::open(dir.path()).unwrap();
+            let mut index = repo.index().unwrap();
+            index
+                .add_all(["*"].iter(), IndexAddOption::FORCE, None)
+                .unwrap();
+            index.write().unwrap();
+            assert!(
+                index
+                    .iter()
+                    .any(|e| String::from_utf8_lossy(&e.path).starts_with(".novalis/plugins")),
+                "fixture must start from the vulnerable state"
+            );
+        }
+        // Re-opening the vault runs the migration.
+        ensure_repo(dir.path()).unwrap();
+        let repo = Repository::open(dir.path()).unwrap();
+        let index = repo.index().unwrap();
+        assert!(
+            !index
+                .iter()
+                .any(|e| String::from_utf8_lossy(&e.path).starts_with(".novalis/plugins")),
+            "plugin paths must be dropped from the index"
+        );
+        assert!(
+            dir.path().join(".novalis/plugins/evil/main.js").exists(),
+            "untracking must not touch the working tree"
+        );
+        // And they stay out once committed.
+        commit_all(dir.path(), "Novalis", "novalis@localhost").unwrap();
+        let tracked = head_tree_paths(dir.path());
+        assert!(
+            !tracked.iter().any(|p| p.starts_with(".novalis/plugins")),
+            "got: {tracked:?}"
+        );
     }
 
     #[test]

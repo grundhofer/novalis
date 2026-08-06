@@ -76,6 +76,40 @@ pub fn vault_rel(base: &Path, relative: &str) -> CoreResult<PathBuf> {
     Ok(base.join(rel))
 }
 
+/// [`vault_rel`] plus the invariants that define a *note* path: no hidden
+/// component anywhere, and a `.md` extension.
+///
+/// `vault_rel` alone only stops escapes out of the vault — it happily resolves
+/// `.novalis/plugins/evil/main.js`, `.novalis/config.json` or `.git/config`,
+/// all of which live *inside* it. Those are not notes, and letting the note
+/// API reach them turns any note-write capability into config tampering or
+/// code execution (a plugin dropped into `.novalis/plugins/` is auto-loaded
+/// into a Worker on the next vault open; a rewritten `.git/config` redirects
+/// the sync remote).
+///
+/// This is not a new restriction on users: [`list_notes`] already skips hidden
+/// files and folders and requires `.md`, so a note under a dot-directory was
+/// never listable, openable, or indexable in the first place. This makes the
+/// write side agree with the read side.
+pub fn vault_note_rel(base: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let abs = vault_rel(base, relative)?;
+    let rel = Path::new(relative);
+    if rel
+        .components()
+        .any(|c| is_hidden(&c.as_os_str().to_string_lossy()))
+    {
+        return Err(CoreError::BadRequest(format!(
+            "Not a note path (hidden component): {relative}"
+        )));
+    }
+    if rel.extension().and_then(|e| e.to_str()) != Some("md") {
+        return Err(CoreError::BadRequest(format!(
+            "Not a note path (expected .md): {relative}"
+        )));
+    }
+    Ok(abs)
+}
+
 /// Write `contents` to `path` atomically: write into a same-directory hidden
 /// temp file, fsync it, then rename over the destination. A crash mid-save
 /// leaves either the old or the new content — never a truncated file. The
@@ -257,7 +291,7 @@ pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
 
 /// Read a full note from disk.
 pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
-    let abs = vault_rel(vault, relative)?;
+    let abs = vault_note_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -285,7 +319,7 @@ pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
 
 /// Write content to a note, updating the modified timestamp.
 pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()> {
-    let abs = vault_rel(vault, relative)?;
+    let abs = vault_note_rel(vault, relative)?;
     if !abs.exists() {
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
@@ -297,7 +331,7 @@ pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()>
 
 /// Create a new note. Generates frontmatter with created/modified timestamps.
 pub fn create_note(vault: &Path, relative: &str, content: &str) -> CoreResult<Note> {
-    let abs = vault_rel(vault, relative)?;
+    let abs = vault_note_rel(vault, relative)?;
     if abs.exists() {
         return Err(CoreError::AlreadyExists(format!(
             "Note already exists: {relative}"
@@ -350,7 +384,7 @@ pub fn create_note(vault: &Path, relative: &str, content: &str) -> CoreResult<No
 /// Append a single line to a note's body, creating the note (with default
 /// frontmatter) if it does not yet exist. Does not re-index — the caller does.
 pub fn append_line(vault: &Path, relative: &str, line: &str) -> CoreResult<()> {
-    let abs = vault_rel(vault, relative)?;
+    let abs = vault_note_rel(vault, relative)?;
     if !abs.exists() {
         create_note(vault, relative, "")?;
     }
@@ -395,8 +429,8 @@ fn is_same_file(a: &Path, b: &Path) -> bool {
 
 /// Move/rename a note.
 pub fn move_note(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
-    let abs_from = vault_rel(vault, from)?;
-    let abs_to = vault_rel(vault, to)?;
+    let abs_from = vault_note_rel(vault, from)?;
+    let abs_to = vault_note_rel(vault, to)?;
 
     if !abs_from.exists() {
         return Err(CoreError::NotFound(format!(
@@ -655,6 +689,62 @@ mod tests {
         write_note(&vault, "ok.md", "just a body").unwrap();
         let content = std::fs::read_to_string(vault.join("ok.md")).unwrap();
         assert!(content.contains("just a body"));
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    /// The note API must not reach app-internal or non-note files that live
+    /// *inside* the vault — `vault_rel` permits them because they never escape
+    /// it. These are the concrete escalation targets: a plugin folder is
+    /// auto-loaded into a Worker on vault open, `.novalis/config.json` carries
+    /// the feature flags, and `.git/config` steers the sync remote.
+    #[test]
+    fn note_api_rejects_dot_paths_and_non_markdown() {
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
+        std::fs::write(vault.join("real.md"), "x").unwrap();
+
+        for bad in [
+            ".novalis/plugins/evil/main.js",
+            ".novalis/plugins/evil/plugin.json",
+            ".novalis/plugins-enabled.json",
+            ".novalis/config.json",
+            ".git/config",
+            "notes/.hidden/x.md",
+            "shell.sh",
+            "notes/script.js",
+        ] {
+            assert!(
+                vault_note_rel(&vault, bad).is_err(),
+                "vault_note_rel must reject {bad}"
+            );
+            assert!(
+                read_note(&vault, bad).is_err(),
+                "read_note must reject {bad}"
+            );
+            assert!(
+                write_note(&vault, bad, "pwned").is_err(),
+                "write_note must reject {bad}"
+            );
+            assert!(
+                create_note(&vault, bad, "pwned").is_err(),
+                "create_note must reject {bad}"
+            );
+            assert!(
+                append_line(&vault, bad, "pwned").is_err(),
+                "append_line must reject {bad}"
+            );
+            assert!(
+                move_note(&vault, "real.md", bad).is_err(),
+                "move_note must reject destination {bad}"
+            );
+        }
+        // Nothing was written anywhere it shouldn't be…
+        assert!(!vault.join(".novalis/plugins").exists());
+        assert!(!vault.join(".git/config").exists());
+        assert!(!vault.join("shell.sh").exists());
+        // …and the ordinary case still works.
+        assert!(create_note(&vault, "sub/fine.md", "body").is_ok());
+        assert!(read_note(&vault, "sub/fine.md").is_ok());
         std::fs::remove_dir_all(&vault).ok();
     }
 
