@@ -88,9 +88,15 @@ Worker — no DOM, no direct filesystem, no network — and reaches the app only
 through the `novalis` host API, where every call is capability-checked.
 
 What that does **not** buy you: capabilities are coarse. There is no per-folder
-or per-note scope, so a plugin allowed to write notes can write any note, and one
-allowed to read them can read all of them. The sandbox constrains the *kind* of
-access, not its reach.
+or per-note scope, so a plugin granted `notes:read` can read every note in the
+vault, and one granted `notes:write` can create a note at any path in it. The
+sandbox constrains the *kind* of access, not its reach.
+
+Two limits are real and worth knowing: the host API exposes only `notes.create`
+— there is no update or delete, and creating over an existing note is refused —
+and every plugin-supplied path must be an ordinary note path, so `.novalis/`,
+`.git/` and non-`.md` files are rejected on both sides of the IPC boundary.
+Neither is a substitute for trusting the plugin.
 
 In practice: **enabling a plugin gives it your vault.** Read its source before
 enabling it, exactly as you would a shell script someone sent you. See

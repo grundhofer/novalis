@@ -1,0 +1,81 @@
+# cargo-deny — keeps the dependency tree's licensing and provenance from
+# drifting. `cargo audit` already covers vulnerabilities; this covers the two
+# things it does not: what we are allowed to ship, and where crates come from.
+#
+# Run locally with `cargo deny check`. CI runs it in the `dependency audit` job.
+
+[graph]
+# Check every platform we ship, not just the host — a Windows- or Linux-only
+# dependency must not be able to slip a license past a macOS developer.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+all-features = false
+
+[licenses]
+# Novalis ships under MIT. This is the exact set present in the tree today —
+# every entry is permissive or file-level weak copyleft, so a static link into
+# an MIT binary is fine. Adding to this list is a deliberate legal decision:
+# if a new dependency needs an entry, check what it actually obliges you to do
+# and record it in THIRD-PARTY-NOTICES.md at the same time.
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    # File-level weak copyleft, from Tauri's stack (cssparser, selectors,
+    # attohttpc, option-ext, dtoa-short). Obliges disclosure only for
+    # modifications to those files, and we vendor no patches.
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+# A crate offering `MIT OR Apache-2.0 OR LGPL-2.1-or-later` (r-efi) resolves to
+# MIT by this ordering rather than tripping the copyleft check.
+confidence-threshold = 0.9
+
+# NOTE: cargo-deny reads crate manifests, so it CANNOT see the license of
+# vendored C sources. `libgit2-sys` declares `MIT OR Apache-2.0` for its Rust
+# binding while the libgit2 it vendors is GPL-2.0 with a linking exception, and
+# `openssl-src` vendors OpenSSL. Both are statically linked into the shipped
+# binary and are documented by hand in THIRD-PARTY-NOTICES.md. A green
+# `cargo deny check licenses` does not discharge that.
+
+[bans]
+multiple-versions = "warn"
+# `warn`, not `deny`, and deliberately so: the only wildcards in this tree are
+# our own in-workspace `novalis-core.workspace = true` path dependencies, which
+# resolve via `path` — there is no registry version to pin and nothing a
+# typosquatter could substitute. `allow-wildcard-paths` does not exempt them
+# because cargo-deny applies it only to crates marked `publish = false`, and
+# changing that would alter these crates' publishability as a side effect of a
+# lint setting. Revisit if a real registry wildcard ever appears.
+wildcards = "warn"
+# `cargo audit` flags advisories against crates that are only in Cargo.lock and
+# never compiled; this catches the inverse — a crate pulled in twice at
+# different majors, which bloats the binary we ask users to download.
+highlight = "all"
+
+[advisories]
+# Vulnerabilities stay with cargo-audit (`.cargo/audit.toml`), which is already
+# a blocking CI gate with written per-advisory justifications. Duplicating them
+# here would mean two exemption lists drifting apart.
+version = 2
+ignore = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

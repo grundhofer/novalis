@@ -189,13 +189,28 @@ jobs:
       # downloaded binary has no build toolchain at all, so both the compile
       # and that workaround are gone; the version is pinned here so a
       # cargo-audit regression can't turn CI red on its own schedule.
-      - name: Install cargo-audit
+      - name: Install cargo-audit and cargo-deny
         uses: taiki-e/install-action@91ddec75689c4c78665b598d188dc821c5a43e5c # v2.85.9
         with:
-          tool: cargo-audit@0.22.2
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
 
       - name: Run cargo audit
         run: cargo audit
+
+      # The half `cargo audit` does not cover: what we are allowed to ship, and
+      # where crates come from. `licenses` holds the tree to an allow-list that
+      # is compatible with shipping under MIT, `sources` refuses anything from
+      # outside crates.io, `bans` reports duplicate majors. Checked against all
+      # four shipped targets, so a Windows- or Linux-only dependency cannot slip
+      # a license past a macOS developer. Config and rationale in `deny.toml`.
+      #
+      # It reads crate manifests, so it CANNOT see vendored C: libgit2 (GPL-2.0
+      # with a linking exception) and OpenSSL are both statically linked and are
+      # documented by hand in THIRD-PARTY-NOTICES.md. A green run here does not
+      # discharge that.
+      - name: Run cargo deny
+        if: ${{ !cancelled() }}
+        run: cargo deny --locked check licenses bans sources
 
       # Blocking, like the Rust half. The lockfile was re-resolved from the
       # committed manifests (`rm pnpm-lock.yaml && pnpm install

@@ -61,15 +61,15 @@ first use. Grouped as they'll appear in onboarding and **Settings › Features**
 - **Power-user** — a JavaScript **plugin** system (sandboxed in Web Workers),
   reusable templates, daily notes, and fully configurable keybindings.
 
-> A unified onboarding step and a **Settings › Features** panel to turn these
-> groups on and off in one place are on the near-term roadmap; today several are
-> already gated individually (an AI connection, the git-sync toggle, building the
-> semantic index, etc.).
+> Onboarding walks you through picking these on first run, **Settings ›
+> Features** turns them on and off in one place afterwards, and a built-in
+> **Feature Guide** (`?` in the sidebar) explains each one — including the ones
+> you have switched off.
 
 ## Releases
 
 Pre-built installers are published on the
-[GitHub Releases](https://github.com/grundhofer/novalis/releases) page
+[GitHub Releases](../../releases) page
 for macOS (universal `.dmg`), Linux (`.AppImage`, `.deb`), and Windows
 (`.msi`, `.exe`).
 
@@ -87,6 +87,8 @@ for how to bypass it.
   aim to be Obsidian-compatible. No lock-in.
 - **Opt-in, not opt-out.** Everything that leaves your machine is a feature you
   switched on. See the table below.
+- **Extensible.** A JavaScript plugin API runs plugins in sandboxed Web Workers
+  against a capability grant you approve. See [PLUGINS.md](PLUGINS.md).
 - **Open source (MIT).**
 
 ## Privacy & network
@@ -124,20 +126,25 @@ plugins you trust.
 ```
 crates/
   novalis-core/        UI-agnostic Rust logic (vault, index, notes, tasks, calendar, ...)
-  novalis-extension/   internal extension API (public plugin API later)
+  novalis-extension/   reserved for a future public plugin API — nothing depends on it yet
 apps/
   desktop/
     frontend/          React + Vite + Tailwind UI (the shared web UI)
     src-tauri/         thin Tauri v2 binary wiring core -> commands/events
-  mobile/              (later) Android/iOS, reuses core + frontend
 packages/
   editor/              @novalis/editor — standalone TipTap-based editor
   ui/                  @novalis/ui — shared UI primitives
 ```
 
+Android builds from this same `apps/desktop` tree rather than a separate
+project — see [MOBILE.md](MOBILE.md).
+
 ## Development
 
-Prerequisites: Rust (stable), Node 20+, pnpm 11.
+Prerequisites: **Rust 1.93** (installed automatically by `rust-toolchain.toml`),
+**Node 22**, **pnpm 11.0.9** (`corepack enable`). Linux additionally needs the
+WebKitGTK stack — see [CONTRIBUTING.md](CONTRIBUTING.md) for the exact package
+list and the per-OS notes.
 
 ```bash
 pnpm install                 # install JS deps

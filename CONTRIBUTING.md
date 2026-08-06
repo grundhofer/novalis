@@ -222,10 +222,10 @@ style: cargo fmt — clear pre-existing drift
 chore: release v0.2.0
 ```
 
-The types you will need: `feat`, `fix`, `docs`, `test`, `style`, `chore`. Scopes are feature
-areas (`editor`, `index`, `calendar`, `tasks`, `sync`, `ci`, `readme`, …), not
-directories. The subject is a sentence, lowercase after the colon, no trailing
-period.
+The types you will need: `feat`, `fix`, `docs`, `test`, `style`, `chore`, `ci`,
+`perf`, `revert`. Scopes are feature areas (`editor`, `index`, `calendar`,
+`tasks`, `sync`, `plugins`, `readme`, …), not directories. The subject is a
+sentence, lowercase after the colon, no trailing period.
 
 There is no squash requirement and no CLA. History is not rewritten on `main`.
 

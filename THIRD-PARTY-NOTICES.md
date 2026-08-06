@@ -236,7 +236,16 @@ assume a converted/mirrored repository inherits the upstream model's license —
 the embedding model above shows, it may assert nothing at all.
 
 **When to regenerate:** on any dependency bump that changes `Cargo.lock` or
-`pnpm-lock.yaml`, and always before cutting a release. If a future change adds a
-license-scanning step to CI (`cargo-deny` with a `[licenses]` allow-list is the
-obvious candidate, and would also catch a new copyleft dependency automatically),
-this file should become its output rather than a hand-derived document.
+`pnpm-lock.yaml`, and always before cutting a release.
+
+CI now runs `cargo deny check licenses bans sources` on every push and PR
+(config in `deny.toml`), against all four shipped targets. A new dependency
+whose license is not on that allow-list fails the build, so the Rust half of
+this document can no longer drift silently.
+
+That check does **not** replace this file, for one specific reason: cargo-deny
+reads crate *manifests*. It sees `libgit2-sys` declare `MIT OR Apache-2.0` and
+has no way to know the libgit2 C source that crate vendors and statically links
+is GPL-2.0 with a linking exception — the single most consequential entry here.
+The same blind spot covers `openssl-src`. Those two sections stay hand-derived
+and hand-checked; treat a green `cargo deny` as covering everything except them.
