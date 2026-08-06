@@ -28,8 +28,20 @@ similar = "2"
 # Third-party importers (`import::`). `zip` unpacks a Notion "Export" archive;
 # `quick-xml` parses the Evernote ENEX envelope AND its ENML/XHTML note bodies
 # (one XML parser for both, so no html5ever/scraper enters the core tree — the
-# ENML→Markdown converter is in-house in `import::enex`). Both versions match
-# what `docx-rs` already pulls in, so neither adds a new transitive crate.
+# ENML→Markdown converter is in-house in `import::enex`).
+# Both versions match what `docx-rs` already pulls in, so neither adds a new
+# transitive crate.
+#
+# quick-xml stays on 0.36 deliberately. This is the one parser that sees
+# UNTRUSTED input (a user-supplied .enex), so RUSTSEC-2026-0194 matters here —
+# but it is neutralized at the single call site by `.with_checks(false)`
+# (`import::enex::attr_value`), which the advisory names as complete mitigation
+# for consumers that do not use `NsReader`. Upgrading to 0.41 would NOT clear
+# the audit gate anyway: docx-rs 0.4.20 pins 0.36.2, so that version stays in
+# `Cargo.lock` regardless. It would also be a breaking parser migration — 0.41
+# emits entity references as separate `Event::GeneralRef`s instead of resolving
+# them inline, so a naive bump silently drops every `&amp;` from an imported
+# note. See `.cargo/audit.toml` for the audit-gate justifications.
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 quick-xml = "0.36"
 uuid = { workspace = true }

@@ -1,14 +1,66 @@
 # cargo-audit configuration.
 #
 # Accepted advisories — each entry needs a reason and a revisit condition.
+# Every justification here must be checkable by a stranger with the command
+# quoted next to it. If a claim stops being true, the entry goes, not the check.
 [advisories]
 ignore = [
-    # quick-xml 0.36.x reader DoS vectors (unbounded NsReader namespace
-    # allocation / quadratic duplicate-attribute check). Reachable only when
-    # *parsing* XML; our only consumer is docx-rs 0.4.20 (novalis-core
-    # export), which we use exclusively to WRITE .docx files — no untrusted
-    # XML is ever read through it. docx-rs has no release on quick-xml
-    # >=0.41 yet; drop these ignores when it does.
+    # RUSTSEC-2026-0194 — quick-xml: quadratic duplicate-attribute-name check.
+    #
+    # We DO parse untrusted XML with quick-xml: `novalis-core` takes a direct
+    # dependency on it to read user-supplied Evernote `.enex` files (envelope +
+    # ENML note bodies) in `src/import/enex.rs`. The single place that iterates
+    # a start tag's attributes — `import::enex::attr_value` — passes
+    # `.with_checks(false)`, which the advisory names as complete mitigation for
+    # consumers that do not use `NsReader`:
+    #   "Consumers that iterate attributes with .attributes().with_checks(false)
+    #    and do not use NsReader are not affected."
+    # Verify: `grep -n 'attributes()' crates/novalis-core/src/import/enex.rs`
+    #         → the only hit carries `.with_checks(false)`.
+    #
+    # 0.36.2 nonetheless stays in Cargo.lock because docx-rs 0.4.20 pins it, so
+    # upgrading novalis-core alone would not clear this gate. docx-rs ships a
+    # reader we never invoke — `novalis-core` uses only its writer API
+    # (`Docx`/`Paragraph`/`Run`/`RunFonts`/`BreakType`, see src/export/mod.rs:7),
+    # so no untrusted XML reaches it.
+    # Verify: `cargo tree -i quick-xml@0.36.2 -e normal --target all`
+    #
+    # Revisit when: docx-rs releases on quick-xml >= 0.41 (then drop this entry
+    # and bump novalis-core in the same change), OR if any new caller iterates
+    # attributes without `with_checks(false)`, OR if anything starts using
+    # `NsReader`.
     "RUSTSEC-2026-0194",
+
+    # RUSTSEC-2026-0195 — quick-xml: unbounded namespace-declaration allocation
+    # in `NsReader`.
+    #
+    # Not reachable: nothing in the workspace constructs an `NsReader`, and
+    # neither does docx-rs, our only other quick-xml consumer. The importer uses
+    # the plain `Reader`, which has no namespace resolver.
+    # Verify: `grep -rn NsReader crates/ apps/ packages/` → no hits.
+    #
+    # Revisit when: any code adopts `NsReader` (then upgrade to >= 0.41 instead
+    # of ignoring), or docx-rs moves to quick-xml >= 0.41.
     "RUSTSEC-2026-0195",
+
+    # RUSTSEC-2026-0235 — rkyv 0.7.46: out-of-bounds reads validating archives
+    # containing Rc/Arc.
+    #
+    # Not compiled. rkyv is a lockfile-only entry: it is an OPTIONAL dependency
+    # of rust_decimal whose feature is never activated, so the crate never
+    # enters the build graph.
+    # Verify: `cargo tree -i rkyv -e normal --target all`
+    #         → "warning: nothing to print."
+    # Lockfile path: tauri-plugin-log → byte-unit 5.2.5 → rust_decimal 1.42.1
+    #                → rkyv (optional, feature off).
+    # cargo-audit reads Cargo.lock without resolving features, so this is a
+    # genuine false positive rather than an accepted risk.
+    #
+    # Not fixable by upgrade: rkyv 0.7 → 0.8 is a semver-major bump three levels
+    # deep inside Tauri's own plugin, so `cargo update` cannot resolve it.
+    #
+    # Revisit when: tauri-plugin-log's byte-unit dependency moves to a
+    # rust_decimal built on rkyv >= 0.8.17, or if `cargo tree -i rkyv` ever
+    # prints a real path (meaning something turned the feature on).
+    "RUSTSEC-2026-0235",
 ]

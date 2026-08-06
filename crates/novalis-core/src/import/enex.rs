@@ -306,8 +306,16 @@ fn enml_to_markdown(enml: &str) -> String {
 }
 
 /// Read an attribute's value by local name, unescaped; empty when absent.
+///
+/// `with_checks(false)` disables quick-xml's duplicate-attribute-name check,
+/// which is quadratic in the attribute count on a single tag (RUSTSEC-2026-0194)
+/// — a crafted `.enex` with one tag carrying ~80k attributes would otherwise pin
+/// a core for seconds, ~800k for minutes. The advisory names exactly this opt-out
+/// as complete mitigation for consumers that don't use `NsReader` (we don't —
+/// nothing in the workspace constructs one). We only ever read the FIRST match
+/// for a given name, so duplicate detection was never load-bearing here.
 fn attr_value(e: &quick_xml::events::BytesStart, key: &[u8]) -> String {
-    for attr in e.attributes().flatten() {
+    for attr in e.attributes().with_checks(false).flatten() {
         if local_name(attr.key.local_name().as_ref()).as_bytes() == key {
             let raw = String::from_utf8_lossy(&attr.value);
             return quick_xml::escape::unescape(&raw)
@@ -415,6 +423,18 @@ mod tests {
     fn enml_link() {
         let md = enml_to_markdown("<en-note><a href=\"https://x.y\">site</a></en-note>");
         assert_eq!(md, "[site](https://x.y)");
+    }
+
+    /// Guards the RUSTSEC-2026-0194 mitigation in `attr_value`: with the
+    /// quadratic duplicate-name check disabled, a repeated attribute no longer
+    /// makes the iterator yield an error — the first value simply wins. A
+    /// hostile `.enex` can't use duplicates to blank out a link either.
+    #[test]
+    fn duplicate_attributes_do_not_abort_parsing() {
+        let md = enml_to_markdown(
+            "<en-note><a href=\"https://first.example\" href=\"https://second.example\">site</a></en-note>",
+        );
+        assert_eq!(md, "[site](https://first.example)");
     }
 
     #[test]
