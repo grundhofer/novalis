@@ -12,6 +12,11 @@ on:
   # release.yml calls this workflow as its gate, so a tag push runs exactly the
   # same checks as a PR instead of a second, drifting copy (see RELEASING.md).
   workflow_call:
+  # Manual trigger. Not decoration: during the 2026-08-06 Actions incident a
+  # push to main produced no run at all, and with only the triggers above there
+  # was no way to ask for one — the commit sat unverified until the next push.
+  # `gh workflow run ci.yml --ref main` covers that, and re-running a flake.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref.
 concurrency:
