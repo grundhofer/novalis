@@ -5,10 +5,25 @@ your device as plain Markdown files; it syncs between devices via OneDrive (or
 any file-sync tool). Built with **Tauri v2** (Rust core + web UI) for
 macOS/Linux/Windows today, and Android/iOS later — from one codebase.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/hero-light.png">
+  <img alt="A note open in Novalis, with the folder tree and tag list on the left and linked references on the right" src="docs/assets/hero-dark.png" width="900">
+</picture>
+
 > Status: early development. The foundation (notes/editor/vault/search, tasks,
 > calendar, export/media/templates, plugin system, mobile-ready base) is complete,
 > plus a large set of specialized capabilities (AI, canvas, PDF, voice, graph,
 > query engine, sync). See `crates/`/`apps/` for structure.
+
+|  |  |
+| --- | --- |
+| ![Today view: overdue and due-today tasks pulled from across the vault](docs/assets/today.png) | ![Kanban board with tasks grouped into Backlog, To Do, In Progress and Review](docs/assets/kanban.png) |
+| **Today** — everything due, from every note | **Kanban** — the same tasks, as a board |
+| ![Link graph of the vault, showing clusters of interlinked notes](docs/assets/graph.png) | ![Settings › Features, showing individual capabilities switched on and off](docs/assets/features.png) |
+| **Graph** — how the vault actually connects | **Features** — turn off what you don't want |
+
+<sub>Screenshots use a demo vault, not real notes.</sub>
 
 ## Features
 
