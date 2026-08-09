@@ -30,7 +30,10 @@ maintainer reviews and publishes it manually.
    passes — builds installers on three runners (macOS, Ubuntu, Windows) and
    creates a draft release named `Novalis v0.2.0` with the artifacts attached.
 
-4. Open the draft on GitHub, edit the release notes, then **Publish**.
+4. Open the draft on GitHub, edit the release notes, then **Publish**. Check
+   `novalis-<tag>-source.tar.gz` is among the assets first — publishing without
+   it breaches GPL-2.0 §3 for the libgit2 code in the installers. See
+   [License obligations](#license-obligations--do-not-clean-up-any-of-this).
 
 ## The release gate
 
@@ -68,8 +71,90 @@ from `github.ref_name`, so dispatching from `main` would draft a release named
 |          | `novalis_<ver>_amd64.AppImage`     |                       |
 | Windows  | `Novalis_<ver>_x64_en-US.msi`,     | x86_64                |
 |          | `Novalis_<ver>_x64-setup.exe`      |                       |
+| (any)    | `novalis-<tag>-source.tar.gz`      | corresponding source  |
 
 ARM Linux and ARM Windows are not built yet; add a matrix entry when needed.
+
+## License obligations — do not "clean up" any of this
+
+Two parts of the release exist purely to keep the shipped binaries lawful. Both
+look like clutter and neither is. Before removing either, read
+`THIRD-PARTY-NOTICES.md`.
+
+### 1. `bundle.resources` in `apps/desktop/src-tauri/tauri.conf.json`
+
+It packages `licenses/`, `THIRD-PARTY-NOTICES.md`, `LICENSE` and
+`COMMERCIAL-LICENSE.md` into every bundle target. `LICENSE` is AGPL-3.0-only
+plus the section 7 plugin permission and points at `COMMERCIAL-LICENSE.md`, so
+that file ships too rather than leaving a dangling reference in a legal document
+someone reads offline. Several licenses in the tree oblige us to put the license
+*text* into the recipient's hands — OFL-1.1 condition 2 for Inter, Apache-2.0 §4(a)–(b)
+for the statically linked OpenSSL, GPL-2.0 §1 for libgit2, LGPL-2.1 §6 for
+LibXDiff, and the EDL-1.0 / BSD-3-Clause binary-form notice clause for
+`xhistogram.c`. Before those entries existed, `THIRD-PARTY-NOTICES.md` sat in the
+repository and shipped nowhere, so every one of those obligations was in breach
+on every release.
+
+Two details that are easy to break:
+
+- **The map form is required**, not the array form. `tauri-utils`'
+  `resource_relpath()` rewrites each leading `..` in an array entry into a `_up_`
+  directory, so `"../../../licenses"` would land in
+  `$RESOURCE/_up_/_up_/_up_/licenses`. The map's value is an explicit
+  destination, which sidesteps that. Paths are relative to `tauri.conf.json`,
+  like `frontendDist` and `icon`.
+- **You cannot leave a `//comment` key next to it.** Tauri's config structs are
+  `#[serde(deny_unknown_fields)]`; an unknown key fails the build. That is why
+  this explanation lives here instead.
+
+Where the files land after install: `Novalis.app/Contents/Resources/licenses/`
+on macOS, `$INSTDIR\licenses\` on Windows, `/usr/lib/Novalis/licenses/` on Linux.
+
+### 2. The source archive (`source` job in `release.yml`)
+
+GPL-2.0 §3 requires the source for GPL'd code to be offered "from the same
+place" as the binary. This is stricter than the AGPL, whose §6(d) explicitly
+permits a *different* server — so linking to github.com/libgit2 does **not**
+discharge it. Every installer statically links libgit2 (GPL-2.0 with a linking
+exception) and LibXDiff (LGPL-2.1-or-later, and *not* covered by that
+exception), so the corresponding source must be an asset on the same release.
+
+Since the relicense there is a second, independent reason for the same asset:
+Novalis is AGPL-3.0-only, and §6 requires the Corresponding Source for the
+binaries we convey. The `git archive` half of the tarball is what discharges
+that — see the npm caveat below, which is now a real gap rather than a note.
+
+The `source` job runs `cargo vendor --locked --versioned-dirs`, drops the result
+into a `git archive` of the tagged tree, appends cargo's source-replacement
+stanza to the existing `.cargo/config.toml` (appends — that file already pins
+`MACOSX_DEPLOYMENT_TARGET`, and overwriting it breaks macOS rebuilds), and
+uploads the tarball to the draft with `gh release upload --clobber`.
+
+Properties worth knowing before changing it:
+
+- `cargo vendor` is **target-agnostic**: run on Linux it still vendors the
+  Windows- and macOS-only crates, so one job covers all three platforms'
+  binaries. Verified by checking `winapi`/`windows-sys` and `gtk`/`webkit2gtk`
+  are all present in a vendor run from macOS.
+- The result resolves `Cargo.lock` fully offline (`cargo metadata --offline
+  --locked` succeeds in the extracted tree).
+- Size is ~166 MB gzipped from ~1.3 GB of sources, about 30 s to compress. The
+  GitHub per-asset limit is 2 GB, so there is a lot of headroom.
+- npm packages are **not** vendored, and under the AGPL that is now an open
+  question rather than a settled one. No JS dependency carries a
+  source-delivery obligation *of its own* — they are all permissive — but
+  AGPL §1 defines Corresponding Source as everything needed to generate and run
+  the object code, and third-party JS is bundled straight into
+  `dist/assets/*.js`. `pnpm-lock.yaml` pins every package to an exact version
+  and integrity hash, so the tarball is reproducible with one `pnpm install`;
+  whether "reproducible with a network fetch" is the same as "accompanied by"
+  is the part that is unresolved. The Rust/C half has no such gap: `cargo
+  vendor` puts every crate source in the archive. **Decide this before the
+  first AGPL release** — the fix, if wanted, is a `pnpm fetch` store beside the
+  vendor directory.
+
+If a release is published without that asset, the GPL-2.0 §3 obligation is
+unmet — treat a failed `source` job as release-blocking, not cosmetic.
 
 ## Unsigned-build warnings (what users see)
 
