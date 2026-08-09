@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Standalone TipTap-based Markdown editor for Novalis (open-sourceable)",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",

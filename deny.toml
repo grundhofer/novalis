@@ -16,11 +16,23 @@ targets = [
 all-features = false
 
 [licenses]
-# Novalis ships under MIT. This is the exact set present in the tree today —
-# every entry is permissive or file-level weak copyleft, so a static link into
-# an MIT binary is fine. Adding to this list is a deliberate legal decision:
-# if a new dependency needs an entry, check what it actually obliges you to do
-# and record it in THIRD-PARTY-NOTICES.md at the same time.
+# The exact set of licenses declared by *third-party* Rust crate manifests in
+# the tree today. Novalis's own three crates are AGPL-3.0-only and are handled
+# by the per-crate exceptions below, not by this list — see the comment there.
+#
+# Every entry is permissive or file-level weak copyleft, so all of them are
+# compatible with conveying the combined binary under AGPL-3.0-only (Apache-2.0
+# and MPL-2.0 are one-way compatible with GPLv3/AGPLv3; the rest impose no
+# license choice at all). That is the *only* claim this list makes. In
+# particular it does not mean the obligations are discharged: several of these
+# licenses require their text to be handed to the recipient, which is the job of
+# THIRD-PARTY-NOTICES.md plus the `licenses/` directory bundled by
+# tauri.conf.json's `bundle.resources`. A green run here proves nothing about
+# that.
+#
+# Adding to this list is a deliberate legal decision: if a new dependency needs
+# an entry, check what it actually obliges you to do and record it in
+# THIRD-PARTY-NOTICES.md at the same time.
 allow = [
     "0BSD",
     "Apache-2.0",
@@ -48,10 +60,55 @@ confidence-threshold = 0.9
 
 # NOTE: cargo-deny reads crate manifests, so it CANNOT see the license of
 # vendored C sources. `libgit2-sys` declares `MIT OR Apache-2.0` for its Rust
-# binding while the libgit2 it vendors is GPL-2.0 with a linking exception, and
-# `openssl-src` vendors OpenSSL. Both are statically linked into the shipped
-# binary and are documented by hand in THIRD-PARTY-NOTICES.md. A green
-# `cargo deny check licenses` does not discharge that.
+# binding, while the C it vendors and statically links is:
+#   - libgit2 itself         GPL-2.0 WITH a linking exception
+#   - libgit2/deps/xdiff/    LGPL-2.1-or-later (LibXDiff, Davide Libenzi) —
+#                            NOT covered by that exception; Libenzi is not a
+#                            libgit2 author and COPYING never mentions xdiff
+#   - xdiff/xhistogram.c     EDL-1.0 (Google/JGit)
+#   - libgit2/deps/winhttp/  LGPL-2.1-or-later, Windows builds only
+# `openssl-src` (Apache-2.0) and `whisper-rs-sys` (MIT) have the same shape.
+# All of it is documented by hand in THIRD-PARTY-NOTICES.md, with the license
+# texts in `licenses/`. A green `cargo deny check licenses` does not discharge
+# that.
+#
+# Do NOT "fix" the omission by adding LGPL-2.1-or-later or EDL to `allow`:
+# cargo-deny raises no error for either, because no crate *manifest* declares
+# them. Listing them would be a false statement about the crate graph, and it
+# would silently green-light a future LGPL *crate* — which, unlike vendored C
+# behind a linking exception, would be a genuinely new obligation.
+#
+# That vendored C is also the one place where Novalis's own AGPL-3.0-only is
+# load-bearing rather than decorative: GPL-2.0-*only* is not compatible with
+# AGPL-3.0, so libgit2 could not be conveyed inside this binary at all if it
+# were not for its LINKING EXCEPTION, which permits linking the compiled library
+# "into combinations with other programs ... without any restriction coming from
+# the use of this file" (licenses/libgit2-COPYING.txt). LibXDiff's
+# `-or-later` lets it be taken as LGPL-3.0, which AGPL-3.0 accommodates. Neither
+# conclusion is something cargo-deny checked; both are reasoned out in
+# THIRD-PARTY-NOTICES.md.
+
+# Novalis's own crates. AGPL-3.0-only is scoped to exactly these three by name
+# rather than added to `allow`, so the allow-list keeps meaning "what we accept
+# from other people's code" and a third-party AGPL crate still trips the check —
+# which is what we want, because an inbound copyleft dependency is a decision
+# about the commercial-exception path (COMMERCIAL-LICENSE.md: code the copyright
+# holder cannot relicense), not a formality.
+# All three inherit the license from `[workspace.package]`; none declares its
+# own. The alternative, `[licenses] private.ignore`, only skips crates marked
+# `publish = false`, and setting that would change these crates' publishability
+# as a side effect of a lint setting.
+[[licenses.exceptions]]
+name = "novalis-core"
+allow = ["AGPL-3.0-only"]
+
+[[licenses.exceptions]]
+name = "novalis-extension"
+allow = ["AGPL-3.0-only"]
+
+[[licenses.exceptions]]
+name = "novalis-desktop"
+allow = ["AGPL-3.0-only"]
 
 [bans]
 multiple-versions = "warn"

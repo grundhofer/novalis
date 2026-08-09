@@ -18,6 +18,13 @@
  * silently returns nothing. See PLUGINS.md for the security model.
  *
  * Keep this file in sync with `PLUGIN_API_VERSION` — it describes version 1.
+ *
+ * Licensing: Novalis is AGPL-3.0-only, but this file is not a trap. The
+ * additional permission under AGPL section 7 in Novalis' LICENSE lets you copy
+ * it — and ship it — inside a plugin under that plugin's own terms, including
+ * proprietary ones. It also puts a plugin that talks to Novalis solely through
+ * this interface outside the AGPL entirely. See PLUGINS.md § Licensing your
+ * plugin.
  */
 
 /** Capability names the host understands. Mirrors `PLUGIN_CAPABILITIES` in

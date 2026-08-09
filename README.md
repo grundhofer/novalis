@@ -104,7 +104,8 @@ for how to bypass it.
   switched on. See the table below.
 - **Extensible.** A JavaScript plugin API runs plugins in sandboxed Web Workers
   against a capability grant you approve. See [PLUGINS.md](PLUGINS.md).
-- **Open source (MIT).**
+- **Open source (AGPL-3.0-only).** Copyleft, with an explicit exception so a
+  plugin can be proprietary and sold. See [License](#license).
 
 ## Privacy & network
 
@@ -198,8 +199,37 @@ Never open a public issue for one.
 
 ## License
 
-MIT © Sebastian Grundhoefer — see [LICENSE](LICENSE).
+**AGPL-3.0-only** © Sebastian Grundhoefer — see [LICENSE](LICENSE).
+
+Use it, read it, change it, share it. If you pass Novalis on, or run a modified
+Novalis where other people reach it over a network, they get the source too.
+
+**Plugins are exempt.** LICENSE carries an additional permission under AGPL
+section 7: a work that talks to Novalis solely through the documented plugin API
+is not covered by the AGPL, so a plugin may be closed-source and sold. Details
+in [PLUGINS.md](PLUGINS.md#licensing-your-plugin). If you need terms the AGPL
+does not give you, see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+
+**App stores are covered too.** A second section 7 permission waives the AGPL's
+no-further-restrictions rule for distribution through an app store, so Novalis —
+or your own build of it — can be listed without the conflict that pulled VLC from
+the App Store in 2011. It does not reach the third-party code linked alongside;
+LICENSE says which piece to check before you submit.
+
+Why AGPL, what was rejected, and what it costs is written up in
+[docs/decisions/0001-licensing.md](docs/decisions/0001-licensing.md).
+
+### The relicense is prospective — v0.1.0 and v0.2.0 are still MIT
+
+Novalis was published under the MIT License up to and including tag **v0.2.0**.
+That grant is irrevocable and it is not being withdrawn: every copy released
+under those tags stays MIT for everyone who has it or obtains it, and may be
+used, modified, redistributed and forked on MIT terms indefinitely. The AGPL
+applies to commits and releases *after* the relicense, and to nothing before it.
+Neither `git checkout v0.2.0` nor a fork from that point is affected by this
+change.
 
 Novalis links third-party code with its own terms, including a statically linked
-libgit2 (GPL-2.0 with a linking exception). See
+libgit2 (GPL-2.0 with a linking exception) and LibXDiff (LGPL-2.1-or-later).
+Those licenses are unaffected by Novalis's own — see
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

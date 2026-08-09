@@ -1,8 +1,10 @@
 # Novalis Plugins
 
-Novalis has an open, MIT-friendly plugin system. Plugins are small JavaScript
-programs that add **commands** (runnable from the command palette, ⌘/Ctrl+⇧+P)
-and interact with your vault through a capability-scoped host API.
+Novalis has an open plugin system. Plugins are small JavaScript programs that add
+**commands** (runnable from the command palette, ⌘/Ctrl+⇧+P) and interact with
+your vault through a capability-scoped host API. Novalis itself is AGPL-3.0-only;
+your plugin does not have to be — see [Licensing your
+plugin](#licensing-your-plugin).
 
 ## Security model
 
@@ -139,6 +141,35 @@ novalis.registerCommand("word-count", "Count words in vault", async () => {
 ```
 
 See `examples/plugins/novalis-examples/` for a complete, working plugin.
+
+## Licensing your plugin
+
+**License your plugin however you like, including closed-source and paid.**
+
+Novalis is AGPL-3.0-only, and that would normally be a problem here: the loader
+concatenates Novalis' Worker bootstrap with your entry script and runs the two as
+one script in one Worker (`BOOTSTRAP` in
+`apps/desktop/frontend/src/stores/pluginStore.ts`), which is exactly the kind of
+combination a copyleft license reaches. So [LICENSE](LICENSE) carries an
+**additional permission under AGPL section 7** that takes plugins back out. Read
+it once before you ship something commercial; the short version:
+
+- A work that reaches Novalis **solely** through the interface documented on this
+  page — the manifest, the injected `novalis` global, the `postMessage` protocol
+  behind it — is not covered by the AGPL. Sell it, keep the source, no agreement
+  to sign, nothing to ask for.
+- You may ship `examples/plugins/plugin-api.d.ts` and the example plugin inside
+  your own plugin under your own terms. That is deliberate: this page tells you
+  to copy the `.d.ts` next to your plugin folder, and without the permission
+  doing so would put AGPL source in your product.
+- What is **not** covered: patching Novalis, adding or bypassing a host method or
+  a capability check, linking `novalis-core`/`novalis-extension`, or copying
+  Novalis source beyond those two paths. That is modifying Novalis, and the AGPL
+  applies to it normally. If you need a host method that does not exist, the way
+  through is a PR, not a private patch.
+
+Anything the permission does not give you is negotiable —
+[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
 
 > Status: M5 covers **command + data** plugins (the most common kind). Custom
 > UI panels/views are planned for a later milestone.

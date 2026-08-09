@@ -1,16 +1,70 @@
 # Third-Party Notices
 
-Novalis itself is MIT-licensed (see [LICENSE](LICENSE)). The installers on the
-Releases page are not only Novalis: they statically link a substantial amount of
-third-party code, some of it under licenses whose terms require the notice to
-travel with the binary. This file is that notice.
+The installers on the Releases page are not only Novalis: they statically link a
+substantial amount of third-party code, some of it under licenses whose terms
+require the notice to travel with the binary. This file is that notice.
+
+**Novalis is licensed per part, not as a single block.** Novalis's own source is
+**AGPL-3.0-only**, together with an additional permission under AGPL section 7
+for plugins; [LICENSE](LICENSE) is the authoritative text of both, and the only
+place either is stated in full. The third-party portions listed below are *not*
+AGPL: each keeps the license its own authors chose, and you keep every right that
+license gives you *in that portion*, whatever Novalis's own code carries. Two of
+those portions are copyleft — libgit2 under GPL-2.0 with a linking exception, and
+LibXDiff under LGPL-2.1-or-later — and each is described individually below.
+
+Why the combination is distributable, since AGPL-3.0 and GPL-2.0-**only** are
+otherwise incompatible: libgit2's LINKING EXCEPTION gives "unlimited permission
+to link the compiled version of this library into combinations with other
+programs, and to distribute those combinations without any restriction coming
+from the use of this file"
+([`licenses/libgit2-COPYING.txt`](licenses/libgit2-COPYING.txt)), which is
+precisely the restriction that would otherwise bite. LibXDiff is
+LGPL-2.1-**or-later**, so it may be taken as LGPL-3.0, which AGPL-3.0
+accommodates (LGPL-3.0 is GPL-3.0 plus additional permissions, and AGPL-3.0 §13
+allows the combination). Everything else in the tree is permissive or MPL-2.0,
+both one-way compatible with AGPL-3.0. None of this is checked by a tool:
+`cargo deny` reads crate manifests and never sees the vendored C at all. The
+per-component sections below are the record.
+
+**Releases up to and including v0.2.0 were published under the MIT License**, and
+that grant is irrevocable — those releases stay MIT. This file describes the
+current tree. See README.md.
 
 It is not a complete license-text appendix. It names every component with a
 non-obvious obligation, gives the aggregate picture for the rest, and states
-exactly how each fact was derived so you can re-derive it.
+exactly how each fact was derived so you can re-derive it. The full texts that
+have to be *delivered* rather than merely cited live in [`licenses/`](licenses/)
+and ship inside every installer — see [Where the license texts
+are](#where-the-license-texts-are).
 
 **Last derived:** 2026-08-06, against `Cargo.lock` and `pnpm-lock.yaml` as of
 Novalis 0.2.0.
+
+---
+
+## Where the license texts are
+
+Several components below are under licenses that oblige us to hand the recipient
+the license *text*, not a link to it: OFL-1.1 condition 2 (Inter),
+Apache-2.0 §4(a)–(b) (OpenSSL), GPL-2.0 §1 (libgit2), LGPL-2.1 §6 (LibXDiff and,
+on Windows, winhttp), the EDL-1.0 / BSD-3-Clause binary-form notice clause
+(`xhistogram.c`), MIT's "included in all copies" (KaTeX), and MPL-2.0 §3.2 (six
+crates). Those texts are in [`licenses/`](licenses/) in the
+repository, and `bundle.resources` in
+`apps/desktop/src-tauri/tauri.conf.json` packages that directory — together with
+this file and `LICENSE` — into every bundle target. After installing:
+
+| Platform | Where to find them |
+| --- | --- |
+| macOS | `Novalis.app/Contents/Resources/licenses/` |
+| Windows (`.msi`, `.exe`) | `licenses\` under the install directory, e.g. `C:\Program Files\Novalis\licenses\` |
+| Linux (`.deb`, `.AppImage`) | `/usr/lib/Novalis/licenses/` (inside the mounted image, for the AppImage) |
+
+`licenses/README.md` records which file was copied from which on-disk source.
+Every one of them was copied from the vendored crate source or the installed npm
+package that the build actually compiles against — not fetched from the web and
+not retyped — so the text a user receives is provably the text the build used.
 
 ---
 
@@ -39,13 +93,97 @@ The exception reads, verbatim from that `COPYING`:
 > modification of the file, and distribution when not linked into a combined
 > executable.)
 
-**What this means:** Novalis does **not** become GPL by linking libgit2, and
-Novalis stays MIT. The GPL's terms still cover libgit2 itself, and GPL-2.0 §1
-requires the license text to accompany the distributed binary — which is what
-this section does. Copyright: the libgit2 contributors (see `AUTHORS` in the
-libgit2 source).
+**What this means:** the exception is what lets Novalis's own code stay under
+its own license instead of being pulled under the GPL by the link. It changes
+nothing about libgit2 itself: **the libgit2 portion of the binary you received is
+still GPL-2.0 code and you still have the GPL's rights in it** — to its source,
+to modify it, and to redistribute it under the GPL. GPL-2.0 §1 requires the
+license text to accompany the distributed binary; that is
+[`licenses/libgit2-COPYING.txt`](licenses/libgit2-COPYING.txt), a byte-identical
+copy of the `COPYING` from the exact vendored source this build compiles.
+Copyright: the libgit2 contributors (see `AUTHORS` in the libgit2 source).
 
-Full license text: https://github.com/libgit2/libgit2/blob/main/COPYING
+**The vendored libgit2 is unmodified**, and that is checked rather than assumed:
+`diff -rq` between `libgit2-sys-0.18.5+1.9.4/libgit2/` and upstream
+`v1.9.4.tar.gz` reports **zero content differences**. The only entries that
+differ are absent directories — `ci/`, `docs/`, `examples/`, `fuzzers/`,
+`tests/` — which the crate drops via its own `Cargo.toml` `exclude` list. So
+GPL-2.0 §2(a)'s modified-file notice requirement does not bite, and the upstream
+tarball *is* the corresponding source.
+
+**Source offer (GPL-2.0 §3).** The complete corresponding source for the libgit2
+portion is the upstream release tarball:
+https://github.com/libgit2/libgit2/archive/refs/tags/v1.9.4.tar.gz — and, because
+GPL-2.0 §3 requires source to be offered "from the same place" as the binary
+rather than merely from some other server, a source archive is attached to the
+same GitHub Release as the installers. See `RELEASING.md`.
+
+Full license text as shipped: [`licenses/libgit2-COPYING.txt`](licenses/libgit2-COPYING.txt).
+Upstream: https://github.com/libgit2/libgit2/blob/main/COPYING
+
+### LibXDiff (`libgit2/deps/xdiff/`) — LGPL-2.1-or-later
+
+> **Prominent notice, per LGPL-2.1 §6:** Novalis uses LibXDiff, a library covered
+> by the GNU Lesser General Public License version 2.1, and its use is covered by
+> that license. A copy of the LGPL is shipped with every Novalis binary as
+> `licenses/LGPL-2.1.txt`.
+
+This is **not** covered by libgit2's linking exception, and it is easy to miss
+because libgit2's own `COPYING` never mentions it.
+
+| | |
+| --- | --- |
+| **What** | LibXDiff — the diff engine libgit2 uses, vendored at `libgit2/deps/xdiff/` |
+| **How it ships** | **Statically linked into every Novalis binary, on every platform.** `libgit2-sys` `build.rs` (lines 163–164) adds `libgit2/deps/xdiff` to the compile unconditionally — there is no feature flag and no platform guard. |
+| **License** | **LGPL-2.1-or-later** |
+| **Copyright** | "LibXDiff by Davide Libenzi ( File Differential Library ) — Copyright (C) 2003 Davide Libenzi" |
+| **Derived from** | The file headers themselves: 14 of the 16 source files in `deps/xdiff/` carry that copyright plus "under the terms of the GNU Lesser General Public License … version 2.1 … or (at your option) any later version". The exceptions are `xhistogram.c` (EDL-1.0, next section) and the build glue. |
+
+**Why the linking exception does not reach it.** libgit2's exception is granted
+by "the authors" of libgit2. Davide Libenzi is not a libgit2 author; his code is
+vendored into the tree, not written for it. libgit2's `COPYING` is consistent
+with that reading — where it does attribute LGPL text to a bundled dependency, it
+names `deps/winhttp/` explicitly (line 441) and never mentions `deps/xdiff/` at
+all. So the xdiff portion is plain LGPL-2.1-or-later.
+
+**What that means for you.** LGPL-2.1 §6 permits distributing a work that links
+the library under terms of your choosing, provided the recipient can relink the
+combined work against a modified LibXDiff and gets a copy of the LGPL. Novalis's
+own code is unaffected. The LibXDiff portion stays LGPL-2.1-or-later and you keep
+the LGPL's rights in it: the corresponding source is the `deps/xdiff/` directory
+of the libgit2 tarball linked above, unmodified, and it is in the source archive
+attached to each release. Since Novalis is AGPL-3.0-only it conveys the complete
+source of the surrounding work as well, which satisfies §6(a) outright rather
+than by the relinking route in §6(b)–(e).
+
+License text: [`licenses/LGPL-2.1.txt`](licenses/LGPL-2.1.txt).
+
+### `xdiff/xhistogram.c` — Eclipse Distribution License 1.0
+
+One file inside `deps/xdiff/` is not LGPL. `xhistogram.c` (the histogram diff
+algorithm, ported from JGit) carries:
+
+> Copyright (C) 2010, Google Inc. and other copyright owners as documented in
+> JGit's IP log. … made available under the terms of the Eclipse Distribution
+> License v1.0
+
+EDL-1.0 is a three-clause BSD license, and its binary-form clause requires the
+copyright notice, the conditions and the disclaimer to be reproduced in the
+documentation or other materials shipped with the binary. libgit2's `COPYING`
+does not carry the EDL text, so the shipped copy in
+[`licenses/EDL-1.0.txt`](licenses/EDL-1.0.txt) — reproduced from that file's own
+header, which states the license "is reproduced below" — is the only place a
+recipient can get it. It is compiled in on every platform, alongside the rest of
+`deps/xdiff/`.
+
+### `libgit2/deps/winhttp/` — LGPL-2.1-or-later (Windows builds only)
+
+The Windows installers additionally contain libgit2's vendored WinHTTP
+definition files, "Copyright (C) 2007 Francois Gouget", under
+LGPL-2.1-or-later. Unlike xdiff, this one *is* documented in libgit2's `COPYING`
+(line 441). The same LGPL notice and relink rights described for LibXDiff apply;
+the license text is the same [`licenses/LGPL-2.1.txt`](licenses/LGPL-2.1.txt).
+macOS and Linux builds do not compile it.
 
 ### OpenSSL 3.6.3 — Apache-2.0
 
@@ -55,6 +193,12 @@ Full license text: https://github.com/libgit2/libgit2/blob/main/COPYING
 | **How it ships** | Statically linked into every Novalis binary |
 | **License** | Apache-2.0 |
 | **Derived from** | `openssl-src-300.6.1+3.6.3/openssl/LICENSE.txt` (the vendored source tree). The `openssl-src` crate's own `license` field is `MIT/Apache-2.0`, which again covers the Rust wrapper, not the vendored C code. |
+
+Apache-2.0 §4(a) requires that recipients of the work get a copy of the license
+and §4(b) that modified-file notices be carried; OpenSSL is vendored unmodified,
+and the license text ships as
+[`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt), copied byte-for-byte from
+that vendored `LICENSE.txt`.
 
 Note that Novalis's own HTTP clients (`reqwest`, `iroh`, `hf-hub`, `fastembed`)
 are configured for rustls, not OpenSSL. OpenSSL nevertheless ships, because
@@ -96,8 +240,41 @@ line.
 | **Copyright** | "Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)" |
 | **Derived from** | `node_modules/@fontsource-variable/inter/LICENSE` and that package's `package.json` `license` field |
 
-OFL-1.1 permits bundling in software. The Reserved Font Name provision means a
-modified copy must be renamed; Novalis ships Inter unmodified.
+**The shipped fonts are Modified Versions in the OFL's sense.** fontsource does
+not republish upstream's binaries untouched — it subsets and repackages them, and
+OFL-1.1 defines any addition, deletion or substitution of *part* of the Font
+Software as a Modified Version. An earlier revision of this file claimed the
+opposite; it was wrong. Two consequences:
+
+- **Condition 4 applies** (the Inter authors' names may not be used to promote a
+  Modified Version without permission). Novalis does not.
+- **No renaming is required.** Inter's OFL declares **no Reserved Font Name**, so
+  condition 3, the rename obligation, never triggers. An earlier revision of this
+  file asserted an RFN provision that does not exist. Grepping the license for
+  "Reserved Font Name" does return one hit — it is the OFL's own *definition* of
+  the term ("refers to any names specified as such after the copyright
+  statement(s)"), and Inter's copyright statement specifies none.
+
+Condition 2 — every copy of the Font Software, whether or not sold, must be
+distributed with this license and the copyright notice — is what makes the font
+license text a *shipped* file rather than a citation:
+[`licenses/OFL-1.1-Inter.txt`](licenses/OFL-1.1-Inter.txt), copied byte-for-byte
+from the installed package.
+
+### KaTeX — MIT
+
+| | |
+| --- | --- |
+| **What** | KaTeX 0.16.47, the math renderer, plus its font families |
+| **How it ships** | The JS is bundled into a lazily-loaded chunk, and the **KaTeX font files** — 20 faces across `KaTeX_AMS`, `Main`, `Math`, `Caligraphic`, `Fraktur`, `SansSerif`, `Script`, `Size1`–`Size4` and `Typewriter`, in `.woff2`/`.woff`/`.ttf` — are emitted into `apps/desktop/frontend/dist/assets/` and therefore into every installer. Upstream `katex/dist/fonts/` has 60 files; the current build output carries 59 (Vite does not emit `KaTeX_Size3-Regular.woff2`). Either way the whole set is covered by the one MIT notice below. |
+| **License** | MIT — "Copyright (c) 2013-2020 Khan Academy and other contributors" |
+| **Derived from** | `node_modules/katex/LICENSE` |
+
+The fonts are covered by KaTeX's own MIT license, not a separate font license.
+MIT requires the copyright and permission notice to be included in all copies,
+including binary ones; the text ships as
+[`licenses/MIT-KaTeX.txt`](licenses/MIT-KaTeX.txt). It was missing entirely from
+earlier revisions of this file.
 
 ### DOMPurify — MPL-2.0 or Apache-2.0
 
@@ -109,10 +286,13 @@ obligation.
 
 ### PDF.js — Apache-2.0
 
-`pdfjs-dist` 6.1.200 (`package.json` `license` field, plus its `LICENSE` file)
-powers the PDF reader. Apache-2.0 requires that its `NOTICE` content, where
-present, be reproduced — see the package's own `LICENSE` in the published
-artifact.
+`pdfjs-dist` 6.2.108 (`package.json` `license` field, plus its `LICENSE` file)
+powers the PDF reader. That is the version `pnpm-lock.yaml` resolves and the
+build ships; `apps/desktop/frontend/package.json` only declares the range
+`^6.1.200`, and an earlier revision of this file quoted that floor instead —
+read the lockfile, not the manifest, or a minor bump that changes a license goes
+unnoticed. Apache-2.0 requires that its `NOTICE` content, where present, be
+reproduced — see the package's own `LICENSE` in the published artifact.
 
 ---
 
@@ -142,8 +322,12 @@ also not pinned to a revision.
 
 922 crates in the dependency graph. Every one declares a `license` field — there
 are zero unlicensed crates, and **no GPL, AGPL, LGPL-only or SSPL crate anywhere
-in the graph** (the only GPL code in the product is the vendored libgit2 C source
-described above, which `cargo metadata` cannot see).
+in the graph**. Read that claim narrowly: it is a statement about Rust crate
+*manifests*, and the copyleft code in the product is C source vendored inside
+crates whose manifests say `MIT OR Apache-2.0` — libgit2 (GPL-2.0 with linking
+exception), LibXDiff (LGPL-2.1-or-later) and, on Windows, winhttp
+(LGPL-2.1-or-later), all described above. `cargo metadata` and `cargo deny`
+cannot see any of them.
 
 | License | Crates |
 | --- | --- |
@@ -164,7 +348,12 @@ The two buckets worth naming individually:
 - **MPL-2.0** (file-level copyleft; unmodified use imposes no obligation on
   Novalis's own source): `attohttpc` 0.30.1, `cssparser` 0.36.0,
   `cssparser-macros` 0.6.1, `dtoa-short` 0.3.5, `option-ext` 0.2.0,
-  `selectors` 0.36.1.
+  `selectors` 0.36.1. All six are used unmodified and **none carries an
+  Exhibit B "Incompatible With Secondary Licenses" notice** — checked by reading
+  each crate's license file, not by grepping, because the phrase also occurs
+  inside the body of the MPL text itself and a naive grep returns all six as
+  false positives. One shipped copy of the text serves all six:
+  [`licenses/MPL-2.0.txt`](licenses/MPL-2.0.txt).
 - **Apache-2.0 with no MIT alternative** (so the Apache NOTICE/attribution terms
   apply): `backon`, `blake3`, `borsh-derive`, `clang-sys`, `cpal`, `esaxx-rs`,
   `fastembed`, `hf-hub`, `hound`, `lzma-rust2`, `moxcms`, `pxfm`, `ring`, `ryu`,
@@ -245,7 +434,28 @@ this document can no longer drift silently.
 
 That check does **not** replace this file, for one specific reason: cargo-deny
 reads crate *manifests*. It sees `libgit2-sys` declare `MIT OR Apache-2.0` and
-has no way to know the libgit2 C source that crate vendors and statically links
-is GPL-2.0 with a linking exception — the single most consequential entry here.
-The same blind spot covers `openssl-src`. Those two sections stay hand-derived
-and hand-checked; treat a green `cargo deny` as covering everything except them.
+has no way to know that the C source that crate vendors and statically links is
+GPL-2.0 with a linking exception, that `deps/xdiff/` inside it is
+LGPL-2.1-or-later with no exception at all, or that one file in that directory is
+EDL-1.0. The same blind spot covers `openssl-src` and `whisper-rs-sys`. Those
+sections stay hand-derived and hand-checked; treat a green `cargo deny` as
+covering everything except them.
+
+**Checking the vendored C by hand.** The claims above were produced by reading
+the extracted crate sources under `~/.cargo/registry/src/*/`, not their
+manifests:
+
+```bash
+LG=~/.cargo/registry/src/*/libgit2-sys-0.18.5+1.9.4
+# which vendored deps get compiled, and unconditionally?
+grep -n 'add_c_files' $LG/build.rs
+# what do the sources of each say about their license?
+grep -rl 'Lesser General Public' $LG/libgit2/deps/xdiff/   # -> 14 files
+head -45 $LG/libgit2/deps/xdiff/xhistogram.c               # -> EDL-1.0
+# is the vendored copy modified?
+curl -sL https://github.com/libgit2/libgit2/archive/refs/tags/v1.9.4.tar.gz | tar xz
+diff -rq libgit2-1.9.4 $LG/libgit2                         # -> only ci/docs/examples/fuzzers/tests absent
+```
+
+Any future crate with a `vendored-*` feature, or any `build.rs` that compiles a
+`deps/` directory, needs the same treatment before it ships.
