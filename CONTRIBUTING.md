@@ -227,10 +227,112 @@ The types you will need: `feat`, `fix`, `docs`, `test`, `style`, `chore`, `ci`,
 `tasks`, `sync`, `plugins`, `readme`, …), not directories. The subject is a
 sentence, lowercase after the colon, no trailing period.
 
-There is no squash requirement and no CLA. History is not rewritten on `main`.
+There is no squash requirement, and history is not rewritten on `main`. Every
+commit does need a sign-off line — see
+[Contributor licensing](#contributor-licensing).
 
 For the PR itself: one topic per PR, and fill in the template — it asks three
 questions, all of which the reviewer would otherwise have to ask you.
+
+## Contributor licensing
+
+**Sign off every commit: `git commit -s`.** That adds one trailer —
+
+```
+Signed-off-by: Your Name <your@email>
+```
+
+— and in this repository it affirms two things: the Developer Certificate of
+Origin 1.1 (reproduced below), *and* the grant in the next paragraph. Both, not
+just the first. A sign-off usually means the DCO alone, so the extra meaning is
+spelled out here instead of being left to be discovered.
+
+### The grant
+
+> By signing off a contribution you grant Sebastian Grundhoefer a perpetual,
+> worldwide, non-exclusive, royalty-free, irrevocable license — sublicensable,
+> and transferable together with the project — to reproduce, modify, prepare
+> derivative works of, publicly display, publicly perform and distribute your
+> contribution and derivative works of it, **under any license terms, including
+> proprietary terms**. You further grant him and every recipient of the software
+> a perpetual, worldwide, non-exclusive, royalty-free, irrevocable patent license
+> to make, have made, use, offer to sell, sell, import and otherwise transfer
+> your contribution, limited to the patent claims licensable by you that are
+> necessarily infringed by the contribution alone or by its combination with
+> Novalis. You represent that you are legally entitled to grant this: the
+> contribution is your own work, or you have permission from whoever owns it —
+> your employer, usually.
+
+Three things it does **not** do, because they are what people worry about:
+
+- **You keep your copyright.** The grant is non-exclusive. Your contribution
+  stays yours to relicense, reuse, or publish anywhere else you like.
+- **It takes nothing away from the public.** Your contribution ships under
+  AGPL-3.0-only with the rest of Novalis. The grant lets the maintainer license
+  it *additionally* on other terms; it cannot retract the AGPL copy anyone
+  already has.
+- **It is not a transfer of ownership** and not an assignment.
+
+### Why this exists
+
+Novalis is AGPL-3.0-only and the maintainer sells commercial exceptions to it
+([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). Selling an exception means
+licensing the code on terms other than the AGPL, which only the copyright holder
+can do. Merge one outside patch without a relicensing grant and that stops being
+possible for every file it touched — permanently, and with no fix short of
+tracking the contributor down or reimplementing the change. The grant is what
+keeps that door open; it is not paperwork for its own sake.
+
+**Why not a CLA.** A signed contributor licence agreement would do the same job
+and is the usual instrument for it, but it puts a form, an identity check and a
+countersignature in front of a two-line typo fix — for a one-person project that
+mostly buys friction. A DCO sign-off plus a published grant is enforceable
+against the same problem, costs a `-s` flag, and leaves the record in the commit
+where an auditor can find it. If a contribution ever arrives that is large enough
+to be worth a real signature, the maintainer will ask for one then.
+
+**If you are not willing to give the grant,** say so in the PR rather than
+signing off anyway. It cannot be merged as-is, but the idea can still be
+discussed, and a bug report costs you nothing.
+
+### Developer Certificate of Origin 1.1
+
+```
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+
+Developer's Certificate of Origin 1.1
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
+```
 
 ## Code style
 
@@ -252,4 +354,6 @@ questions, all of which the reviewer would otherwise have to ask you.
 - [PLUGINS.md](PLUGINS.md) — the plugin host API
 - [MOBILE.md](MOBILE.md) — the Android/iOS plan and its current limitations
 - [RELEASING.md](RELEASING.md) — how a release is cut (maintainer)
+- [LICENSE](LICENSE) — AGPL-3.0-only, plus the section 7 permission for plugins
+- [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) — terms the AGPL does not give
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — bundled third-party licenses

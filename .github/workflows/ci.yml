@@ -204,7 +204,9 @@ jobs:
 
       # The half `cargo audit` does not cover: what we are allowed to ship, and
       # where crates come from. `licenses` holds the tree to an allow-list that
-      # is compatible with shipping under MIT, `sources` refuses anything from
+      # is compatible with conveying the binary under AGPL-3.0-only (our own
+      # three crates are named exceptions, not allow-list entries, so a
+      # third-party copyleft crate still fails), `sources` refuses anything from
       # outside crates.io, `bans` reports duplicate majors. Checked against all
       # four shipped targets, so a Windows- or Linux-only dependency cannot slip
       # a license past a macOS developer. Config and rationale in `deny.toml`.

@@ -9,7 +9,7 @@ members = [
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-only"
 authors = ["Sebastian Grundhoefer <sebastiangrundhoefer@gmail.com>"]
 # Matches rust-toolchain.toml: specta 2.0.0-rc.25 needs 1.93 (`core::fmt::from_fn`).
 rust-version = "1.93"

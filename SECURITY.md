@@ -102,6 +102,13 @@ In practice: **enabling a plugin gives it your vault.** Read its source before
 enabling it, exactly as you would a shell script someone sent you. See
 [PLUGINS.md](PLUGINS.md).
 
+Novalis is AGPL-3.0-only, but plugins are explicitly exempt from that (the
+section 7 permission in [LICENSE](LICENSE)) so that they can be commercial. The
+security consequence is worth stating: a plugin may legitimately arrive as
+minified or obfuscated JavaScript with no source, and "read it before you enable
+it" stops being possible. Novalis' license grants you no right to a plugin's
+source. Trust the author, or do not enable it.
+
 ### A vault is trusted input
 
 Novalis assumes the vault belongs to you. Preferences, calendar subscriptions and

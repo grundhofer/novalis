@@ -35,7 +35,8 @@
     "resources": {
       "../../../licenses/": "licenses/",
       "../../../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
-      "../../../LICENSE": "LICENSE"
+      "../../../LICENSE": "LICENSE",
+      "../../../COMMERCIAL-LICENSE.md": "COMMERCIAL-LICENSE.md"
     },
     "macOS": {
       "minimumSystemVersion": "10.15"

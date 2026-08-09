@@ -2,7 +2,7 @@
   "name": "@novalis/frontend",
   "version": "0.2.0",
   "private": true,
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
