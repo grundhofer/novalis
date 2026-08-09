@@ -134,6 +134,120 @@ jobs:
             - **macOS:** universal `.dmg` (Intel + Apple Silicon)
             - **Linux:** `.AppImage` and `.deb`
             - **Windows:** `.msi` and `.exe`
+            - **Source:** `novalis-${{ github.ref_name }}-source.tar.gz` — the repository
+              tree plus every Rust dependency vendored, including the GPL-2.0 libgit2 and
+              LGPL-2.1 LibXDiff statically linked into the installers above. Attached here
+              rather than only linked upstream because GPL-2.0 §3 requires the source to
+              come from the same place as the binary. See `THIRD-PARTY-NOTICES.md`.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # GPL-2.0 §3 wants source offered "from the same place" as the binary. That is
+  # stricter than it sounds: AGPL-3.0 §6(d) explicitly allows a *different*
+  # server, GPL-2.0 has no such clause, so pointing at github.com/libgit2 is not
+  # enough. Every installer above statically links libgit2 (GPL-2.0 with a
+  # linking exception) and LibXDiff (LGPL-2.1-or-later, and NOT covered by that
+  # exception — see THIRD-PARTY-NOTICES.md), so the corresponding source has to
+  # be an asset on this same release.
+  #
+  # `cargo vendor` is the whole obligation in one command: it is target-agnostic
+  # (run on Linux it still vendors the Windows- and macOS-only crates, verified),
+  # so this single job covers all three platforms' binaries, and the result
+  # resolves `Cargo.lock` fully offline. ~166 MB gzipped, far under GitHub's 2 GB
+  # per-asset limit.
+  source:
+    name: source archive
+    needs: release
+    runs-on: ubuntu-latest
+    # Same reasoning as the release job: write access only where an asset is
+    # uploaded, and never in a job that compiles third-party build scripts.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Keep in sync with rust-toolchain.toml, as in the release job above.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: "1.93.0"
+
+      # `--locked` so the vendored set is exactly what the installers were built
+      # from; a re-resolve here would ship source for different code.
+      - name: Vendor Rust dependencies
+        run: cargo vendor --locked --versioned-dirs vendor > vendor-config.toml
+
+      - name: Assemble source archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          PREFIX="novalis-${TAG}"
+          mkdir -p "${RUNNER_TEMP}/stage/${PREFIX}"
+          # git archive, not `cp -r`, so the tree is exactly the tagged commit
+          # with no build output, no node_modules and no stray local files.
+          git archive --format=tar HEAD | tar -x -C "${RUNNER_TEMP}/stage/${PREFIX}"
+          mv vendor "${RUNNER_TEMP}/stage/${PREFIX}/vendor"
+          # Append: .cargo/config.toml already exists in the repo (it pins
+          # MACOSX_DEPLOYMENT_TARGET). Overwriting it would break the macOS build
+          # for anyone rebuilding from this archive.
+          printf '\n' >> "${RUNNER_TEMP}/stage/${PREFIX}/.cargo/config.toml"
+          cat vendor-config.toml >> "${RUNNER_TEMP}/stage/${PREFIX}/.cargo/config.toml"
+          cat > "${RUNNER_TEMP}/stage/${PREFIX}/SOURCE-ARCHIVE.md" <<EOF
+          # Corresponding source for Novalis ${TAG}
+
+          This is the tree the installers on the same GitHub release were built
+          from, plus \`vendor/\` — every Rust dependency in \`Cargo.lock\`, at the
+          exact versions used, fetched with \`cargo vendor --locked\`.
+
+          It exists to satisfy two obligations at once. Novalis' own code is
+          AGPL-3.0-only, so §6 requires the Corresponding Source for the binaries
+          conveyed on this release; and GPL-2.0 §3 plus LGPL-2.1 §6 require the
+          same for the copyleft C statically linked into them:
+
+          - \`vendor/libgit2-sys-*/libgit2/\` — libgit2, GPL-2.0 with a linking exception
+          - \`vendor/libgit2-sys-*/libgit2/deps/xdiff/\` — LibXDiff, LGPL-2.1-or-later,
+            **not** covered by that exception
+          - \`vendor/libgit2-sys-*/libgit2/deps/xdiff/xhistogram.c\` — EDL-1.0
+          - \`vendor/libgit2-sys-*/libgit2/deps/winhttp/\` — LGPL-2.1-or-later (Windows)
+          - \`vendor/openssl-src-*/openssl/\` — OpenSSL, Apache-2.0
+
+          See \`THIRD-PARTY-NOTICES.md\` for the full picture and \`licenses/\` for
+          the license texts.
+
+          ## Building from it
+
+          \`.cargo/config.toml\` already redirects crates.io to \`vendor/\`, so the
+          Rust side builds with no network:
+
+          \`\`\`sh
+          pnpm install --frozen-lockfile   # JavaScript deps are NOT vendored; this needs network
+          pnpm tauri build
+          \`\`\`
+
+          npm packages are not vendored, and that is a known gap rather than a
+          settled question. No JavaScript dependency imposes a source-delivery
+          obligation *of its own* — they are all permissive — but Novalis is
+          AGPL-3.0-only, and §1 defines Corresponding Source as everything needed
+          to generate and run the object code, which the third-party JavaScript
+          compiled into \`dist/assets/*.js\` is. What the archive gives you instead
+          is \`pnpm-lock.yaml\`, which pins every package to an exact version and
+          integrity hash, so one \`pnpm install\` reproduces the same tree — from
+          the network, not from this file. If that is not good enough for you,
+          say so: <sebastiangrundhoefer@gmail.com>. The Rust/C half has no such
+          gap; \`vendor/\` holds every crate's source.
+          EOF
+          tar czf "${PREFIX}-source.tar.gz" -C "${RUNNER_TEMP}/stage" "${PREFIX}"
+          ls -lh "${PREFIX}-source.tar.gz"
+
+      # Uploaded to the draft the matrix above created — `gh` resolves drafts by
+      # tag. --clobber so re-running the workflow on the same tag replaces the
+      # asset instead of failing.
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "novalis-${TAG}-source.tar.gz" --clobber

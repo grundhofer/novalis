@@ -32,6 +32,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../../../licenses/": "licenses/",
+      "../../../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "../../../LICENSE": "LICENSE"
+    },
     "macOS": {
       "minimumSystemVersion": "10.15"
     },
