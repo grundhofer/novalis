@@ -1,6 +1,5 @@
-# Weekly dependency PRs, grouped so a solo maintainer gets three reviewable
-# PRs a week instead of thirty single-crate ones. Majors stay ungrouped on
-# purpose: those are the ones that need a human to read a changelog.
+# Weekly dependency PRs, grouped so a solo maintainer gets a few reviewable PRs
+# a week instead of thirty single-crate ones.
 version: 2
 updates:
   - package-ecosystem: "cargo"
@@ -13,23 +12,46 @@ updates:
       cargo-minor-and-patch:
         update-types: ["minor", "patch"]
 
-  # Mirrors pnpm-workspace.yaml's `packages:` list (apps/desktop,
-  # apps/desktop/frontend, packages/*) plus the repo root, which holds the
-  # shared lockfile and the @tauri-apps/cli devDependency. The `/packages/*`
-  # glob is deliberate: a new workspace package is covered without editing this
-  # file. Pointing only at "/" would leave every member manifest unwatched.
+  # ONE entry, pointing at the root. This is a pnpm workspace: the root holds
+  # the single `pnpm-lock.yaml`, and Dependabot resolves the whole workspace
+  # from there — a bump to a dependency declared in `packages/editor` arrives
+  # as a root-scoped PR that edits that member's `package.json`.
+  #
+  # An earlier version of this file also listed `/apps/desktop`,
+  # `/apps/desktop/frontend` and `/packages/*`, on the assumption that "/" alone
+  # would leave member manifests unwatched. That assumption was wrong, and it
+  # cost: every member dependency was seen twice, so a single TipTap 2 -> 3
+  # upgrade opened eight PRs for four packages. The member-scoped job also emits
+  # per-dependency PRs that edit a member `package.json` WITHOUT the root
+  # lockfile (dependabot-core#11135), and those fail `pnpm install
+  # --frozen-lockfile` in CI.
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/apps/desktop"
-      - "/apps/desktop/frontend"
-      - "/packages/*"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     groups:
+      # MUST stay above npm-minor-and-patch: "if a dependency matches more than
+      # one rule, it's included in the first group that it matches."
+      #
+      # TipTap is 15 `@tiptap/*` packages plus tiptap-markdown, and their v3
+      # peer ranges are exact-pinned — so a single-package bump produces an
+      # unsatisfiable graph, and merging them one at a time breaks the build in
+      # between. Majors are grouped here on purpose, which is the exception to
+      # the rule below: this family only moves as a unit.
+      tiptap:
+        patterns: ["@tiptap/*", "tiptap-markdown"]
+        update-types: ["major", "minor", "patch"]
+
+      # Everything else: minor and patch only. Majors deliberately stay
+      # ungrouped so a human reads the changelog before they land.
+      #
+      # katex is excluded because it ships 59 font files into the app bundle;
+      # a rendering regression there is invisible to the test suite, so it gets
+      # its own reviewable PR instead of riding in the "safe" bucket.
       npm-minor-and-patch:
+        exclude-patterns: ["katex"]
         update-types: ["minor", "patch"]
 
   # Keeps the 40-char SHA pins in .github/workflows/*.yml current. It can only
