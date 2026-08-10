@@ -13,7 +13,7 @@
 //! authenticates the transport (who you're talking to) but does not by itself
 //! grant the ability to read vault contents.
 
-use chacha20poly1305::aead::{Aead, AeadCore, KeyInit};
+use chacha20poly1305::aead::{Aead, Generate, KeyInit};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -67,8 +67,9 @@ impl VaultKey {
     /// nonce is generated per call, so encrypting the same bytes twice yields
     /// different blobs (and reusing a nonce is astronomically unlikely).
     pub fn seal(&self, plaintext: &[u8]) -> CoreResult<Vec<u8>> {
-        let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.0));
-        let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let key: &Key = (&self.0).into();
+        let cipher = XChaCha20Poly1305::new(key);
+        let nonce = XNonce::generate();
         let ciphertext = cipher
             .encrypt(&nonce, plaintext)
             .map_err(|_| CoreError::Internal("sync: encryption failed".to_string()))?;
@@ -88,14 +89,20 @@ impl VaultKey {
             ));
         }
         let (nonce, ciphertext) = blob.split_at(NONCE_LEN);
-        let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.0));
-        cipher
-            .decrypt(XNonce::from_slice(nonce), ciphertext)
-            .map_err(|_| {
-                CoreError::BadRequest(
-                    "sync: decryption failed (wrong vault key or corrupted data)".to_string(),
-                )
-            })
+        let key: &Key = (&self.0).into();
+        let cipher = XChaCha20Poly1305::new(key);
+        // 0.11 dropped the panicking `XNonce::from_slice`. The length is already
+        // guaranteed by the `blob.len() < NONCE_LEN` check plus `split_at`, so
+        // this conversion cannot fail — but it is fallible in the type system,
+        // and a malformed blob is a caller error, not an internal one.
+        let nonce = XNonce::try_from(nonce).map_err(|_| {
+            CoreError::BadRequest("sync: sealed blob has a malformed nonce".to_string())
+        })?;
+        cipher.decrypt(&nonce, ciphertext).map_err(|_| {
+            CoreError::BadRequest(
+                "sync: decryption failed (wrong vault key or corrupted data)".to_string(),
+            )
+        })
     }
 }
 

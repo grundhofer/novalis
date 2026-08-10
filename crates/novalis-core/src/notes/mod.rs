@@ -914,7 +914,15 @@ mod tests {
             raw.contains("count: 42\n"),
             "expected integer in YAML, got:\n{raw}"
         );
-        assert!(!raw.contains("42.0"));
+        // Scoped to the property line on purpose. A bare `raw.contains("42.0")`
+        // also matches the `created`/`modified` RFC-3339 stamps this note was
+        // just written with — `…T18:14:42.0123…` contains "42.0" — which made
+        // this test fail roughly once in 300 runs, whenever the wall clock hit
+        // second 42 with a leading-zero fraction.
+        assert!(
+            !raw.contains("count: 42.0"),
+            "integer must not be written as a float, got:\n{raw}"
+        );
         let read_back = prop_of(&c, "N.md", "count").unwrap();
         set_property(&c.db, &c.vault, "N.md", "count", read_back).unwrap();
         let raw2 = std::fs::read_to_string(c.vault.join("N.md")).unwrap();
