@@ -31,6 +31,20 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    # TEMPORARY, remove once the TipTap 2 -> 3 migration has landed.
+    #
+    # v3 is a hand migration (see the `tiptap` group comment below), so every
+    # major PR Dependabot opens for these is unmergeable by construction — and
+    # it reopens them weekly, against a limit of 5 slots. Worse, some of them go
+    # green: #41 was a lone `@tiptap/*` 2 -> 3 bump with 4/4 passing checks,
+    # which is a merge waiting to happen.
+    #
+    # This suppresses only MAJORS. Patches and minors on the v2 line still
+    # arrive, grouped. Delete this block the day the migration merges, or
+    # Dependabot will silently sit out v4 as well.
+    ignore:
+      - dependency-name: "@tiptap/*"
+        update-types: ["version-update:semver-major"]
     groups:
       # MUST stay above npm-minor-and-patch: "if a dependency matches more than
       # one rule, it's included in the first group that it matches."
