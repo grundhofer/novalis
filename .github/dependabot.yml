@@ -45,6 +45,21 @@ updates:
     ignore:
       - dependency-name: "@tiptap/*"
         update-types: ["version-update:semver-major"]
+      # `tiptap-markdown` 0.9.0 is the ONLY release that peers `@tiptap/core:
+      # ^3.0.1`; 0.8.10 peers `^2.0.3`. It is therefore a hard prerequisite of
+      # the v3 migration and must land in that branch, not before it — merging
+      # it onto a v2 tree puts an unsatisfied peer on `main`, which (no
+      # `.npmrc`, so non-strict peers) nobody would notice until much later.
+      #
+      # This entry exists because it already slipped through once. PR #39 had
+      # it correctly in the `tiptap` group and was closed; Dependabot then
+      # re-homed it into the `npm-minor-and-patch` group, where it rode along
+      # in PR #51 next to a lucide-react and an eslint patch. A group boundary
+      # is not a guarantee — an explicit version ignore is.
+      #
+      # Remove together with the block above when the migration lands.
+      - dependency-name: "tiptap-markdown"
+        versions: [">= 0.9"]
     groups:
       # MUST stay above npm-minor-and-patch: "if a dependency matches more than
       # one rule, it's included in the first group that it matches."
