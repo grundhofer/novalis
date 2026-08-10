@@ -62,18 +62,39 @@ dropdown, not a branch: `release.yml` derives both `tagName` and `releaseName`
 from `github.ref_name`, so dispatching from `main` would draft a release named
 `Novalis main`.
 
+**A re-run only works while the release for that tag is still a draft.** Since
+`tauri-action` v1.0.0 the action refuses to reuse a release it did not find in
+draft state: it warns, falls through to *create*, and the create fails with a
+422 `already_exists`. (v0.6.2 reused a published release and quietly re-uploaded
+installers into it, which was worse.) So to rebuild a release that has already
+been published, either delete the release first or cut a new tag.
+
 ## What gets built
 
-| Platform | Artifacts                          | Architecture          |
-| -------- | ---------------------------------- | --------------------- |
-| macOS    | `Novalis_<ver>_universal.dmg`      | Intel + Apple Silicon |
-| Linux    | `novalis_<ver>_amd64.deb`,         | x86_64                |
-|          | `novalis_<ver>_amd64.AppImage`     |                       |
-| Windows  | `Novalis_<ver>_x64_en-US.msi`,     | x86_64                |
-|          | `Novalis_<ver>_x64-setup.exe`      |                       |
-| (any)    | `novalis-<tag>-source.tar.gz`      | corresponding source  |
+| Platform | Artifacts                             | Architecture          |
+| -------- | ------------------------------------- | --------------------- |
+| macOS    | `Novalis_<ver>_universal.dmg`,        | Intel + Apple Silicon |
+|          | `Novalis_<ver>_universal.app.tar.gz`  |                       |
+| Linux    | `Novalis_<ver>_amd64.deb`,            | x86_64                |
+|          | `Novalis_<ver>_amd64.AppImage`,       |                       |
+|          | `Novalis-<ver>-1.x86_64.rpm`          |                       |
+| Windows  | `Novalis_<ver>_x64_en-US.msi`,        | x86_64                |
+|          | `Novalis_<ver>_x64-setup.exe`         |                       |
+| (any)    | `novalis-<tag>-source.tar.gz`         | corresponding source  |
 
 ARM Linux and ARM Windows are not built yet; add a matrix entry when needed.
+
+Two things in that table are easy to get wrong, and both bite only at release time:
+
+- **The Linux names are PascalCase**, matching `productName`. `tauri-action`
+  v0.6.2 also looked for a lowercased spelling (`novalis_…`) as a fallback;
+  v1.0.0 removed that, so the bundle filenames now have to match `productName`
+  exactly or the ubuntu job ends with `No artifacts were found.`
+- **The macOS `.app.tar.gz` is produced by the action itself**, not by the
+  updater, so it is attached even though no updater artifacts are configured.
+  v0.6.2 named it `Novalis_universal.app.tar.gz` with no version; v1.0.0 stamps
+  the version in. A v1.0.0 run over a draft that a v0.6.2 run created will
+  therefore match neither the old name nor its label and attach **both** files.
 
 ## License obligations — do not "clean up" any of this
 
