@@ -123,6 +123,23 @@ jobs:
           # tauri-action reads them automatically when present.
         with:
           projectPath: apps/desktop
+          # Build with the CLI this repo locks, not whatever `@tauri-apps/cli@v2`
+          # resolves to today. `@tauri-apps/cli` is a devDependency of the ROOT
+          # package.json only — `apps/desktop/package.json` declares no
+          # dependencies at all — so tauri-action's `hasDependency` check misses
+          # it and both v0.6.2 and v1.0.0 fall back to `npm install -g
+          # @tauri-apps/cli@v2`. Releases were therefore built against an
+          # unpinned CLI, and `-- --locked` in `args` constrains only cargo.
+          #
+          # That matters more under v1.0.0 than it did: v0.6.2 also looked for
+          # lowercased Linux bundle names as a fallback, v1.0.0 looks only for
+          # `productName`. So a CLI-side naming change now means the ubuntu job
+          # finds zero artifacts instead of finding them under the other spelling.
+          #
+          # Setting tauriScript also makes v1.0.0 log "`tauriScript` set.
+          # Skipping cli verification." and skip runner detection entirely, which
+          # sidesteps its reworked find-up/`which pnpm` logic.
+          tauriScript: pnpm --filter @novalis/desktop tauri
           tagName: ${{ github.ref_name }}
           releaseName: "Novalis ${{ github.ref_name }}"
           releaseBody: |
