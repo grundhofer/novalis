@@ -38,8 +38,11 @@ have to be *delivered* rather than merely cited live in [`licenses/`](licenses/)
 and ship inside every installer — see [Where the license texts
 are](#where-the-license-texts-are).
 
-**Last derived:** 2026-08-06, against `Cargo.lock` and `pnpm-lock.yaml` as of
-Novalis 0.2.0.
+**Last derived:** 2026-08-11, against `Cargo.lock` and `pnpm-lock.yaml` as of
+Novalis 0.2.0. The Rust numbers below had drifted by 16 crates before this
+re-derivation; see [How this file was derived](#how-this-file-was-derived-and-how-to-regenerate-it)
+for the exact bucketing rule, which is now written down so the next re-derivation
+is mechanical.
 
 ---
 
@@ -320,7 +323,7 @@ also not pinned to a revision.
 
 ### Rust crates
 
-922 crates in the dependency graph. Every one declares a `license` field — there
+908 crates in the dependency graph. Every one declares a `license` field — there
 are zero unlicensed crates, and **no GPL, AGPL, LGPL-only or SSPL crate anywhere
 in the graph**. Read that claim narrowly: it is a statement about Rust crate
 *manifests*, and the copyleft code in the product is C source vendored inside
@@ -331,15 +334,15 @@ cannot see any of them.
 
 | License | Crates |
 | --- | --- |
-| MIT and/or Apache-2.0 (incl. dual/triple options such as `MIT OR Apache-2.0`, `Zlib OR Apache-2.0 OR MIT`) | 619 |
-| MIT only | 219 |
+| MIT and/or Apache-2.0 (incl. dual/triple options such as `MIT OR Apache-2.0`, `Zlib OR Apache-2.0 OR MIT`) | 618 |
+| MIT only | 204 |
 | Apache-2.0 with no MIT option | 21 |
 | Unicode-3.0 | 18 |
-| Unlicense, or Unlicense/MIT | 14 |
-| BSD-3-Clause | 8 |
+| Unlicense, or Unlicense/MIT | 16 |
+| BSD-3-Clause | 7 |
 | ISC | 7 |
 | **MPL-2.0** | **6** |
-| Zlib / CC0-1.0 / BSD-2-Clause | 6 |
+| Zlib / CC0-1.0 / BSD-2-Clause | 7 |
 | CDLA-Permissive-2.0 | 2 |
 | BSD-3-Clause AND MIT, BSD-3-Clause/MIT | 2 |
 
@@ -355,10 +358,10 @@ The two buckets worth naming individually:
   false positives. One shipped copy of the text serves all six:
   [`licenses/MPL-2.0.txt`](licenses/MPL-2.0.txt).
 - **Apache-2.0 with no MIT alternative** (so the Apache NOTICE/attribution terms
-  apply): `backon`, `blake3`, `borsh-derive`, `clang-sys`, `cpal`, `esaxx-rs`,
+  apply): `backon`, `blake3`, `clang-sys`, `cpal`, `esaxx-rs`,
   `fastembed`, `hf-hub`, `hound`, `lzma-rust2`, `moxcms`, `pxfm`, `ring`, `ryu`,
   `safetensors`, `similar`, `spm_precompiled`, `sync_wrapper`, `tao`,
-  `target-lexicon`, `tokenizers`.
+  `target-lexicon`, `tokenizers`, `zopfli`.
 
 `ring` 0.17.14 declares `Apache-2.0 AND ISC` and carries its own additional
 notices in the crate source.
@@ -400,8 +403,39 @@ cargo metadata --format-version 1 --all-features > /tmp/meta.json
 # then group packages[].license, skipping workspace_members
 ```
 
+"Group by license" is not as self-evident as it reads — SPDX expressions like
+`Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` have to land somewhere, and
+where they land decides three of the rows. The exact rule, first match wins, is:
+
+| Bucket | Predicate on the `license` string |
+| --- | --- |
+| MIT and/or Apache-2.0 | contains `Apache-2.0` **and** contains `MIT` |
+| MIT only | equals `MIT` |
+| Apache-2.0 with no MIT option | contains `Apache-2.0` (so `BSD-3-Clause OR Apache-2.0` counts here) |
+| Unicode-3.0 | equals `Unicode-3.0` |
+| Unlicense, or Unlicense/MIT | contains `Unlicense` |
+| BSD-3-Clause | equals `BSD-3-Clause` |
+| ISC | equals `ISC` |
+| MPL-2.0 | equals `MPL-2.0` |
+| Zlib / CC0-1.0 / BSD-2-Clause | equals one of those three |
+| CDLA-Permissive-2.0 | equals `CDLA-Permissive-2.0` |
+| BSD-3-Clause AND MIT, BSD-3-Clause/MIT | contains `BSD-3-Clause` and `MIT` |
+
+Two things this rule does that are easy to get wrong, and both were verified by
+replaying it against the tree at `0f4cba5` and reproducing that revision's
+published numbers (922 / 619 / 219 / 21 / 18 / 14 / 8 / 7 / 6 / 6 / 2 / 2)
+exactly: the substring test for MIT also matches `MIT-0`, and the
+`Apache-2.0`-only bucket absorbs the multi-option expressions that offer Apache
+alongside something other than MIT. If a future re-derivation does not reproduce
+the previous revision's numbers on the previous revision's lockfile, the rule has
+been mis-implemented — check that before believing the new numbers.
+
+The bucket totals must sum to the headline crate count; if they do not, an
+unbucketed license string has appeared and needs a decision, not a silent
+default.
+
 Caveat, and it matters: `--all-features` walks build-dependencies,
-dev-dependencies and **all** platform-conditional dependencies. 922 is therefore
+dev-dependencies and **all** platform-conditional dependencies. 908 is therefore
 an upper bound across every target, not the exact set linked into one platform's
 binary. It is the right number for a notices file (over-disclosing is safe) and
 the wrong number for a size estimate.
