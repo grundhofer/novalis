@@ -132,7 +132,15 @@ fn parse_enex(xml: &str) -> CoreResult<Vec<EnexNote>> {
             }
             Ok(Event::Text(t)) => {
                 if field.is_some() {
-                    fieldbuf.push_str(&t.unescape().unwrap_or_default());
+                    fieldbuf.push_str(&t.decode().unwrap_or_default());
+                }
+            }
+            // 0.41 splits `&amp;` out of the surrounding text into its own
+            // event. Without this arm a title like "Tom &amp; Jerry" imports as
+            // "Tom  Jerry" and nothing fails.
+            Ok(Event::GeneralRef(rf)) => {
+                if field.is_some() {
+                    fieldbuf.push_str(&resolve_entity(&rf));
                 }
             }
             Ok(Event::CData(t)) => {
@@ -286,7 +294,19 @@ fn enml_to_markdown(enml: &str) -> String {
                 }
             }
             Ok(Event::Text(t)) => {
-                let text = t.unescape().unwrap_or_default();
+                let text = t.decode().unwrap_or_default();
+                if in_pre {
+                    out.push_str(&text);
+                } else {
+                    append_inline_text(&mut out, &text);
+                }
+            }
+            // Same split as in `parse_enex`. Routed through the identical
+            // in_pre/inline branch so an entity behaves exactly like the text it
+            // stands for — `&nbsp;` collapses with surrounding whitespace
+            // outside `<pre>`, and survives verbatim inside it.
+            Ok(Event::GeneralRef(rf)) => {
+                let text = resolve_entity(&rf);
                 if in_pre {
                     out.push_str(&text);
                 } else {
@@ -303,6 +323,31 @@ fn enml_to_markdown(enml: &str) -> String {
     }
 
     normalize_blank_lines(out.trim())
+}
+
+/// Resolve one `&…;` entity reference to the text it stands for.
+///
+/// quick-xml 0.41 stopped resolving entity references inside `Event::Text` and
+/// emits them as their own `Event::GeneralRef` instead. Every reader loop must
+/// therefore handle them explicitly — an unhandled arm compiles fine, passes the
+/// old tests, and silently deletes every `&amp;` from an imported note.
+///
+/// Three cases, in the order they are tried:
+/// * numeric (`&#233;`, `&#xE9;`) — resolved by quick-xml;
+/// * named — `resolve_predefined_entity` covers the five XML ones plus the full
+///   HTML5 set, because `escape-html` is enabled (ENML is XHTML and leans on
+///   `&nbsp;`/`&mdash;` heavily);
+/// * anything else — a custom DTD entity we cannot know. Reproduce it verbatim
+///   rather than dropping it, so the note keeps the text a human can still read.
+fn resolve_entity(rf: &quick_xml::events::BytesRef) -> String {
+    if let Ok(Some(c)) = rf.resolve_char_ref() {
+        return c.to_string();
+    }
+    let name = rf.decode().unwrap_or_default();
+    match quick_xml::escape::resolve_predefined_entity(&name) {
+        Some(text) => text.to_string(),
+        None => format!("&{name};"),
+    }
 }
 
 /// Read an attribute's value by local name, unescaped; empty when absent.
@@ -454,5 +499,80 @@ mod tests {
         assert_eq!(notes[0].tags, vec!["work", "ideas"]);
         assert!(notes[0].content.contains("Body text"));
         assert_eq!(notes[0].created, "2024-01-01T00:00:00+00:00");
+    }
+
+    // ── Entity handling ──────────────────────────────────────────────────────
+    //
+    // quick-xml 0.41 emits `&…;` as its own `Event::GeneralRef` rather than
+    // resolving it inside `Event::Text`. Every test below fails by SILENTLY
+    // LOSING characters if the `GeneralRef` arm is removed — nothing errors,
+    // nothing panics, the note just comes out wrong. They are the only thing
+    // standing between this importer and that.
+
+    #[test]
+    fn body_keeps_predefined_entities() {
+        // Without the GeneralRef arm: "Tom  Jerry" and "a < b".
+        let md = enml_to_markdown("<en-note><div>Tom &amp; Jerry</div></en-note>");
+        assert_eq!(md, "Tom & Jerry");
+        let md = enml_to_markdown("<en-note><div>a &lt; b &gt; c</div></en-note>");
+        assert_eq!(md, "a < b > c");
+    }
+
+    #[test]
+    fn body_keeps_numeric_character_references() {
+        // Decimal and hex, the two forms Evernote emits for accented text.
+        let md = enml_to_markdown("<en-note><div>caf&#233; and caf&#xE9;</div></en-note>");
+        assert_eq!(md, "café and café");
+    }
+
+    #[test]
+    fn body_keeps_html_entities_that_are_not_xml_predefined() {
+        // The `escape-html` feature is what makes this work. It is also the
+        // case that was BROKEN BEFORE the 0.41 migration, not just at risk:
+        // on quick-xml 0.36 `unescape()` returned Err for a text node
+        // containing `&mdash;`, and the call site's `.unwrap_or_default()`
+        // turned the whole run into an empty string.
+        let md = enml_to_markdown("<en-note><div>Rust &mdash; a language</div></en-note>");
+        assert_eq!(md, "Rust — a language");
+    }
+
+    #[test]
+    fn unknown_entities_survive_as_written_rather_than_vanishing() {
+        // A custom DTD entity we cannot resolve. Keeping the source text is the
+        // lesser evil: the note stays readable and the loss is visible.
+        let md = enml_to_markdown("<en-note><div>see &myref; here</div></en-note>");
+        assert_eq!(md, "see &myref; here");
+    }
+
+    #[test]
+    fn entities_inside_pre_are_not_whitespace_collapsed() {
+        let md = enml_to_markdown("<en-note><pre>if (a &amp;&amp; b)</pre></en-note>");
+        assert!(md.contains("if (a && b)"), "md: {md}");
+    }
+
+    #[test]
+    fn envelope_fields_keep_entities() {
+        // The envelope has its own reader loop, so it needs its own coverage —
+        // a fix applied to only one of the two loops passes the body tests.
+        let xml = r#"<en-export>
+          <note>
+            <title>R&amp;D caf&#233;</title>
+            <content><![CDATA[<en-note><div>x</div></en-note>]]></content>
+            <created>20240101T000000Z</created>
+            <tag>Q&amp;A</tag>
+          </note>
+        </en-export>"#;
+        let notes = parse_enex(xml).unwrap();
+        assert_eq!(notes[0].title, "R&D café");
+        assert_eq!(notes[0].tags, vec!["Q&A"]);
+    }
+
+    #[test]
+    fn attribute_values_keep_entities() {
+        // Attributes are not events, so they go through `escape::unescape`
+        // rather than the GeneralRef arm — a separate path worth pinning.
+        let md =
+            enml_to_markdown("<en-note><a href=\"https://e.example/?a=1&amp;b=2\">q</a></en-note>");
+        assert_eq!(md, "[q](https://e.example/?a=1&b=2)");
     }
 }
