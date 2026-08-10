@@ -125,6 +125,60 @@ wildcards = "warn"
 # different majors, which bloats the binary we ask users to download.
 highlight = "all"
 
+# ── Windows-only tripwire: keep cpal and wmi off windows-core 0.61 ────────────
+#
+# `cpal` and `wmi` each declare `windows` AND `windows-core` as two INDEPENDENT
+# version ranges spanning the 0.61/0.62 majors. Cargo resolves the two edges
+# with no coupling between them, so an unrelated dependency bump can flip one
+# and not the other. When that happens, `#[windows::core::implement]` — which
+# expands to bare `::windows_core::` paths — binds a different crate than the
+# `_Impl` traits it must satisfy, and the build dies with a wall of E0277
+# "the trait bound `IWbemObjectSink: windows_core::Interface` is not satisfied".
+# Nothing about it is obvious from the diff: the version SET is unchanged, only
+# an edge moved. It has already cost one debugging session (Dependabot #20,
+# serde_with 3.20 -> 3.22, which touches none of this).
+#
+# These rules catch it in the ~40s Linux audit job instead of a ~3.5min Windows
+# build. `wrappers` is the set of crates legitimately on the 0.61 line today, so
+# cpal or wmi appearing there is what fails the gate.
+#
+# KNOWN AND ACCEPTED FALSE POSITIVE: this expresses "cpal and wmi must stay on
+# the 0.62 line", not "their two edges must agree". A *matched* 0.61 pair also
+# compiles and this would still reject it. If that ever happens, the fix is to
+# widen these lists deliberately — which is the point, because the alternative
+# is finding out on Windows.
+#
+# The real cure is upstream and already merged but unreleased: cpal master pins
+# both to 0.62 (RustAudio/cpal#1244). `cpal = "0.18"` in
+# apps/desktop/src-tauri/Cargo.toml already accepts it, so a lock update will
+# pick it up with no manifest change, and these rules can then be deleted.
+[[bans.deny]]
+crate = "windows-core@0.61"
+wrappers = [
+  "tao",
+  "webview2-com",
+  "webview2-com-sys",
+  "windows",
+  "windows-collections",
+  "windows-future",
+  "windows-numerics",
+  "wry",
+]
+
+[[bans.deny]]
+crate = "windows@0.61"
+wrappers = [
+  "tao",
+  "tauri",
+  "tauri-plugin-opener",
+  "tauri-runtime",
+  "tauri-runtime-wry",
+  "tauri-winrt-notification",
+  "webview2-com",
+  "webview2-com-sys",
+  "wry",
+]
+
 [advisories]
 # Vulnerabilities stay with cargo-audit (`.cargo/audit.toml`), which is already
 # a blocking CI gate with written per-advisory justifications. Duplicating them
