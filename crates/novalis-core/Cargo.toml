@@ -29,8 +29,23 @@ similar = "2"
 # `quick-xml` parses the Evernote ENEX envelope AND its ENML/XHTML note bodies
 # (one XML parser for both, so no html5ever/scraper enters the core tree — the
 # ENML→Markdown converter is in-house in `import::enex`).
-# Both versions match what `docx-rs` already pulls in, so neither adds a new
-# transitive crate.
+#
+# zip is on 8.x and there is now exactly ONE zip in `Cargo.lock`: `docx-rs`
+# 0.4.22 depends on `zip = "8.6.0"` itself, so moving off 0.6 here removed the
+# last holder of the old line rather than adding a second one.
+#
+# The feature choice is not arbitrary. zip 8 has no miniz_oxide backend, so the
+# only pure-Rust option is `deflate-flate2-zlib-rs`; every other
+# `deflate-flate2-*` feature links a C zlib. That sounds like it would swap the
+# deflate implementation workspace-wide — `flate2` compiles exactly ONE backend
+# by cfg priority and `any_zlib` wins — but it does NOT, because docx-rs's zip 8
+# already enables that same backend. `cargo tree -e features -i flate2` is
+# identical before and after this dependency moved. Verify with that command
+# before believing any claim about it either way.
+#
+# Kept minimal rather than plain `features = ["deflate"]` (which also drags in
+# `zopfli`) so this line still says what we actually need if docx-rs ever drops
+# zip: the importer only reads, and the one writer here uses `Stored`.
 #
 # quick-xml stays on 0.36 deliberately. This is the one parser that sees
 # UNTRUSTED input (a user-supplied .enex), so RUSTSEC-2026-0194 matters here —
@@ -42,7 +57,9 @@ similar = "2"
 # emits entity references as separate `Event::GeneralRef`s instead of resolving
 # them inline, so a naive bump silently drops every `&amp;` from an imported
 # note. See `.cargo/audit.toml` for the audit-gate justifications.
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "8.6", default-features = false, features = [
+  "deflate-flate2-zlib-rs",
+] }
 quick-xml = "0.36"
 uuid = { workspace = true }
 git2 = { workspace = true }
