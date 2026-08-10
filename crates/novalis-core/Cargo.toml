@@ -29,8 +29,18 @@ similar = "2"
 # `quick-xml` parses the Evernote ENEX envelope AND its ENML/XHTML note bodies
 # (one XML parser for both, so no html5ever/scraper enters the core tree — the
 # ENML→Markdown converter is in-house in `import::enex`).
-# Both versions match what `docx-rs` already pulls in, so neither adds a new
-# transitive crate.
+#
+# zip is on 8.x while `docx-rs` 0.4.20 still pins `zip = "0.6.3"`, so BOTH
+# versions sit in `Cargo.lock`. That is deliberate and it has a consequence
+# nothing in a diff shows: zip 8 has no miniz_oxide backend, so the only
+# pure-Rust option is `deflate-flate2-zlib-rs` (every other `deflate-flate2-*`
+# feature links a C zlib). `flate2` compiles exactly ONE backend chosen by cfg
+# priority — `any_zlib` wins — so enabling zlib-rs here switches the deflate
+# implementation WORKSPACE-WIDE, under `png` and `tiff` (image → docx-rs),
+# `ureq` (hf-hub → fastembed model downloads) and zip 0.6 (the DOCX exporter),
+# not just under this dependency. Plain `features = ["deflate"]` also compiles
+# but additionally drags in `zopfli`, which is compression-only and unused: the
+# importer only reads, and the one writer here uses `Stored`.
 #
 # quick-xml stays on 0.36 deliberately. This is the one parser that sees
 # UNTRUSTED input (a user-supplied .enex), so RUSTSEC-2026-0194 matters here —
@@ -42,7 +52,9 @@ similar = "2"
 # emits entity references as separate `Event::GeneralRef`s instead of resolving
 # them inline, so a naive bump silently drops every `&amp;` from an imported
 # note. See `.cargo/audit.toml` for the audit-gate justifications.
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "8.6", default-features = false, features = [
+  "deflate-flate2-zlib-rs",
+] }
 quick-xml = "0.36"
 uuid = { workspace = true }
 git2 = { workspace = true }
