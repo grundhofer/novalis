@@ -51,9 +51,16 @@ git2 = { workspace = true }
 # wire protocol; `base64` encodes the pairing ticket. All pure-Rust — no
 # openssl — so they add nothing to the openssl isolation surface. The async
 # `iroh` QUIC transport lives in the desktop shell, not here.
-chacha20poly1305 = "0.10"
+# `features = ["zeroize"]` is NOT optional here. Up to 0.10, `ChaChaPoly1305`
+# implemented `ZeroizeOnDrop` unconditionally and wiped the key on drop; in 0.11
+# that — and the wipe of the derived Poly1305 one-time key — moved behind this
+# feature, which is OFF by default. Every seal/open builds a cipher, so without
+# it each call would leave a live 32-byte vault key in freed memory for the
+# allocator to hand out again. That is the whole zero-knowledge claim of the
+# sync, and no test can observe the difference.
+chacha20poly1305 = { version = "0.11", features = ["zeroize"] }
 rand = "0.8"
-base64 = "0.22"
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 postcard = { version = "1", features = ["use-std"] }
 # Pure-Rust HNSW: the native ANN backing chunk-level semantic retrieval. Chosen
 # over the sqlite-vec vec0 extension so the multi-model/variable-dim vectors that
