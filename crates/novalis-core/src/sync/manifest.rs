@@ -28,9 +28,30 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
 use walkdir::WalkDir;
 
 use crate::error::CoreResult;
+
+/// Lowercase hex of a digest, byte-for-byte what `format!("{:x}", …)` produced
+/// before sha2 0.11.
+///
+/// 0.11 moved from `generic-array::GenericArray` to `hybrid-array::Array`, which
+/// does not implement `LowerHex`, so the old formatting no longer compiles. That
+/// is a mercy: **these strings are persisted and compared**. A manifest hash that
+/// changed shape would make every file in every vault look modified on the next
+/// sync, and nothing would report an error — it would just move a lot of data and
+/// manufacture conflicts. The pinned test below is what stops that.
+///
+/// Same construction as `index::vectors::content_hash`.
+fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
+    let bytes = bytes.as_ref();
+    let mut hex = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        hex.push_str(&format!("{b:02x}"));
+    }
+    hex
+}
 
 /// One file's fingerprint in a [`Manifest`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,7 +132,7 @@ impl Manifest {
                 rel.clone(),
                 FileEntry {
                     path: rel,
-                    hash: format!("{:x}", hasher.finalize()),
+                    hash: hex_digest(hasher.finalize()),
                     size: bytes.len() as u64,
                     mtime_ms,
                 },
@@ -293,6 +314,25 @@ mod tests {
 
     use super::*;
 
+    /// PINS THE ON-DISK HASH FORMAT. sha2 0.11 removed `LowerHex` from the digest
+    /// type, so the old `format!("{:x}", …)` had to be replaced — and a
+    /// replacement that produced a different string (uppercase, `0x`-prefixed,
+    /// separated, truncated) would compile, pass every other test in this file,
+    /// and then make every file in every existing vault look modified on the next
+    /// sync while manufacturing conflicts. Nothing else in the suite would notice,
+    /// because every other test hashes and compares within one process.
+    ///
+    /// The expected value is the published SHA-256 of "abc".
+    #[test]
+    fn hex_digest_matches_the_persisted_format() {
+        let mut h = Sha256::new();
+        h.update(b"abc");
+        assert_eq!(
+            hex_digest(h.finalize()),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
     fn manifest(files: &[(&str, &str)]) -> Manifest {
         let entries = files
             .iter()
@@ -303,7 +343,7 @@ mod tests {
                     p.to_string(),
                     FileEntry {
                         path: p.to_string(),
-                        hash: format!("{:x}", h.finalize()),
+                        hash: hex_digest(h.finalize()),
                         size: content.len() as u64,
                         mtime_ms: 0,
                     },
