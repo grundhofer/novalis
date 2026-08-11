@@ -18,7 +18,19 @@ use crate::models::{NoteFrontmatter, NotePropertyEntry, PropertyValue};
 /// Returns the parsed frontmatter and the body (content after frontmatter).
 pub fn parse_frontmatter(content: &str) -> (NoteFrontmatter, String) {
     let matter = Matter::<YAML>::new();
-    let result = matter.parse(content);
+    // gray_matter 0.3 made `parse` fallible. This is the LENIENT reader (index
+    // and display paths), so a block it cannot even split degrades to "no
+    // frontmatter, everything is body" rather than failing — the same shape as
+    // 0.2, which reported an unparseable block as `data: None`. Returning the
+    // input untouched as the body is the only option here that cannot lose text.
+    // Do NOT `unwrap()`: this parses arbitrary user files.
+    let result = match matter.parse::<gray_matter::Pod>(content) {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("failed to parse frontmatter block: {e}");
+            return (NoteFrontmatter::default(), content.to_string());
+        }
+    };
 
     let fm = match frontmatter_value(&result.data) {
         // No block, or a legitimately-empty `---\n---` (YAML null), or a
@@ -105,7 +117,16 @@ fn scalar_to_string(v: &serde_json::Value) -> String {
 /// user's hand-written metadata irrecoverably.
 pub fn parse_frontmatter_strict(content: &str) -> CoreResult<(NoteFrontmatter, String)> {
     let matter = Matter::<YAML>::new();
-    let result = matter.parse(content);
+    // The strict counterpart: an unparseable block is an ERROR here, never a
+    // default. Callers re-serialize what they get back, so degrading would write
+    // the default over the user's hand-written metadata and lose it for good.
+    // That asymmetry with `parse_frontmatter` above is the whole point of this
+    // function, and gray_matter 0.3's fallible `parse` is a second way in.
+    let result = matter.parse::<gray_matter::Pod>(content).map_err(|e| {
+        CoreError::BadRequest(format!(
+            "frontmatter block could not be parsed ({e}); fix it in the editor first"
+        ))
+    })?;
     let fm = match frontmatter_value(&result.data) {
         None => NoteFrontmatter::default(),
         Some(val) => serde_json::from_value(val).map_err(|e| {
@@ -277,6 +298,33 @@ pub fn extract_body_tags(body: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// gray_matter 0.3 made `parse` fallible, and that CLOSES A HOLE rather than
+    /// opening one. On 0.2 a block whose YAML could not be parsed at all came
+    /// back as `data: None`, which is indistinguishable from "no frontmatter" —
+    /// so the strict reader returned a DEFAULT, and every write path that
+    /// re-serializes what it read would then overwrite the user's block with
+    /// that default. Exactly the erasure this function exists to prevent.
+    ///
+    /// Now it is an error on the strict path and a leave-it-alone on the lenient
+    /// one. If either half of this ever regresses, notes lose metadata silently.
+    #[test]
+    fn unparseable_block_errors_strictly_and_is_left_alone_leniently() {
+        let broken = "---\na: [1, 2\nb: }{\n---\nbody text\n";
+
+        assert!(
+            parse_frontmatter_strict(broken).is_err(),
+            "strict must refuse a block it cannot parse, never default"
+        );
+
+        let (fm, body) = parse_frontmatter(broken);
+        assert!(fm.title.is_none(), "lenient must fall back to the default");
+        assert!(fm.tags.is_empty());
+        assert!(
+            body.contains("body text"),
+            "lenient must not drop the text: {body}"
+        );
+    }
 
     #[test]
     fn extract_body_tags_basic_and_nested() {
