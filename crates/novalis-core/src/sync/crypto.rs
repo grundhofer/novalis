@@ -15,8 +15,22 @@
 
 use chacha20poly1305::aead::{Aead, Generate, KeyInit};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
-use rand::rngs::OsRng;
-use rand::RngCore;
+// rand 0.10 removed `rngs::OsRng` and dropped `RngCore` from the crate root.
+// The OS CSPRNG is now `SysRng`, and it only implements the FALLIBLE `TryRng`,
+// so an infallible `fill_bytes` has to come from an explicit adapter.
+//
+// `UnwrapErr` is the right adapter and the choice is security-relevant, not
+// stylistic: its docs say it "implements `Rng` by panicking on potential
+// errors". That reproduces rand 0.8's `OsRng::fill_bytes` semantics exactly,
+// and it is what `XNonce::generate()` below already does via crypto-common.
+//
+// Do NOT "fix" a future compile error here with `let _ = SysRng.try_fill_bytes(..)`
+// or `.ok()`. On failure that leaves the buffer ALL ZERO and mints an all-zero
+// nonce or vault key — no compile error, no clippy warning, no failing test.
+// A key must never be built from a short read; crashing is the correct outcome.
+use rand::rand_core::UnwrapErr;
+use rand::rngs::SysRng;
+use rand::Rng;
 
 use crate::error::{CoreError, CoreResult};
 
@@ -33,7 +47,7 @@ pub const CHALLENGE_LEN: usize = 32;
 /// [`VaultKey::seal`] generates internally per call.
 pub fn challenge_nonce() -> [u8; CHALLENGE_LEN] {
     let mut n = [0u8; CHALLENGE_LEN];
-    OsRng.fill_bytes(&mut n);
+    UnwrapErr(SysRng).fill_bytes(&mut n);
     n
 }
 
@@ -48,7 +62,7 @@ impl VaultKey {
     /// Generate a fresh random vault key from the OS CSPRNG.
     pub fn generate() -> Self {
         let mut k = [0u8; KEY_LEN];
-        OsRng.fill_bytes(&mut k);
+        UnwrapErr(SysRng).fill_bytes(&mut k);
         VaultKey(k)
     }
 
@@ -181,5 +195,20 @@ mod tests {
     #[test]
     fn challenge_nonces_are_random_per_call() {
         assert_ne!(challenge_nonce(), challenge_nonce());
+    }
+
+    /// Guards the one failure mode the rand 0.10 migration introduces the
+    /// opportunity for: `SysRng` is fallible now, and swallowing the error
+    /// (`let _ = …try_fill_bytes(..)`, `.ok()`) leaves the buffer untouched —
+    /// i.e. an all-zero vault key, with no compile error and no clippy warning.
+    /// `DeviceIdentity` has had this check; the vault key only had it
+    /// indirectly, via `wrong_key_cannot_open` happening to compare two keys.
+    #[test]
+    fn generated_key_and_challenge_are_not_all_zero() {
+        let a = VaultKey::generate();
+        let b = VaultKey::generate();
+        assert_ne!(a.as_bytes(), &[0u8; KEY_LEN], "vault key is all zero");
+        assert_ne!(a.as_bytes(), b.as_bytes(), "two keys came out identical");
+        assert_ne!(challenge_nonce(), [0u8; CHALLENGE_LEN], "nonce is all zero");
     }
 }
