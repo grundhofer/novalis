@@ -13,7 +13,7 @@ serde_json.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 specta.workspace = true
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 gray_matter = "0.2"
 serde_yaml = "0.9"
 walkdir = "2"

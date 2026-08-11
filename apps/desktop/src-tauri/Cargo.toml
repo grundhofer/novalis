@@ -25,7 +25,7 @@ specta-typescript = "0.0.12"
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 notify = "8"
 notify-debouncer-mini = "0.7"
 regex = "1"
