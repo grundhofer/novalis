@@ -327,8 +327,16 @@ pub fn next_rrule(date: chrono::NaiveDate, rrule: &str) -> Option<chrono::NaiveD
 fn make_task_id(note_path: &str, line: usize) -> String {
     let mut hasher = Sha256::new();
     hasher.update(format!("{note_path}:{line}"));
-    let result = hasher.finalize();
-    format!("{result:x}")[..16].to_string()
+    // sha2 0.11's digest is a `hybrid-array::Array`, which has no `LowerHex`, so
+    // `format!("{result:x}")` no longer compiles. This produces the identical
+    // string — which matters more here than the compile error suggests: the
+    // result is a PERSISTED task id. A different shape would orphan every task
+    // row in every existing vault, silently.
+    let mut hex = String::with_capacity(16);
+    for b in hasher.finalize().iter().take(8) {
+        hex.push_str(&format!("{b:02x}"));
+    }
+    hex
 }
 
 /// Replace all tasks for a note in the database.
@@ -702,6 +710,20 @@ fn write_lines(abs: &Path, original: &str, lines: &[String]) -> CoreResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// PINS THE PERSISTED TASK ID. sha2 0.11 removed `LowerHex` from the digest
+    /// type, so `format!("{result:x}")[..16]` had to be rewritten. A replacement
+    /// with a different shape still compiles and still produces stable ids —
+    /// just *different* ones, which silently orphans every task row in every
+    /// existing vault. Nothing else in the suite would notice, because every
+    /// other test generates and compares ids within one process.
+    ///
+    /// Expected value verified independently, outside this crate:
+    ///   printf 'notes/a.md:7' | shasum -a 256 | cut -c1-16  ->  c540774b17982edd
+    #[test]
+    fn task_id_matches_the_persisted_format() {
+        assert_eq!(make_task_id("notes/a.md", 7), "c540774b17982edd");
+    }
 
     #[test]
     fn build_task_line_minimal_only_text() {
