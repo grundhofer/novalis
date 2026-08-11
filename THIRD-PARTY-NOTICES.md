@@ -268,7 +268,7 @@ from the installed package.
 
 | | |
 | --- | --- |
-| **What** | KaTeX 0.16.47, the math renderer, plus its font families |
+| **What** | KaTeX 0.18.4, the math renderer, plus its font families |
 | **How it ships** | The JS is bundled into a lazily-loaded chunk, and the **KaTeX font files** — 20 faces across `KaTeX_AMS`, `Main`, `Math`, `Caligraphic`, `Fraktur`, `SansSerif`, `Script`, `Size1`–`Size4` and `Typewriter`, in `.woff2`/`.woff`/`.ttf` — are emitted into `apps/desktop/frontend/dist/assets/` and therefore into every installer. Upstream `katex/dist/fonts/` has 60 files; the current build output carries 59 (Vite does not emit `KaTeX_Size3-Regular.woff2`). Either way the whole set is covered by the one MIT notice below. |
 | **License** | MIT — "Copyright (c) 2013-2020 Khan Academy and other contributors" |
 | **Derived from** | `node_modules/katex/LICENSE` |
