@@ -60,6 +60,18 @@ updates:
       # Remove together with the block above when the migration lands.
       - dependency-name: "tiptap-markdown"
         versions: [">= 0.9"]
+      # TypeScript 7 is the native compiler port, and `typescript-eslint` refuses
+      # to run against it: "Error: typescript-eslint does not support TS 7.0",
+      # which fails `pnpm lint` and therefore the whole build job. There is no
+      # version to bump to — 8.67.0, the current latest, still peers
+      # `typescript: ">=4.8.4 <6.1.0"`. Upstream tracks it in
+      # typescript-eslint/typescript-eslint#10940 for TS >= 7.1.
+      #
+      # Without this, an unmergeable PR reopens every Monday against a limit of
+      # 5 slots (it was #58). Drop this entry once typescript-eslint ships a
+      # release whose peer range admits ^7.
+      - dependency-name: "typescript"
+        versions: [">= 7"]
     groups:
       # MUST stay above npm-minor-and-patch: "if a dependency matches more than
       # one rule, it's included in the first group that it matches."
