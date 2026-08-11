@@ -23,7 +23,31 @@ fn escape_html(s: &str) -> String {
 
 /// Render a note body to a standalone, styled HTML document.
 pub fn note_html(title: &str, body: &str) -> String {
-    let parser = Parser::new_ext(body, Options::all());
+    // Enumerated, NOT `Options::all()`. `all()` is a moving target: every
+    // pulldown-cmark major can add extensions to it and silently change what
+    // this renders. 0.13 did exactly that — it added WIKILINKS, SUBSCRIPT and
+    // SUPERSCRIPT, and WIKILINKS turned `[[Buy milk]]` from honest literal text
+    // into `<a href="Buy%20milk">`, a link that resolves to nothing next to an
+    // exported file. Nothing failed; no test renders a wikilink.
+    //
+    // This list is what `all()` meant on 0.12, so the output is unchanged.
+    // `build_docx` below already enumerates; this now matches it.
+    //
+    // Turning WIKILINKS on would be a real feature, not a flag: the destination
+    // has to be resolved to something that exists beside the export.
+    let opts = Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_SMART_PUNCTUATION
+        | Options::ENABLE_HEADING_ATTRIBUTES
+        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+        | Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS
+        | Options::ENABLE_OLD_FOOTNOTES
+        | Options::ENABLE_MATH
+        | Options::ENABLE_GFM
+        | Options::ENABLE_DEFINITION_LIST;
+    let parser = Parser::new_ext(body, opts);
     let mut html_body = String::new();
     html::push_html(&mut html_body, parser);
     let title = escape_html(title);
@@ -289,6 +313,21 @@ fn build_docx(title: &str, markdown: &str) -> Docx {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Pins the export's markdown extension set against `Options::all()` drift.
+    /// pulldown-cmark 0.13 added WIKILINKS to `all()`, which silently turned
+    /// this app's native `[[link]]` syntax into `<a href="...">` pointing at a
+    /// file that does not exist beside the export. A dead link looks like a
+    /// working one; literal text does not.
+    #[test]
+    fn wikilinks_stay_literal_in_exported_html() {
+        let html = note_html("t", "See [[Buy milk]] here");
+        assert!(
+            !html.contains("href=\"Buy%20milk\""),
+            "wikilink was turned into a dead link: {html}"
+        );
+        assert!(html.contains("[[Buy milk]]"), "html: {html}");
+    }
 
     #[test]
     fn html_includes_title_and_rendered_body() {
