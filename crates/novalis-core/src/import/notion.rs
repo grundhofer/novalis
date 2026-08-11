@@ -539,12 +539,23 @@ mod tests {
 
     /// Build a minimal Notion export `.zip` on disk and return its path.
     fn write_fixture_zip(dir: &Path) -> std::path::PathBuf {
+        write_fixture_zip_with(dir, zip::CompressionMethod::Stored, "export.zip")
+    }
+
+    /// Same fixture, with the compression method and file name chosen by the
+    /// caller. Real Notion exports are Deflated; `Stored` alone would leave the
+    /// deflate decoder — the whole point of the `zip`/`flate2` dependency —
+    /// completely unexercised by this suite.
+    fn write_fixture_zip_with(
+        dir: &Path,
+        method: zip::CompressionMethod,
+        name: &str,
+    ) -> std::path::PathBuf {
         use std::io::Write;
-        let zip_path = dir.join("export.zip");
+        let zip_path = dir.join(name);
         let file = std::fs::File::create(&zip_path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
-        let opts =
-            zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        let opts = zip::write::SimpleFileOptions::default().compression_method(method);
 
         let mut add = |name: &str, body: &str| {
             zip.start_file(name, opts).unwrap();
@@ -615,5 +626,28 @@ mod tests {
             status.value,
             crate::models::PropertyValue::Text("Todo".to_string())
         );
+    }
+
+    /// Real Notion exports are Deflated, and the `Stored` fixture above never
+    /// touches the decompressor. Without this, the deflate backend could be
+    /// entirely broken and the whole suite would still pass.
+    #[test]
+    fn imports_a_deflated_archive() {
+        let tmp = tempfile::tempdir().unwrap();
+        let zip_path =
+            write_fixture_zip_with(tmp.path(), zip::CompressionMethod::Deflated, "deflated.zip");
+        let vault = tmp.path().join("vault");
+        std::fs::create_dir_all(&vault).unwrap();
+
+        let summary = import(&zip_path, &vault).unwrap();
+        assert_eq!(summary.database_rows, 2);
+        assert_eq!(summary.notes_imported, 3);
+
+        // Round-tripping the bodies proves the payload was actually inflated,
+        // not just that the archive opened.
+        let row = std::fs::read_to_string(vault.join("Imported/Notion/Tasks/Buy milk.md")).unwrap();
+        assert!(row.contains("Remember the oat milk."), "row: {row}");
+        let page = std::fs::read_to_string(vault.join("Imported/Notion/My Page.md")).unwrap();
+        assert!(page.contains("[[Buy milk]]"), "page: {page}");
     }
 }

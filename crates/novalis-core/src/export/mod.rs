@@ -313,6 +313,33 @@ mod tests {
         assert_eq!(&bytes[..2], b"PK");
     }
 
+    /// The `PK` check above passes for any archive at all, including one
+    /// written by a broken deflate encoder. This one actually decompresses the
+    /// document part, so the compression backend is on the hook.
+    #[test]
+    fn docx_document_xml_decompresses_and_carries_the_body() {
+        use std::io::Read;
+
+        let bytes = note_docx("My Note", "# Hello\n\nsome plain text").unwrap();
+        let mut archive =
+            zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("readable .docx");
+
+        let mut xml = String::new();
+        archive
+            .by_name("word/document.xml")
+            .expect("word/document.xml present")
+            .read_to_string(&mut xml)
+            .expect("document.xml inflates");
+
+        assert!(
+            xml.starts_with("<?xml"),
+            "not XML: {}",
+            &xml[..40.min(xml.len())]
+        );
+        assert!(xml.contains("Hello"), "heading text missing");
+        assert!(xml.contains("some plain text"), "body text missing");
+    }
+
     #[test]
     fn docx_survives_hostile_title() {
         // docx-rs escapes text runs itself; a markup-laden title must still
