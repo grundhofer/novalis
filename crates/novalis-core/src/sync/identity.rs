@@ -9,8 +9,12 @@
 //! the transport in the desktop shell; keeping them out of core avoids pulling
 //! the signature stack into the unit-tested half.
 
-use rand::rngs::OsRng;
-use rand::RngCore;
+// See the note in `super::crypto` for why this is `UnwrapErr(SysRng)` and why
+// the fallible form must not be swallowed — an all-zero seed here would be a
+// fixed, publicly derivable device identity.
+use rand::rand_core::UnwrapErr;
+use rand::rngs::SysRng;
+use rand::Rng;
 
 use crate::error::{CoreError, CoreResult};
 
@@ -27,7 +31,7 @@ impl DeviceIdentity {
     /// Generate a fresh identity from the OS CSPRNG.
     pub fn generate() -> Self {
         let mut seed = [0u8; SEED_LEN];
-        OsRng.fill_bytes(&mut seed);
+        UnwrapErr(SysRng).fill_bytes(&mut seed);
         DeviceIdentity(seed)
     }
 
