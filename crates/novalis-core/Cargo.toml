@@ -20,11 +20,11 @@ walkdir = "2"
 regex = "1"
 log = "0.4"
 sha2 = "0.10"
-pulldown-cmark = "0.12"
+pulldown-cmark = "0.13"
 docx-rs = "0.4"
 icalendar = "0.17"
 rrule = "0.14"
-similar = "2"
+similar = "3"
 # Third-party importers (`import::`). `zip` unpacks a Notion "Export" archive;
 # `quick-xml` parses the Evernote ENEX envelope AND its ENML/XHTML note bodies
 # (one XML parser for both, so no html5ever/scraper enters the core tree — the
