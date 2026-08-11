@@ -14,7 +14,7 @@ chrono.workspace = true
 thiserror.workspace = true
 specta.workspace = true
 rusqlite = { version = "0.40", features = ["bundled"] }
-gray_matter = "0.2"
+gray_matter = "0.3"
 serde_yaml = "0.9"
 walkdir = "2"
 regex = "1"
