@@ -5,43 +5,18 @@
 # quoted next to it. If a claim stops being true, the entry goes, not the check.
 [advisories]
 ignore = [
-    # RUSTSEC-2026-0194 — quick-xml: quadratic duplicate-attribute-name check.
+    # RUSTSEC-2026-0194 and RUSTSEC-2026-0195 (quick-xml) USED TO BE HERE.
+    # They are gone because the vulnerable version is gone, not because the
+    # justification improved: docx-rs 0.4.22 moved to quick-xml 0.41, which made
+    # `novalis-core` the last holder of 0.36.2, and it now builds on 0.41 too.
+    # `awk '/^name = "quick-xml"$/{f=1} f&&/^version/{print;f=0}' Cargo.lock`
+    # prints one line, 0.41.0. Both entries' own "revisit when" said exactly
+    # this, so this is the check firing as designed rather than an exception
+    # being widened.
     #
-    # We DO parse untrusted XML with quick-xml: `novalis-core` takes a direct
-    # dependency on it to read user-supplied Evernote `.enex` files (envelope +
-    # ENML note bodies) in `src/import/enex.rs`. The single place that iterates
-    # a start tag's attributes — `import::enex::attr_value` — passes
-    # `.with_checks(false)`, which the advisory names as complete mitigation for
-    # consumers that do not use `NsReader`:
-    #   "Consumers that iterate attributes with .attributes().with_checks(false)
-    #    and do not use NsReader are not affected."
-    # Verify: `grep -n 'attributes()' crates/novalis-core/src/import/enex.rs`
-    #         → the only hit carries `.with_checks(false)`.
-    #
-    # 0.36.2 nonetheless stays in Cargo.lock because docx-rs 0.4.20 pins it, so
-    # upgrading novalis-core alone would not clear this gate. docx-rs ships a
-    # reader we never invoke — `novalis-core` uses only its writer API
-    # (`Docx`/`Paragraph`/`Run`/`RunFonts`/`BreakType`, see src/export/mod.rs:7),
-    # so no untrusted XML reaches it.
-    # Verify: `cargo tree -i quick-xml@0.36.2 -e normal --target all`
-    #
-    # Revisit when: docx-rs releases on quick-xml >= 0.41 (then drop this entry
-    # and bump novalis-core in the same change), OR if any new caller iterates
-    # attributes without `with_checks(false)`, OR if anything starts using
-    # `NsReader`.
-    "RUSTSEC-2026-0194",
-
-    # RUSTSEC-2026-0195 — quick-xml: unbounded namespace-declaration allocation
-    # in `NsReader`.
-    #
-    # Not reachable: nothing in the workspace constructs an `NsReader`, and
-    # neither does docx-rs, our only other quick-xml consumer. The importer uses
-    # the plain `Reader`, which has no namespace resolver.
-    # Verify: `grep -rn NsReader crates/ apps/ packages/` → no hits.
-    #
-    # Revisit when: any code adopts `NsReader` (then upgrade to >= 0.41 instead
-    # of ignoring), or docx-rs moves to quick-xml >= 0.41.
-    "RUSTSEC-2026-0195",
+    # `import::enex::attr_value` still passes `.with_checks(false)` and nothing
+    # constructs an `NsReader`. Both remain true and both are still worth
+    # keeping true — but neither is load-bearing for the audit gate any more.
 
     # RUSTSEC-2026-0235 — rkyv 0.7.46: out-of-bounds reads validating archives
     # containing Rc/Arc.

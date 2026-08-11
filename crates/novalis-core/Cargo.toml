@@ -47,20 +47,31 @@ similar = "2"
 # `zopfli`) so this line still says what we actually need if docx-rs ever drops
 # zip: the importer only reads, and the one writer here uses `Stored`.
 #
-# quick-xml stays on 0.36 deliberately. This is the one parser that sees
-# UNTRUSTED input (a user-supplied .enex), so RUSTSEC-2026-0194 matters here —
-# but it is neutralized at the single call site by `.with_checks(false)`
-# (`import::enex::attr_value`), which the advisory names as complete mitigation
-# for consumers that do not use `NsReader`. Upgrading to 0.41 would NOT clear
-# the audit gate anyway: docx-rs 0.4.20 pins 0.36.2, so that version stays in
-# `Cargo.lock` regardless. It would also be a breaking parser migration — 0.41
-# emits entity references as separate `Event::GeneralRef`s instead of resolving
-# them inline, so a naive bump silently drops every `&amp;` from an imported
-# note. See `.cargo/audit.toml` for the audit-gate justifications.
+# quick-xml is on 0.41, which clears RUSTSEC-2026-0194 and -0195 outright —
+# both are now gone from `.cargo/audit.toml`'s ignore list rather than justified
+# in it. This was blocked while docx-rs pinned 0.36.2; docx-rs 0.4.22 moved to
+# 0.41, novalis-core was the last holder of the old line, and 0.36 has left
+# `Cargo.lock`. This is the one parser that sees UNTRUSTED input (a
+# user-supplied `.enex`), so that matters more here than anywhere else.
+#
+# `escape-html` is load-bearing, not cosmetic. ENML is XHTML, so note bodies
+# routinely carry `&nbsp;` and `&mdash;`, which are NOT among XML's five
+# predefined entities. Without this feature they do not resolve — and on 0.36
+# that was worse than it sounds: `unescape()` returned Err for the whole text
+# node and the call site's `.unwrap_or_default()` turned it into an empty
+# string, silently deleting the entire run. See the regression tests in
+# `import::enex`.
+#
+# The migration itself is the reason a bump was never a one-liner: 0.41 emits
+# entity references as separate `Event::GeneralRef` events instead of resolving
+# them inline. `BytesText::unescape()` no longer exists, so the code does not
+# compile until you touch it — but the trap is the SECOND half, where an
+# unhandled `GeneralRef` arm silently drops every `&amp;` from an imported note
+# while everything still builds and the old tests still pass.
 zip = { version = "8.6", default-features = false, features = [
   "deflate-flate2-zlib-rs",
 ] }
-quick-xml = "0.36"
+quick-xml = { version = "0.41", features = ["escape-html"] }
 uuid = { workspace = true }
 git2 = { workspace = true }
 # P2P sync (W4.4): pure crypto/framing/pairing logic. `chacha20poly1305`
