@@ -38,7 +38,7 @@ against.
 | `Apache-2.0.txt` | `openssl-src-300.6.1+3.6.3/openssl/LICENSE.txt`, byte-identical | OpenSSL 3.6.3, statically linked via `git2`'s `vendored-openssl` |
 | `MPL-2.0.txt` | `cssparser-0.36.0/LICENSE`, byte-identical | all six MPL-2.0 crates: `attohttpc`, `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`. One copy serves all six — the text is the same and none of them carries an Exhibit B "Incompatible With Secondary Licenses" notice |
 | `OFL-1.1-Inter.txt` | `@fontsource-variable/inter@5.3.0/LICENSE`, byte-identical | the Inter variable font; the file opens with the Inter copyright line and contains the full OFL-1.1 |
-| `MIT-KaTeX.txt` | `katex@0.16.47/LICENSE`, byte-identical | KaTeX and the ~60 KaTeX font files in the frontend bundle |
+| `MIT-KaTeX.txt` | `katex@0.18.4/LICENSE`, byte-identical | KaTeX and the ~60 KaTeX font files in the frontend bundle |
 
 ## When to touch this
 

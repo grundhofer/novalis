@@ -4,3 +4,20 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+
+# Force ONE katex across the workspace. `mermaid` 11.16.1 — the latest — depends
+# on `katex: ^0.16.45`, so without this the tree carries both 0.16.x and 0.18.x,
+# and `vite.config.ts`'s manualChunks buckets them into the same chunk by path:
+# measured 511 kB raw / 150.6 kB gzip instead of ~261 kB / ~78 kB. Every user who
+# opens a note with math OR a mermaid diagram downloads both copies.
+#
+# This must live HERE, not in package.json's `pnpm.overrides` — pnpm 11 reads
+# overrides from pnpm-workspace.yaml only, and the package.json form silently
+# no-ops. Use a RANGE, not an exact pin, so patch releases still arrive.
+#
+# Trade-off, stated because no test can see it: mermaid now runs against a katex
+# two majors beyond its declared range, and mermaid renders diagram-label math
+# through katex itself. Nothing in CI renders a formula. Drop this override once
+# mermaid supports katex 0.18.
+overrides:
+  katex: ^0.18.4
