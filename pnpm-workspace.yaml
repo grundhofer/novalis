@@ -15,9 +15,13 @@ allowBuilds:
 # overrides from pnpm-workspace.yaml only, and the package.json form silently
 # no-ops. Use a RANGE, not an exact pin, so patch releases still arrive.
 #
-# Trade-off, stated because no test can see it: mermaid now runs against a katex
-# two majors beyond its declared range, and mermaid renders diagram-label math
-# through katex itself. Nothing in CI renders a formula. Drop this override once
-# mermaid supports katex 0.18.
+# Trade-off: mermaid now runs against a katex two majors beyond its declared
+# range, and mermaid renders diagram-label math through katex itself. That used
+# to be unobservable — `mathRender.test.ts` now covers it, including a formula
+# INSIDE a mermaid diagram, and fails if the override ever puts mermaid on a
+# katex it cannot drive (the label silently falls back to raw TeX, with no
+# exception and no failing build). Glyphs, metrics and layout are still
+# eyeball-only: jsdom has no SVG layout engine. Drop this override once mermaid
+# supports katex 0.18.
 overrides:
   katex: ^0.18.4
