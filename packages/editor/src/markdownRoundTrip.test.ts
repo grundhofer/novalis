@@ -229,4 +229,84 @@ describe("GFM tables", () => {
     const table = "| link | math |\n| --- | --- |\n| [[Note]] | $x_i$ |\n";
     expect(roundTrip(table)).toBe(table);
   });
+
+  // A pipe table cannot hold block content or merged cells, and the stock
+  // serializer answers that by discarding the WHOLE table — it writes the
+  // literal text `[table]`. Every case below used to produce exactly that, and
+  // autosave persisted it. See MarkdownTable.ts.
+  describe("cells that markdown cannot represent degrade, never disappear", () => {
+    const table = "| a | b |\n| --- | --- |\n| c | d |\n";
+
+    /** Caret immediately after the given text. */
+    function caretAfter(editor: Editor, text: string): number {
+      let pos = -1;
+      editor.state.doc.descendants((node, at) => {
+        if (pos < 0 && node.isText && node.text === text) pos = at + 1;
+        return pos < 0;
+      });
+      return pos;
+    }
+
+    it("does not let Enter split a cell in the first place", () => {
+      const editor = createEditor(table);
+      editor.commands.setTextSelection(caretAfter(editor, "c"));
+      const handled = editor.view.someProp(
+        "handleKeyDown",
+        (fn) => fn(editor.view, new KeyboardEvent("keydown", { key: "Enter" })) === true,
+      );
+      expect(handled).toBe(true); // swallowed, not passed on
+      expect(serialize(editor)).toBe(table);
+    });
+
+    it("flattens block content inserted into a cell, keeping every word", () => {
+      const editor = createEditor(table);
+      editor.commands.setTextSelection(caretAfter(editor, "c"));
+      editor.chain().focus().insertContent("# Heading\n\nBody line").run();
+
+      const out = serialize(editor);
+      expect(out).toBe("| a | b |\n| --- | --- |\n| c Heading Body line | d |\n");
+      expect(roundTrip(out)).toBe(out); // and the degraded form is stable
+    });
+
+    it("keeps a list pasted into a cell on one row", () => {
+      // Rendering a list inline emits its own block structure; one stray
+      // newline ends the row and turns the rest of the table into paragraphs.
+      const editor = createEditor(table);
+      editor.commands.setTextSelection(caretAfter(editor, "c"));
+      editor.chain().focus().toggleBulletList().run();
+      expect(serialize(editor)).toBe(table);
+    });
+
+    it("still emits a table when cells are merged", () => {
+      // Not reachable from this app's UI — but pasting a table from a web page
+      // brings colspan/rowspan in, and the stock serializer discards those too.
+      const cell = (type: string, text: string, attrs?: Record<string, unknown>) => ({
+        type,
+        ...(attrs ? { attrs } : {}),
+        content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+      });
+      // Built as ProseMirror JSON: the stack parses string content as markdown
+      // (`html: false`), so an HTML fixture would arrive as literal text.
+      const editor = new Editor({
+        extensions: buildEditorExtensions(),
+        content: {
+          type: "doc",
+          content: [
+            {
+              type: "table",
+              content: [
+                { type: "tableRow", content: [cell("tableHeader", "a"), cell("tableHeader", "b")] },
+                { type: "tableRow", content: [cell("tableCell", "wide", { colspan: 2 })] },
+              ],
+            },
+          ],
+        },
+      });
+      editors.push(editor);
+      const out = serialize(editor);
+      expect(out).not.toContain("[table]");
+      expect(out).toContain("| a | b |");
+      expect(out).toContain("wide");
+    });
+  });
 });
