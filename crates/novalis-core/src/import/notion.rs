@@ -41,7 +41,9 @@ pub fn import(zip_path: &Path, vault: &Path) -> CoreResult<ImportSummary> {
     // (Markdown + CSV). Binary assets are streamed out later, by name.
     let mut md_bodies: HashMap<String, String> = HashMap::new();
     let mut csv_bodies: HashMap<String, String> = HashMap::new();
-    let mut asset_paths: Vec<String> = Vec::new();
+    // (index, normalized name). The INDEX is what matters: `by_name` cannot be
+    // used to fetch these later — see `copy_asset`.
+    let mut asset_paths: Vec<(usize, String)> = Vec::new();
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
@@ -63,7 +65,7 @@ pub fn import(zip_path: &Path, vault: &Path) -> CoreResult<ImportSummary> {
             let _ = entry.read_to_string(&mut s);
             csv_bodies.insert(name, s);
         } else {
-            asset_paths.push(name);
+            asset_paths.push((i, name));
         }
     }
 
@@ -163,9 +165,9 @@ pub fn import(zip_path: &Path, vault: &Path) -> CoreResult<ImportSummary> {
     }
 
     // ── Assets (images, PDFs, …) ─────────────────────────────────────────────
-    for path in &asset_paths {
+    for (index, path) in &asset_paths {
         let rel = format!("{IMPORT_ROOT}/{}", clean_rel(path));
-        match copy_asset(&mut archive, path, vault, &rel, &mut taken) {
+        match copy_asset(&mut archive, *index, vault, &rel, &mut taken) {
             Ok(()) => summary.assets_copied += 1,
             Err(e) => {
                 summary.skipped += 1;
@@ -178,15 +180,24 @@ pub fn import(zip_path: &Path, vault: &Path) -> CoreResult<ImportSummary> {
 }
 
 /// Copy one binary asset out of the archive to a fresh path under `vault`.
+///
+/// Addressed by INDEX, never by name. `by_name(entry.name())` is not a
+/// round-trip in zip 8: for an archive whose names lack the UTF-8 flag — which
+/// is what `/usr/bin/zip` produces, and what any re-zipped export looks like —
+/// `name()` hands back a CP437 decoding that the lookup table does not answer
+/// to, so EVERY non-ASCII asset path misses. zip 0.6 did round-trip, so this
+/// broke silently in the 8.6 upgrade: the note keeps its image link, the file is
+/// never written, and the import reports it only as one line in `warnings`.
+/// The index is what pass 1 already had; using it removes the question.
 fn copy_asset(
     archive: &mut zip::ZipArchive<std::io::BufReader<std::fs::File>>,
-    name: &str,
+    index: usize,
     vault: &Path,
     rel: &str,
     taken: &mut HashSet<String>,
 ) -> CoreResult<()> {
     let mut entry = archive
-        .by_name(name)
+        .by_index(index)
         .map_err(|e| CoreError::BadRequest(format!("missing zip entry: {e}")))?;
     let mut bytes = Vec::new();
     entry.read_to_end(&mut bytes)?;
@@ -535,6 +546,84 @@ mod tests {
         assert_eq!(typed_value("3.5"), serde_json::json!(3.5));
         assert_eq!(typed_value("007"), serde_json::json!("007"));
         assert_eq!(typed_value("Done"), serde_json::json!("Done"));
+    }
+
+    /// A REAL export, written by a foreign encoder. Every other test in this file
+    /// builds its fixture with zip-rs, which round-trips its own names and hides
+    /// the bug this catches: `testdata/notion-export.zip` was produced by
+    /// Info-ZIP (`/usr/bin/zip`), so it has real directory entries, DOS attrs,
+    /// Deflate, `__MACOSX`/`.DS_Store` noise — and names WITHOUT the UTF-8 flag,
+    /// which is what any re-zipped export looks like.
+    ///
+    /// That last property is why this exists. Under zip 8,
+    /// `by_name(entry.name())` misses for every non-ASCII name, so the asset
+    /// lookup that `copy_asset` used to do silently failed and images were never
+    /// written — the note kept its link. zip 0.6 round-tripped, so the 8.6
+    /// upgrade broke it and no test noticed.
+    #[test]
+    fn imports_a_real_foreign_encoder_export() {
+        let tmp = tempfile::tempdir().unwrap();
+        let zip_path = tmp.path().join("notion-export.zip");
+        std::fs::write(&zip_path, include_bytes!("testdata/notion-export.zip")).unwrap();
+        let vault = tmp.path().join("vault");
+        std::fs::create_dir_all(&vault).unwrap();
+
+        let summary = import(&zip_path, &vault).unwrap();
+
+        // THE REGRESSION GUARD: the asset must actually land on disk.
+        assert_eq!(summary.assets_copied, 1, "warnings: {:?}", summary.warnings);
+        assert_eq!(summary.skipped, 0, "warnings: {:?}", summary.warnings);
+
+        assert_eq!(summary.database_rows, 2);
+        assert_eq!(summary.notes_imported, 3, "2 db rows + 1 standalone page");
+
+        // `__MACOSX` and `.DS_Store` were dropped rather than imported.
+        let all: Vec<String> = walkdir::WalkDir::new(&vault)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .map(|e| {
+                e.path()
+                    .strip_prefix(&vault)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        assert!(
+            !all.iter()
+                .any(|p| p.contains("__MACOSX") || p.contains(".DS_Store")),
+            "noise leaked in: {all:?}"
+        );
+        assert!(
+            all.iter().any(|p| p.ends_with("diagram.png")),
+            "asset missing from vault: {all:?}"
+        );
+
+        // Notion ids stripped, %20 links rewritten to wikilinks.
+        let page = all
+            .iter()
+            .find(|p| p.ends_with("bersicht.md"))
+            .unwrap_or_else(|| panic!("standalone page missing: {all:?}"));
+        let body = std::fs::read_to_string(vault.join(page)).unwrap();
+        assert!(body.contains("[[Aufgaben]]"), "body: {body}");
+        assert!(body.contains("[[Milch kaufen]]"), "body: {body}");
+        assert!(
+            !body.contains("0123456789abcdef"),
+            "a notion id survived: {body}"
+        );
+
+        // The `_all.csv` variant wins, and its columns become typed properties.
+        let row = all
+            .iter()
+            .find(|p| p.ends_with("Milch kaufen.md"))
+            .unwrap_or_else(|| panic!("row page missing: {all:?}"));
+        let row_body = std::fs::read_to_string(vault.join(row)).unwrap();
+        assert!(row_body.contains("Status: Todo"), "row: {row_body}");
+        assert!(
+            row_body.contains("Hafermilch nicht vergessen."),
+            "row page body was not adopted: {row_body}"
+        );
     }
 
     /// Build a minimal Notion export `.zip` on disk and return its path.
