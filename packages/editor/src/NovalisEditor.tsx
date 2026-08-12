@@ -3,13 +3,9 @@ import { createRoot } from "react-dom/client";
 import { mergeAttributes, type Extensions } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import Table from "@tiptap/extension-table";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import TableRow from "@tiptap/extension-table-row";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
+import { ListItem, TaskItem, TaskList } from "@tiptap/extension-list";
+import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
+import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, type Editor, useEditor, useEditorState } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
@@ -36,6 +32,9 @@ import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 // depth the Embed extension is simply not registered, so inner `![[…]]` stays
 // inert literal text.
 const MAX_EMBED_DEPTH = 3;
+
+const NoBranchListItem = ListItem.extend({ addExtensions: () => [] });
+const NoBranchTaskItem = TaskItem.extend({ addExtensions: () => [] });
 
 /** Per-feature gates for the optional extensions. All default to ON — a bare
  *  buildEditorExtensions() yields the full shipped schema (the round-trip tests
@@ -190,7 +189,7 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
  *  hosts use this to snapshot a live editor instead of waiting on the
  *  debounced onChange). */
 export function getMarkdown(editor: Editor): string {
-  return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
+  return editor.storage.markdown.getMarkdown();
 }
 
 /** Options consumed by the extension stack itself — the subset of
@@ -224,6 +223,17 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
   const feat = opts.features ?? {};
   const resolveImageSrc = opts.resolveImageSrc;
 
+  // ListItem and TaskItem each register a child extension of their own —
+  // `listItemBranchingDeleteKeymap` / `taskItemBranchingDeleteKeymap`, priority
+  // 101, above the core keymap — binding Delete and Mod-Delete to hoist a
+  // branching nested list out one level. `listKeymap: false` does not reach
+  // them: they belong to the nodes, not to the ListKeymap extension, and there
+  // is no option for them. On v2 that keypress was a no-op; leaving them on
+  // makes it rewrite the outline and autosave the flattened list. Dropping
+  // `addExtensions` is safe — the keymap is the only thing either returns.
+  // Same call as the other four: worth adopting deliberately, with a keyboard
+  // test, not as a side effect of a dependency bump.
+
   // Image node that stores the relative `src` (for markdown round-trip) but
   // renders a resolved URL so the webview can display vault images.
   const VaultImage = Image.extend({
@@ -242,7 +252,26 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
     // via tiptap-markdown is unchanged). Its Text node is disabled too;
     // MarkdownText below replaces it (same `text` node, plus a serializer
     // that doesn't corrupt wikilinks/math/`<`/`>` on save).
-    StarterKit.configure({ codeBlock: false, text: false }),
+    // The four `false`s after `text` are v3 defaults this stack must not take.
+    // `link` is the one that is not a preference: StarterKit's own Link keeps
+    // `openOnClick: true`, and both copies stay registered, so it re-enables
+    // click-navigation that Link.configure below deliberately turns off.
+    // `underline` has no markdown representation under `html: false` — Cmd+U
+    // would appear to work and be dropped on the next save. `trailingNode` and
+    // `listKeymap` are behaviour-preserving choices, not defects: both are
+    // worth adopting deliberately, with the keyboard tests to match, rather
+    // than arriving as a side effect of a dependency bump.
+    StarterKit.configure({
+      codeBlock: false,
+      text: false,
+      link: false,
+      underline: false,
+      trailingNode: false,
+      listKeymap: false,
+      // Re-registered below without its child keymap; see NoBranchListItem.
+      listItem: false,
+    }),
+    NoBranchListItem,
     MarkdownText,
     // Never unregistered — it IS the schema's only codeBlock node. The mermaid
     // feature flag only disables diagram rendering (renderDiagrams: false makes
@@ -271,7 +300,7 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
       transformCopiedText: true,
     }),
     TaskList,
-    TaskItem.configure({ nested: true }),
+    NoBranchTaskItem.configure({ nested: true }),
     // GFM tables. Without these nodes a `| a | b |` table is flattened to
     // plain paragraph text on the first edit (markdown-it parses it into a
     // <table> the schema had nowhere to put). tiptap-markdown ships a

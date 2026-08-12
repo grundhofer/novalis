@@ -52,6 +52,7 @@ function createRenderer(onDismiss: (range: { from: number }) => void) {
   let popup: HTMLDivElement | null = null;
   let items: BlockCandidate[] = [];
   let selected = 0;
+  let loading = false;
   let command: ((item: BlockCandidate) => void) | null = null;
 
   const draw = () => {
@@ -96,6 +97,8 @@ function createRenderer(onDismiss: (range: { from: number }) => void) {
     onStart(props: SuggestionProps<BlockCandidate, BlockCandidate>) {
       items = props.items;
       selected = 0;
+      // v3 opens the session before items() resolves, so this can be [].
+      loading = props.loading;
       command = props.command;
       popup = document.createElement("div");
       popup.className = "nv-suggest";
@@ -106,8 +109,21 @@ function createRenderer(onDismiss: (range: { from: number }) => void) {
       draw();
     },
     onUpdate(props: SuggestionProps<BlockCandidate, BlockCandidate>) {
-      items = props.items;
+      // v3's suggestion view fires an interim update with `items: []` and
+      // `loading: true` before it awaits items(), then a second one with the
+      // results. v2 only ever called this once, already resolved. Treating the
+      // interim list as "no matches" clears the highlight (so Enter takes the
+      // wrong row), blanks the popup once per keystroke, and — because
+      // `items[selected]` is then undefined — lets Enter fall through to
+      // ProseMirror and split the paragraph. Keep what is on screen for that
+      // window; only `command` has to be refreshed, since it carries the range.
       command = props.command;
+      loading = props.loading;
+      if (loading && props.items.length === 0) {
+        place(props.clientRect?.());
+        return;
+      }
+      items = props.items;
       if (selected >= items.length) selected = 0;
       place(props.clientRect?.());
       draw();
@@ -124,9 +140,15 @@ function createRenderer(onDismiss: (range: { from: number }) => void) {
         draw();
         return true;
       }
-      if ((key === "Enter" || key === "Tab") && items[selected]) {
-        command?.(items[selected]);
-        return true;
+      if (key === "Enter" || key === "Tab") {
+        if (items[selected]) {
+          command?.(items[selected]);
+          return true;
+        }
+        // Results still in flight (a real IPC round-trip for the index-backed
+        // popovers). Swallow the key rather than let it split the paragraph or
+        // move focus out of the editor — "not known yet" is not "no matches".
+        if (loading) return true;
       }
       if (key === "Escape") {
         onDismiss(props.range);

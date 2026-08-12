@@ -39,11 +39,20 @@ interface MermaidOptions extends CodeBlockLowlightOptions {
 export const MermaidCodeBlock = CodeBlockLowlight.extend<MermaidOptions>({
   addOptions() {
     return {
-      ...this.parent?.(),
+      ...this.parent!(),
       renderDiagrams: true,
       mermaidShowSource: "Show source",
       mermaidShowDiagram: "Show diagram",
     };
+  },
+
+  // v3's `Extendable.extend` builds the child from `{...this.config, ...overrides}`,
+  // so an INHERITED addProseMirrorPlugins that spreads `this.parent()` resolves
+  // at both levels and appends LowlightPlugin twice — every code-block edit
+  // would run the whole-document highlight pass, and store a DecorationSet,
+  // twice. Pinning it to one pass-through keeps exactly one chain.
+  addProseMirrorPlugins() {
+    return this.parent?.() ?? [];
   },
 
   addNodeView() {

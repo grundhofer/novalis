@@ -33,7 +33,7 @@ function createEditor(markdown: string): Editor {
 }
 
 function serialize(editor: Editor): string {
-  return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
+  return editor.storage.markdown.getMarkdown();
 }
 
 /** Parse markdown into the editor, serialize it back out. */
@@ -44,6 +44,11 @@ function roundTrip(markdown: string): string {
 describe("markdown round-trip: byte-equal", () => {
   const cases: [name: string, markdown: string][] = [
     ["wikilink", "Link to [[Meeting Notes]] here."],
+    // The link mark gained a `title` attr in @tiptap/extension-link v3, so the
+    // title now survives a save. Before that it was silently stripped on every
+    // save — an unpinned output change, which is what this corpus exists to
+    // stop; pinned here so a flip back is a failure rather than a discovery.
+    ["link with a title", '[docs](https://example.com "Internal wiki")'],
     ["wikilink with heading anchor", "See [[Project Plan#Goals]]."],
     ["wikilink with alias", "See [[Meeting Notes|the notes]]."],
     ["embed", "![[Diagram.png]]"],
@@ -210,8 +215,10 @@ describe("GFM tables", () => {
   });
 
   it("drops column alignment (documented normalization)", () => {
-    // The schema's table cells carry no alignment attr, so `:---:` colons are
-    // lost; the table itself survives.
+    // The cells DO carry an `align` attr (added in @tiptap/extension-table v3)
+    // and it is populated on parse — but tiptap-markdown's pipe-table
+    // serializer has no representation for it, so the `:---:` colons are lost
+    // on the way back out. The table itself survives.
     const aligned = "| a | b |\n| :--- | ---: |\n| 1 | 2 |\n";
     const normalized = "| a | b |\n| --- | --- |\n| 1 | 2 |\n";
     expect(roundTrip(aligned)).toBe(normalized);

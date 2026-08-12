@@ -25,7 +25,7 @@ function createEditor(markdown: string): Editor {
 }
 
 function serialize(editor: Editor): string {
-  return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
+  return editor.storage.markdown.getMarkdown();
 }
 
 describe("assignBlockId", () => {
