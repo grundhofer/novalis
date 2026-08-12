@@ -31,35 +31,12 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    # TEMPORARY, remove once the TipTap 2 -> 3 migration has landed.
-    #
-    # v3 is a hand migration (see the `tiptap` group comment below), so every
-    # major PR Dependabot opens for these is unmergeable by construction — and
-    # it reopens them weekly, against a limit of 5 slots. Worse, some of them go
-    # green: #41 was a lone `@tiptap/*` 2 -> 3 bump with 4/4 passing checks,
-    # which is a merge waiting to happen.
-    #
-    # This suppresses only MAJORS. Patches and minors on the v2 line still
-    # arrive, grouped. Delete this block the day the migration merges, or
-    # Dependabot will silently sit out v4 as well.
     ignore:
-      - dependency-name: "@tiptap/*"
-        update-types: ["version-update:semver-major"]
-      # `tiptap-markdown` 0.9.0 is the ONLY release that peers `@tiptap/core:
-      # ^3.0.1`; 0.8.10 peers `^2.0.3`. It is therefore a hard prerequisite of
-      # the v3 migration and must land in that branch, not before it — merging
-      # it onto a v2 tree puts an unsatisfied peer on `main`, which (no
-      # `.npmrc`, so non-strict peers) nobody would notice until much later.
+      # The TipTap holds that lived here are GONE, on their own instructions:
+      # both said "remove when the migration lands", and it has. Keeping them
+      # would freeze the family at 3.30.0 and, as the old comment warned, make
+      # Dependabot sit out v4 as well.
       #
-      # This entry exists because it already slipped through once. PR #39 had
-      # it correctly in the `tiptap` group and was closed; Dependabot then
-      # re-homed it into the `npm-minor-and-patch` group, where it rode along
-      # in PR #51 next to a lucide-react and an eslint patch. A group boundary
-      # is not a guarantee — an explicit version ignore is.
-      #
-      # Remove together with the block above when the migration lands.
-      - dependency-name: "tiptap-markdown"
-        versions: [">= 0.9"]
       # TypeScript 7 is the native compiler port, and `typescript-eslint` refuses
       # to run against it: "Error: typescript-eslint does not support TS 7.0",
       # which fails `pnpm lint` and therefore the whole build job. There is no
@@ -91,10 +68,13 @@ updates:
       # GREEN. (#42 and #43 did fail, which is the point: whether a lone bump
       # breaks is a coin flip, and a green one is worse than a red one.)
       #
-      # What actually forces lockstep is the migration: StarterKit v3 newly
-      # bundles Link and the list extensions and drops others, colliding with
-      # this repo's own registrations in `NovalisEditor.tsx`, and `Placeholder`
-      # moved packages. That is hand-work, not a version bump.
+      # What actually forced lockstep in the 2 -> 3 move was hand-work, not
+      # version resolution: StarterKit v3 newly bundles Link, Underline,
+      # TrailingNode and ListKeymap, colliding with this repo's own
+      # registrations in `NovalisEditor.tsx`; `Placeholder` and the table/list
+      # extensions moved packages; and two of the arrivals were silent
+      # behaviour changes rather than build failures. Expect the same of v4,
+      # which is why the group stays even though the holds are gone.
       tiptap:
         patterns: ["@tiptap/*", "tiptap-markdown"]
         update-types: ["major", "minor", "patch"]

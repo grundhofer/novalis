@@ -28,7 +28,7 @@
 // override point — no fork, no app-side change.
 
 import { Node } from "@tiptap/core";
-import type { MarkdownNodeSpec } from "tiptap-markdown";
+import type { MarkdownNodeSpec, MarkdownStorage } from "tiptap-markdown";
 
 import { findBlockRefs } from "./blockRefMatches";
 import { findEmbeds } from "./embedMatches";
@@ -147,3 +147,15 @@ export const MarkdownText = Node.create({
     };
   },
 });
+
+// TipTap v3 declares `interface Storage {}` with no index signature, so
+// `editor.storage.markdown` is a compile error until something augments it —
+// and tiptap-markdown, unchanged since 2025, does not. Declared once here
+// rather than cast at each of the three call sites: the storage really does
+// exist (the Markdown extension registers it), and the repo already extends
+// @tiptap/core this way for its custom commands.
+declare module "@tiptap/core" {
+  interface Storage {
+    markdown: MarkdownStorage;
+  }
+}
