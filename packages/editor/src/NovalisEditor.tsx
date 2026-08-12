@@ -4,7 +4,7 @@ import { mergeAttributes, type Extensions } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { ListItem, TaskItem, TaskList } from "@tiptap/extension-list";
-import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
+import { TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, type Editor, useEditor, useEditorState } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
@@ -18,6 +18,7 @@ import { Callout } from "./Callout";
 import { Embed, type EmbedResult } from "./Embed";
 import { Find } from "./Find";
 import { LazyHighlight, lowlight } from "./lowlightLazy";
+import { MarkdownTable } from "./MarkdownTable";
 import { MarkdownText } from "./MarkdownText";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
@@ -305,7 +306,7 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
     // plain paragraph text on the first edit (markdown-it parses it into a
     // <table> the schema had nowhere to put). tiptap-markdown ships a
     // pipe-table serializer keyed to these standard node names.
-    Table,
+    MarkdownTable,
     TableRow,
     TableHeader,
     TableCell,
