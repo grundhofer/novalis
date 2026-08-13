@@ -13,18 +13,30 @@ maintainer reviews and publishes it manually.
    - `package.json` → `version`
    - `apps/desktop/src-tauri/tauri.conf.json` → `version`
 
-   Commit the bump on `main`:
+   The bump has to reach `main` through a PR — `main` is protected, and a
+   direct push is rejected with `repository rule violations`. Note this is
+   FOUR files, not three: `cargo update -w` rewrites the three workspace
+   members in `Cargo.lock`, and CI runs `cargo test --locked`, which a stale
+   lock fails.
 
    ```bash
+   git switch -c release/v0.2.0
+   cargo update -w                      # refreshes Cargo.lock, no dep drift
    git commit -am "chore: release v0.2.0"
+   git push -u origin release/v0.2.0
+   gh pr create --fill && gh pr merge --merge   # wait for the 4 checks
    ```
 
-2. **Tag and push:**
+2. **Tag the merge commit and push the tag:**
 
    ```bash
+   git switch main && git pull --ff-only
    git tag -a v0.2.0 -m "v0.2.0"
-   git push origin main v0.2.0
+   git push origin v0.2.0
    ```
+
+   Tag `main` only after the bump has merged, or the release builds a tree
+   whose version stamps do not match the tag.
 
 3. The `Release` workflow first runs the **`CI gates` job**, then — only if it
    passes — builds installers on three runners (macOS, Ubuntu, Windows) and
