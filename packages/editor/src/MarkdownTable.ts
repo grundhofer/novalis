@@ -56,13 +56,31 @@ const serialize: MarkdownNodeSpec["serialize"] = (state, node) => {
         else state.write(block.textContent);
         written = true;
       });
-      // A row is one line by definition: a single stray newline anywhere in a
-      // cell ends it early and turns the rest of the table into paragraphs.
-      // Cheap insurance — for the cells upstream handled this is a no-op,
-      // because inline rendering never emits one.
+      // Two characters can end a row early, and this serializer writes the row
+      // separators itself, so both have to be neutralised in the cell's text.
+      //
+      // A newline ends the row outright and turns the rest of the table into
+      // paragraphs. For cells upstream could handle this is a no-op — inline
+      // rendering never emits one — it only fires for a list pasted into a cell.
+      //
+      // A `|` is worse, because it survives a save looking correct. GFM requires
+      // it escaped inside a cell even within code spans, and nothing upstream of
+      // here does that: markdown-it strips the backslash on parse, and
+      // MarkdownText deliberately disables escaping inside `[[…]]`, `$…$` and
+      // `((^id))` spans, so an aliased wikilink's pipe is guaranteed to arrive
+      // raw. One save then writes `| [[Note|alias]] |`, and the NEXT read splits
+      // the row on it — the alias becomes a new column and the last cell falls
+      // off the end.
       const cellText = internals.out.slice(start);
-      if (cellText.includes("\n")) {
-        internals.out = internals.out.slice(0, start) + cellText.replace(/\s*\n\s*/g, " ").trim();
+      if (/[\n|]/.test(cellText)) {
+        internals.out =
+          internals.out.slice(0, start) +
+          cellText
+            .replace(/\s*\n\s*/g, " ")
+            .trim()
+            // Only unescaped pipes: a `\|` that reached us is already correct,
+            // and re-escaping it would grow a backslash on every save.
+            .replace(/(^|[^\\])\|/g, "$1\\|");
       }
     });
     state.write(" |");
