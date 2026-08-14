@@ -46,12 +46,25 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            # Single universal .dmg covers Intel + Apple Silicon. Everything
-            # after `--` is forwarded to cargo by the tauri CLI; `--locked`
-            # makes the shipped binary use the same Cargo.lock the `audit` job
-            # cleared, instead of whatever cargo would re-resolve at build time.
-            args: --target universal-apple-darwin -- --locked
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            # Apple Silicon ONLY, not a universal binary. `universal-apple-darwin`
+            # cannot be built at all: it compiles an x86_64-apple-darwin slice,
+            # and `ort-sys` (ONNX Runtime, via fastembed's `download-binaries`)
+            # publishes no prebuilt for that target —
+            #   error: ort-sys@2.0.0-rc.13: no prebuilt binaries available for
+            #          target x86_64-apple-darwin
+            # Its `build/download/dist.tsv` lists nine targets and Intel macOS is
+            # not one of them (aarch64-apple-darwin is, with CoreML). 2.0.0-rc.13
+            # is the latest release, so there is nothing to bump to.
+            #
+            # Restoring Intel macOS needs one of: upstream publishing the binary,
+            # `ort`'s load-dynamic with a shipped ORT dylib, or feature-gating
+            # embeddings off for that target — none of them a matrix tweak.
+            #
+            # Everything after `--` is forwarded to cargo by the tauri CLI;
+            # `--locked` makes the shipped binary use the same Cargo.lock the
+            # `audit` job cleared, instead of a fresh re-resolve at build time.
+            args: --target aarch64-apple-darwin -- --locked
+            rust-targets: aarch64-apple-darwin
           - platform: ubuntu-latest
             args: -- --locked
             rust-targets: ""

@@ -85,8 +85,8 @@ been published, either delete the release first or cut a new tag.
 
 | Platform | Artifacts                             | Architecture          |
 | -------- | ------------------------------------- | --------------------- |
-| macOS    | `Novalis_<ver>_universal.dmg`,        | Intel + Apple Silicon |
-|          | `Novalis_<ver>_universal.app.tar.gz`  |                       |
+| macOS    | `Novalis_<ver>_aarch64.dmg`,          | Apple Silicon only    |
+|          | `Novalis_<ver>_aarch64.app.tar.gz`    |                       |
 | Linux    | `Novalis_<ver>_amd64.deb`,            | x86_64                |
 |          | `Novalis_<ver>_amd64.AppImage`,       |                       |
 |          | `Novalis-<ver>-1.x86_64.rpm`          |                       |
@@ -95,6 +95,26 @@ been published, either delete the release first or cut a new tag.
 | (any)    | `novalis-<tag>-source.tar.gz`         | corresponding source  |
 
 ARM Linux and ARM Windows are not built yet; add a matrix entry when needed.
+
+**Intel macOS cannot be built, and this is not a matrix choice.** A universal
+binary compiles an `x86_64-apple-darwin` slice, and `ort-sys` — ONNX Runtime,
+pulled in by `fastembed` for on-device embeddings — publishes no prebuilt for
+that target:
+
+```
+error: ort-sys@2.0.0-rc.13: no prebuilt binaries available for target x86_64-apple-darwin
+```
+
+Its `build/download/dist.tsv` lists nine targets; Intel macOS is absent while
+`aarch64-apple-darwin` is present (with CoreML). `2.0.0-rc.13` is the latest
+release, so there is nothing to bump to. Restoring Intel needs upstream to
+publish the binary, or `ort`'s `load-dynamic` with a shipped ORT dylib, or
+feature-gating embeddings off for that target.
+
+Found by the first end-to-end release run (`v0.2.1-rc1`): the CI gate passed,
+Linux and Windows built, macOS failed. Nothing else could have caught it —
+`bundle-smoke` builds **Ubuntu only**, so macOS and Windows bundles are exercised
+by the release workflow alone.
 
 Two things in that table are easy to get wrong, and both bite only at release time:
 
@@ -107,6 +127,11 @@ Two things in that table are easy to get wrong, and both bite only at release ti
   v0.6.2 named it `Novalis_universal.app.tar.gz` with no version; v1.0.0 stamps
   the version in. A v1.0.0 run over a draft that a v0.6.2 run created will
   therefore match neither the old name nor its label and attach **both** files.
+
+**A failed platform blocks the source archive.** The `source` job is
+`needs: release`, so if any one platform fails, the tarball is skipped while the
+successful platforms' installers are still attached to the draft. A draft in that
+state looks publishable and is not — see below.
 
 ## License obligations — do not "clean up" any of this
 
