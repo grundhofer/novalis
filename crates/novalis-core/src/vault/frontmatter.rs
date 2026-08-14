@@ -101,6 +101,22 @@ fn frontmatter_value(data: &Option<gray_matter::Pod>) -> Option<serde_json::Valu
     Some(val)
 }
 
+/// True when a frontmatter block is PRESENT and parses, but holds something
+/// other than a mapping or null — a scalar or a sequence. Distinguishes the one
+/// `frontmatter_value` -> `None` case that must not be defaulted over from the
+/// two that are harmless. Write paths only; readers stay lenient.
+fn is_non_mapping_block(data: &Option<gray_matter::Pod>) -> bool {
+    let Some(pod) = data.as_ref() else {
+        return false; // no block at all
+    };
+    match pod.deserialize::<serde_json::Value>() {
+        // A null block is the empty `---\n---` form and legitimately defaults.
+        Ok(v) => !v.is_object() && !v.is_null(),
+        // Unreadable: leave it to the existing paths rather than widen this.
+        Err(_) => false,
+    }
+}
+
 /// A JSON scalar (string/number/bool) rendered as a plain string.
 fn scalar_to_string(v: &serde_json::Value) -> String {
     match v {
@@ -128,6 +144,33 @@ pub fn parse_frontmatter_strict(content: &str) -> CoreResult<(NoteFrontmatter, S
         ))
     })?;
     let fm = match frontmatter_value(&result.data) {
+        // `frontmatter_value` collapses three situations into `None`, and only
+        // two of them are safe to default here: no block at all, and an empty
+        // `---\n---` block (YAML null). The third is a block that parses fine
+        // but is a SCALAR or a SEQUENCE rather than a mapping — that is not
+        // metadata, it is the user's prose, and `serialize_frontmatter` below
+        // would write the default over it and delete it.
+        //
+        // The shape that reaches this in practice is a note opening with a
+        // thematic break:
+        //
+        //     ---
+        //     First section.
+        //     ---
+        //     Second section.
+        //
+        // gray_matter reads the first `---`/`---` pair as a block, its body
+        // parses as a YAML string, and everything above the second rule is
+        // gone on the next save. Failing the write keeps the file intact — the
+        // same asymmetry the rest of this function exists for.
+        None if is_non_mapping_block(&result.data) => {
+            return Err(CoreError::BadRequest(
+                "the block between the leading `---` lines is text, not metadata, \
+                 so saving would overwrite it. If those lines were meant as a \
+                 horizontal rule, put a blank line or a heading above them."
+                    .to_string(),
+            ));
+        }
         None => NoteFrontmatter::default(),
         Some(val) => serde_json::from_value(val).map_err(|e| {
             CoreError::BadRequest(format!(
@@ -372,6 +415,36 @@ mod tests {
         let (fm, _) = parse_frontmatter("---\ntags: work\naliases: 2026\n---\nx");
         assert_eq!(fm.tags, vec!["work".to_string()]);
         assert_eq!(fm.aliases, vec!["2026".to_string()]);
+    }
+
+    /// A note that opens with a thematic break used to lose everything above the
+    /// second rule on the first save: gray_matter reads the pair as a block, its
+    /// body parses as a YAML string, `frontmatter_value` answers `None`, and the
+    /// default was then serialized over the user's prose. Silent, total, and it
+    /// survived a reload as the new truth.
+    #[test]
+    fn leading_thematic_break_is_refused_not_overwritten() {
+        let note = "---\n\nFirst section.\n\n---\n\nSecond section.\n";
+
+        let err = update_modified(note).expect_err("must not rewrite the note");
+        assert!(
+            matches!(err, CoreError::BadRequest(_)),
+            "expected a loud refusal, got {err:?}"
+        );
+
+        // The lenient reader still degrades, so opening such a note keeps working.
+        let (fm, _) = parse_frontmatter(note);
+        assert!(fm.title.is_none());
+    }
+
+    /// The guard must not widen: a sequence is equally not-metadata, while the
+    /// empty block and the no-block cases still default.
+    #[test]
+    fn only_a_non_mapping_block_is_refused() {
+        assert!(update_modified("---\n- one\n- two\n---\nBody\n").is_err());
+        assert!(update_modified("---\n---\nBody\n").is_ok());
+        assert!(update_modified("Just a body, no block.\n").is_ok());
+        assert!(update_modified("---\ntitle: Real\n---\nBody\n").is_ok());
     }
 
     #[test]

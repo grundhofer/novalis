@@ -277,6 +277,34 @@ describe("GFM tables", () => {
       expect(serialize(editor)).toBe(table);
     });
 
+    it("keeps escaped pipes escaped, so a cell survives repeated saves", () => {
+      // This serializer writes the row separators itself, so a raw `|` in a
+      // cell splits the row on the NEXT read. The corruption takes two saves
+      // and looks fine in between: save one strips the backslash, save two
+      // re-parses the cell as two cells and the last one falls off the end.
+      // MarkdownText disables escaping inside `[[…]]`, `$…$` and `((^id))`, so
+      // an aliased wikilink's pipe is guaranteed to arrive here raw.
+      const cases = [
+        "| construct | note |\n| --- | --- |\n| [[Meeting Notes\\|the notes]] | aliased |\n",
+        "| a | b |\n| --- | --- |\n| x \\| y | c |\n",
+        "| a | b |\n| --- | --- |\n| `git log \\| head` | shell |\n",
+      ];
+      for (const table of cases) {
+        expect(roundTrip(table)).toBe(table);
+        expect(roundTrip(roundTrip(table))).toBe(table); // and again — no backslash growth
+      }
+    });
+
+    it("escapes a pipe typed into a cell", () => {
+      const editor = createEditor("| a | b |\n| --- | --- |\n| c | d |\n");
+      editor.commands.setTextSelection(caretAfter(editor, "c"));
+      editor.chain().focus().insertContent(" | x").run();
+
+      const out = serialize(editor);
+      expect(out).toBe("| a | b |\n| --- | --- |\n| c \\| x | d |\n");
+      expect(roundTrip(out)).toBe(out); // still two columns after a reload
+    });
+
     it("still emits a table when cells are merged", () => {
       // Not reachable from this app's UI — but pasting a table from a web page
       // brings colspan/rowspan in, and the stock serializer discards those too.
