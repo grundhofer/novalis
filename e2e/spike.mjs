@@ -183,29 +183,16 @@ try {
         };
       };
 
+      // Order matters and cost a run to learn: opening the table note kills
+      // the Linux tree, and after that NOTHING can be found — including the
+      // table-free note we wanted to type into. So the table note is opened
+      // last, as a diagnostic, after the typing probe has had its chance.
       const plain = await openNote("Plain");
-      const table = await openNote("Spike");
-      console.log(`      Plain.md  (no table): ${JSON.stringify(plain)}`);
-      console.log(`      Spike.md (has table): ${JSON.stringify(table)}`);
-      await dumpTree(app, "tree after both notes");
-
-      // Type into whichever note still has a live editor.
+      console.log(`      Plain.md (no table): ${JSON.stringify(plain)}`);
       editorNote = plain.editor ? "Plain" : "Spike";
-      if (plain.editor && !table.editor) {
-        console.log("      => the header-row table collapses the tree; the table-free note survives");
-      }
-      // Leave the chosen note open for probe 6.
-      if (editorNote === "Plain") {
-        const all = await app.locator("*").elements().catch(() => []);
-        const hit = all.find((e) => (e.name ?? "") === "Note: Plain.md");
-        if (hit) {
-          await sim.click(hit);
-          await sleep(2000);
-        }
-      }
 
-      record(5, "a fixture note opens and its editor mounts", plain.editor || table.editor,
-        `Plain editor: ${plain.editor} | Spike editor: ${table.editor} | typing into ${editorNote}.md`);
+      record(5, "a fixture note opens and its editor mounts", plain.editor,
+        `typing into ${editorNote}.md`);
     } catch (e) {
       record(5, "a fixture note opens and its editor mounts", false, e.message);
     }
@@ -323,6 +310,32 @@ try {
         `${named.length} named nodes; ${missing.length} of ${EXPECT.length} known names missing`);
     } catch (e) {
       record(7, "the rolled-out names survive into this provider's tree", false, e.message);
+    }
+  }
+  // ── 8 ── DIAGNOSTIC, deliberately last: it destroys the tree on Linux ──
+  // A header-row table inside a contenteditable takes WebKitGTK's whole
+  // accessibility tree down. Measured: 109 nodes -> 6 the moment the note
+  // opens, editor gone, and it does not recover. macOS (155 -> 155) and
+  // Windows (310 -> 310) are unaffected, so this is AT-SPI-specific and not a
+  // property of the markup.
+  //
+  // This is a user-facing accessibility bug, not a test inconvenience: a Linux
+  // screen-reader user opening a note with a table loses the entire page.
+  if (app) {
+    try {
+      const all = await app.locator("*").elements().catch(() => []);
+      const hit = all.find((e) => (e.name ?? "") === "Note: Spike.md");
+      if (!hit) throw new Error("Spike.md not addressable");
+      const beforeNodes = (await app.dump()).split("\n").length;
+      await sim.click(hit);
+      await sleep(5000);
+      const afterNodes = (await app.dump()).split("\n").length;
+      const survived = afterNodes > beforeNodes / 2;
+      console.log(`      opening a note containing a header-row table: ${beforeNodes} -> ${afterNodes} nodes`);
+      record(8, "a table in the editor does not destroy the accessibility tree", survived,
+        survived ? "tree intact" : `tree collapsed to ${afterNodes} nodes — WebKitGTK/AT-SPI defect`);
+    } catch (e) {
+      record(8, "a table in the editor does not destroy the accessibility tree", false, e.message);
     }
   }
 } catch (e) {
