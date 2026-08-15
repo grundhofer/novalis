@@ -92,3 +92,7 @@ Thumbs.db
 
 # Local planning scratch docs (not part of the public repo)
 /docs/plans/
+
+# E2E spike: harness deps and the throwaway vault seed.mjs rebuilds each run.
+/e2e/node_modules/
+/e2e/.tmp-vault/
