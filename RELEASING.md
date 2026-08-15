@@ -42,10 +42,39 @@ maintainer reviews and publishes it manually.
    passes — builds installers on three runners (macOS, Ubuntu, Windows) and
    creates a draft release named `Novalis v0.2.0` with the artifacts attached.
 
-4. Open the draft on GitHub, edit the release notes, then **Publish**. Check
-   `novalis-<tag>-source.tar.gz` is among the assets first — publishing without
-   it breaches GPL-2.0 §3 for the libgit2 code in the installers. See
-   [License obligations](#license-obligations--do-not-clean-up-any-of-this).
+4. Open the draft on GitHub, edit the release notes, then **Publish**. Before
+   publishing, check all three:
+
+   - `novalis-<tag>-source.tar.gz` is among the assets — publishing without it
+     breaches GPL-2.0 §3 for the libgit2 code in the installers. See
+     [License obligations](#license-obligations--do-not-clean-up-any-of-this).
+   - `SHA256SUMS` is among the assets, and lists every other asset. It is
+     written by the terminal `source` job, so its absence means that job did
+     not finish even though the installers did.
+   - The provenance attestations verify. `gh attestation verify` takes exactly
+     one file per call — passing a glob fails with `too many arguments` — so
+     loop:
+
+     ```sh
+     gh release download <tag> --dir /tmp/rel --pattern '*' --clobber
+     for f in /tmp/rel/*; do
+       gh attestation verify "$f" --repo grundhofer/novalis >/dev/null \
+         || echo "UNVERIFIED: $f"
+     done
+     ```
+
+   The release notes are the *only* thing here a human has to write. Everything
+   else on the draft comes from `releaseBody:` in `release.yml` — if a fact
+   about the artifacts is wrong there, fix it in the workflow rather than only
+   on the draft, or the next tag reproduces it.
+
+   **Pre-release tags mark themselves — but only on a freshly created draft.**
+   `prerelease:` is derived from the tag name
+   (`contains(github.ref_name, '-')`), so a *new* `v0.2.1-rc1` drafts as a
+   pre-release and `v0.2.1` does not. Do not tick "Set as the latest release"
+   on an rc: `SECURITY.md` treats the latest release as the supported version.
+   See [Re-running a release](#re-running-a-release) for why an existing draft
+   does not pick this up.
 
 ## The release gate
 
@@ -67,6 +96,8 @@ Of the two ways to fix that, this repo uses the second:
 Consequence: a release run is roughly *CI time + build time*, not the longer of
 the two. That is deliberate — releases are cut rarely.
 
+## Re-running a release
+
 To re-run a failed release after fixing the cause, delete and re-push the tag,
 or use **Run workflow** (`workflow_dispatch`) on the Release workflow; the gate
 runs either way. If you use **Run workflow**, pick the *tag* in the ref
@@ -81,6 +112,28 @@ draft state: it warns, falls through to *create*, and the create fails with a
 installers into it, which was worse.) So to rebuild a release that has already
 been published, either delete the release first or cut a new tag.
 
+**A re-run onto a surviving draft keeps that draft's original notes and
+pre-release flag.** Assets are re-uploaded, `releaseBody:` and `prerelease:` are
+not re-applied. `tauri-action` passes both to `createRelease` only; when it
+finds an existing release for the tag it sets `isNewRelease = false`, and its
+update branch is `else if (!isNewRelease && !release.draft)` — skipped for
+drafts by design, because updating one rewrites its tag. Deleting and re-pushing
+the git tag does **not** help: the lookup matches on the release list's
+`tag_name`, never on a git ref, so the draft object survives it.
+
+The practical consequence: after changing the notes or the pre-release rule in
+`release.yml`, a re-run of an existing tag looks completely green while shipping
+the *old* text and flag. Delete the release object first, not just the tag:
+
+```sh
+gh release delete <tag> --yes
+git push origin :refs/tags/<tag>
+```
+
+Or cut a new tag (`-rc2`), which has no draft to inherit from. The workflow
+re-asserts the pre-release flag after the build for exactly this reason, but it
+cannot repair the body — that text only ever reaches a release at creation.
+
 ## What gets built
 
 | Platform | Artifacts                             | Architecture          |
@@ -93,8 +146,24 @@ been published, either delete the release first or cut a new tag.
 | Windows  | `Novalis_<ver>_x64_en-US.msi`,        | x86_64                |
 |          | `Novalis_<ver>_x64-setup.exe`         |                       |
 | (any)    | `novalis-<tag>-source.tar.gz`         | corresponding source  |
+| (any)    | `SHA256SUMS`                          | manifest of the above |
 
 ARM Linux and ARM Windows are not built yet; add a matrix entry when needed.
+
+The macOS bundle declares `minimumSystemVersion: 11.0`
+(`apps/desktop/src-tauri/tauri.conf.json`) because Big Sur is where arm64 macOS
+starts — an older floor is unsatisfiable for the only macOS artifact shipped.
+That is a *bundle* declaration and deliberately not the same number as
+`MACOSX_DEPLOYMENT_TARGET = "10.15"` in `.cargo/config.toml`, which exists to
+stop Tauri injecting 10.13 and breaking whisper.cpp's `std::filesystem`
+compile. Compiling against an older floor than the bundle advertises is fine;
+the reverse would not be.
+
+Every asset also carries a signed build-provenance attestation
+(`actions/attest-build-provenance`, one step in the `release` matrix job and one
+in `source`). These are minted from the job's OIDC identity **at build time**,
+so they cannot be added to a release that has already been built — a release cut
+before this existed can only gain them by being rebuilt under a new tag.
 
 **Intel macOS cannot be built, and this is not a matrix choice.** A universal
 binary compiles an `x86_64-apple-darwin` slice, and `ort-sys` — ONNX Runtime,
