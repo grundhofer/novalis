@@ -29,7 +29,7 @@ if (!BINARY) {
   process.exit(2);
 }
 const VAULT = resolve(process.env.NOVALIS_E2E_VAULT ?? join(import.meta.dirname, ".tmp-vault"));
-const NOTE = join(VAULT, "Spike.md");
+let NOTE = join(VAULT, "Spike.md");
 const MARKER = `spike-typed-${Date.now()}`;
 
 setDefaultTimeout(30);
@@ -69,9 +69,12 @@ let app;
 try {
   // ── 1 ── the process starts and stays up ────────────────────────────────
   child = spawn(BINARY, [], { stdio: ["ignore", "pipe", "pipe"], env: process.env });
+  // Stream it. Buffering this and printing only on exit discarded every
+  // WebKit warning for a child that never exits — which is exactly the
+  // evidence that separates "a11y tree churn" from "the WebProcess died".
   const log = [];
-  child.stdout.on("data", (d) => log.push(String(d)));
-  child.stderr.on("data", (d) => log.push(String(d)));
+  child.stdout.on("data", (d) => { log.push(String(d)); process.stdout.write(`      [app] ${d}`); });
+  child.stderr.on("data", (d) => { log.push(String(d)); process.stdout.write(`      [app!] ${d}`); });
   let exited = null;
   child.on("exit", (code, signal) => {
     exited = `exit=${code} signal=${signal}`;
@@ -147,40 +150,64 @@ try {
     }
   }
 
-  // ── 5 ── open the fixture note ──────────────────────────────────────────
-  // The file tree lists it as `group "Spike.md"`, not a button, so element
-  // `press()` may not apply — click it at the OS level instead.
+  // ── 5 ── open the fixture notes ────────────────────────────────────────
+  // Two notes that differ only in whether they contain a header-row table.
+  // WebKitGTK is documented to send its whole accessibility tree into
+  // continuous invalidation when a page has `<th>` cells — "the page
+  // effectively vanishes from AT-SPI" — and our tree collapses from ~104 nodes
+  // to 6 at the exact moment the table note opens. Opening the table-free one
+  // first turns that correlation into a finding, and if it holds, gives the
+  // Linux suite a note it can actually type into.
+  let editorNote = "Spike";
   if (app) {
     try {
-      // Role and name both differ per provider: Linux exposes it as
-      // `group "Spike.md"`, Windows as `tree_item "Spike"`. Match on the
-      // name prefix across every role rather than pinning either shape.
-      const all = await app.locator("*").elements().catch(() => []);
-      // File-tree rows now carry an explicit `aria-label` ("Note: <path>"),
-      // which is the only name form all three providers agree on — macOS
-      // names nothing from `title`, which is what the row relied on before.
-      const hit =
-        all.find((e) => /^Note: .*Spike\.md$/.test(e.name ?? "")) ??
-        all.find((e) => /^Spike(\.md)?$/.test(e.name ?? ""));
-      if (!hit) throw new Error("no element named Spike/Spike.md in the tree");
-      console.log(`      opening: role=${hit.role} name=${JSON.stringify(hit.name)}`);
-      await sim.click(hit);
-      // Wait for the EDITOR, not for the note's title. "Spike" is already in
-      // the tree as the file-tree row before anything is opened, so the old
-      // condition was satisfied instantly and the next probe went looking for
-      // the editor before it had mounted — it fell back to a coordinate and
-      // missed, which is why Windows passed twice and then failed on identical
-      // code. The editor's own accessible name is the only honest signal that
-      // it exists.
-      const tree = await waitForTree(app, (t) => t.includes("Note body"), { label: "editor mounted" });
-      await dumpTree(app, "tree with the note open");
-      // Assert the condition, do not assume it. This recorded an unconditional
-      // `true` before, so on Linux — where the editor never appears — it
-      // "passed" after a 60s timeout and hid the real failure one probe early.
-      record(5, "the fixture note opens and the editor mounts", tree.includes("Note body"),
-        `tree has ${tree.split("\n").length} nodes; editor present: ${tree.includes("Note body")}`);
+      const openNote = async (base) => {
+        const all = await app.locator("*").elements().catch(() => []);
+        const hit = all.find((e) => (e.name ?? "") === `Note: ${base}.md`);
+        if (!hit) return { base, opened: false, nodes: 0, editor: false };
+        await sim.click(hit);
+        const tree = await waitForTree(app, (t) => t.includes(`Note body: ${base}`), {
+          timeoutMs: 30000,
+          label: `${base} editor`,
+        });
+        // Re-read a moment later: the collapse happens AFTER the editor first
+        // appears, so a single reading cannot see it.
+        await sleep(3000);
+        const settled = await app.dump().catch(() => "");
+        return {
+          base,
+          opened: true,
+          nodes: tree.split("\n").length,
+          settledNodes: settled.split("\n").length,
+          editor: settled.includes(`Note body: ${base}`),
+        };
+      };
+
+      const plain = await openNote("Plain");
+      const table = await openNote("Spike");
+      console.log(`      Plain.md  (no table): ${JSON.stringify(plain)}`);
+      console.log(`      Spike.md (has table): ${JSON.stringify(table)}`);
+      await dumpTree(app, "tree after both notes");
+
+      // Type into whichever note still has a live editor.
+      editorNote = plain.editor ? "Plain" : "Spike";
+      if (plain.editor && !table.editor) {
+        console.log("      => the header-row table collapses the tree; the table-free note survives");
+      }
+      // Leave the chosen note open for probe 6.
+      if (editorNote === "Plain") {
+        const all = await app.locator("*").elements().catch(() => []);
+        const hit = all.find((e) => (e.name ?? "") === "Note: Plain.md");
+        if (hit) {
+          await sim.click(hit);
+          await sleep(2000);
+        }
+      }
+
+      record(5, "a fixture note opens and its editor mounts", plain.editor || table.editor,
+        `Plain editor: ${plain.editor} | Spike editor: ${table.editor} | typing into ${editorNote}.md`);
     } catch (e) {
-      record(5, "the fixture note opens from the file tree", false, e.message);
+      record(5, "a fixture note opens and its editor mounts", false, e.message);
     }
   }
 
@@ -194,6 +221,7 @@ try {
   // `execCommand('insertText')` cannot give.
   if (app) {
     try {
+      NOTE = join(VAULT, `${editorNote}.md`);
       const before = readFileSync(NOTE, "utf8");
       // Click by COORDINATES, not by element. The editor region carries no
       // accessible name — giving it one is real work on the app side, and the
@@ -210,7 +238,7 @@ try {
       // it is what distinguished "the click missed" from "ProseMirror
       // refused" while there was nothing to aim at.
       const named = (await app.locator("*").elements().catch(() => [])).find((e) =>
-        /^Note body/.test(e.name ?? ""),
+        (e.name ?? "") === `Note body: ${editorNote}`,
       );
       let clickTarget;
       if (named) {
