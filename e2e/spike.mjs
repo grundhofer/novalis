@@ -161,26 +161,39 @@ try {
   let editorNote = "Spike";
   if (app) {
     try {
-      const openNote = async (base) => {
-        const all = await app.locator("*").elements().catch(() => []);
-        const hit = all.find((e) => (e.name ?? "") === `Note: ${base}.md`);
-        if (!hit) return { base, opened: false, nodes: 0, editor: false };
-        await sim.click(hit);
-        const tree = await waitForTree(app, (t) => t.includes(`Note body: ${base}`), {
-          timeoutMs: 30000,
-          label: `${base} editor`,
-        });
-        // Re-read a moment later: the collapse happens AFTER the editor first
-        // appears, so a single reading cannot see it.
-        await sleep(3000);
-        const settled = await app.dump().catch(() => "");
-        return {
-          base,
-          opened: true,
-          nodes: tree.split("\n").length,
-          settledNodes: settled.split("\n").length,
-          editor: settled.includes(`Note body: ${base}`),
-        };
+      // Retry the activation, and verify it rather than assuming it. A single
+      // click was lost once on Windows with the row present, named, and the
+      // click registering — the note simply never opened. A gate that goes red
+      // on a dropped input event is worse than no gate, and retrying hides
+      // nothing: the attempt count is reported, so a row that needs three tries
+      // every run is still visible as a problem.
+      const openNote = async (base, attempts = 3) => {
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+          const all = await app.locator("*").elements().catch(() => []);
+          const hit = all.find((e) => (e.name ?? "") === `Note: ${base}.md`);
+          if (!hit) return { base, opened: false, editor: false, attempt, reason: "row not in tree" };
+          await sim.click(hit);
+          const tree = await waitForTree(app, (t) => t.includes(`Note body: ${base}`), {
+            timeoutMs: 15000,
+            label: `${base} editor (attempt ${attempt})`,
+          });
+          if (tree.includes(`Note body: ${base}`)) {
+            // Re-read: on Linux the collapse happens AFTER the editor first
+            // appears, so a single reading cannot see it.
+            await sleep(3000);
+            const settled = await app.dump().catch(() => "");
+            return {
+              base,
+              opened: true,
+              attempt,
+              nodes: tree.split("\n").length,
+              settledNodes: settled.split("\n").length,
+              editor: settled.includes(`Note body: ${base}`),
+            };
+          }
+          console.log(`      ${base}.md did not open on attempt ${attempt}; retrying`);
+        }
+        return { base, opened: false, editor: false, attempt: attempts, reason: "editor never mounted" };
       };
 
       // Order matters and cost a run to learn: opening the table note kills

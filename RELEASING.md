@@ -38,8 +38,11 @@ maintainer reviews and publishes it manually.
    Tag `main` only after the bump has merged, or the release builds a tree
    whose version stamps do not match the tag.
 
-3. The `Release` workflow first runs the **`CI gates` job**, then — only if it
-   passes — builds installers on three runners (macOS, Ubuntu, Windows) and
+3. The `Release` workflow first runs two gates in parallel — **`CI gates`**
+   (fmt, clippy, tests, lint, i18n, bindings) and the **`UI gate`**, which
+   builds the app and drives it through the OS accessibility APIs on all three
+   platforms to check that what a user types reaches disk. Only if BOTH pass
+   does it build installers on three runners (macOS, Ubuntu, Windows) and
    creates a draft release named `Novalis v0.2.0` with the artifacts attached.
 
 4. Open the draft on GitHub, edit the release notes, then **Publish**. Before

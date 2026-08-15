@@ -34,9 +34,25 @@ jobs:
     permissions:
       contents: read
 
+  # The real-app UI suite, in PARALLEL with the CI gate rather than after it:
+  # both must pass before anything is built, and running them together costs the
+  # release the difference between them (~4 min) instead of their sum. It is the
+  # only gate that launches the app at all — everything else here is compilation
+  # and unit tests.
+  #
+  # If it ever blocks a release wrongly, re-run the job first: a dropped input
+  # event is the known failure mode and the suite retries activation three times
+  # before giving up. Do not reach for `continue-on-error` — a gate that cannot
+  # fail is not a gate. See e2e/README.md for what it does and does not cover.
+  ui-gate:
+    name: UI gate
+    uses: ./.github/workflows/e2e.yml
+    permissions:
+      contents: read
+
   release:
     name: build (${{ matrix.platform }})
-    needs: gate
+    needs: [gate, ui-gate]
     runs-on: ${{ matrix.platform }}
     # tauri-action creates the draft release and uploads the installers.
     # `id-token: write` + `attestations: write` are the minimum pair
