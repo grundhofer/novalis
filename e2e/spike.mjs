@@ -78,39 +78,94 @@ try {
   // ── 3 ── THE DECIDING PROBE: is the webview DOM in the tree? ────────────
   // If only a window frame appears, no amount of selector work rescues this
   // approach and the WebDriver route becomes the fallback.
+  //
+  // Assert on STRUCTURE, not on text. The first version looked for strings
+  // ("Notes", "Search") and reported a false negative on Linux: AT-SPI exposes
+  // our buttons by name but leaves the `static_text` leaves empty, where the
+  // macOS AX provider carries their values. A `web_area` plus at least one
+  // button named by our own UI is the portable form of "we are inside the DOM".
   let dump = "";
   if (app) {
     try {
       dump = await app.dump();
-      // Text that can ONLY come from our React UI, not from a window frame.
-      const markers = ["Spike", "Notes", "Search", "Settings"];
-      const hits = markers.filter((m) => dump.includes(m));
+      const hasWebArea = /\bweb_area\b/.test(dump);
+      const ourButtons = (await app.locator("button").elements().catch(() => []))
+        .map((e) => e.name)
+        .filter(Boolean);
       record(
         3,
         "accessibility tree contains webview DOM, not just a window frame",
-        hits.length > 0,
-        `tree: ${dump.split("\n").length} nodes | UI markers found: ${hits.join(", ") || "NONE"}`,
+        hasWebArea && ourButtons.length > 0,
+        `tree: ${dump.split("\n").length} nodes | web_area: ${hasWebArea} | named buttons: ${ourButtons.length}`,
       );
-      console.log("\n----- accessibility tree (first 200 lines) -----");
-      console.log(dump.split("\n").slice(0, 200).join("\n"));
+      console.log("\n----- accessibility tree -----");
+      console.log(dump.split("\n").slice(0, 250).join("\n"));
       console.log("----- end tree -----");
     } catch (e) {
       record(3, "accessibility tree contains webview DOM", false, e.message);
     }
   }
 
-  // ── 4 ── named elements from our own UI are addressable ─────────────────
-  // The frontend has zero data-testid and 87 i18n-driven aria-labels, so this
-  // probe is really asking: what can we select TODAY, before adding any.
-  if (app && dump) {
-    for (const sel of ["button", "text_field", "text_area", "document", "group"]) {
+  // ── 3b ── get past onboarding ───────────────────────────────────────────
+  // Seeding `lastVault` boots the app into the workspace, but the onboarding
+  // modal is keyed on localStorage in the webview's own profile, which no
+  // pre-seed can reach. Dismissing it is both a prerequisite and a genuine
+  // first E2E assertion — it is the app's real entry path.
+  if (app) {
+    try {
+      const dismiss = ["Explore on my own", "Close", "Continue"];
+      let clicked = null;
+      for (const name of dismiss) {
+        const hits = await app.locator(`button[name='${name}']`).elements().catch(() => []);
+        if (hits.length) {
+          await app.locator(`button[name='${name}']`).press();
+          clicked = name;
+          break;
+        }
+      }
+      await sleep(3000);
+      record(
+        "3b",
+        "onboarding can be dismissed through the a11y tree",
+        clicked !== null,
+        clicked ? `pressed "${clicked}"` : "no onboarding button found (already dismissed?)",
+      );
+      console.log("\n----- tree AFTER dismissing onboarding -----");
+      console.log((await app.dump()).split("\n").slice(0, 250).join("\n"));
+      console.log("----- end tree -----");
+    } catch (e) {
+      record("3b", "onboarding can be dismissed through the a11y tree", false, e.message);
+    }
+  }
+
+  // ── 4 ── what is addressable, and which role is the editor? ─────────────
+  // The frontend has zero data-testid and its aria-labels are i18n-driven, so
+  // this probe is really asking: what can we select TODAY, before adding any —
+  // and, critically, what ROLE does a ProseMirror contenteditable surface as on
+  // each platform. That mapping is not documented anywhere; it has to be read
+  // off a real tree.
+  const EDITABLE_ROLES = ["text_area", "document", "text_field", "web_area", "section", "group"];
+  if (app) {
+    for (const sel of ["button", "text_field", "text_area", "document", "heading", "group"]) {
       try {
         const els = await app.locator(sel).elements();
-        const named = els.filter((e) => e.name).slice(0, 8).map((e) => `${e.role}:${e.name}`);
-        console.log(`      ${sel.padEnd(11)} ${els.length} found` + (named.length ? ` — ${named.join(", ")}` : ""));
+        const named = els.filter((e) => e.name).slice(0, 10).map((e) => `${e.role}:${e.name}`);
+        console.log(`      ${sel.padEnd(11)} ${els.length} found` + (named.length ? ` — ${named.join(" | ")}` : ""));
       } catch (e) {
         console.log(`      ${sel.padEnd(11)} error: ${e.message}`);
       }
+    }
+    // Anything the provider reports as editable is the real prize — print the
+    // whole set rather than picking one, so a failed run still teaches us the
+    // mapping.
+    try {
+      const all = await app.locator("*").elements().catch(() => []);
+      const editable = all
+        .filter((e) => e.editable === true || (e.actions ?? []).includes("set_value"))
+        .map((e) => `${e.role}:${e.name ?? ""}`);
+      console.log(`      EDITABLE-flagged: ${editable.length ? editable.join(" | ") : "none"}`);
+    } catch (e) {
+      console.log(`      editable scan failed: ${e.message}`);
     }
     record(4, "our UI elements are enumerable by role", true, "see roles above");
   }
@@ -124,18 +179,28 @@ try {
       const before = readFileSync(NOTE, "utf8");
       // The editor is a contenteditable; roles differ per platform provider, so
       // try the plausible ones rather than guessing one.
-      let target = null;
-      for (const sel of ["text_area", "document", "text_field", "group[name*='editor']"]) {
-        const els = await app.locator(sel).elements().catch(() => []);
-        if (els.length) {
-          target = { sel, el: els[0] };
-          break;
+      // Prefer whatever the provider itself flags editable; only then fall back
+      // to role guesses. The note-list filter box ("Filter notes…") is also a
+      // text_field, and an earlier run happily typed the marker into it — so
+      // anything that looks like a search/filter field is excluded by name.
+      const all = await app.locator("*").elements().catch(() => []);
+      const isFilter = (n) => /filter|search|suche/i.test(n ?? "");
+      let target =
+        all.find((e) => (e.editable === true || (e.actions ?? []).includes("set_value")) && !isFilter(e.name)) ?? null;
+      if (!target) {
+        for (const role of ["text_area", "document"]) {
+          const hit = all.find((e) => e.role === role && !isFilter(e.name));
+          if (hit) {
+            target = hit;
+            break;
+          }
         }
       }
-      if (!target) throw new Error("no editable-looking element found");
-      console.log(`      typing into: ${target.sel} (role=${target.el.role} name=${target.el.name})`);
-      await app.locator(target.sel).focus();
-      await app.locator(target.sel).typeText(MARKER);
+      if (!target) throw new Error("no editable element found (see the role dump above)");
+      const sel = `${target.role}${target.name ? `[name='${target.name}']` : ""}`;
+      console.log(`      typing into: ${sel} (editable=${target.editable})`);
+      await app.locator(sel).focus();
+      await app.locator(sel).typeText(MARKER);
       // Autosave debounce is 600 ms by default (EditorPane), plus the write.
       await sleep(4000);
       const after = readFileSync(NOTE, "utf8");
