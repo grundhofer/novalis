@@ -18,6 +18,11 @@ import xa11y from "@crowecawcaw/xa11y";
 
 const { App, inputSim, setDefaultTimeout } = xa11y;
 
+// `inputSim` is a factory, not an instance: `inputSim()` returns the
+// InputSim carrying click/typeText/press. Calling `inputSim.click(...)`
+// fails with "is not a function", which cost a full CI round.
+const sim = inputSim();
+
 const BINARY = process.argv[2];
 if (!BINARY) {
   console.error("usage: node spike.mjs <path-to-novalis-binary>");
@@ -94,7 +99,9 @@ try {
   // values, so a text-based check reports a false negative on Linux.
   if (app) {
     try {
-      const tree = await waitForTree(app, (t) => /\bweb_area\b/.test(t), { label: "web_area" });
+      const tree = await waitForTree(app, (t) => /\bweb_area\b/.test(t) && /button "[^"]+"/.test(t), {
+        label: "web_area with a named button",
+      });
       await dumpTree(app, "tree at startup");
       const buttons = (await app.locator("button").elements().catch(() => [])).filter((e) => e.name);
       record(
@@ -141,9 +148,14 @@ try {
   // `press()` may not apply — click it at the OS level instead.
   if (app) {
     try {
-      const hits = await app.locator("group[name='Spike.md']").elements().catch(() => []);
-      if (!hits.length) throw new Error("Spike.md not present in the file tree");
-      await inputSim.click(hits[0]);
+      // Role and name both differ per provider: Linux exposes it as
+      // `group "Spike.md"`, Windows as `tree_item "Spike"`. Match on the
+      // name prefix across every role rather than pinning either shape.
+      const all = await app.locator("*").elements().catch(() => []);
+      const hit = all.find((e) => /^Spike(\.md)?$/.test(e.name ?? ""));
+      if (!hit) throw new Error("no element named Spike/Spike.md in the tree");
+      console.log(`      opening: role=${hit.role} name=${JSON.stringify(hit.name)}`);
+      await sim.click(hit);
       // The editor mounts asynchronously; wait for the note's own text.
       const tree = await waitForTree(app, (t) => t.includes("Spike") && !t.includes("Welcome to Novalis"), {
         label: "note open",
@@ -175,9 +187,9 @@ try {
       const target = groups[groups.length - 1];
       if (!target) throw new Error("no editor-looking region found");
       console.log(`      clicking region: role=${target.role} name=${JSON.stringify(target.name)}`);
-      await inputSim.click(target);
+      await sim.click(target);
       await sleep(500);
-      await inputSim.typeText(MARKER);
+      await sim.typeText(MARKER);
       // EditorPane debounces at 600ms, then the write goes through saveNote.
       await sleep(5000);
       const after = readFileSync(NOTE, "utf8");
