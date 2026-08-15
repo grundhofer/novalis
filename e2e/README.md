@@ -102,18 +102,37 @@ one `aria-label` turned that into a definite yes.
 | app visible to the a11y API | ✅ | ✅ | ✅ |
 | webview DOM in the tree | ✅ | ✅ | ✅ |
 | onboarding dismissable | ✅ | ✅ | ✅ |
-| note opens from the file tree | ❌ | ✅ | ✅ |
-| **typing reaches disk** | — | ✅ | ❌ |
+| note opens from the file tree | ✅ | ✅ | ✅ |
+| **typing reaches disk** | ✅ | ✅ | ❌ |
 
-Two platforms are not there yet, and each fails EARLIER than the typing step,
-so neither contradicts the result above:
+Verified after two accessibility fixes, and each fix moved exactly the platform
+the analysis said it would:
 
-- **Linux**: the note opens, but `"Note body: …"` never appears in the tree at
-  all. ARIA `region` maps to a landmark under AT-SPI, where UIA mapped it to a
-  plain `group` — the likely cause, and the reason the naming scheme must not
-  assume a role survives translation between providers.
-- **macOS**: the file-tree entry is not found by name, so the editor is never
-  rendered. A navigation problem, upstream of anything about typing.
+- **The name belongs on the editable, not on a wrapper.** TipTap gives the
+  contenteditable `role="textbox"`, which takes its name from the author only,
+  so a named `role="region"` wrapper was a landmark around an unnamed widget.
+  Moving it onto `.ProseMirror` flipped macOS from "no editor found" to
+  `text_area "Note body: Spike"` and a passing typing probe.
+- **File-tree rows needed an explicit `aria-label`.** They were named from
+  their contents — which absorbed the Cloud badge and the task rollup, so a
+  row's name changed when a task inside the note was ticked — and otherwise
+  leaned on `title`, which macOS ignores entirely. With the label the row reads
+  `Note: Spike.md` identically under AT-SPI, AX and UIA.
+
+That second one is the general rule this spike bought, and it is worth stating
+plainly because it decides the whole rollout:
+
+> **`aria-label` on a widget role is the only naming form all three providers
+> honour.** `title`, `placeholder` and name-from-contents are each honoured by
+> some providers and silently dropped by others, and landmark roles are the
+> least portable of all — `region` became a plain `group` under UIA and never
+> appeared at all under AT-SPI.
+
+**The remaining gap is Linux and it is specific:** the AT-SPI tree contains no
+editor node whatsoever — no `text_area`, no `entry`, no `document_frame`. The
+name is not being dropped; the contenteditable is not exposed by WebKitGTK at
+all. Everything else on Linux works, including the file-tree label. This needs
+its own investigation and does not block a gate that runs on macOS and Windows.
 
 ### What it cost, and what it bought
 
