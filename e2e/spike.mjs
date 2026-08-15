@@ -187,14 +187,28 @@ try {
       //
       // A coordinate is immune to both. The sidebar occupies the left third,
       // so 70% across and halfway down lands in the note body.
-      const area =
-        (await app.locator("web_area").elements().catch(() => []))[0] ??
-        (await app.locator("window").elements().catch(() => []))[0];
-      const b = area?.bounds;
-      if (!b) throw new Error("no bounds available for the web area or window");
-      const point = [Math.round(b.x + b.width * 0.7), Math.round(b.y + b.height * 0.5)];
-      console.log(`      area bounds: ${JSON.stringify(b)} -> clicking ${JSON.stringify(point)}`);
-      await sim.click(point);
+      // The note body now carries an accessible name (`aria-label` on a
+      // role=region wrapper in EditorPane), so aim at the element. The
+      // coordinate fallback stays for the case where the name is missing —
+      // it is what distinguished "the click missed" from "ProseMirror
+      // refused" while there was nothing to aim at.
+      const named = (await app.locator("*").elements().catch(() => [])).find((e) =>
+        /^Note body/.test(e.name ?? ""),
+      );
+      let clickTarget;
+      if (named) {
+        clickTarget = named;
+        console.log(`      clicking named region: ${named.role} ${JSON.stringify(named.name)}`);
+      } else {
+        const area =
+          (await app.locator("web_area").elements().catch(() => []))[0] ??
+          (await app.locator("window").elements().catch(() => []))[0];
+        const b = area?.bounds;
+        if (!b) throw new Error("no named editor region and no bounds to fall back on");
+        clickTarget = [Math.round(b.x + b.width * 0.7), Math.round(b.y + b.height * 0.5)];
+        console.log(`      no named region; falling back to coordinate ${JSON.stringify(clickTarget)}`);
+      }
+      await sim.click(clickTarget);
       await sleep(800);
       // Type at the end of the document so nothing existing is overwritten.
       // Modifier names are capitalised — "Ctrl"/"Meta", not "ctrl"/"cmd" — and

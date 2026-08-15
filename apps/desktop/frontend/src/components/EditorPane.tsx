@@ -1083,7 +1083,15 @@ export function EditorPane({ pane }: { pane: Pane }) {
         </div>
       </div>
       <div className="relative flex min-h-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Named so the note body is addressable — by a screen reader, and by
+            the UI tests, which read the same accessibility tree. The name
+            carries the note's path so two panes on two notes are told apart;
+            a bare "Editor" would be ambiguous the moment a split exists. */}
+        <div
+          role="region"
+          aria-label={t("editor:noteBody", { path })}
+          className="flex min-h-0 min-w-0 flex-1 flex-col"
+        >
           <NovalisEditor
             key={`${pane.id}:${path}:${epoch}:${appliedFeatKey}`}
             value={split.body}
