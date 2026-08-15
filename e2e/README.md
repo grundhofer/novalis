@@ -77,17 +77,25 @@ name the spike matches.
 That refutes the assumption this project has carried: WKWebView is not closed
 to automation. It was closed to the approach tried before.
 
-**Not answered: whether typed text reaches the document.** OS-level keystrokes
-execute without error and the note on disk is unchanged, on all three
-platforms. Two explanations remain open and the spike cannot currently tell
-them apart:
+**Answered, and this is the one the programme rested on: typed text reaches the
+document.** Proven end to end on Windows, once the note body carried an
+accessible name:
 
-- the click lands somewhere that is not the editor (it aims at a *coordinate*,
-  70% across the web area, because the editor region has no accessible name);
-- or the keystrokes arrive and ProseMirror does not accept them.
+```
+clicking named region: group "Note body: Spike.md"
+PASS  probe 6: text typed at the OS level reaches the note on disk
+      file changed by 90 chars; contains marker: true
+```
 
-Distinguishing those needs the editor to be addressable, which is the one piece
-of work that sits on the app's side of the line — see below.
+So the full chain holds — name the element, address it through the OS
+accessibility tree, type with real synthetic input, and the text lands in the
+file. ProseMirror accepts OS-level keystrokes. That is precisely the capability
+the in-webview approaches cannot offer: their contenteditable input is
+`document.execCommand('insertText', …)` with untrusted key events.
+
+It also settles what the naming work buys. Before the label the spike aimed at
+a coordinate and could not tell "the click missed" from "the editor refused";
+one `aria-label` turned that into a definite yes.
 
 | | macOS | Windows | Linux |
 | --- | --- | --- | --- |
@@ -95,7 +103,17 @@ of work that sits on the app's side of the line — see below.
 | webview DOM in the tree | ✅ | ✅ | ✅ |
 | onboarding dismissable | ✅ | ✅ | ✅ |
 | note opens from the file tree | ❌ | ✅ | ✅ |
-| typing reaches disk | ❌ | ❌ | ❌ |
+| **typing reaches disk** | — | ✅ | ❌ |
+
+Two platforms are not there yet, and each fails EARLIER than the typing step,
+so neither contradicts the result above:
+
+- **Linux**: the note opens, but `"Note body: …"` never appears in the tree at
+  all. ARIA `region` maps to a landmark under AT-SPI, where UIA mapped it to a
+  plain `group` — the likely cause, and the reason the naming scheme must not
+  assume a role survives translation between providers.
+- **macOS**: the file-tree entry is not found by name, so the editor is never
+  rendered. A navigation problem, upstream of anything about typing.
 
 ### What it cost, and what it bought
 
