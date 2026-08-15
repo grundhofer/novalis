@@ -178,17 +178,28 @@ try {
   if (app) {
     try {
       const before = readFileSync(NOTE, "utf8");
-      // Click into the note body. The editor region has no accessible name yet
-      // (adding those is expected work), so target the largest non-navigation
-      // group — the body area — and let the click place the caret.
-      const groups = (await app.locator("group").elements().catch(() => [])).filter(
-        (e) => !/navigation|sidebar|Filter|TAGS|Notes$/i.test(e.name ?? ""),
-      );
-      const target = groups[groups.length - 1];
-      if (!target) throw new Error("no editor-looking region found");
-      console.log(`      clicking region: role=${target.role} name=${JSON.stringify(target.name)}`);
-      await sim.click(target);
-      await sleep(500);
+      // Click by COORDINATES, not by element. The editor region carries no
+      // accessible name — giving it one is real work on the app side, and the
+      // point of this spike is to find out whether that work would pay off
+      // before doing it. The tree is also transient right here: opening the
+      // note collapsed it to 6 nodes with a single `unknown` on the last run,
+      // so an element reference taken now may be stale by the time it is used.
+      //
+      // A coordinate is immune to both. The sidebar occupies the left third,
+      // so 70% across and halfway down lands in the note body.
+      const area =
+        (await app.locator("web_area").elements().catch(() => []))[0] ??
+        (await app.locator("window").elements().catch(() => []))[0];
+      const b = area?.bounds;
+      if (!b) throw new Error("no bounds available for the web area or window");
+      const point = [Math.round(b.x + b.width * 0.7), Math.round(b.y + b.height * 0.5)];
+      console.log(`      area bounds: ${JSON.stringify(b)} -> clicking ${JSON.stringify(point)}`);
+      await sim.click(point);
+      await sleep(800);
+      // Type at the end of the document so nothing existing is overwritten:
+      // ctrl/cmd+End first, then the marker.
+      await sim.chord("End", [platform() === "darwin" ? "cmd" : "ctrl"]).catch(() => {});
+      await sleep(300);
       await sim.typeText(MARKER);
       // EditorPane debounces at 600ms, then the write goes through saveNote.
       await sleep(5000);
