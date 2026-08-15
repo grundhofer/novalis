@@ -2,8 +2,10 @@
   "addMeetingNote": "Add meeting note",
   "allDay": "All day",
   "attendees": "Attendees",
+  "date": "Date",
   "day": "Day",
   "editEvent": "Edit event",
+  "endTime": "End time",
   "eventTitle": "Event title",
   "exportIcs": "Export .ics",
   "freq": {
@@ -20,6 +22,8 @@
   "newEvent": "New event",
   "nextMonth": "Next month",
   "prevMonth": "Previous month",
+  "repeat": "Repeat",
+  "startTime": "Start time",
   "today": "Today",
   "week": "Week"
 }

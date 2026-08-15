@@ -1,5 +1,6 @@
 {
   "backlinks": "Références liées",
+  "closeGraph": "Fermer le graphe",
   "depth": "Profondeur",
   "emptyNote": "Note vide",
   "graph": "Graphe",
@@ -16,14 +17,14 @@
   "notCreated": "Pas encore créée",
   "outline": "Plan",
   "related": {
-    "title": "Connexes",
-    "show": "Afficher les notes connexes",
-    "hide": "Masquer les notes connexes",
-    "refresh": "Actualiser",
     "empty": "Aucune note connexe trouvée.",
+    "error": "Impossible de charger les notes connexes.",
+    "hide": "Masquer les notes connexes",
     "notConfigured": "Activez la recherche sémantique dans Réglages → IA pour voir les notes connexes.",
+    "refresh": "Actualiser",
+    "show": "Afficher les notes connexes",
     "stale": "Cette note n'est pas encore dans l'index sémantique. Générez-le dans Réglages → IA.",
-    "error": "Impossible de charger les notes connexes."
+    "title": "Connexes"
   },
   "show": "Afficher les liens",
   "showOutline": "Afficher le plan",

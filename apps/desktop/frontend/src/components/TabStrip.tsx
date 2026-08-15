@@ -152,6 +152,10 @@ function TabItem({
     <div
       role="tab"
       aria-selected={active}
+      // Without an explicit name the tab's name comes from its contents and
+      // absorbs the close button's own label ("<title> Close tab"). The name
+      // is exactly the visible label, so voice control still matches it.
+      aria-label={label}
       title={label}
       onClick={() => onSelect(path)}
       onAuxClick={(e) => {

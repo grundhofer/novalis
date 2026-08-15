@@ -681,6 +681,7 @@ export default function App() {
           <span className="min-w-0 break-words">{error}</span>
           <button
             onClick={clearError}
+            aria-label={t("dismissError")}
             className="shrink-0 rounded p-0.5 text-danger transition-colors hover:bg-active hover:text-danger"
           >
             <X size={15} />

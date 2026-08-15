@@ -283,6 +283,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           setQuery(e.target.value);
           setSelected(0);
         }}
+        aria-label={t("cmdPlaceholder")}
         placeholder={t("cmdPlaceholder")}
         className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
         onKeyDown={onKeyDown}

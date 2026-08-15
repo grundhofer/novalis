@@ -370,6 +370,7 @@ function EventModal({
           ref={titleRef}
           value={d.title}
           onChange={(e) => setD({ ...d, title: e.target.value })}
+          aria-label={t("eventTitle")}
           placeholder={t("eventTitle")}
           className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
         />
@@ -377,6 +378,7 @@ function EventModal({
           type="date"
           value={d.date}
           onChange={(e) => setD({ ...d, date: e.target.value })}
+          aria-label={t("date")}
           className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
         />
         <label className="flex items-center gap-2 text-sm text-fg-muted">
@@ -389,18 +391,20 @@ function EventModal({
               type="time"
               value={d.startTime ?? ""}
               onChange={(e) => setD({ ...d, startTime: e.target.value })}
+              aria-label={t("startTime")}
               className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
             />
             <input
               type="time"
               value={d.endTime ?? ""}
               onChange={(e) => setD({ ...d, endTime: e.target.value })}
+              aria-label={t("endTime")}
               className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
             />
           </div>
         )}
         <div className="flex gap-2">
-          <select value={freq} onChange={(e) => setFreq(e.target.value)} className="rounded bg-surface-2 px-2 py-1.5 text-sm text-fg">
+          <select value={freq} onChange={(e) => setFreq(e.target.value)} aria-label={t("repeat")} className="rounded bg-surface-2 px-2 py-1.5 text-sm text-fg">
             <option value="none">{t("freq.none")}</option>
             <option value="daily">{t("freq.daily")}</option>
             <option value="weekly">{t("freq.weekly")}</option>
@@ -410,6 +414,7 @@ function EventModal({
           <input
             value={d.location ?? ""}
             onChange={(e) => setD({ ...d, location: e.target.value })}
+            aria-label={t("location")}
             placeholder={t("location")}
             className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
           />
@@ -425,6 +430,7 @@ function EventModal({
                 .filter(Boolean),
             })
           }
+          aria-label={t("attendees")}
           placeholder={t("attendees")}
           className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
         />

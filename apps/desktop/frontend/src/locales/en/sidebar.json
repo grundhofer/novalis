@@ -1,8 +1,18 @@
 {
   "blankNote": "Blank note",
+  "clearFilter": "Clear filter",
   "cloudOnly": "Online only — downloads on open",
   "collapseAll": "Collapse all folders",
   "collapseSidebar": "Collapse sidebar",
+  "colors": {
+    "amber": "Amber",
+    "emerald": "Emerald",
+    "indigo": "Indigo",
+    "rose": "Rose",
+    "sky": "Sky",
+    "slate": "Slate",
+    "violet": "Violet"
+  },
   "confirm": {
     "deleteEmptyFolder": "Delete empty folder \"{{name}}\"?",
     "deleteFolderTitle": "Delete folder?",
@@ -11,6 +21,8 @@
   },
   "filterPlaceholder": "Filter notes…",
   "folderNamePlaceholder": "Folder name",
+  "folderRow": "Folder: {{path}}",
+  "folderToggle": "Expand or collapse folder: {{path}}",
   "inFolder": "in /{{target}}",
   "menu": {
     "delete": "Delete",
@@ -33,6 +45,7 @@
   "recent": "Recent",
   "refreshFromDisk": "Refresh from disk",
   "search": "Search",
+  "setColorTo": "Set color: {{color}}",
   "settings": "Settings",
   "sort": {
     "created": "Recently created",
@@ -41,6 +54,7 @@
     "nameAsc": "Name (A–Z)",
     "nameDesc": "Name (Z–A)"
   },
+  "sortNotes": "Sort notes",
   "sortTitle": "Sort: {{mode}}",
   "tags": "Tags",
   "tagsShowAll": "Show all ({{total}})",

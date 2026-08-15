@@ -69,6 +69,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={onFindKeyDown}
+        aria-label={t("find")}
         placeholder={t("find")}
         className="w-40 rounded-md border border-border bg-app px-2 py-1 text-fg outline-none focus:border-accent"
       />
@@ -81,6 +82,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
       </span>
       <button
         onClick={() => editor.commands.findPrev()}
+        aria-label={t("findPrev")}
         title={t("findPrev")}
         className="rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
       >
@@ -88,6 +90,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
       </button>
       <button
         onClick={() => editor.commands.findNext()}
+        aria-label={t("findNext")}
         title={t("findNext")}
         className="rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
       >
@@ -95,6 +98,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
       </button>
       <button
         onClick={() => setCaseSensitive((v) => !v)}
+        aria-label={t("matchCase")}
         title={t("matchCase")}
         aria-pressed={caseSensitive}
         className={`rounded-md p-1 transition-colors hover:bg-active hover:text-fg ${
@@ -106,6 +110,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
       <input
         value={replacement}
         onChange={(e) => setReplacement(e.target.value)}
+        aria-label={t("replaceWith")}
         placeholder={t("replaceWith")}
         className="w-40 rounded-md border border-border bg-app px-2 py-1 text-fg outline-none focus:border-accent"
       />
@@ -123,6 +128,7 @@ export function FindBar({ editor, onClose }: FindBarProps) {
       </button>
       <button
         onClick={onClose}
+        aria-label={t("closeFind")}
         title={t("closeFind")}
         className="ml-auto rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
       >

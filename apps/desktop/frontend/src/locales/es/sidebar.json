@@ -1,8 +1,18 @@
 {
   "blankNote": "Nota en blanco",
+  "clearFilter": "Borrar el filtro",
   "cloudOnly": "Solo en línea – se descarga al abrir",
   "collapseAll": "Contraer todas las carpetas",
   "collapseSidebar": "Contraer barra lateral",
+  "colors": {
+    "amber": "Ámbar",
+    "emerald": "Esmeralda",
+    "indigo": "Índigo",
+    "rose": "Rosa",
+    "sky": "Azul cielo",
+    "slate": "Gris pizarra",
+    "violet": "Violeta"
+  },
   "confirm": {
     "deleteEmptyFolder": "¿Eliminar la carpeta vacía «{{name}}»?",
     "deleteFolderTitle": "¿Eliminar la carpeta?",
@@ -11,6 +21,8 @@
   },
   "filterPlaceholder": "Filtrar notas…",
   "folderNamePlaceholder": "Nombre de la carpeta",
+  "folderRow": "Carpeta: {{path}}",
+  "folderToggle": "Expandir o contraer la carpeta: {{path}}",
   "inFolder": "en /{{target}}",
   "menu": {
     "delete": "Eliminar",
@@ -33,6 +45,7 @@
   "recent": "Recientes",
   "refreshFromDisk": "Recargar desde el disco",
   "search": "Buscar",
+  "setColorTo": "Establecer color: {{color}}",
   "settings": "Ajustes",
   "sort": {
     "created": "Creadas recientemente",
@@ -41,6 +54,7 @@
     "nameAsc": "Nombre (A–Z)",
     "nameDesc": "Nombre (Z–A)"
   },
+  "sortNotes": "Ordenar notas",
   "sortTitle": "Orden: {{mode}}",
   "tags": "Etiquetas",
   "tagsShowAll": "Mostrar todas ({{total}})",

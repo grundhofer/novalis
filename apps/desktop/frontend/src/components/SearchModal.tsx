@@ -133,6 +133,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
         ref={inputRef}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        aria-label={t("searchPlaceholder")}
         placeholder={t("searchPlaceholder")}
         className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
         onKeyDown={onKeyDown}
@@ -143,6 +144,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             <select
               value={folder}
               onChange={(e) => setFolder(e.target.value)}
+              aria-label={t("searchFolderFilter")}
               className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
             >
               <option value="">{t("searchAllFolders")}</option>
@@ -157,6 +159,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
             <select
               value={tag}
               onChange={(e) => setTag(e.target.value)}
+              aria-label={t("searchTagFilter")}
               className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
             >
               <option value="">{t("searchAllTags")}</option>

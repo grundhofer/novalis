@@ -1,8 +1,18 @@
 {
   "blankNote": "Leere Notiz",
+  "clearFilter": "Filter zurücksetzen",
   "cloudOnly": "Nur online – wird beim Öffnen heruntergeladen",
   "collapseAll": "Alle Ordner einklappen",
   "collapseSidebar": "Seitenleiste einklappen",
+  "colors": {
+    "amber": "Bernstein",
+    "emerald": "Smaragdgrün",
+    "indigo": "Indigo",
+    "rose": "Rosé",
+    "sky": "Himmelblau",
+    "slate": "Schiefergrau",
+    "violet": "Violett"
+  },
   "confirm": {
     "deleteEmptyFolder": "Leeren Ordner „{{name}}“ löschen?",
     "deleteFolderTitle": "Ordner löschen?",
@@ -11,6 +21,8 @@
   },
   "filterPlaceholder": "Notizen filtern…",
   "folderNamePlaceholder": "Ordnername",
+  "folderRow": "Ordner: {{path}}",
+  "folderToggle": "Ordner aus- oder einklappen: {{path}}",
   "inFolder": "in /{{target}}",
   "menu": {
     "delete": "Löschen",
@@ -33,6 +45,7 @@
   "recent": "Zuletzt geöffnet",
   "refreshFromDisk": "Von der Festplatte neu laden",
   "search": "Suchen",
+  "setColorTo": "Farbe festlegen: {{color}}",
   "settings": "Einstellungen",
   "sort": {
     "created": "Zuletzt erstellt",
@@ -41,6 +54,7 @@
     "nameAsc": "Name (A–Z)",
     "nameDesc": "Name (Z–A)"
   },
+  "sortNotes": "Notizen sortieren",
   "sortTitle": "Sortierung: {{mode}}",
   "tags": "Tags",
   "tagsShowAll": "Alle anzeigen ({{total}})",

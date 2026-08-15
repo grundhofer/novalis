@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, ChevronRight, FolderInput, Plus, Search, X } from "lucide-react";
@@ -196,6 +196,7 @@ function FilterBar() {
       <select
         value={f.priority ?? ""}
         onChange={(e) => setBoardFilter({ priority: e.target.value || null })}
+        aria-label={t("filterBar.priorityAria")}
         className={selectCls}
       >
         <option value="">{t("filterBar.anyPriority")}</option>
@@ -207,6 +208,7 @@ function FilterBar() {
       <select
         value={f.due}
         onChange={(e) => setBoardFilter({ due: e.target.value as DueBucket })}
+        aria-label={t("filterBar.dueAria")}
         className={selectCls}
       >
         <option value="any">{t("filterBar.anyDue")}</option>
@@ -219,6 +221,7 @@ function FilterBar() {
         <select
           value={f.tag ?? ""}
           onChange={(e) => setBoardFilter({ tag: e.target.value || null })}
+          aria-label={t("filterBar.tagAria")}
           className={selectCls}
         >
           <option value="">{t("filterBar.anyTag")}</option>
@@ -231,6 +234,7 @@ function FilterBar() {
         <select
           value={f.folder ?? ""}
           onChange={(e) => setBoardFilter({ folder: e.target.value || null })}
+          aria-label={t("filterBar.folderAria")}
           className={selectCls}
         >
           <option value="">{t("filterBar.anyFolder")}</option>
@@ -245,6 +249,7 @@ function FilterBar() {
         <select
           value={f.project ?? ""}
           onChange={(e) => setBoardFilter({ project: e.target.value || null })}
+          aria-label={t("filterBar.projectAria")}
           className={selectCls}
         >
           <option value="">{t("filterBar.anyProject")}</option>
@@ -264,6 +269,7 @@ function FilterBar() {
         <select
           value={groupBy}
           onChange={(e) => setBoardGroupBy(e.target.value as BoardGroupBy)}
+          aria-label={t("filterBar.groupByAria")}
           className={`${selectCls} ml-auto`}
         >
           <option value="none">{t("filterBar.groupNone")}</option>
@@ -311,6 +317,8 @@ const TaskRow = memo(function TaskRow({
   const toggle = useTasks((s) => s.toggle);
   const openNoteFrom = useUi((s) => s.openNoteFrom);
   const openCardMenu = useTasks((s) => s.openCardMenu);
+  // Names the checkbox from the task text rendered next to it.
+  const labelId = useId();
   return (
     <div
       className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-hover"
@@ -323,13 +331,17 @@ const TaskRow = memo(function TaskRow({
         type="checkbox"
         checked={task.completed}
         onChange={() => void toggle(task.id)}
+        aria-labelledby={labelId}
         className="mt-1 accent-[var(--accent)]"
       />
       <div
         className="min-w-0 flex-1 cursor-pointer"
         onClick={() => openNoteFrom(task.sourceNote, "tasks")}
       >
-        <div className={`text-sm ${task.completed ? "text-fg-faint line-through" : "text-fg"}`}>
+        <div
+          id={labelId}
+          className={`text-sm ${task.completed ? "text-fg-faint line-through" : "text-fg"}`}
+        >
           {displayText(task.text)}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-subtle">

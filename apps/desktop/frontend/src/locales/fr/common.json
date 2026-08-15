@@ -28,6 +28,7 @@
     "zoomReset": "Ajuster au contenu"
   },
   "delete": "Supprimer",
+  "dismissError": "Ignorer l’erreur",
   "errorBoundary": {
     "close": "Fermer",
     "copied": "Copié",
@@ -42,6 +43,7 @@
     "linksCount": "{{n}} liens",
     "notesCount": "{{n}} notes"
   },
+  "helpGuide": "Guide des fonctionnalités",
   "indexing": "Indexation de {{done}} / {{total}} notes…",
   "indexingHint": "Cela peut prendre un moment pour un grand coffre — l’app reste utilisable.",
   "loading": "Chargement…",
@@ -113,6 +115,5 @@
     "query": "Requête",
     "tasks": "Tâches",
     "today": "Aujourd'hui"
-  },
-  "helpGuide": "Guide des fonctionnalités"
+  }
 }
