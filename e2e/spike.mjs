@@ -292,7 +292,7 @@ try {
         "Collapse all folders",
         "Filter notes…",
         "Note: Spike.md",
-        "Note body: Spike",
+        "Note body: Plain",
       ];
       const names = new Set(named.map((e) => e.name));
       const missing = EXPECT.filter((n) => !names.has(n));
@@ -328,12 +328,27 @@ try {
       if (!hit) throw new Error("Spike.md not addressable");
       const beforeNodes = (await app.dump()).split("\n").length;
       await sim.click(hit);
-      await sleep(5000);
-      const afterNodes = (await app.dump()).split("\n").length;
+      // Sample, do not snapshot. Two runs disagreed on this — one saw the tree
+      // collapse to 6 nodes and stay there, the next saw no collapse at all —
+      // and a single reading cannot tell a permanent failure from a window of
+      // invalidation that settles. The series is the finding.
+      const series = [];
+      for (let i = 0; i < 8; i++) {
+        await sleep(1500);
+        series.push((await app.dump().catch(() => "")).split("\n").length);
+      }
+      const afterNodes = series[series.length - 1];
+      const dipped = Math.min(...series) < beforeNodes / 2;
       const survived = afterNodes > beforeNodes / 2;
-      console.log(`      opening a note containing a header-row table: ${beforeNodes} -> ${afterNodes} nodes`);
+      console.log(`      opening a note with a header-row table: ${beforeNodes} -> [${series.join(", ")}]`);
+      if (dipped && survived) console.log("      => TRANSIENT collapse: the tree emptied and came back");
+      if (dipped && !survived) console.log("      => PERSISTENT collapse: the tree did not recover");
       record(8, "a table in the editor does not destroy the accessibility tree", survived,
-        survived ? "tree intact" : `tree collapsed to ${afterNodes} nodes — WebKitGTK/AT-SPI defect`);
+        survived
+          ? dipped
+            ? `recovered, but dipped to ${Math.min(...series)} nodes on the way`
+            : "tree intact throughout"
+          : `collapsed to ${afterNodes} nodes and did not recover`);
     } catch (e) {
       record(8, "a table in the editor does not destroy the accessibility tree", false, e.message);
     }
