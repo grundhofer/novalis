@@ -99,53 +99,57 @@ one `aria-label` turned that into a definite yes.
 
 | | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| app visible to the a11y API | ✅ | ✅ | ✅ |
 | webview DOM in the tree | ✅ | ✅ | ✅ |
 | onboarding dismissable | ✅ | ✅ | ✅ |
-| note opens from the file tree | ✅ | ✅ | ✅ |
-| editor mounts and is addressable | ✅ | ✅ | ❌ |
-| **typing reaches disk** | ✅ | ✅ | ❌ |
-| rolled-out names present | 6/6 | 6/6 | — |
-| named nodes in the tree | 68 / 146 | 143 / 304 | — |
+| note opens, editor mounts | ✅ | flaky | ✅ |
+| **typing reaches disk** | ✅ | ✅ | ✅ |
+| rolled-out names present | 6/6 | 6/6 | 6/6 |
+| table in the editor is survivable | ✅ | ✅ | ❌ |
 
-macOS and Windows pass all seven probes, repeatably. Getting there took two
-accessibility fixes and two harness fixes, and it is worth separating them
-because only the first pair is about the app:
+**The approach works on all three platforms.** Text typed with real OS-level
+input reaches the file on disk on macOS, Windows and Linux. Nothing goes into
+the app to achieve it — no plugin crate, no `withGlobalTauri`, no automation
+server — so the same binary that ships is the one under test.
 
-**App fixes.** The name belongs on the editable, not on a wrapper — TipTap gives
-the contenteditable `role="textbox"`, which takes its name from the author
-only, so a named `role="region"` wrapper was a landmark around an unnamed
-widget. And file-tree rows needed an explicit `aria-label`: they were named from
-their contents (which absorbed the Cloud badge and the task rollup, so a row's
-name changed when a task inside the note was ticked) and otherwise leaned on
-`title`, which macOS ignores entirely.
+### The one real defect, and it is a user-facing one
 
-**Harness fixes.** Both were wrong waits of mine that read as platform verdicts.
-A fixed 8-second sleep gave macOS a 4-node tree on one run and a complete one on
-the next. Then probe 5 waited for the note's TITLE — which is in the tree as the
-file-tree row before anything is opened — so it returned instantly and the next
-probe looked for the editor before it existed, fell back to a coordinate click
-and missed. Windows passed twice and then failed on identical code because of
-it. Waiting for the editor's own accessible name fixed it.
+A note containing a header-row table, opened in the editor, takes WebKitGTK's
+whole accessibility tree down. Sampled eight times over twelve seconds:
 
-That second one is the argument for the naming work being about determinism,
-not just reachability: without a name there is nothing honest to wait for.
+```
+Linux    105 -> [109, 6, 6, 6, 6, 6, 6, 6]   persistent, does not recover
+macOS    125 -> [160, 161, 161, 161, ...]    unaffected
+Windows  251 -> [251, 251, ...]              unaffected
+```
 
-The general rule, and it decides how everything else gets named:
+It is not `<th>` and it is not `contenteditable` — it is the combination, under
+AT-SPI only. xa11y's own Tauri fixture carries three `<th>` in a plain table and
+its Linux CI is green, and WebKit's source says why the pairing is special:
+*"When a section of the document is contentEditable, all tables should be
+treated as data tables"* (`AccessibilityNodeObject.cpp:2181`) — a table inside a
+rich-text editor gets the full table machinery unconditionally.
 
-> **`aria-label` on a widget role is the only naming form all three providers
-> honour.** `title`, `placeholder` and name-from-contents are each honoured by
-> some providers and silently dropped by others — macOS names nothing from
-> `title` at all — and landmark roles are the least portable: `region` became a
-> plain `group` under UIA and never appeared under AT-SPI.
+For a Linux screen-reader user this means opening a note with a table empties
+the page from the accessibility tree. Novalis is a notes app that ships table
+editing, so that is a reachable state, and nothing in the repo would have found
+it: no test had ever launched the app.
 
-**The remaining gap is Linux, and it is specific.** Everything works there
-except the editor: the AT-SPI tree contains no editor node whatsoever — no
-`text_area`, no `entry`, no `document_frame` — so the name is not being dropped,
-the contenteditable is not exposed by WebKitGTK at all. The tree is also
-transient there in a way it is not elsewhere: opening a note collapsed it from
-43 nodes to 6 (a single `unknown`) before recovering to 104. Under
-investigation; it does not block a gate that runs on macOS and Windows.
+**It is intermittent across runs.** One run showed no collapse at all, which is
+why probe 8 samples a series rather than taking a snapshot — a single reading
+cannot tell a persistent failure from a window of invalidation that settles, and
+an early single reading is what made me first report this as deterministic and
+then, one run later, as transient. It is neither: it is a race that lands often
+and, when it lands, does not recover.
+
+The suite therefore drives `Plain.md` (no table) for editing and opens
+`Spike.md` last, purely as the diagnostic that keeps this measured on every run.
+
+### Known flakiness, honestly
+
+Clicking a file-tree row occasionally does not open the note — Windows in one
+run, with `tree_item "Note: Plain.md"` present in the tree and the click
+registering. That is an activation problem, not a naming one, and it is the
+next thing to fix before any of this becomes a gate.
 
 ### What it cost, and what it bought
 
