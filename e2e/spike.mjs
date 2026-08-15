@@ -165,10 +165,14 @@ try {
       if (!hit) throw new Error("no element named Spike/Spike.md in the tree");
       console.log(`      opening: role=${hit.role} name=${JSON.stringify(hit.name)}`);
       await sim.click(hit);
-      // The editor mounts asynchronously; wait for the note's own text.
-      const tree = await waitForTree(app, (t) => t.includes("Spike") && !t.includes("Welcome to Novalis"), {
-        label: "note open",
-      });
+      // Wait for the EDITOR, not for the note's title. "Spike" is already in
+      // the tree as the file-tree row before anything is opened, so the old
+      // condition was satisfied instantly and the next probe went looking for
+      // the editor before it had mounted — it fell back to a coordinate and
+      // missed, which is why Windows passed twice and then failed on identical
+      // code. The editor's own accessible name is the only honest signal that
+      // it exists.
+      const tree = await waitForTree(app, (t) => t.includes("Note body"), { label: "editor mounted" });
       await dumpTree(app, "tree with the note open");
       record(5, "the fixture note opens from the file tree", true, `tree has ${tree.split("\n").length} nodes`);
     } catch (e) {
