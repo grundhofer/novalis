@@ -10,7 +10,13 @@ import { readFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { join, resolve } from "node:path";
 
-import { App, setDefaultTimeout } from "@crowecawcaw/xa11y";
+// CommonJS package (no "type", no "exports" map), so named ESM imports are at
+// the mercy of Node's cjs-module-lexer — it resolves `App` but not
+// `setDefaultTimeout`, which fails at load with a SyntaxError. Default-import
+// the namespace and destructure instead; that always works for CJS.
+import xa11y from "@crowecawcaw/xa11y";
+
+const { App, setDefaultTimeout } = xa11y;
 
 const BINARY = process.argv[2];
 if (!BINARY) {
