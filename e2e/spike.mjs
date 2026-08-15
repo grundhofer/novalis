@@ -3,8 +3,17 @@
 // answer, and the tree dumps are useful precisely on the runs where the last
 // probe does not work yet.
 //
-// Exit code is 0 unless the harness itself broke. Probe outcomes are reported,
-// not thrown: this is a spike whose job is to produce a verdict, not a gate.
+// EXIT CODE. Probes 1-7 are the contract and they gate: any failure exits 1.
+// Probe 8 is a known-issue watch — a WebKitGTK/AT-SPI defect that is not ours
+// and that we cannot fix — so on Linux it is an EXPECTED failure and does not
+// gate. It still gates on macOS and Windows, where a collapse would be a
+// regression we caused. And if it ever starts PASSING on Linux, that is
+// reported loudly: it means the upstream bug is fixed and the carve-out
+// should go.
+//
+// This file began as a spike, which reported outcomes and always exited 0.
+// That is exactly the shape of a gate that cannot fail, and it shipped green
+// on a run where probe 8 had failed.
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { platform } from "node:os";
@@ -378,4 +387,26 @@ try {
   console.log(`\n  webview DOM reachable: ${dom ? (dom.ok ? "YES" : "NO") : "not run"}`);
   console.log(`  typing reaches disk:   ${typed ? (typed.ok ? "YES" : "NO") : "not run"}`);
   console.log(`  Platform: ${platform()}`);
+
+  // Probe 8 is a known-issue watch, not our contract: WebKitGTK empties the
+  // AT-SPI tree for a table inside a contenteditable. We cannot fix it, so on
+  // Linux it is an EXPECTED failure and does not gate. It still gates on macOS
+  // and Windows, where a collapse would be a regression we caused.
+  const xfailTable = platform() === "linux";
+  const table = results.find((r) => r.n === 8);
+  if (table && !table.ok && xfailTable) {
+    console.log("\n  probe 8 failed as expected: known WebKitGTK/AT-SPI defect, does not gate.");
+  }
+  if (table && table.ok && xfailTable) {
+    console.log("\n  !! probe 8 PASSED on Linux, where it is expected to fail.");
+    console.log("  !! The upstream defect may be fixed — drop the carve-out in e2e/spike.mjs.");
+  }
+
+  const failed = results.filter((r) => !r.ok && !(r.n === 8 && xfailTable));
+  if (failed.length) {
+    console.log(`\n  GATE FAILS on probe(s): ${failed.map((r) => r.n).join(", ")}`);
+    process.exitCode = 1;
+  } else {
+    console.log("\n  gate passes");
+  }
 }
