@@ -249,6 +249,46 @@ try {
       record(6, "text typed at the OS level reaches the note on disk", false, e.message);
     }
   }
+  // ── 7 ── naming coverage: how much of the app is addressable now? ───────
+  // The rollout named 62 elements. This reports what actually SURVIVES into
+  // each provider's tree, which is the only measure that counts — the same
+  // markup produced different names on the three backends before.
+  if (app) {
+    try {
+      const all = await app.locator("*").elements().catch(() => []);
+      const named = all.filter((e) => (e.name ?? "").trim());
+      const byRole = new Map();
+      for (const e of named) byRole.set(e.role, (byRole.get(e.role) ?? 0) + 1);
+
+      // A handful whose English strings are certain, spanning the surfaces a
+      // suite drives first. Anything missing here is a provider dropping a
+      // name we know is in the DOM.
+      const EXPECT = [
+        "Refresh from disk",
+        "New folder",
+        "Collapse all folders",
+        "Filter notes…",
+        "Note: Spike.md",
+        "Note body: Spike",
+      ];
+      const names = new Set(named.map((e) => e.name));
+      const missing = EXPECT.filter((n) => !names.has(n));
+
+      console.log(`      named elements: ${named.length} of ${all.length}`);
+      console.log(
+        `      by role: ${[...byRole].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r}=${n}`).join(" ")}`,
+      );
+      console.log(`      expected-and-found: ${EXPECT.length - missing.length}/${EXPECT.length}`);
+      if (missing.length) console.log(`      MISSING: ${missing.join(" | ")}`);
+      console.log("      --- every named element ---");
+      for (const e of named) console.log(`        ${e.role} ${JSON.stringify(e.name)}`);
+
+      record(7, "the rolled-out names survive into this provider's tree", missing.length === 0,
+        `${named.length} named nodes; ${missing.length} of ${EXPECT.length} known names missing`);
+    } catch (e) {
+      record(7, "the rolled-out names survive into this provider's tree", false, e.message);
+    }
+  }
 } catch (e) {
   console.error("\nharness error:", e);
   process.exitCode = 1;
