@@ -65,6 +65,79 @@ node e2e/seed.mjs                      # writes the fixture vault + settings.jso
 node e2e/spike.mjs <path-to-binary>
 ```
 
+## Verdict (7 CI rounds, 3 platforms each)
+
+**Answered, and positively: the app is drivable from outside.** The webview DOM
+is in the accessibility tree on **macOS, Windows and Linux** — not a window
+frame, the actual React UI. The spike dismisses onboarding by pressing a button
+it found in the tree, then opens the fixture note from the file tree, on Linux
+and Windows. macOS reaches the workspace but does not expose the note under a
+name the spike matches.
+
+That refutes the assumption this project has carried: WKWebView is not closed
+to automation. It was closed to the approach tried before.
+
+**Not answered: whether typed text reaches the document.** OS-level keystrokes
+execute without error and the note on disk is unchanged, on all three
+platforms. Two explanations remain open and the spike cannot currently tell
+them apart:
+
+- the click lands somewhere that is not the editor (it aims at a *coordinate*,
+  70% across the web area, because the editor region has no accessible name);
+- or the keystrokes arrive and ProseMirror does not accept them.
+
+Distinguishing those needs the editor to be addressable, which is the one piece
+of work that sits on the app's side of the line — see below.
+
+| | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| app visible to the a11y API | ✅ | ✅ | ✅ |
+| webview DOM in the tree | ✅ | ✅ | ✅ |
+| onboarding dismissable | ✅ | ✅ | ✅ |
+| note opens from the file tree | ❌ | ✅ | ✅ |
+| typing reaches disk | ❌ | ❌ | ❌ |
+
+### What it cost, and what it bought
+
+Seven rounds, nearly all of them spent on the harness rather than the app:
+`inputSim` is a factory not an instance; modifier names are capitalised and the
+binding throws synchronously so a trailing `.catch()` never fires; the package
+is CommonJS so named ESM imports fail; a fixed sleep is not a readiness check.
+None of that is a finding about Novalis.
+
+Four things are, and any real suite would have hit all of them:
+
+1. `Settings` is `#[serde(rename_all = "camelCase")]` — the key is `lastVault`,
+   not `last_vault`, and the snake_case form is silently ignored.
+   `Preferences` is the opposite: plain snake_case, no rename.
+2. `ensure_features_stamp` rewrites a vault to the legacy all-on profile unless
+   `.novalis/config.json` carries the current `prefs_version` — which would
+   switch on the embedding model, AI and sync behind a test's back.
+3. **Role and name are provider-dependent.** The same note is
+   `group "Spike.md"` on Linux and `tree_item "Spike"` on Windows — extension
+   included in one, dropped in the other. Any suite that pins either shape is
+   pinned to one platform.
+4. `xa11y/setup-a11y@v1` cannot be used here at all: it calls
+   `awalsh128/cache-apt-pkgs-action@v1`, which is not SHA-pinned, and this repo
+   requires that of every action. The rejection is workflow-wide, not scoped to
+   the job — an `if:`-gated Linux step failed all three platforms in 8 seconds.
+   Its work is inlined in `e2e-spike.yml` instead.
+
+### The decision this leaves
+
+The remaining uncertainty has one cheap resolution: give the editor region an
+accessible name. That is a few lines, it is a genuine accessibility improvement
+independent of testing, and it turns an ambiguous negative into a definite
+answer — either the keystrokes arrive or they do not, with no aiming question
+left. The spike deliberately did NOT make that change: finding out whether the
+work pays off is what it was for, and quietly doing the work first would have
+destroyed the evidence.
+
+The alternative, WebdriverIO's embedded provider, is *less* likely to clear the
+same bar: its contenteditable input is `document.execCommand('insertText', …)`
+and its key events are untrusted, which is exactly what a ProseMirror editor is
+most likely to reject.
+
 ## What the spike reports
 
 Progressive probes, each independent, all of them printed even when an earlier
