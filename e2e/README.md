@@ -1,13 +1,20 @@
 # e2e — real-app UI tests
 
-**Status: spike.** Nothing here gates anything yet. It exists to answer one
-question before a suite is built on top of it:
+**Status: it gates releases.** `.github/workflows/e2e.yml` runs this on all
+three platforms as the `UI gate` in `release.yml`, and on any PR carrying the
+`e2e` label. It is the only check in this repo that launches the app.
+
+It started as a spike answering one question, and the answer is yes:
 
 > Can an automation tool reach inside the real Novalis window — the actual
 > release-shaped binary, real Rust backend, real system webview — and type into
 > the TipTap editor such that the text lands on disk?
 
-Everything else about a UI-test programme is downstream of that answer.
+The probes below are still written as a spike reports: every one runs and
+reports even after an earlier failure, and the tree dumps are printed on
+success too. That is deliberate for a suite whose failures are usually about
+what a platform's accessibility provider did or did not expose — a bare
+assertion failure would not be actionable.
 
 ## Why this directory is not a pnpm workspace package
 
