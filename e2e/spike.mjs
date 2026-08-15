@@ -23,7 +23,6 @@ if (!BINARY) {
   console.error("usage: node spike.mjs <path-to-novalis-binary>");
   process.exit(2);
 }
-const APP_NAME = "Novalis"; // tauri.conf.json productName
 const VAULT = resolve(process.env.NOVALIS_E2E_VAULT ?? join(import.meta.dirname, ".tmp-vault"));
 const NOTE = join(VAULT, "Spike.md");
 
@@ -59,12 +58,15 @@ try {
   if (exited) console.log(indent(log.join("").slice(-3000), "      "));
 
   // ── 2 ── xa11y sees the application at all ──────────────────────────────
+  // By PID, not by name. The a11y tree registers the app under its BINARY name
+  // (`novalis-desktop`), not tauri.conf.json's productName (`Novalis`) — at
+  // least on Linux, and there is no reason to assume the three platforms agree.
+  // We spawned the process, so its pid is exact and needs no per-OS guesswork.
   try {
-    app = await App.byName(APP_NAME, { timeout: 30 });
-    record(2, `xa11y finds the application by name ("${APP_NAME}")`, true, `name=${app.name}`);
+    app = await App.byPid(child.pid, { timeout: 30 });
+    record(2, `xa11y finds the application by pid (${child.pid})`, true, `name=${app.name}`);
   } catch (e) {
-    record(2, `xa11y finds the application by name ("${APP_NAME}")`, false, e.message);
-    // Fall back to whatever IS visible — the name may simply differ per OS.
+    record(2, `xa11y finds the application by pid (${child.pid})`, false, e.message);
     try {
       const all = await App.list();
       console.log(indent(`visible apps: ${all.map((a) => a.name).join(", ")}`, "      "));
