@@ -27,6 +27,7 @@
   "newNote": "Neue Notiz",
   "newNoteIn": "Neue Notiz in {{target}}",
   "noColor": "Keine Farbe",
+  "noteRow": "Notiz: {{path}}",
   "notesHeading": "Notizen",
   "pinned": "Angeheftet",
   "recent": "Zuletzt geöffnet",

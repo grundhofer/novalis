@@ -27,6 +27,7 @@
   "newNote": "New note",
   "newNoteIn": "New note in {{target}}",
   "noColor": "No color",
+  "noteRow": "Note: {{path}}",
   "notesHeading": "Notes",
   "pinned": "Pinned",
   "recent": "Recent",

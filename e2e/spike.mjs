@@ -122,7 +122,11 @@ try {
   if (app) {
     try {
       let clicked = null;
-      for (const name of ["Explore on my own", "Close", "Continue"]) {
+      // "Close" is deliberately NOT in this list. On Windows the app tree is
+      // a subtree of Edge's and the window frame contributes its own
+      // button "Close" — pressing that would kill the app mid-run and look
+      // like a product failure. Our own two buttons are enough.
+      for (const name of ["Explore on my own", "Continue"]) {
         if ((await app.locator(`button[name='${name}']`).elements().catch(() => [])).length) {
           await app.locator(`button[name='${name}']`).press();
           clicked = name;
@@ -152,7 +156,12 @@ try {
       // `group "Spike.md"`, Windows as `tree_item "Spike"`. Match on the
       // name prefix across every role rather than pinning either shape.
       const all = await app.locator("*").elements().catch(() => []);
-      const hit = all.find((e) => /^Spike(\.md)?$/.test(e.name ?? ""));
+      // File-tree rows now carry an explicit `aria-label` ("Note: <path>"),
+      // which is the only name form all three providers agree on — macOS
+      // names nothing from `title`, which is what the row relied on before.
+      const hit =
+        all.find((e) => /^Note: .*Spike\.md$/.test(e.name ?? "")) ??
+        all.find((e) => /^Spike(\.md)?$/.test(e.name ?? ""));
       if (!hit) throw new Error("no element named Spike/Spike.md in the tree");
       console.log(`      opening: role=${hit.role} name=${JSON.stringify(hit.name)}`);
       await sim.click(hit);

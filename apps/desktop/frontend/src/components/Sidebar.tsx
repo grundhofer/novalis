@@ -1272,6 +1272,7 @@ const NoteRow = memo(function NoteRow({
   nextKey: string | null;
   isRenaming: boolean;
 }) {
+  const { t } = useTranslation("sidebar");
   // Row-local boolean instead of the whole activePath: switching notes only
   // re-renders the two affected rows, not every note in the tree.
   const active = useVault((s) => s.activePath === note.path);
@@ -1300,6 +1301,12 @@ const NoteRow = memo(function NoteRow({
     <div
       ref={rowRef}
       role="treeitem"
+      // Without this the row's name is computed from its contents, which
+      // absorbs the Cloud badge's own label and the task rollup — so the name
+      // CHANGES when a task inside the note is ticked (3/5 -> 4/5), and macOS
+      // names nothing from the `title` below at all. An explicit label is the
+      // only form all three accessibility providers agree on.
+      aria-label={t("noteRow", { path: note.path })}
       aria-selected={active}
       aria-level={depth + 1}
       tabIndex={-1}
