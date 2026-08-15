@@ -84,9 +84,12 @@ first use. Grouped as they'll appear in onboarding and **Settings › Features**
 ## Releases
 
 Pre-built installers are published on the
-[GitHub Releases](../../releases) page
-for macOS (universal `.dmg`), Linux (`.AppImage`, `.deb`), and Windows
-(`.msi`, `.exe`).
+[GitHub Releases](../../releases) page for macOS (`.dmg`, **Apple Silicon
+only**), Linux (`.AppImage`, `.deb`, `.rpm`), and Windows (`.msi`, `.exe`).
+
+Intel Macs are not supported: the on-device embedding runtime publishes no
+`x86_64-apple-darwin` build, so a universal binary cannot be compiled. See
+[RELEASING.md](RELEASING.md#what-gets-built).
 
 Builds are currently **unsigned** — macOS and Windows will show a
 "verify the developer" warning on first launch. See

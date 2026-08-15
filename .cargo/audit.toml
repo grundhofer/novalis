@@ -1,5 +1,20 @@
 # cargo-audit configuration.
 #
+# Without this section `cargo audit` exits 0 on a yanked crate — it treats
+# anything that is not a `vulnerability` as a warning. That is how spin 0.9.8
+# and 0.10.0 reached all eight assets of the v0.2.1-rc1 draft, including the
+# vendored source tarball, with a green CI run behind them. cargo-deny does not
+# cover the gap either: ci.yml runs `check licenses bans sources`, and yanked
+# lives under `advisories`.
+#
+# `yanked` only. NOT `unsound`: glib 0.18.5 (RUSTSEC-2024-0429) is unsound and
+# unreachable — it comes through tauri -> gtk 0.18 — so denying it would pin CI
+# red with no fix available. `quiet` is a required field of this section; omit
+# it and cargo-audit dies with "missing field `quiet`" on every run.
+[output]
+deny = ["yanked"]
+quiet = false
+#
 # Accepted advisories — each entry needs a reason and a revisit condition.
 # Every justification here must be checkable by a stranger with the command
 # quoted next to it. If a claim stops being true, the entry goes, not the check.
@@ -18,24 +33,13 @@ ignore = [
     # constructs an `NsReader`. Both remain true and both are still worth
     # keeping true — but neither is load-bearing for the audit gate any more.
 
-    # RUSTSEC-2026-0235 — rkyv 0.7.46: out-of-bounds reads validating archives
-    # containing Rc/Arc.
+    # RUSTSEC-2026-0235 (rkyv 0.7.46) USED TO BE HERE, and is gone for the same
+    # reason the quick-xml pair above is: the crate it covered has left
+    # Cargo.lock entirely, so the exception has nothing left to except.
+    # `rg '^name = "rkyv"' Cargo.lock` prints nothing.
     #
-    # Not compiled. rkyv is a lockfile-only entry: it is an OPTIONAL dependency
-    # of rust_decimal whose feature is never activated, so the crate never
-    # enters the build graph.
-    # Verify: `cargo tree -i rkyv -e normal --target all`
-    #         → "warning: nothing to print."
-    # Lockfile path: tauri-plugin-log → byte-unit 5.2.5 → rust_decimal 1.42.1
-    #                → rkyv (optional, feature off).
-    # cargo-audit reads Cargo.lock without resolving features, so this is a
-    # genuine false positive rather than an accepted risk.
-    #
-    # Not fixable by upgrade: rkyv 0.7 → 0.8 is a semver-major bump three levels
-    # deep inside Tauri's own plugin, so `cargo update` cannot resolve it.
-    #
-    # Revisit when: tauri-plugin-log's byte-unit dependency moves to a
-    # rust_decimal built on rkyv >= 0.8.17, or if `cargo tree -i rkyv` ever
-    # prints a real path (meaning something turned the feature on).
-    "RUSTSEC-2026-0235",
+    # Its own "revisit when" asked for the weaker condition — byte-unit moving
+    # to a rust_decimal on rkyv >= 0.8.17 — and reality overtook it. A dead
+    # ignore is not inert: it would silently re-accept the advisory if some
+    # future dependency pulled rkyv 0.7 back in.
 ]

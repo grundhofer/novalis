@@ -166,10 +166,12 @@ jobs:
     runs-on: ubuntu-latest
     # The Rust half is blocking. Accepted advisories live in `.cargo/audit.toml`,
     # each with a written justification and a revisit condition — a new advisory
-    # fails CI. (`unmaintained`/`unsound` warnings — gtk3 bindings from Tauri's
-    # Linux stack, anyhow, glib, paste, proc-macro-error, instant, unic-* — are
-    # warnings, not failures.) Deliberately carries no `if:` guard, so the
-    # weekly `schedule` trigger above actually reaches it.
+    # fails CI, and so does a yanked crate, via that file's `[output] deny`.
+    # (`unmaintained`/`unsound` warnings — the gtk3 bindings from Tauri's Linux
+    # stack, glib, paste, proc-macro-error, unic-*, plus atomic-polyfill and
+    # bincode 1.x from the P2P and vector-index stacks — are warnings, not
+    # failures.) Deliberately carries no `if:` guard, so the weekly `schedule`
+    # trigger above actually reaches it.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -4,7 +4,7 @@ name: Release
 #   git tag -a v0.1.0 -m "v0.1.0"
 #   git push origin v0.1.0
 #
-# This workflow builds installers on Linux, macOS (universal), and Windows,
+# This workflow builds installers on Linux, macOS (Apple Silicon) and Windows,
 # and attaches them to a *draft* GitHub release. Review and publish manually.
 #
 # Builds are currently unsigned — see RELEASING.md for the Phase B signing TODO.
@@ -39,8 +39,22 @@ jobs:
     needs: gate
     runs-on: ${{ matrix.platform }}
     # tauri-action creates the draft release and uploads the installers.
+    # `id-token: write` + `attestations: write` are the minimum pair
+    # actions/attest-build-provenance needs: it signs with the job's short-lived
+    # OIDC identity and writes the result to the repo's attestation store.
+    #
+    # This is the one job that both compiles third-party build scripts and holds
+    # write scopes, which the file otherwise avoids. Accepted deliberately: the
+    # attestation has to be minted where the artifact is produced or it attests
+    # nothing, and this job already carries `contents: write`, so a hostile
+    # build script could replace the installers regardless — the added scope
+    # lets it sign what it replaced, not reach anything it could not already.
+    # Moving the build off a write-scoped job (upload from a separate job via
+    # actions/upload-artifact) is the real fix, and is not this change.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +140,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build & publish (tauri-action)
+        id: tauri
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,20 +173,91 @@ jobs:
           releaseBody: |
             Novalis ${{ github.ref_name }}.
 
-            Builds attached below are **unsigned**. See [RELEASING.md](../blob/main/RELEASING.md)
+            Builds attached below are **unsigned**. See
+            [RELEASING.md](https://github.com/grundhofer/novalis/blob/main/RELEASING.md#unsigned-build-warnings-what-users-see)
             for the warnings you'll see on first launch and how to bypass them.
 
-            - **macOS:** universal `.dmg` (Intel + Apple Silicon)
-            - **Linux:** `.AppImage` and `.deb`
-            - **Windows:** `.msi` and `.exe`
+            - **macOS:** `.dmg` — **Apple Silicon only.** Intel Macs are not
+              supported: `ort-sys` (ONNX Runtime, pulled in for on-device
+              embeddings) publishes no `x86_64-apple-darwin` prebuilt, so a
+              universal binary cannot be compiled at all. See RELEASING.md.
+            - **Linux:** `.AppImage`, `.deb` and `.rpm` (x86_64)
+            - **Windows:** `.msi` and `.exe` (x86_64)
             - **Source:** `novalis-${{ github.ref_name }}-source.tar.gz` — the repository
               tree plus every Rust dependency vendored, including the GPL-2.0 libgit2 and
               LGPL-2.1 LibXDiff statically linked into the installers above. Attached here
               rather than only linked upstream because GPL-2.0 §3 requires the source to
               come from the same place as the binary. See `THIRD-PARTY-NOTICES.md`.
+
+            ## Verifying a download
+
+            Every asset is built by this repository's `Release` workflow and carries a
+            signed provenance attestation. Since the builds are unsigned, this is the
+            only way to establish where a file came from:
+
+            ```sh
+            gh attestation verify Novalis_*.dmg --repo grundhofer/novalis
+            ```
+
+            `SHA256SUMS` covers every asset on this release. To check whichever ones
+            you downloaded, from the directory you downloaded them into:
+
+            ```sh
+            sha256sum --ignore-missing -c SHA256SUMS
+            ```
+
+            You should get one `OK` line per file you have. No output at all means
+            you are not in the right directory — not that the check passed.
           releaseDraft: true
-          prerelease: false
+          # Derived, not hardcoded: a hardcoded `false` meant publishing a
+          # `v0.2.1-rc1` draft would move the "Latest" badge off the stable
+          # release and — via SECURITY.md's "Latest release | Yes" table —
+          # silently designate a release candidate as the supported version.
+          # `v*.*.*` tags carry a hyphen only when they are pre-releases
+          # (`-rc1`, `-beta.1`), so the presence of one is the signal.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
+
+      # `artifactPaths` is a JSON array; attest-build-provenance wants one path
+      # per line. Node rather than jq because setup-node above guarantees node
+      # on all three runners, while jq's presence is a runner-image detail.
+      # Reading the JSON from env, not interpolating it into the script, keeps
+      # a path containing shell metacharacters from being executed.
+      #
+      # The `.app` -> `.app.tar.gz` rewrite is not cosmetic. tauri-action calls
+      # `core.setOutput('artifactPaths', …)` BEFORE its macOS block tars
+      # `Novalis.app` into `Novalis.app.tar.gz` and mutates `artifact.path`, so
+      # the snapshot we read names the .app *directory* — which is not what gets
+      # uploaded. Attesting it unrewritten would be wrong twice over: the
+      # `.app.tar.gz` that actually ships would carry no attestation, and
+      # @actions/glob (implicitDescendants defaults to true) would expand the
+      # directory and attest every file inside the bundle instead. By the time
+      # this step runs the .tar.gz exists on disk, so pointing at it is safe.
+      # The uploaded asset is renamed to Novalis_<ver>_aarch64.app.tar.gz, which
+      # does not matter: attestations are looked up by digest, not by filename.
+      - name: Collect installer paths
+        id: subjects
+        shell: bash
+        env:
+          ARTIFACT_PATHS: ${{ steps.tauri.outputs.artifactPaths }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'paths<<SUBJECTS_EOF'
+            node -e 'process.stdout.write([...new Set(JSON.parse(process.env.ARTIFACT_PATHS).map(p => p.endsWith(".app") ? p + ".tar.gz" : p))].join("\n") + "\n")'
+            echo 'SUBJECTS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # Roadmap Phase 8.2. Binds each installer's digest to this workflow, this
+      # commit and this runner identity, so `gh attestation verify` can prove a
+      # download came from this repo's release build rather than from someone
+      # who merely reached the releases page. Attestations are minted from the
+      # job's OIDC token at build time, so they cannot be added to an already
+      # built release afterwards.
+      - name: Attest installer provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.subjects.outputs.paths }}
 
   # GPL-2.0 §3 wants source offered "from the same place" as the binary. That is
   # stricter than it sounds: AGPL-3.0 §6(d) explicitly allows a *different*
@@ -192,8 +278,13 @@ jobs:
     runs-on: ubuntu-latest
     # Same reasoning as the release job: write access only where an asset is
     # uploaded, and never in a job that compiles third-party build scripts.
+    # The attestation pair is granted here too — attesting only the installers
+    # would leave the one asset carrying an actual license obligation, the
+    # vendored source tarball, without provenance.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -273,6 +364,14 @@ jobs:
           tar czf "${PREFIX}-source.tar.gz" -C "${RUNNER_TEMP}/stage" "${PREFIX}"
           ls -lh "${PREFIX}-source.tar.gz"
 
+      # Same reasoning as the installers' attestation, for the asset GPL-2.0 §3
+      # and AGPL-3.0 §6 actually point at. Attested before upload: the subject
+      # is the local file, and its digest is what ends up on the release.
+      - name: Attest source archive provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: novalis-${{ github.ref_name }}-source.tar.gz
+
       # Uploaded to the draft the matrix above created — `gh` resolves drafts by
       # tag. --clobber so re-running the workflow on the same tag replaces the
       # asset instead of failing.
@@ -281,3 +380,64 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: gh release upload "${TAG}" "novalis-${TAG}-source.tar.gz" --clobber
+
+      # Roadmap Phase 8.3. This job is terminal (`needs: release`) and the
+      # source tarball is attached by the step above, so by here every asset of
+      # the release exists — this is the only point in the workflow where a
+      # manifest can cover all of them.
+      #
+      # GitHub already exposes a per-asset SHA-256 through its API, so this is
+      # not the only integrity check available; what it adds is an offline one
+      # (`sha256sum --ignore-missing -c SHA256SUMS`) that verifies a download set
+      # at once, including copies obtained from a mirror rather than from GitHub.
+      # The manifest lists all assets while nobody downloads all of them, hence
+      # `--ignore-missing` in the instructions: without it the check exits 1 for
+      # every realistic user.
+      - name: Build SHA256SUMS
+        id: sums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ASSETS="${RUNNER_TEMP}/assets"
+          rm -rf "$ASSETS" && mkdir -p "$ASSETS"
+          gh release download "${TAG}" --dir "$ASSETS" --pattern '*' --clobber
+          cd "$ASSETS"
+          # A re-run downloads the previous manifest too; hashing it into its
+          # own successor would be both wrong and unverifiable.
+          rm -f SHA256SUMS
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+          echo "path=${ASSETS}/SHA256SUMS" >> "$GITHUB_OUTPUT"
+
+      # The manifest is an asset like any other, and the release notes promise
+      # provenance for all of them. Without this the one file a user is told to
+      # trust for verifying the others would be the only unattested asset.
+      - name: Attest SHA256SUMS provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.sums.outputs.path }}
+
+      - name: Publish SHA256SUMS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "${{ steps.sums.outputs.path }}" --clobber
+
+      # tauri-action applies `prerelease:` only when it CREATES a release. Re-run
+      # it against a draft that already exists — the recovery path RELEASING.md
+      # documents — and the flag keeps whatever the first run set, silently. That
+      # is how an rc could still be sitting at `prerelease: false` after the
+      # workflow was fixed to derive it. Re-asserting it here, in the terminal
+      # job, makes the workflow the actual source of truth rather than only the
+      # nominal one. Only `${{ }}`-expanded booleans reach the shell, and the tag
+      # comes in through env.
+      #
+      # The release BODY cannot be repaired the same way without duplicating the
+      # whole template here, so that half stays a documented manual step.
+      - name: Re-assert the pre-release flag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "${TAG}" --prerelease=${{ contains(github.ref_name, '-') }}
