@@ -36,7 +36,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # Same set ci.yml installs for the Tauri Linux build.
+      # ci.yml's set for the Tauri Linux build, plus the accessibility stack.
+      # The a11y half is xa11y's own `[base]` group, inlined rather than taken
+      # from `xa11y/setup-a11y@v1`: that composite action calls
+      # `awalsh128/cache-apt-pkgs-action@v1`, which is not SHA-pinned, and this
+      # repo requires every action pinned to a full-length commit SHA. Worth
+      # knowing before adopting it more widely — and the rejection fires at job
+      # setup for EVERY platform, including ones the action is `if:`-gated off.
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -49,14 +55,52 @@ jobs:
             libxdo-dev \
             libasound2-dev \
             patchelf \
-            build-essential
+            build-essential \
+            xvfb dbus dbus-x11 at-spi2-core
 
-      # Brings up Xvfb + D-Bus + the AT-SPI2 bus. There is no xvfb precedent in
-      # this repo — bundle-smoke builds bundles but never launches one — so this
-      # is new ground, not a copied pattern.
-      - name: Set up the accessibility stack (Linux)
+      # Xvfb, a session bus and the AT-SPI2 daemons, in one step so they share a
+      # parent shell; the env goes to GITHUB_ENV so later steps inherit it and
+      # the daemons survive across steps. There is no xvfb precedent in this
+      # repo — bundle-smoke builds bundles but never launches one — so this is
+      # new ground rather than a copied pattern.
+      - name: Start the accessibility environment (Linux)
         if: matrix.platform == 'ubuntu-latest'
-        uses: xa11y/setup-a11y@673fe58384fe2345d243a46d6d66b8094719e884 # v1
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x1024x24 -ac &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          export DISPLAY=:99
+          sleep 1
+
+          # dbus-launch, not dbus-run-session: the bus must daemonize and
+          # outlive this step.
+          eval "$(dbus-launch --sh-syntax)"
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          {
+            echo "NO_AT_BRIDGE=0"
+            echo "AT_SPI_CLIENT=true"
+            echo "ACCESSIBILITY_ENABLED=1"
+          } >> "$GITHUB_ENV"
+          export NO_AT_BRIDGE=0 AT_SPI_CLIENT=true ACCESSIBILITY_ENABLED=1
+
+          for exe in at-spi-bus-launcher at-spi2-registryd; do
+            if [ -x "/usr/libexec/$exe" ]; then BIN="/usr/libexec/$exe"
+            elif command -v "$exe" >/dev/null 2>&1; then BIN=$(command -v "$exe")
+            else echo "::warning::$exe not found"; continue; fi
+            if [ "$exe" = "at-spi-bus-launcher" ]; then "$BIN" --launch-immediately &
+            else "$BIN" & fi
+            sleep 1
+          done
+
+          # Clients only see a tree once these are on. Newer at-spi2-core
+          # defaults them true and the Status object may not be registered yet,
+          # so a failure here is not fatal.
+          for prop in IsEnabled ScreenReaderEnabled; do
+            dbus-send --session --print-reply --dest=org.a11y.Bus /org/a11y/bus \
+              org.freedesktop.DBus.Properties.Set \
+              string:org.a11y.Status string:"$prop" variant:boolean:true \
+              2>/dev/null || echo "org.a11y.Status.$prop not set yet (continuing)"
+          done
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -99,6 +143,22 @@ jobs:
         working-directory: e2e
         run: npm install --no-audit --no-fund
 
+      # Without this the AX API returns empty trees on macOS and probe 3 fails
+      # for a reason that has nothing to do with the app. SIP covers /System
+      # only, so the hosted runner permits writing the TCC db. The client is the
+      # process that will call the AX API — node, running the spike.
+      - name: Grant Accessibility (TCC) to node (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          set -euo pipefail
+          CLIENT=$(command -v node)
+          echo "granting kTCCServiceAccessibility to $CLIENT"
+          sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
+            "INSERT OR REPLACE INTO access(service,client,client_type,auth_value,auth_reason,auth_version,csreq,policy_id,indirect_object_identifier_type,indirect_object_identifier,indirect_object_code_identity,flags,last_modified) \
+             VALUES('kTCCServiceAccessibility','${CLIENT}',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,$(date +%s));"
+          sudo launchctl stop com.apple.tccd 2>/dev/null || true
+          sleep 2
+
       - name: Seed vault and settings
         run: node e2e/seed.mjs
 
@@ -119,10 +179,7 @@ jobs:
           echo "path=$BIN" >> "$GITHUB_OUTPUT"
           echo "found: $BIN"
 
-      - name: Run the spike (Linux, under Xvfb)
-        if: matrix.platform == 'ubuntu-latest'
-        run: xvfb-run -a node e2e/spike.mjs "${{ steps.bin.outputs.path }}"
-
-      - name: Run the spike (macOS / Windows)
-        if: matrix.platform != 'ubuntu-latest'
+      # No `xvfb-run` here: the step above already exported DISPLAY, and
+      # xvfb-run would start a SECOND server the a11y daemons are not on.
+      - name: Run the spike
         run: node e2e/spike.mjs "${{ steps.bin.outputs.path }}"
