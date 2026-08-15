@@ -38,7 +38,7 @@
   "mermaidShowSource": "Afficher la source",
   "metadata": "Métadonnées",
   "noMatches": "Aucune occurrence",
-  "noteBody": "Corps de la note : {{path}}",
+  "noteBody": "Corps de la note : {{title}}",
   "noteOpen": "Aucune note ouverte",
   "placeholder": "Commencer à écrire…",
   "properties": "Propriétés",

@@ -38,7 +38,7 @@
   "mermaidShowSource": "Mostrar código fuente",
   "metadata": "Metadatos",
   "noMatches": "Sin coincidencias",
-  "noteBody": "Cuerpo de la nota: {{path}}",
+  "noteBody": "Cuerpo de la nota: {{title}}",
   "noteOpen": "No hay ninguna nota abierta",
   "placeholder": "Empezar a escribir…",
   "properties": "Propiedades",

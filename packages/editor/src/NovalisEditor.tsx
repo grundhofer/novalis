@@ -60,6 +60,10 @@ export interface NovalisEditorProps {
   onChange?: (markdown: string) => void;
   editable?: boolean;
   placeholder?: string;
+  /** Accessible name for the editable surface itself. `role="textbox"` takes
+   *  its name from the author only, so without this the editor is unnamed —
+   *  for a screen reader and for anything reading the OS accessibility tree. */
+  ariaLabel?: string;
   /** Persist a pasted/dropped image; returns the markdown-relative path (or null). */
   onUploadImage?: (file: File) => Promise<string | null>;
   /** Map a stored (relative) image src to a displayable URL. */
@@ -391,6 +395,7 @@ export function NovalisEditor({
   onChange,
   editable = true,
   placeholder,
+  ariaLabel,
   onUploadImage,
   resolveImageSrc,
   onWikiLinkClick,
@@ -503,6 +508,12 @@ export function NovalisEditor({
       }, serializeMsRef.current);
     },
     editorProps: {
+      // TipTap already puts `role="textbox"` on the contenteditable, and a
+      // textbox takes its name from the author — never from its contents — so
+      // without this the editor is an unnamed widget: a screen reader
+      // announces the role and nothing else. Naming a wrapper around it does
+      // NOT fix that; it only adds a landmark containing an unnamed control.
+      attributes: ariaLabel ? { "aria-label": ariaLabel } : {},
       handleKeyDown(_view, event) {
         if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "f") {
           event.preventDefault();

@@ -38,7 +38,7 @@
   "mermaidShowSource": "Quelltext anzeigen",
   "metadata": "Metadaten",
   "noMatches": "Keine Treffer",
-  "noteBody": "Notiztext: {{path}}",
+  "noteBody": "Notiztext: {{title}}",
   "noteOpen": "Keine Notiz geöffnet",
   "placeholder": "Mit dem Schreiben beginnen…",
   "properties": "Eigenschaften",
