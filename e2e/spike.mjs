@@ -196,9 +196,16 @@ try {
       console.log(`      area bounds: ${JSON.stringify(b)} -> clicking ${JSON.stringify(point)}`);
       await sim.click(point);
       await sleep(800);
-      // Type at the end of the document so nothing existing is overwritten:
-      // ctrl/cmd+End first, then the marker.
-      await sim.chord("End", [platform() === "darwin" ? "cmd" : "ctrl"]).catch(() => {});
+      // Type at the end of the document so nothing existing is overwritten.
+      // Modifier names are capitalised — "Ctrl"/"Meta", not "ctrl"/"cmd" — and
+      // the binding rejects an unknown one by throwing SYNCHRONOUSLY, so a
+      // trailing `.catch()` never sees it. try/catch, and keep going: landing
+      // mid-document still proves whether keystrokes arrive at all.
+      try {
+        await sim.chord("End", [platform() === "darwin" ? "Meta" : "Ctrl"]);
+      } catch (e) {
+        console.log(`      could not jump to end (${e.message}); typing at the caret instead`);
+      }
       await sleep(300);
       await sim.typeText(MARKER);
       // EditorPane debounces at 600ms, then the write goes through saveNote.
