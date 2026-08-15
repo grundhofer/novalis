@@ -174,7 +174,11 @@ try {
       // it exists.
       const tree = await waitForTree(app, (t) => t.includes("Note body"), { label: "editor mounted" });
       await dumpTree(app, "tree with the note open");
-      record(5, "the fixture note opens from the file tree", true, `tree has ${tree.split("\n").length} nodes`);
+      // Assert the condition, do not assume it. This recorded an unconditional
+      // `true` before, so on Linux — where the editor never appears — it
+      // "passed" after a 60s timeout and hid the real failure one probe early.
+      record(5, "the fixture note opens and the editor mounts", tree.includes("Note body"),
+        `tree has ${tree.split("\n").length} nodes; editor present: ${tree.includes("Note body")}`);
     } catch (e) {
       record(5, "the fixture note opens from the file tree", false, e.message);
     }

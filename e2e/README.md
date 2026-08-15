@@ -103,36 +103,49 @@ one `aria-label` turned that into a definite yes.
 | webview DOM in the tree | ✅ | ✅ | ✅ |
 | onboarding dismissable | ✅ | ✅ | ✅ |
 | note opens from the file tree | ✅ | ✅ | ✅ |
+| editor mounts and is addressable | ✅ | ✅ | ❌ |
 | **typing reaches disk** | ✅ | ✅ | ❌ |
+| rolled-out names present | 6/6 | 6/6 | — |
+| named nodes in the tree | 68 / 146 | 143 / 304 | — |
 
-Verified after two accessibility fixes, and each fix moved exactly the platform
-the analysis said it would:
+macOS and Windows pass all seven probes, repeatably. Getting there took two
+accessibility fixes and two harness fixes, and it is worth separating them
+because only the first pair is about the app:
 
-- **The name belongs on the editable, not on a wrapper.** TipTap gives the
-  contenteditable `role="textbox"`, which takes its name from the author only,
-  so a named `role="region"` wrapper was a landmark around an unnamed widget.
-  Moving it onto `.ProseMirror` flipped macOS from "no editor found" to
-  `text_area "Note body: Spike"` and a passing typing probe.
-- **File-tree rows needed an explicit `aria-label`.** They were named from
-  their contents — which absorbed the Cloud badge and the task rollup, so a
-  row's name changed when a task inside the note was ticked — and otherwise
-  leaned on `title`, which macOS ignores entirely. With the label the row reads
-  `Note: Spike.md` identically under AT-SPI, AX and UIA.
+**App fixes.** The name belongs on the editable, not on a wrapper — TipTap gives
+the contenteditable `role="textbox"`, which takes its name from the author
+only, so a named `role="region"` wrapper was a landmark around an unnamed
+widget. And file-tree rows needed an explicit `aria-label`: they were named from
+their contents (which absorbed the Cloud badge and the task rollup, so a row's
+name changed when a task inside the note was ticked) and otherwise leaned on
+`title`, which macOS ignores entirely.
 
-That second one is the general rule this spike bought, and it is worth stating
-plainly because it decides the whole rollout:
+**Harness fixes.** Both were wrong waits of mine that read as platform verdicts.
+A fixed 8-second sleep gave macOS a 4-node tree on one run and a complete one on
+the next. Then probe 5 waited for the note's TITLE — which is in the tree as the
+file-tree row before anything is opened — so it returned instantly and the next
+probe looked for the editor before it existed, fell back to a coordinate click
+and missed. Windows passed twice and then failed on identical code because of
+it. Waiting for the editor's own accessible name fixed it.
+
+That second one is the argument for the naming work being about determinism,
+not just reachability: without a name there is nothing honest to wait for.
+
+The general rule, and it decides how everything else gets named:
 
 > **`aria-label` on a widget role is the only naming form all three providers
 > honour.** `title`, `placeholder` and name-from-contents are each honoured by
-> some providers and silently dropped by others, and landmark roles are the
-> least portable of all — `region` became a plain `group` under UIA and never
-> appeared at all under AT-SPI.
+> some providers and silently dropped by others — macOS names nothing from
+> `title` at all — and landmark roles are the least portable: `region` became a
+> plain `group` under UIA and never appeared under AT-SPI.
 
-**The remaining gap is Linux and it is specific:** the AT-SPI tree contains no
-editor node whatsoever — no `text_area`, no `entry`, no `document_frame`. The
-name is not being dropped; the contenteditable is not exposed by WebKitGTK at
-all. Everything else on Linux works, including the file-tree label. This needs
-its own investigation and does not block a gate that runs on macOS and Windows.
+**The remaining gap is Linux, and it is specific.** Everything works there
+except the editor: the AT-SPI tree contains no editor node whatsoever — no
+`text_area`, no `entry`, no `document_frame` — so the name is not being dropped,
+the contenteditable is not exposed by WebKitGTK at all. The tree is also
+transient there in a way it is not elsewhere: opening a note collapsed it from
+43 nodes to 6 (a single `unknown`) before recovering to 104. Under
+investigation; it does not block a gate that runs on macOS and Windows.
 
 ### What it cost, and what it bought
 
