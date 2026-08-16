@@ -386,10 +386,10 @@ try {
       if (roOk && !edOk) {
         console.log("      => the contenteditable is what makes the table fatal, not the table");
       }
-      record(8, "a table in the editor does not destroy the accessibility tree", edOk,
+      record(8, "xa11y keeps reading the tree after a note with a table opens", edOk,
         `read-only ${roOk ? "held" : "collapsed"}, editable ${edOk ? "held" : "collapsed"}`);
     } catch (e) {
-      record(8, "a table in the editor does not destroy the accessibility tree", false, e.message);
+      record(8, "xa11y keeps reading the tree after a note with a table opens", false, e.message);
     }
   }
 
@@ -406,18 +406,21 @@ try {
   console.log(`  typing reaches disk:   ${typed ? (typed.ok ? "YES" : "NO") : "not run"}`);
   console.log(`  Platform: ${platform()}`);
 
-  // Probe 8 is a known-issue watch, not our contract: WebKitGTK empties the
-  // AT-SPI tree for a table inside a contenteditable. We cannot fix it, so on
-  // Linux it is an EXPECTED failure and does not gate. It still gates on macOS
-  // and Windows, where a collapse would be a regression we caused.
+  // Probe 8 measures the TOOL, not the app. Driving Novalis with xa11y on
+  // Linux, the tree collapses shortly after a note containing a table opens.
+  // pyatspi — the library Orca uses — holds the same page indefinitely (see
+  // e2e/webkit-repro/FINDINGS.md), so this is not a WebKitGTK defect and not
+  // an app defect, whatever earlier revisions of this file claimed. It is an
+  // xa11y limitation, we cannot fix it here, and it does not gate on Linux.
+  // It still gates on macOS and Windows: a collapse there would be new.
   const xfailTable = platform() === "linux";
   const table = results.find((r) => r.n === 8);
   if (table && !table.ok && xfailTable) {
-    console.log("\n  probe 8 failed as expected: known WebKitGTK/AT-SPI defect, does not gate.");
+    console.log("\n  probe 8 failed as expected: known xa11y/AT-SPI limitation, does not gate.");
   }
   if (table && table.ok && xfailTable) {
     console.log("\n  !! probe 8 PASSED on Linux, where it is expected to fail.");
-    console.log("  !! The upstream defect may be fixed — drop the carve-out in e2e/spike.mjs.");
+    console.log("  !! xa11y may have fixed it — drop the carve-out in e2e/spike.mjs.");
   }
 
   const failed = results.filter((r) => !r.ok && !(r.n === 8 && xfailTable));

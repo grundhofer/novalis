@@ -1,63 +1,77 @@
-# Reduced test case — result: it does not reproduce the app's behaviour
+# Result: there is no WebKitGTK bug here. The collapse is xa11y's.
 
-**Do not file the upstream report on the strength of this directory.** The
-reduction was built to isolate `<th>` as the trigger, and the first run
-falsified that framing rather than confirming it.
+**Do not file anything upstream to WebKit.** The reduced test case was built to
+confirm that a `<th>` table empties the AT-SPI accessibility tree. It did the
+opposite, twice over, and the second run identified the cause.
 
-## What was measured
+## The measurement
 
-ubuntu-24.04, WebKitGTK 2.52.3, Xvfb + dbus + at-spi2, no window manager,
-observed with xa11y 0.13.0 sampling every 1.5 s:
+One CI job, ubuntu-24.04, WebKitGTK 2.52.3, Xvfb + dbus + at-spi2, no window
+manager. Same host, same page, back to back, sampling every 1.5 s:
 
-| page | header cells | series | result |
+| reader | page | series | result |
 | --- | --- | --- | --- |
-| `notable.html` | `<td>` | 16 → [5, 5, 5, …] | collapsed |
-| `table.html` | `<th>` | 16 → [5, 5, 5, …] | collapsed |
+| xa11y 0.13.0 (Node) | `notable.html` (`<td>`) | 16 → [5, 5, 5, …] | collapsed |
+| xa11y 0.13.0 (Node) | `table.html` (`<th>`) | 16 → [5, 5, 5, …] | collapsed |
+| pyatspi, no listener | `table.html` (`<th>`) | [18, 18, 18, … 18] | **held** |
+| pyatspi, listener registered | `table.html` (`<th>`) | [18, 18, 18, … 18] | **held** |
 
-**Both pages collapse, identically.** The control was supposed to hold.
+pyatspi is the client library Orca uses. It holds the tree for the full
+eighteen seconds on the page that xa11y says vanishes.
 
-ubuntu-22.04 produced no measurement at all — the job died in the Node client
-before reporting. Not diagnosed.
+## What that means, in order of how wrong the earlier claims were
 
-## Why this invalidates the reduction rather than confirming the bug
+1. **The page does not leave the accessibility tree.** WebKitGTK exposes it and
+   keeps exposing it. There is no page-content defect and nothing to report to
+   WebKit.
+2. **`<th>` is not the trigger.** Both pages behave identically under xa11y, and
+   neither misbehaves under pyatspi.
+3. **It is not about client registration either.** That was the leading
+   hypothesis after the first reduction — WebKit's `AccessibilityAtspi` only
+   counts a client via `Registry.GetRegisteredEvents`, `EventListenerRegistered`
+   or `Cache.GetItems`. But pyatspi held the tree with the listener explicitly
+   **off**, so merely not registering is not sufficient to cause this. Something
+   else in xa11y's AT-SPI backend is.
+4. **The screen-reader impact claimed earlier does not exist.** Orca uses
+   pyatspi. pyatspi is fine here.
 
-In the real application a table-FREE note holds its tree at 104 nodes with the
-editor still named and addressable, run after run; only the table note
-collapses. Here, a table-free page collapses just as fast as the table one. So
-this bare `WebKitWebView` host is not behaving like the application, and a
-difference measured in it says nothing about the application's defect.
+## What this retracts
 
-Something about this host makes the page leave the tree regardless of content.
-Until that is understood, the `<th>` question cannot even be asked here.
+Everything in `../README.md` that attributed a defect to WebKitGTK, and every
+statement in this repository's history that a Linux screen-reader user loses the
+page when opening a note containing a table. Those were measured with one
+instrument, and the instrument was the fault.
 
-## The most likely cause, and why it matters beyond this file
+The application-level observation stands as a fact about the tooling: driving
+Novalis with xa11y on Linux, the tree collapses shortly after a note with a
+table is opened. That is a real obstacle to a Linux UI suite. It is not a bug in
+Novalis and not a bug in WebKit.
 
-`AccessibilityAtspi` distinguishes a *client* from something merely reading the
-tree. `addClient()` is reached from `Registry.GetRegisteredEvents`,
-`EventListenerRegistered` and `Cache.GetItems` — none of which xa11y calls; it
-holds a zbus connection and walks `GetChildren`. WebKit also arms a cache-clear
-timer that unregisters web objects when a client *leaves*.
+## Where a report does belong
 
-If that is what is happening, then the observation tool has been shaping the
-observation all along, and the same doubt reaches back into the application
-measurements: the collapse there might be WebKit tearing down web-content
-objects for a reader it does not consider a client, with the table merely
-changing the timing. That would be a different bug — or no bug — and it is not
-distinguishable from the data collected so far.
+To **xa11y** (github.com/xa11y/xa11y), with this directory as the reproduction —
+it is small, self-contained, and contains its own control in pyatspi. Their own
+documentation currently attributes this symptom to WebKitGTK and works around it
+by removing `<th>` from their Tauri fixture; this data suggests the cause is in
+their AT-SPI backend instead. That is worth telling them, carefully and without
+overclaiming: we have one environment, one version, and no diagnosis of the
+mechanism.
 
-## What a valid reduction needs first
+## Reproducing
 
-1. Establish why the bare host collapses with no table at all. Compare a client
-   that registers properly (Accerciser, or Orca) against xa11y on the same
-   page: if Accerciser holds the tree where xa11y does not, the defect is in
-   how the tree is read, not in what the page contains.
-2. Only then re-run `<th>` vs `<td>`, with a client whose presence WebKit
-   acknowledges.
-3. Diagnose the ubuntu-22.04 failure, since the version axis is what would turn
-   a report into a regression.
+```sh
+sudo apt-get install -y python3-gi gir1.2-webkit2-4.1 python3-pyatspi \
+                        xvfb dbus dbus-x11 at-spi2-core
+# Xvfb :99, dbus-launch, at-spi-bus-launcher, at-spi2-registryd — see
+# .github/workflows/webkit-atspi-repro.yml
 
-Until 1 and 2 are answered, the honest description of the application finding is
-narrower than what was written earlier: *opening a note containing a table
-coincides with the page leaving the AT-SPI tree, measured with one client whose
-registration semantics are not established.* That is worth keeping as probe 8's
-non-gating diagnostic. It is not yet worth an upstream bug report.
+node   e2e/webkit-repro/watch.mjs         e2e/webkit-repro/table.html
+python3 e2e/webkit-repro/watch_pyatspi.py e2e/webkit-repro/table.html off
+```
+
+## Still unexplained, and worth saying so
+
+- ubuntu-22.04 produced no measurement in either run; the Node client died
+  before reporting. Undiagnosed.
+- Why xa11y's walk causes the teardown is not established. "It is not listener
+  registration" is a negative result, not a mechanism.

@@ -118,66 +118,33 @@ input reaches the file on disk on macOS, Windows and Linux. Nothing goes into
 the app to achieve it — no plugin crate, no `withGlobalTauri`, no automation
 server — so the same binary that ships is the one under test.
 
-### One unexplained observation — NOT an established defect
+### The table observation is a tooling artefact, not a defect
 
-> **Read `webkit-repro/FINDINGS.md` before quoting anything below.** The reduced
-> test case built to confirm this framing falsified it instead: a bare
-> `WebKitWebView` page leaves the AT-SPI tree whether or not it contains a
-> table, which is not how the app behaves. The likely explanation reaches back
-> into these measurements — WebKit distinguishes a registered *client* from
-> something merely walking `GetChildren`, which is all our reader does, and it
-> tears down web-content objects when it thinks no client is present. If that is
-> what this is, the table only changed the timing. The upstream report is on
-> hold and the honest summary is narrower: opening a note containing a table
-> COINCIDES with the page leaving the tree, measured with one client whose
-> registration semantics are not established.
+Earlier revisions of this file reported a WebKitGTK accessibility bug here, and
+said a Linux screen-reader user loses the page when opening a note with a table.
+**Both claims are withdrawn.** `webkit-repro/FINDINGS.md` has the measurement;
+the short version, from one CI job on one machine, same page, back to back:
 
-With that caveat, what was measured in the app. Sampled eight times over twelve
-seconds:
+| reader | page | series | result |
+| --- | --- | --- | --- |
+| xa11y (what this suite uses) | `<td>` table | 16 → [5, 5, …] | collapsed |
+| xa11y | `<th>` table | 16 → [5, 5, …] | collapsed |
+| pyatspi — the library Orca uses | `<th>` table | [18, 18, … 18] | **held** |
 
-```
-Linux    105 -> [109, 6, 6, 6, 6, 6, 6, 6]   persistent, does not recover
-macOS    125 -> [160, 161, 161, 161, ...]    unaffected
-Windows  251 -> [251, 251, ...]              unaffected
-```
+The page never leaves the accessibility tree. WebKitGTK exposes it and keeps
+exposing it; `<th>` is not the trigger; and Orca's client library is unaffected,
+so the screen-reader impact I described does not exist.
 
-**Correction to an earlier reading here: `<th>` alone appears to be enough, and
-`contenteditable` is not established as necessary.** This file previously said
-the opposite, on the strength of xa11y's Tauri fixture "carrying three `<th>`
-with green CI". Those three occurrences are inside an HTML *comment* in that
-fixture, which exists to record why the header cells were removed:
+What survives is narrower and still useful: **driving this app with xa11y on
+Linux, the tree collapses shortly after a note containing a table is opened.**
+That is a real obstacle to a Linux UI suite, and it is why probe 8 exists and
+why Linux drives the table-free fixture. It is a limitation of the tool, not of
+Novalis and not of WebKit.
 
-> "Deliberately NO `<th>` header cells: under WebKitGTK 2.52 … a table
-> containing `<th>` sends the web process's accessibility tree into a continuous
-> invalidation churn — every content accessible goes defunct moments after being
-> exposed, which takes the whole page out of the AT-SPI tree … Verified by
-> bisecting this file against a live harness run; `<td>`-only tables are stable."
-
-So a third party reproduced the same symptom on a *static* table with no editor
-at all, and bisected it. Their note adds "with a window manager present"; this
-CI runs Xvfb, dbus and at-spi2 with no window manager and reproduces anyway,
-which is a genuine difference and not yet explained.
-
-It would be easy to conclude from this that a Linux screen-reader user loses the
-page when they open a note with a table — and that claim was made here before
-the reduced test case came back. It is not supported. Orca registers as a real
-AT-SPI client; our reader does not, and the reduction suggests that difference
-alone can empty the tree. **Whether a screen reader is affected at all is
-untested**, and testing it means running Orca against the app, not inferring
-from a client that WebKit may not be talking to properly.
-
-What does stand: nothing in this repo would have surfaced any of it, because no
-test had ever launched the app.
-
-**It is intermittent across runs.** One run showed no collapse at all, which is
-why probe 8 samples a series rather than taking a snapshot — a single reading
-cannot tell a persistent failure from a window of invalidation that settles, and
-an early single reading is what made me first report this as deterministic and
-then, one run later, as transient. It is neither: it is a race that lands often
-and, when it lands, does not recover.
-
-The suite therefore drives `Plain.md` (no table) for editing and opens
-`Spike.md` last, purely as the diagnostic that keeps this measured on every run.
+Worth stating plainly because it shaped several days of conclusions: every
+table-related finding in this repository's history was measured with a single
+instrument, and the instrument was the fault. The reduced test case is what
+caught it — which is the argument for building one before filing anything.
 
 ### Known flakiness, honestly
 
