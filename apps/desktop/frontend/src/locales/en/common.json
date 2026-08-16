@@ -28,6 +28,7 @@
     "zoomReset": "Fit to content"
   },
   "delete": "Delete",
+  "dismissError": "Dismiss error",
   "errorBoundary": {
     "close": "Close",
     "copied": "Copied",

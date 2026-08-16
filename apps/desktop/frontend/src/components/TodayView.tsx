@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 
 import { CalendarDays, ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -78,6 +78,7 @@ export function TodayView() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => void load(addDays(focus, -1))}
+            aria-label={t("prevDay")}
             title={t("prevDay")}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
           >
@@ -91,6 +92,7 @@ export function TodayView() {
           </button>
           <button
             onClick={() => void load(addDays(focus, 1))}
+            aria-label={t("nextDay")}
             title={t("nextDay")}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
           >
@@ -188,14 +190,18 @@ function TaskRow({
   onToggle: (id: string) => void;
   onOpen: (notePath: string | null) => void;
 }) {
+  // Names the checkbox from the task title rendered next to it.
+  const labelId = useId();
   return (
     <div className="flex items-start gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-hover">
       <input
         type="checkbox"
         onChange={() => onToggle(item.refId)}
+        aria-labelledby={labelId}
         className="mt-1 accent-[var(--accent)]"
       />
       <button
+        id={labelId}
         onClick={() => onOpen(item.notePath)}
         className="min-w-0 flex-1 truncate text-left text-sm text-fg"
       >

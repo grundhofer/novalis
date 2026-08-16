@@ -2,8 +2,10 @@
   "addMeetingNote": "Ajouter une note de réunion",
   "allDay": "Toute la journée",
   "attendees": "Participants",
+  "date": "Date",
   "day": "Jour",
   "editEvent": "Modifier l'événement",
+  "endTime": "Heure de fin",
   "eventTitle": "Titre de l'événement",
   "exportIcs": "Exporter .ics",
   "freq": {
@@ -20,6 +22,8 @@
   "newEvent": "Nouvel événement",
   "nextMonth": "Mois suivant",
   "prevMonth": "Mois précédent",
+  "repeat": "Répétition",
+  "startTime": "Heure de début",
   "today": "Aujourd'hui",
   "week": "Semaine"
 }

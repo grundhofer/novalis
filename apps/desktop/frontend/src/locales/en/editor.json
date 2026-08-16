@@ -38,6 +38,7 @@
   "mermaidShowSource": "Show source",
   "metadata": "Metadata",
   "noMatches": "No matches",
+  "noteBody": "Note body: {{title}}",
   "noteOpen": "No note open",
   "placeholder": "Start writing…",
   "properties": "Properties",

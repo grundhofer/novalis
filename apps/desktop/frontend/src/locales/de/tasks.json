@@ -9,6 +9,13 @@
     "today": "Heute",
     "upcoming": "Demnächst"
   },
+  "dest": {
+    "activeNote": "Aktive Notiz",
+    "clear": "Auf Standardziel zurücksetzen",
+    "dailyNote": "Tagesnotiz",
+    "pickTitle": "Neue Aufgaben hinzufügen zu…",
+    "toLabel": "→ {{note}}"
+  },
   "detail": {
     "completeHint": "Erledigte Aufgaben werden vom Board ausgeblendet",
     "due": "Fällig",
@@ -16,23 +23,16 @@
     "noEpic": "Kein Epic",
     "noPriority": "Keine Priorität",
     "noProject": "Kein Projekt",
+    "noRepeat": "Keine Wiederholung",
     "openNote": "Notiz öffnen",
     "priority": "Priorität",
     "project": "Projekt",
-    "noRepeat": "Keine Wiederholung",
     "remind": "Erinnerung",
     "repeat": "Wiederholung",
     "start": "Beginn",
     "status": "Status",
     "subtasks": "Unteraufgaben {{done}}/{{total}}",
     "tags": "Tags"
-  },
-  "dest": {
-    "activeNote": "Aktive Notiz",
-    "clear": "Auf Standardziel zurücksetzen",
-    "dailyNote": "Tagesnotiz",
-    "pickTitle": "Neue Aufgaben hinzufügen zu…",
-    "toLabel": "→ {{note}}"
   },
   "empty": "Keine Aufgaben. Oben eine hinzufügen oder <1>- [ ] etwas</1> in einer Notiz schreiben.",
   "filter": {
@@ -47,12 +47,18 @@
     "anyProject": "Beliebiges Projekt",
     "anyTag": "Beliebiges Tag",
     "clear": "Zurücksetzen",
+    "dueAria": "Nach Fälligkeitsdatum filtern",
+    "folderAria": "Nach Ordner filtern",
+    "groupByAria": "Gruppieren nach",
     "groupFolder": "Nach Ordner",
     "groupNone": "Keine Gruppierung",
     "groupNote": "Nach Notiz",
     "groupProject": "Nach Projekt",
     "noDue": "Kein Datum",
+    "priorityAria": "Nach Priorität filtern",
+    "projectAria": "Nach Projekt filtern",
     "search": "Suchen…",
+    "tagAria": "Nach Tag filtern",
     "thisWeek": "Diese Woche"
   },
   "kanban": {

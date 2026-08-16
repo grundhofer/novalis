@@ -816,6 +816,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             {titleDraft !== null ? (
               <input
                 autoFocus
+                aria-label={t("renameTitle")}
                 value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -863,6 +864,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           <SaveStatus state={saveState} onRetry={() => void flushPending()} />
           <button
             onClick={toggleReadingMode}
+            aria-label={t("readingMode")}
             title={t("readingMode")}
             aria-pressed={readingMode}
             className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
@@ -874,6 +876,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           {blockRefsOn && (
             <button
               onClick={() => void copyBlockRef()}
+              aria-label={t("copyBlockRef")}
               title={t("copyBlockRef")}
               className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
             >
@@ -883,6 +886,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           {backlinksOn && (
             <button
               onClick={() => togglePanel("links")}
+              aria-label={t("links:title")}
               title={panels.links ? t("links:hide") : t("links:show")}
               aria-pressed={panels.links}
               className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
@@ -895,6 +899,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           {outlineOn && (
             <button
               onClick={() => togglePanel("outline")}
+              aria-label={t("links:outline")}
               title={panels.outline ? t("links:hideOutline") : t("links:showOutline")}
               aria-pressed={panels.outline}
               className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
@@ -907,6 +912,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           {relatedOn && (
             <button
               onClick={() => togglePanel("related")}
+              aria-label={t("links:related.title")}
               title={panels.related ? t("links:related.hide") : t("links:related.show")}
               aria-pressed={panels.related}
               className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
@@ -919,6 +925,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           {entitiesOn && (
             <button
               onClick={() => togglePanel("entities")}
+              aria-label={t("ai:entities.title")}
               title={panels.entities ? t("ai:entities.hide") : t("ai:entities.show")}
               aria-pressed={panels.entities}
               className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
@@ -930,6 +937,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
           )}
           <button
             onClick={() => setHistoryOpen(true)}
+            aria-label={t("versions:open")}
             title={t("versions:open")}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
           >
@@ -939,6 +947,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             onClick={() => {
               if (path) void revealInFileManager(path);
             }}
+            aria-label={revealLabel()}
             title={revealLabel()}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
           >
@@ -977,6 +986,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             )}
           </div>
           <button
+            aria-label={t("deleteNote")}
             title={t("deleteNote")}
             onClick={() => setConfirmDelete(true)}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
@@ -1085,6 +1095,14 @@ export function EditorPane({ pane }: { pane: Pane }) {
       <div className="relative flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor
+            // The name goes on the contenteditable itself (see `ariaLabel` in
+            // NovalisEditorProps), not on a wrapper: TipTap gives it
+            // role="textbox", which takes its name from the author only, so a
+            // named wrapper would just be a landmark around an unnamed widget.
+            // The note TITLE rather than its path — a path is spoken one
+            // separator at a time ("Projects slash 2026 slash Spike dot m d"),
+            // and the title is what the user sees in the tab anyway.
+            ariaLabel={t("editor:noteBody", { title: note?.title ?? path })}
             key={`${pane.id}:${path}:${epoch}:${appliedFeatKey}`}
             value={split.body}
             editable={!readingMode}

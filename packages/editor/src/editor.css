@@ -54,6 +54,13 @@
   max-width: 760px;
   margin: 0 auto;
   line-height: 1.7;
+  /* Fill the scroll area even when the note is short. Without this the editable
+     box ends at the last line, so clicking the empty space below a ten-line
+     note lands on `.nv-editor-content` padding and does not place the caret —
+     the click has to hit the text to focus the editor. Every other editor
+     treats the whole pane as clickable, and it is also what makes the editable
+     addressable at its own centre by anything driving the app from outside. */
+  min-height: 100%;
 }
 .nv-editor-content .ProseMirror > * + * {
   margin-top: 0.75em;

@@ -47,12 +47,18 @@
     "anyProject": "Any project",
     "anyTag": "Any tag",
     "clear": "Clear",
+    "dueAria": "Filter by due date",
+    "folderAria": "Filter by folder",
+    "groupByAria": "Group by",
     "groupFolder": "By folder",
     "groupNone": "No grouping",
     "groupNote": "By note",
     "groupProject": "By project",
     "noDue": "No due date",
+    "priorityAria": "Filter by priority",
+    "projectAria": "Filter by project",
     "search": "Search…",
+    "tagAria": "Filter by tag",
     "thisWeek": "This week"
   },
   "kanban": {

@@ -9,6 +9,13 @@
     "today": "Hoy",
     "upcoming": "Próximas"
   },
+  "dest": {
+    "activeNote": "Nota activa",
+    "clear": "Restablecer el destino predeterminado",
+    "dailyNote": "Nota diaria",
+    "pickTitle": "Añadir tareas nuevas a…",
+    "toLabel": "→ {{note}}"
+  },
   "detail": {
     "completeHint": "Las tareas completadas se ocultan del tablero",
     "due": "Vence",
@@ -16,23 +23,16 @@
     "noEpic": "Sin épica",
     "noPriority": "Sin prioridad",
     "noProject": "Sin proyecto",
+    "noRepeat": "Sin repetición",
     "openNote": "Abrir nota",
     "priority": "Prioridad",
     "project": "Proyecto",
-    "noRepeat": "Sin repetición",
     "remind": "Recordatorio",
     "repeat": "Repetir",
     "start": "Inicio",
     "status": "Estado",
     "subtasks": "Subtareas {{done}}/{{total}}",
     "tags": "Etiquetas"
-  },
-  "dest": {
-    "activeNote": "Nota activa",
-    "clear": "Restablecer el destino predeterminado",
-    "dailyNote": "Nota diaria",
-    "pickTitle": "Añadir tareas nuevas a…",
-    "toLabel": "→ {{note}}"
   },
   "empty": "No hay tareas. Añadir una arriba o escribir <1>- [ ] algo</1> en una nota.",
   "filter": {
@@ -47,12 +47,18 @@
     "anyProject": "Cualquier proyecto",
     "anyTag": "Cualquier etiqueta",
     "clear": "Limpiar",
+    "dueAria": "Filtrar por fecha de vencimiento",
+    "folderAria": "Filtrar por carpeta",
+    "groupByAria": "Agrupar por",
     "groupFolder": "Por carpeta",
     "groupNone": "Sin agrupar",
     "groupNote": "Por nota",
     "groupProject": "Por proyecto",
     "noDue": "Sin fecha",
+    "priorityAria": "Filtrar por prioridad",
+    "projectAria": "Filtrar por proyecto",
     "search": "Buscar…",
+    "tagAria": "Filtrar por etiqueta",
     "thisWeek": "Esta semana"
   },
   "kanban": {

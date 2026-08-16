@@ -1,0 +1,14 @@
+{
+  "name": "novalis-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Real-app UI test spike. Deliberately outside the pnpm workspace — see README.md.",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "spike": "node spike.mjs"
+  },
+  "dependencies": {
+    "@crowecawcaw/xa11y": "0.13.0"
+  }
+}

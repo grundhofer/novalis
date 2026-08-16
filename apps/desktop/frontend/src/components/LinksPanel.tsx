@@ -98,6 +98,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
           {graphOn && (
             <button
               onClick={() => setGraphOpen(true)}
+              aria-label={t("graph")}
               title={t("graph")}
               className="rounded p-1 text-fg-faint transition-colors hover:bg-hover hover:text-fg"
             >
@@ -106,6 +107,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
           )}
           <button
             onClick={onClose}
+            aria-label={t("hide")}
             title={t("hide")}
             className="rounded p-1 text-fg-faint transition-colors hover:bg-hover hover:text-fg"
           >
@@ -163,6 +165,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
             </span>
             <button
               onClick={() => setGraphOpen(false)}
+              aria-label={t("closeGraph")}
               className="rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
             >
               <X size={16} />

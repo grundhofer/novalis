@@ -28,6 +28,7 @@
     "zoomReset": "Ajustar al contenido"
   },
   "delete": "Eliminar",
+  "dismissError": "Descartar el error",
   "errorBoundary": {
     "close": "Cerrar",
     "copied": "Copiado",
@@ -42,6 +43,7 @@
     "linksCount": "{{n}} enlaces",
     "notesCount": "{{n}} notas"
   },
+  "helpGuide": "Guía de funciones",
   "indexing": "Indexando {{done}} / {{total}} notas…",
   "indexingHint": "Puede tardar un momento en un vault grande — la app sigue disponible.",
   "loading": "Cargando…",
@@ -113,6 +115,5 @@
     "query": "Consulta",
     "tasks": "Tareas",
     "today": "Hoy"
-  },
-  "helpGuide": "Guía de funciones"
+  }
 }

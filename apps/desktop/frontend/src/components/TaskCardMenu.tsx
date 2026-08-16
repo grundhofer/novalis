@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ArrowUpRight, FolderInput } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -58,6 +66,7 @@ export function TaskCardMenu() {
   }, [menu?.taskId]);
 
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const [pos, setPos] = useState({ x: 0, y: 0 });
   useLayoutEffect(() => {
     if (!menu || !ref.current) return;
@@ -151,10 +160,12 @@ export function TaskCardMenu() {
           type="checkbox"
           checked={task.completed}
           onChange={() => void toggle(task.id)}
+          aria-labelledby={titleId}
           className="mt-0.5 accent-[var(--accent)]"
         />
         <div className="min-w-0 flex-1">
           <div
+            id={titleId}
             className={`text-sm font-medium ${
               task.completed ? "text-fg-faint line-through" : "text-fg"
             }`}
@@ -193,6 +204,7 @@ export function TaskCardMenu() {
           <select
             value={currentStatus}
             onChange={(e) => void setStatus(task.id, e.target.value)}
+            aria-label={t("detail.status")}
             className={selectCls}
           >
             {columns.map((c) => (
@@ -228,6 +240,7 @@ export function TaskCardMenu() {
           <select
             value={task.priority ?? ""}
             onChange={(e) => void updateField(task.id, "priority", e.target.value || null)}
+            aria-label={t("detail.priority")}
             className={selectCls}
           >
             <option value="">{t("detail.noPriority")}</option>
@@ -243,6 +256,7 @@ export function TaskCardMenu() {
             type="date"
             value={task.startDate ?? ""}
             onChange={(e) => void updateField(task.id, "start", e.target.value || null)}
+            aria-label={t("detail.start")}
             className={selectCls}
           />
         </Row>
@@ -252,6 +266,7 @@ export function TaskCardMenu() {
             type="date"
             value={task.dueDate ?? ""}
             onChange={(e) => void updateField(task.id, "due", e.target.value || null)}
+            aria-label={t("detail.due")}
             className={selectCls}
           />
         </Row>
@@ -260,6 +275,7 @@ export function TaskCardMenu() {
           <select
             value={task.repeat ?? ""}
             onChange={(e) => void updateField(task.id, "repeat", e.target.value || null)}
+            aria-label={t("detail.repeat")}
             className={selectCls}
           >
             <option value="">{t("detail.noRepeat")}</option>
@@ -275,6 +291,7 @@ export function TaskCardMenu() {
             type="datetime-local"
             value={task.remind ?? ""}
             onChange={(e) => void updateField(task.id, "remind", e.target.value || null)}
+            aria-label={t("detail.remind")}
             className={selectCls}
           />
         </Row>

@@ -2,8 +2,10 @@
   "addMeetingNote": "Besprechungsnotiz hinzufügen",
   "allDay": "Ganztägig",
   "attendees": "Teilnehmer",
+  "date": "Datum",
   "day": "Tag",
   "editEvent": "Termin bearbeiten",
+  "endTime": "Endzeit",
   "eventTitle": "Titel des Termins",
   "exportIcs": ".ics exportieren",
   "freq": {
@@ -20,6 +22,8 @@
   "newEvent": "Neuer Termin",
   "nextMonth": "Nächster Monat",
   "prevMonth": "Voriger Monat",
+  "repeat": "Wiederholung",
+  "startTime": "Startzeit",
   "today": "Heute",
   "week": "Woche"
 }

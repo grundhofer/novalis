@@ -211,7 +211,12 @@ export function Sidebar({
           <span className="truncate">{vaultName}</span>
           <ChevronDown size={13} className="shrink-0 text-fg-subtle" />
         </button>
-        <button title={t("refreshFromDisk")} onClick={() => void api.rescanVault()} className={`${iconBtn} shrink-0`}>
+        <button
+          aria-label={t("refreshFromDisk")}
+          title={t("refreshFromDisk")}
+          onClick={() => void api.rescanVault()}
+          className={`${iconBtn} shrink-0`}
+        >
           <RefreshCw size={16} />
         </button>
       </div>
@@ -224,6 +229,7 @@ export function Sidebar({
         <div className="flex items-center gap-0.5">
           <NewNoteButton />
           <button
+            aria-label={t("newFolder")}
             title={t("newFolder")}
             onClick={() => beginNewFolder(useVault.getState().selectedFolder)}
             className={iconBtn}
@@ -231,7 +237,12 @@ export function Sidebar({
             <FolderPlus size={15} />
           </button>
           <SortButton />
-          <button title={t("collapseAll")} onClick={() => collapseAll()} className={iconBtn}>
+          <button
+            aria-label={t("collapseAll")}
+            title={t("collapseAll")}
+            onClick={() => collapseAll()}
+            className={iconBtn}
+          >
             <ChevronsDownUp size={15} />
           </button>
         </div>
@@ -245,11 +256,19 @@ export function Sidebar({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setFilter("")}
+            // Same string as the placeholder: macOS drops placeholder-only names
+            // entirely, and matching it exactly keeps the visible text inside the
+            // accessible name (WCAG 2.5.3).
+            aria-label={t("filterPlaceholder")}
             placeholder={t("filterPlaceholder")}
             className="w-full bg-transparent text-xs text-fg outline-none placeholder:text-fg-faint"
           />
           {filter && (
-            <button onClick={() => setFilter("")} className="shrink-0 text-fg-subtle hover:text-fg">
+            <button
+              aria-label={t("clearFilter")}
+              onClick={() => setFilter("")}
+              className="shrink-0 text-fg-subtle hover:text-fg"
+            >
               <X size={12} />
             </button>
           )}
@@ -399,6 +418,9 @@ function NewNoteButton() {
   return (
     <div ref={ref} className="relative">
       <button
+        // The tooltip names the target folder and so changes as the selection
+        // moves; the accessible name stays the plain, stable one.
+        aria-label={t("newNote")}
         title={target ? t("newNoteIn", { target }) : t("newNote")}
         onClick={toggle}
         className={iconBtn}
@@ -456,6 +478,9 @@ function SortButton() {
   return (
     <div ref={ref} className="relative">
       <button
+        // The tooltip carries the current mode; the accessible name is the
+        // plain, stable one so it doesn't change as the sort does.
+        aria-label={t("sortNotes")}
         title={t("sortTitle", { mode: sortBy })}
         onClick={() => setOpen((v) => !v)}
         className={`${iconBtn} ${sortBy === "manual" ? "text-accent" : ""}`}
@@ -504,6 +529,18 @@ function ColorPopover({
   // Anchor near the cursor / viewport center when invoked from the menu.
   const left = x || Math.round(window.innerWidth / 2) - 90;
   const top = y || 120;
+  // Spoken names for the swatches. COLOR_TOKENS is a plain string[], so a
+  // computed t(`colors.${token}`) is both too wide for the typed t() and
+  // invisible to i18next-parser — one static call per token avoids both.
+  const colorNames: Record<string, string> = {
+    indigo: t("colors.indigo"),
+    sky: t("colors.sky"),
+    emerald: t("colors.emerald"),
+    amber: t("colors.amber"),
+    rose: t("colors.rose"),
+    violet: t("colors.violet"),
+    slate: t("colors.slate"),
+  };
   return (
     <div
       ref={ref}
@@ -513,6 +550,9 @@ function ColorPopover({
       {COLOR_TOKENS.map((token) => (
         <button
           key={token}
+          // The swatch has no text and the popover carries no name of its own,
+          // so the accessible name has to say both the action and the color.
+          aria-label={t("setColorTo", { color: colorNames[token] ?? token })}
           title={token}
           onClick={() => {
             setFolderColor(path, token);
@@ -525,6 +565,7 @@ function ColorPopover({
         />
       ))}
       <button
+        aria-label={t("noColor")}
         title={t("noColor")}
         onClick={() => {
           setFolderColor(path, null);
@@ -1145,6 +1186,10 @@ const FolderRow = memo(function FolderRow({
     <div>
       <div
         role="treeitem"
+        // Same reason as NoteRow below: computed from contents the name absorbs
+        // the child-count badge and so changes whenever the folder gains or
+        // loses an item, and macOS names nothing from a `title` on a row.
+        aria-label={t("folderRow", { path: node.path })}
         aria-expanded={open}
         aria-level={depth + 1}
         tabIndex={-1}
@@ -1221,6 +1266,10 @@ const FolderRow = memo(function FolderRow({
         {zone === "before" && <DropLine top />}
         {zone === "after" && <DropLine />}
         <button
+          // One stable name for both directions — the open/closed state is
+          // already exposed by the row's aria-expanded, and a name that flipped
+          // with it would be unaddressable.
+          aria-label={t("folderToggle", { path: node.path })}
           onClick={(e) => {
             e.stopPropagation();
             toggleCollapsed(node.path);
@@ -1237,6 +1286,7 @@ const FolderRow = memo(function FolderRow({
         )}
         <span className="flex-1 truncate">{node.name}</span>
         <button
+          aria-label={t("menu.newNoteHere")}
           title={t("menu.newNoteHere")}
           onClick={(e) => {
             e.stopPropagation();
@@ -1272,6 +1322,7 @@ const NoteRow = memo(function NoteRow({
   nextKey: string | null;
   isRenaming: boolean;
 }) {
+  const { t } = useTranslation("sidebar");
   // Row-local boolean instead of the whole activePath: switching notes only
   // re-renders the two affected rows, not every note in the tree.
   const active = useVault((s) => s.activePath === note.path);
@@ -1300,6 +1351,12 @@ const NoteRow = memo(function NoteRow({
     <div
       ref={rowRef}
       role="treeitem"
+      // Without this the row's name is computed from its contents, which
+      // absorbs the Cloud badge's own label and the task rollup — so the name
+      // CHANGES when a task inside the note is ticked (3/5 -> 4/5), and macOS
+      // names nothing from the `title` below at all. An explicit label is the
+      // only form all three accessibility providers agree on.
+      aria-label={t("noteRow", { path: note.path })}
       aria-selected={active}
       aria-level={depth + 1}
       tabIndex={-1}
@@ -1457,6 +1514,7 @@ function NewFolderInput({ parent, depth = 0 }: { parent: string | null; depth?: 
           else if (e.key === "Escape") endNewFolder();
         }}
         onBlur={commit}
+        aria-label={t("folderNamePlaceholder")}
         placeholder={t("folderNamePlaceholder")}
         className="w-full rounded bg-surface-2 px-1.5 py-0.5 text-sm text-fg outline-none placeholder:text-fg-faint"
       />

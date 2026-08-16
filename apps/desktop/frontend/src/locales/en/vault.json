@@ -30,8 +30,10 @@
   "recentVaults": "Recent vaults",
   "searchAllFolders": "All folders",
   "searchAllTags": "All tags",
+  "searchFolderFilter": "Filter by folder",
   "searchNoResults": "No matching notes.",
   "searchPlaceholder": "Search notes…",
+  "searchTagFilter": "Filter by tag",
   "tagline": "Local-first notes, tasks & calendar",
   "takeTour": "Take the tour",
   "vaultMissing": "Folder missing"

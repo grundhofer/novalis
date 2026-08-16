@@ -1,0 +1,210 @@
+name: E2E
+
+# The real-app UI suite: builds the app, drives it through the OS accessibility
+# APIs, and asserts that what the user types reaches disk. See e2e/README.md for
+# what it covers and what it cannot.
+#
+# THREE ENTRY POINTS, one definition:
+#   1. `workflow_call`  — release.yml gates on it, in parallel with the CI gate.
+#   2. the `e2e` label  — put it on a PR to run this against that PR. `labeled`
+#      AND `synchronize`, so it runs when the label goes on and on every push
+#      afterwards; the `if:` skips it for every PR that is not labelled.
+#   3. `workflow_dispatch` — manual, for debugging.
+#
+# Deliberately NOT part of ci.yml, which runs on every PR and every push to
+# main. Adding `labeled` to its triggers would re-run the whole three-OS build
+# on every label change, and its `cancel-in-progress` concurrency group would
+# let a label event cancel an in-flight CI run.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  e2e:
+    name: e2e (${{ matrix.platform }})
+    # Runs unconditionally when called by release.yml or dispatched; on a PR
+    # only when it carries the `e2e` label. A pull_request event still creates
+    # a (skipped) run per push, which costs no runner time.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'e2e')
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # ci.yml's set for the Tauri Linux build, plus the accessibility stack.
+      # The a11y half is xa11y's own `[base]` group, inlined rather than taken
+      # from `xa11y/setup-a11y@v1`: that composite action calls
+      # `awalsh128/cache-apt-pkgs-action@v1`, which is not SHA-pinned, and this
+      # repo requires every action pinned to a full-length commit SHA. Worth
+      # knowing before adopting it more widely — and the rejection fires at job
+      # setup for EVERY platform, including ones the action is `if:`-gated off.
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libasound2-dev \
+            patchelf \
+            build-essential \
+            xvfb dbus dbus-x11 at-spi2-core
+
+      # Xvfb, a session bus and the AT-SPI2 daemons, in one step so they share a
+      # parent shell; the env goes to GITHUB_ENV so later steps inherit it and
+      # the daemons survive across steps. There is no xvfb precedent in this
+      # repo — bundle-smoke builds bundles but never launches one — so this is
+      # new ground rather than a copied pattern.
+      - name: Start the accessibility environment (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x1024x24 -ac &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          export DISPLAY=:99
+          sleep 1
+
+          # dbus-launch, not dbus-run-session: the bus must daemonize and
+          # outlive this step.
+          eval "$(dbus-launch --sh-syntax)"
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          {
+            echo "NO_AT_BRIDGE=0"
+            echo "AT_SPI_CLIENT=true"
+            echo "ACCESSIBILITY_ENABLED=1"
+          } >> "$GITHUB_ENV"
+          export NO_AT_BRIDGE=0 AT_SPI_CLIENT=true ACCESSIBILITY_ENABLED=1
+
+          for exe in at-spi-bus-launcher at-spi2-registryd; do
+            if [ -x "/usr/libexec/$exe" ]; then BIN="/usr/libexec/$exe"
+            elif command -v "$exe" >/dev/null 2>&1; then BIN=$(command -v "$exe")
+            else echo "::warning::$exe not found"; continue; fi
+            if [ "$exe" = "at-spi-bus-launcher" ]; then "$BIN" --launch-immediately &
+            else "$BIN" & fi
+            sleep 1
+          done
+
+          # Clients only see a tree once these are on. Newer at-spi2-core
+          # defaults them true and the Status object may not be registered yet,
+          # so a failure here is not fatal.
+          for prop in IsEnabled ScreenReaderEnabled; do
+            dbus-send --session --print-reply --dest=org.a11y.Bus /org/a11y/bus \
+              org.freedesktop.DBus.Properties.Set \
+              string:org.a11y.Status string:"$prop" variant:boolean:true \
+              2>/dev/null || echo "org.a11y.Status.$prop not set yet (continuing)"
+          done
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Keep in sync with rust-toolchain.toml, as ci.yml and release.yml do.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: "1.93.0"
+
+      # `shared-key` + `save-if: false` on purpose. The repo's Actions cache is
+      # already ~12 GB against a 10 GiB limit and evicting, so this job READS
+      # ci.yml's warm debug caches and writes none of its own — otherwise it
+      # would both miss every restore and push out the caches CI depends on.
+      # The `env:` block above must stay free of CARGO*/CC*/RUST* additions:
+      # rust-cache hashes those into the key, and one stray var makes this a
+      # permanent cache miss.
+      - name: Cargo cache (read-only)
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "."
+          shared-key: build
+          save-if: false
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # --debug matches the profile ci.yml's warm caches were built with;
+      # --no-bundle because the spike drives the raw binary, not an installer.
+      - name: Build the app (debug, unbundled)
+        run: pnpm --filter @novalis/desktop tauri build --debug --no-bundle
+
+      - name: Install the spike harness
+        working-directory: e2e
+        run: npm install --no-audit --no-fund
+
+      # Without this the AX API returns empty trees on macOS and probe 3 fails
+      # for a reason that has nothing to do with the app. SIP covers /System
+      # only, so the hosted runner permits writing the TCC db. The client is the
+      # process that will call the AX API — node, running the spike.
+      - name: Grant Accessibility (TCC) to node (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          set -euo pipefail
+          CLIENT=$(command -v node)
+          echo "granting kTCCServiceAccessibility to $CLIENT"
+          sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
+            "INSERT OR REPLACE INTO access(service,client,client_type,auth_value,auth_reason,auth_version,csreq,policy_id,indirect_object_identifier_type,indirect_object_identifier,indirect_object_code_identity,flags,last_modified) \
+             VALUES('kTCCServiceAccessibility','${CLIENT}',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,$(date +%s));"
+          sudo launchctl stop com.apple.tccd 2>/dev/null || true
+          sleep 2
+
+      - name: Seed vault and settings
+        run: node e2e/seed.mjs
+
+      - name: Locate the binary
+        id: bin
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Cargo names it after the package (`novalis-desktop`); productName is
+          # only used for bundles. Glob rather than hardcode so a rename or an
+          # added [[bin]] does not silently break this.
+          BIN=$(find target/debug -maxdepth 1 -type f \
+                  \( -name 'novalis-desktop' -o -name 'novalis-desktop.exe' \) | head -1)
+          if [ -z "$BIN" ]; then
+            echo "no binary found; target/debug contains:" && ls -la target/debug | head -40
+            exit 1
+          fi
+          echo "path=$BIN" >> "$GITHUB_OUTPUT"
+          echo "found: $BIN"
+
+      # No `xvfb-run` here: the step above already exported DISPLAY, and
+      # xvfb-run would start a SECOND server the a11y daemons are not on.
+      - name: Run the spike
+        run: node e2e/spike.mjs "${{ steps.bin.outputs.path }}"
+
+      # A red gate with no evidence is unactionable, and this job's whole value
+      # is the tree dumps it prints. Keep them when it fails.
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: e2e-${{ matrix.platform }}
+          path: |
+            e2e/.tmp-vault/**
+          if-no-files-found: ignore
+          retention-days: 7

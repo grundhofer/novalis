@@ -1,5 +1,6 @@
 {
   "backlinks": "Referencias enlazadas",
+  "closeGraph": "Cerrar el grafo",
   "depth": "Profundidad",
   "emptyNote": "Nota vacía",
   "graph": "Grafo",
@@ -16,14 +17,14 @@
   "notCreated": "Aún no creada",
   "outline": "Esquema",
   "related": {
-    "title": "Relacionadas",
-    "show": "Mostrar notas relacionadas",
-    "hide": "Ocultar notas relacionadas",
-    "refresh": "Actualizar",
     "empty": "No se encontraron notas relacionadas.",
+    "error": "No se pudieron cargar las notas relacionadas.",
+    "hide": "Ocultar notas relacionadas",
     "notConfigured": "Activa la búsqueda semántica en Ajustes → IA para ver notas relacionadas.",
+    "refresh": "Actualizar",
+    "show": "Mostrar notas relacionadas",
     "stale": "Esta nota aún no está en el índice semántico. Créalo en Ajustes → IA.",
-    "error": "No se pudieron cargar las notas relacionadas."
+    "title": "Relacionadas"
   },
   "show": "Mostrar enlaces",
   "showOutline": "Mostrar esquema",
