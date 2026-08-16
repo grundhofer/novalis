@@ -11,7 +11,13 @@ name: WebKitGTK AT-SPI repro
 # releases. Manual only: it answers a question, it does not guard anything.
 
 on:
+  # `workflow_dispatch` alone is not enough while this lives on a branch:
+  # GitHub only offers the manual trigger for workflows present on the DEFAULT
+  # branch. The push trigger is scoped to investigation branches so it runs
+  # where the work is happening and nowhere else.
   workflow_dispatch:
+  push:
+    branches: ["investigate/**"]
 
 permissions: {}
 
