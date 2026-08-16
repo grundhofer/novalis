@@ -335,59 +335,34 @@ try {
     }
   }
   // ── 8 ── DIAGNOSTIC, deliberately last: it destroys the tree on Linux ──
-  // A note with a header-row table empties WebKitGTK's accessibility tree.
-  // This runs the discriminating experiment for the upstream report: WebKit's
-  // own source says "When a section of the document is contentEditable, all
-  // tables should be treated as data tables" (AccessibilityNodeObject.cpp),
-  // so the hypothesis is that the EDITABLE state is what makes the table fatal
-  // — not the table alone. Novalis has a reading mode that turns exactly that
-  // off, so the two conditions can be compared in one run on one machine.
+  // Measures the TOOL, not the app. Driving Novalis with xa11y on Linux, the
+  // accessibility tree collapses shortly after a note containing a table is
+  // opened. pyatspi — the library Orca uses — holds the same content
+  // indefinitely (e2e/webkit-repro/FINDINGS.md), so this is neither a WebKitGTK
+  // defect nor an app defect, whatever earlier revisions claimed.
   //
-  // Order is forced: reading mode must be on BEFORE the table note is opened,
-  // because once the tree is down the toggle is no longer addressable.
+  // Kept because it is a real obstacle to a Linux suite and should stay
+  // measured: if xa11y fixes it, this starts passing and says so.
   if (app) {
-    const sample = async (label) => {
-      const series = [];
-      for (let i = 0; i < 6; i++) {
-        await sleep(1500);
-        series.push((await app.dump().catch(() => "")).split("\n").length);
-      }
-      console.log(`      ${label}: [${series.join(", ")}]`);
-      return series;
-    };
-    const openSpike = async () => {
+    try {
+      const before = (await app.dump()).split("\n").length;
       const all = await app.locator("*").elements().catch(() => []);
       const hit = all.find((e) => (e.name ?? "") === "Note: Spike.md");
       if (!hit) throw new Error("Spike.md not addressable");
       await sim.click(hit);
-    };
-    try {
-      const baseline = (await app.dump()).split("\n").length;
-
-      // (a) READ-ONLY: same table, no contenteditable.
-      await app.locator("button[name='Reading mode']").press();
-      await sleep(1500);
-      await openSpike();
-      const readOnly = await sample("table in READING mode (not editable)");
-
-      // (b) EDITABLE: same note, contenteditable back on.
-      let editable = [];
-      try {
-        await app.locator("button[name='Reading mode']").press();
+      // Sample rather than snapshot: the collapse happens after the note first
+      // renders, and a single reading made this look deterministic, then
+      // transient, then neither.
+      const series = [];
+      for (let i = 0; i < 8; i++) {
         await sleep(1500);
-        editable = await sample("table in EDIT mode (contenteditable)");
-      } catch (e) {
-        console.log(`      could not leave reading mode (${e.message}) — tree may already be down`);
+        series.push((await app.dump().catch(() => "")).split("\n").length);
       }
-
-      const roOk = Math.min(...readOnly) > baseline / 2;
-      const edOk = editable.length > 0 && Math.min(...editable) > baseline / 2;
-      console.log(`      baseline ${baseline} | read-only holds: ${roOk} | editable holds: ${edOk}`);
-      if (roOk && !edOk) {
-        console.log("      => the contenteditable is what makes the table fatal, not the table");
-      }
-      record(8, "xa11y keeps reading the tree after a note with a table opens", edOk,
-        `read-only ${roOk ? "held" : "collapsed"}, editable ${edOk ? "held" : "collapsed"}`);
+      const after = series[series.length - 1];
+      const held = after > before / 2;
+      console.log(`      opening a note with a table: ${before} -> [${series.join(", ")}]`);
+      record(8, "xa11y keeps reading the tree after a note with a table opens", held,
+        held ? "tree held" : `collapsed to ${after} nodes and did not recover`);
     } catch (e) {
       record(8, "xa11y keeps reading the tree after a note with a table opens", false, e.message);
     }
