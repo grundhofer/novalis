@@ -335,46 +335,64 @@ try {
     }
   }
   // ── 8 ── DIAGNOSTIC, deliberately last: it destroys the tree on Linux ──
-  // A header-row table inside a contenteditable takes WebKitGTK's whole
-  // accessibility tree down. Measured: 109 nodes -> 6 the moment the note
-  // opens, editor gone, and it does not recover. macOS (155 -> 155) and
-  // Windows (310 -> 310) are unaffected, so this is AT-SPI-specific and not a
-  // property of the markup.
+  // A note with a header-row table empties WebKitGTK's accessibility tree.
+  // This runs the discriminating experiment for the upstream report: WebKit's
+  // own source says "When a section of the document is contentEditable, all
+  // tables should be treated as data tables" (AccessibilityNodeObject.cpp),
+  // so the hypothesis is that the EDITABLE state is what makes the table fatal
+  // — not the table alone. Novalis has a reading mode that turns exactly that
+  // off, so the two conditions can be compared in one run on one machine.
   //
-  // This is a user-facing accessibility bug, not a test inconvenience: a Linux
-  // screen-reader user opening a note with a table loses the entire page.
+  // Order is forced: reading mode must be on BEFORE the table note is opened,
+  // because once the tree is down the toggle is no longer addressable.
   if (app) {
-    try {
-      const all = await app.locator("*").elements().catch(() => []);
-      const hit = all.find((e) => (e.name ?? "") === "Note: Spike.md");
-      if (!hit) throw new Error("Spike.md not addressable");
-      const beforeNodes = (await app.dump()).split("\n").length;
-      await sim.click(hit);
-      // Sample, do not snapshot. Two runs disagreed on this — one saw the tree
-      // collapse to 6 nodes and stay there, the next saw no collapse at all —
-      // and a single reading cannot tell a permanent failure from a window of
-      // invalidation that settles. The series is the finding.
+    const sample = async (label) => {
       const series = [];
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 6; i++) {
         await sleep(1500);
         series.push((await app.dump().catch(() => "")).split("\n").length);
       }
-      const afterNodes = series[series.length - 1];
-      const dipped = Math.min(...series) < beforeNodes / 2;
-      const survived = afterNodes > beforeNodes / 2;
-      console.log(`      opening a note with a header-row table: ${beforeNodes} -> [${series.join(", ")}]`);
-      if (dipped && survived) console.log("      => TRANSIENT collapse: the tree emptied and came back");
-      if (dipped && !survived) console.log("      => PERSISTENT collapse: the tree did not recover");
-      record(8, "a table in the editor does not destroy the accessibility tree", survived,
-        survived
-          ? dipped
-            ? `recovered, but dipped to ${Math.min(...series)} nodes on the way`
-            : "tree intact throughout"
-          : `collapsed to ${afterNodes} nodes and did not recover`);
+      console.log(`      ${label}: [${series.join(", ")}]`);
+      return series;
+    };
+    const openSpike = async () => {
+      const all = await app.locator("*").elements().catch(() => []);
+      const hit = all.find((e) => (e.name ?? "") === "Note: Spike.md");
+      if (!hit) throw new Error("Spike.md not addressable");
+      await sim.click(hit);
+    };
+    try {
+      const baseline = (await app.dump()).split("\n").length;
+
+      // (a) READ-ONLY: same table, no contenteditable.
+      await app.locator("button[name='Reading mode']").press();
+      await sleep(1500);
+      await openSpike();
+      const readOnly = await sample("table in READING mode (not editable)");
+
+      // (b) EDITABLE: same note, contenteditable back on.
+      let editable = [];
+      try {
+        await app.locator("button[name='Reading mode']").press();
+        await sleep(1500);
+        editable = await sample("table in EDIT mode (contenteditable)");
+      } catch (e) {
+        console.log(`      could not leave reading mode (${e.message}) — tree may already be down`);
+      }
+
+      const roOk = Math.min(...readOnly) > baseline / 2;
+      const edOk = editable.length > 0 && Math.min(...editable) > baseline / 2;
+      console.log(`      baseline ${baseline} | read-only holds: ${roOk} | editable holds: ${edOk}`);
+      if (roOk && !edOk) {
+        console.log("      => the contenteditable is what makes the table fatal, not the table");
+      }
+      record(8, "a table in the editor does not destroy the accessibility tree", edOk,
+        `read-only ${roOk ? "held" : "collapsed"}, editable ${edOk ? "held" : "collapsed"}`);
     } catch (e) {
       record(8, "a table in the editor does not destroy the accessibility tree", false, e.message);
     }
   }
+
 } catch (e) {
   console.error("\nharness error:", e);
   process.exitCode = 1;
