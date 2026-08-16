@@ -335,46 +335,39 @@ try {
     }
   }
   // ── 8 ── DIAGNOSTIC, deliberately last: it destroys the tree on Linux ──
-  // A header-row table inside a contenteditable takes WebKitGTK's whole
-  // accessibility tree down. Measured: 109 nodes -> 6 the moment the note
-  // opens, editor gone, and it does not recover. macOS (155 -> 155) and
-  // Windows (310 -> 310) are unaffected, so this is AT-SPI-specific and not a
-  // property of the markup.
+  // Measures the TOOL, not the app. Driving Novalis with xa11y on Linux, the
+  // accessibility tree collapses shortly after a note containing a table is
+  // opened. pyatspi — the library Orca uses — holds the same content
+  // indefinitely (e2e/webkit-repro/FINDINGS.md), so this is neither a WebKitGTK
+  // defect nor an app defect, whatever earlier revisions claimed.
   //
-  // This is a user-facing accessibility bug, not a test inconvenience: a Linux
-  // screen-reader user opening a note with a table loses the entire page.
+  // Kept because it is a real obstacle to a Linux suite and should stay
+  // measured: if xa11y fixes it, this starts passing and says so.
   if (app) {
     try {
+      const before = (await app.dump()).split("\n").length;
       const all = await app.locator("*").elements().catch(() => []);
       const hit = all.find((e) => (e.name ?? "") === "Note: Spike.md");
       if (!hit) throw new Error("Spike.md not addressable");
-      const beforeNodes = (await app.dump()).split("\n").length;
       await sim.click(hit);
-      // Sample, do not snapshot. Two runs disagreed on this — one saw the tree
-      // collapse to 6 nodes and stay there, the next saw no collapse at all —
-      // and a single reading cannot tell a permanent failure from a window of
-      // invalidation that settles. The series is the finding.
+      // Sample rather than snapshot: the collapse happens after the note first
+      // renders, and a single reading made this look deterministic, then
+      // transient, then neither.
       const series = [];
       for (let i = 0; i < 8; i++) {
         await sleep(1500);
         series.push((await app.dump().catch(() => "")).split("\n").length);
       }
-      const afterNodes = series[series.length - 1];
-      const dipped = Math.min(...series) < beforeNodes / 2;
-      const survived = afterNodes > beforeNodes / 2;
-      console.log(`      opening a note with a header-row table: ${beforeNodes} -> [${series.join(", ")}]`);
-      if (dipped && survived) console.log("      => TRANSIENT collapse: the tree emptied and came back");
-      if (dipped && !survived) console.log("      => PERSISTENT collapse: the tree did not recover");
-      record(8, "a table in the editor does not destroy the accessibility tree", survived,
-        survived
-          ? dipped
-            ? `recovered, but dipped to ${Math.min(...series)} nodes on the way`
-            : "tree intact throughout"
-          : `collapsed to ${afterNodes} nodes and did not recover`);
+      const after = series[series.length - 1];
+      const held = after > before / 2;
+      console.log(`      opening a note with a table: ${before} -> [${series.join(", ")}]`);
+      record(8, "xa11y keeps reading the tree after a note with a table opens", held,
+        held ? "tree held" : `collapsed to ${after} nodes and did not recover`);
     } catch (e) {
-      record(8, "a table in the editor does not destroy the accessibility tree", false, e.message);
+      record(8, "xa11y keeps reading the tree after a note with a table opens", false, e.message);
     }
   }
+
 } catch (e) {
   console.error("\nharness error:", e);
   process.exitCode = 1;
@@ -388,18 +381,21 @@ try {
   console.log(`  typing reaches disk:   ${typed ? (typed.ok ? "YES" : "NO") : "not run"}`);
   console.log(`  Platform: ${platform()}`);
 
-  // Probe 8 is a known-issue watch, not our contract: WebKitGTK empties the
-  // AT-SPI tree for a table inside a contenteditable. We cannot fix it, so on
-  // Linux it is an EXPECTED failure and does not gate. It still gates on macOS
-  // and Windows, where a collapse would be a regression we caused.
+  // Probe 8 measures the TOOL, not the app. Driving Novalis with xa11y on
+  // Linux, the tree collapses shortly after a note containing a table opens.
+  // pyatspi — the library Orca uses — holds the same page indefinitely (see
+  // e2e/webkit-repro/FINDINGS.md), so this is not a WebKitGTK defect and not
+  // an app defect, whatever earlier revisions of this file claimed. It is an
+  // xa11y limitation, we cannot fix it here, and it does not gate on Linux.
+  // It still gates on macOS and Windows: a collapse there would be new.
   const xfailTable = platform() === "linux";
   const table = results.find((r) => r.n === 8);
   if (table && !table.ok && xfailTable) {
-    console.log("\n  probe 8 failed as expected: known WebKitGTK/AT-SPI defect, does not gate.");
+    console.log("\n  probe 8 failed as expected: known xa11y/AT-SPI limitation, does not gate.");
   }
   if (table && table.ok && xfailTable) {
     console.log("\n  !! probe 8 PASSED on Linux, where it is expected to fail.");
-    console.log("  !! The upstream defect may be fixed — drop the carve-out in e2e/spike.mjs.");
+    console.log("  !! xa11y may have fixed it — drop the carve-out in e2e/spike.mjs.");
   }
 
   const failed = results.filter((r) => !r.ok && !(r.n === 8 && xfailTable));

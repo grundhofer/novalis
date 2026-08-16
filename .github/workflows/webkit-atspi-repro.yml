@@ -1,0 +1,119 @@
+name: WebKitGTK AT-SPI repro
+
+# Not a gate and not part of any release. This is the reduced test case for an
+# upstream WebKitGTK report: does a table with `<th>` header cells take the
+# whole page out of the AT-SPI accessibility tree, and in which WebKitGTK
+# versions? No Tauri, no editor framework, no browser chrome — a bare
+# WebKitWebView showing one local HTML file (e2e/webkit-repro/host.py).
+#
+# Two pages differing only in `<th>` vs `<td>` are the experiment; the runner
+# matrix is the version axis, since Ubuntu images pin different WebKitGTK
+# releases. Manual only: it answers a question, it does not guard anything.
+
+on:
+  # `workflow_dispatch` alone is not enough while this lives on a branch:
+  # GitHub only offers the manual trigger for workflows present on the DEFAULT
+  # branch. The push trigger is scoped to investigation branches so it runs
+  # where the work is happening and nowhere else.
+  workflow_dispatch:
+  push:
+    branches: ["investigate/**"]
+
+permissions: {}
+
+jobs:
+  repro:
+    name: repro (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # Different images ship different WebKitGTK. If the older one holds and
+        # the newer one collapses, the report becomes a regression with a window
+        # to bisect rather than a standalone complaint.
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install WebKitGTK and the accessibility stack
+        run: |
+          sudo apt-get update
+          # 4.1 where it exists (24.04+), 4.0 otherwise (22.04). `|| true` on the
+          # first so the fallback can run; the version actually loaded is printed
+          # by host.py, which is what the report will quote.
+          sudo apt-get install -y python3-gi gir1.2-webkit2-4.1 || true
+          sudo apt-get install -y python3-gi gir1.2-webkit2-4.0 || true
+          sudo apt-get install -y xvfb dbus dbus-x11 at-spi2-core
+          # pyatspi is the client library Orca uses. It is the control for the
+          # question "is the collapse about the page, or about our reader?"
+          sudo apt-get install -y python3-pyatspi gir1.2-atspi-2.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install the AT-SPI client
+        working-directory: e2e
+        run: npm install --no-audit --no-fund
+
+      # Same stack the app suite uses. Deliberately NO window manager: the only
+      # prior account of this defect qualifies it with "with a window manager
+      # present", and reproducing without one is the new data point.
+      - name: Start the accessibility environment
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x1024x24 -ac &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          export DISPLAY=:99
+          sleep 1
+          eval "$(dbus-launch --sh-syntax)"
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          for exe in at-spi-bus-launcher at-spi2-registryd; do
+            if [ -x "/usr/libexec/$exe" ]; then BIN="/usr/libexec/$exe"
+            elif command -v "$exe" >/dev/null 2>&1; then BIN=$(command -v "$exe")
+            else echo "::warning::$exe not found"; continue; fi
+            if [ "$exe" = "at-spi-bus-launcher" ]; then
+              "$BIN" --launch-immediately &
+            else
+              "$BIN" &
+            fi
+            sleep 1
+          done
+
+      - name: Record the exact versions
+        run: |
+          echo "--- packages ---"
+          dpkg -l | grep -E "webkit2gtk|at-spi2-core|libgtk-3-0" | awk '{print $2, $3}' || true
+
+      # The control first: if the page WITHOUT header cells also collapses, the
+      # experiment has not isolated anything and the report is not ready.
+      - name: Control — table with <td> header row
+        run: node e2e/webkit-repro/watch.mjs e2e/webkit-repro/notable.html
+        continue-on-error: true
+
+      - name: Subject — table with <th> header row
+        run: node e2e/webkit-repro/watch.mjs e2e/webkit-repro/table.html
+        continue-on-error: true
+
+      # THE DECIDING PAIR. Same page, same walk, differing only in whether the
+      # reader registers an AT-SPI event listener first — which is what makes
+      # WebKit call addClient() and stop tearing down web-content objects.
+      #
+      # holds with listener + collapses without  => the collapse is an artefact
+      #   of how we read, there is no page-content bug, and every table
+      #   measurement so far describes the instrument.
+      # collapses both ways                      => a real defect, now observed
+      #   with a client WebKit acknowledges, and the report can proceed.
+      - name: Client control — pyatspi WITHOUT registering a listener
+        run: python3 e2e/webkit-repro/watch_pyatspi.py e2e/webkit-repro/table.html off
+        continue-on-error: true
+
+      - name: Client control — pyatspi WITH a registered listener
+        run: python3 e2e/webkit-repro/watch_pyatspi.py e2e/webkit-repro/table.html on
+        continue-on-error: true

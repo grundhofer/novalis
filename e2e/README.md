@@ -118,38 +118,33 @@ input reaches the file on disk on macOS, Windows and Linux. Nothing goes into
 the app to achieve it — no plugin crate, no `withGlobalTauri`, no automation
 server — so the same binary that ships is the one under test.
 
-### The one real defect, and it is a user-facing one
+### The table observation is a tooling artefact, not a defect
 
-A note containing a header-row table, opened in the editor, takes WebKitGTK's
-whole accessibility tree down. Sampled eight times over twelve seconds:
+Earlier revisions of this file reported a WebKitGTK accessibility bug here, and
+said a Linux screen-reader user loses the page when opening a note with a table.
+**Both claims are withdrawn.** `webkit-repro/FINDINGS.md` has the measurement;
+the short version, from one CI job on one machine, same page, back to back:
 
-```
-Linux    105 -> [109, 6, 6, 6, 6, 6, 6, 6]   persistent, does not recover
-macOS    125 -> [160, 161, 161, 161, ...]    unaffected
-Windows  251 -> [251, 251, ...]              unaffected
-```
+| reader | page | series | result |
+| --- | --- | --- | --- |
+| xa11y (what this suite uses) | `<td>` table | 16 → [5, 5, …] | collapsed |
+| xa11y | `<th>` table | 16 → [5, 5, …] | collapsed |
+| pyatspi — the library Orca uses | `<th>` table | [18, 18, … 18] | **held** |
 
-It is not `<th>` and it is not `contenteditable` — it is the combination, under
-AT-SPI only. xa11y's own Tauri fixture carries three `<th>` in a plain table and
-its Linux CI is green, and WebKit's source says why the pairing is special:
-*"When a section of the document is contentEditable, all tables should be
-treated as data tables"* (`AccessibilityNodeObject.cpp:2181`) — a table inside a
-rich-text editor gets the full table machinery unconditionally.
+The page never leaves the accessibility tree. WebKitGTK exposes it and keeps
+exposing it; `<th>` is not the trigger; and Orca's client library is unaffected,
+so the screen-reader impact I described does not exist.
 
-For a Linux screen-reader user this means opening a note with a table empties
-the page from the accessibility tree. Novalis is a notes app that ships table
-editing, so that is a reachable state, and nothing in the repo would have found
-it: no test had ever launched the app.
+What survives is narrower and still useful: **driving this app with xa11y on
+Linux, the tree collapses shortly after a note containing a table is opened.**
+That is a real obstacle to a Linux UI suite, and it is why probe 8 exists and
+why Linux drives the table-free fixture. It is a limitation of the tool, not of
+Novalis and not of WebKit.
 
-**It is intermittent across runs.** One run showed no collapse at all, which is
-why probe 8 samples a series rather than taking a snapshot — a single reading
-cannot tell a persistent failure from a window of invalidation that settles, and
-an early single reading is what made me first report this as deterministic and
-then, one run later, as transient. It is neither: it is a race that lands often
-and, when it lands, does not recover.
-
-The suite therefore drives `Plain.md` (no table) for editing and opens
-`Spike.md` last, purely as the diagnostic that keeps this measured on every run.
+Worth stating plainly because it shaped several days of conclusions: every
+table-related finding in this repository's history was measured with a single
+instrument, and the instrument was the fault. The reduced test case is what
+caught it — which is the argument for building one before filing anything.
 
 ### Known flakiness, honestly
 
@@ -168,9 +163,14 @@ None of that is a finding about Novalis.
 
 Four things are, and any real suite would have hit all of them:
 
-1. `Settings` is `#[serde(rename_all = "camelCase")]` — the key is `lastVault`,
-   not `last_vault`, and the snake_case form is silently ignored.
-   `Preferences` is the opposite: plain snake_case, no rename.
+1. **Both** config structs are `#[serde(rename_all = "camelCase")]` — `Settings`
+   (`lastVault`, not `last_vault`) and `Preferences` (`prefsVersion`, not
+   `prefs_version`). The snake_case form is silently ignored in each case, and
+   this trap was walked into twice: the second time it left the fixture vault on
+   the legacy all-on feature profile, switching on the embedding model, AI and
+   sync behind the suite's back. The app logged it plainly — "vault predates the
+   feature flags" — and nothing was reading the app's output until this script
+   started streaming it.
 2. `ensure_features_stamp` rewrites a vault to the legacy all-on profile unless
    `.novalis/config.json` carries the current `prefs_version` — which would
    switch on the embedding model, AI and sync behind a test's back.

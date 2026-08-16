@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>td-table</title>
+<!-- The control: identical to table.html except that the header row uses <td>
+     instead of <th>. Everything else — node count, text, the button a client
+     looks for — is deliberately the same, so a difference in the accessibility
+     tree can only come from the header cells.
+
+     Caveat worth knowing before reading a PASS here as meaningful: WebKit's
+     layout-table heuristic may decide a <td>-only table with no <caption> is
+     decorative and drop it from the accessibility tree entirely. A table that
+     was never exposed cannot destabilise anything, so this control shows that
+     the PAGE survives, not that this table is exposed and stable. -->
+<h1>Heading</h1>
+<p>A paragraph, so the tree has content besides the table.</p>
+<table>
+  <thead>
+    <tr><td>a</td><td>b</td></tr>
+  </thead>
+  <tbody>
+    <tr><td>c</td><td>d</td></tr>
+  </tbody>
+</table>
+<p>A second paragraph after the table.</p>
+<button>A button, so a client can see whether the page is still exposed.</button>
