@@ -71,10 +71,15 @@ cpSync(join(HERE, "fixtures", "vault"), vault, { recursive: true });
 // model, AI and sync behind our backs. Stamping the current version short-
 // circuits that at the `existing.prefs_version >= PREFS_VERSION` check, and
 // every other field is `#[serde(default)]`, so this one key is the whole file.
-// NOTE: `Preferences` is plain snake_case (models/preferences.rs) — unlike
-// Settings below, it carries no rename attribute.
+// `Preferences` is ALSO `#[serde(rename_all = "camelCase")]`
+// (models/preferences.rs:7), so the key is `prefsVersion`. Writing
+// `prefs_version` is silently ignored, `prefs_version` stays 0, and the stamp
+// fires anyway — which is exactly what happened, and the app said so in a log
+// line nobody was reading: "vault predates the feature flags — enabling the
+// legacy all-on profile". Caught only after this script started streaming the
+// app's own output instead of discarding it.
 mkdirSync(join(vault, ".novalis"), { recursive: true });
-writeFileSync(join(vault, ".novalis", "config.json"), JSON.stringify({ prefs_version: 1 }, null, 2));
+writeFileSync(join(vault, ".novalis", "config.json"), JSON.stringify({ prefsVersion: 1 }, null, 2));
 
 // `Settings` is `#[serde(rename_all = "camelCase")]` (settings.rs:33), so the
 // JSON key is `lastVault`, NOT `last_vault`. Writing the snake_case form is

@@ -129,12 +129,22 @@ macOS    125 -> [160, 161, 161, 161, ...]    unaffected
 Windows  251 -> [251, 251, ...]              unaffected
 ```
 
-It is not `<th>` and it is not `contenteditable` — it is the combination, under
-AT-SPI only. xa11y's own Tauri fixture carries three `<th>` in a plain table and
-its Linux CI is green, and WebKit's source says why the pairing is special:
-*"When a section of the document is contentEditable, all tables should be
-treated as data tables"* (`AccessibilityNodeObject.cpp:2181`) — a table inside a
-rich-text editor gets the full table machinery unconditionally.
+**Correction to an earlier reading here: `<th>` alone appears to be enough, and
+`contenteditable` is not established as necessary.** This file previously said
+the opposite, on the strength of xa11y's Tauri fixture "carrying three `<th>`
+with green CI". Those three occurrences are inside an HTML *comment* in that
+fixture, which exists to record why the header cells were removed:
+
+> "Deliberately NO `<th>` header cells: under WebKitGTK 2.52 … a table
+> containing `<th>` sends the web process's accessibility tree into a continuous
+> invalidation churn — every content accessible goes defunct moments after being
+> exposed, which takes the whole page out of the AT-SPI tree … Verified by
+> bisecting this file against a live harness run; `<td>`-only tables are stable."
+
+So a third party reproduced the same symptom on a *static* table with no editor
+at all, and bisected it. Their note adds "with a window manager present"; this
+CI runs Xvfb, dbus and at-spi2 with no window manager and reproduces anyway,
+which is a genuine difference and not yet explained.
 
 For a Linux screen-reader user this means opening a note with a table empties
 the page from the accessibility tree. Novalis is a notes app that ships table
@@ -168,9 +178,14 @@ None of that is a finding about Novalis.
 
 Four things are, and any real suite would have hit all of them:
 
-1. `Settings` is `#[serde(rename_all = "camelCase")]` — the key is `lastVault`,
-   not `last_vault`, and the snake_case form is silently ignored.
-   `Preferences` is the opposite: plain snake_case, no rename.
+1. **Both** config structs are `#[serde(rename_all = "camelCase")]` — `Settings`
+   (`lastVault`, not `last_vault`) and `Preferences` (`prefsVersion`, not
+   `prefs_version`). The snake_case form is silently ignored in each case, and
+   this trap was walked into twice: the second time it left the fixture vault on
+   the legacy all-on feature profile, switching on the embedding model, AI and
+   sync behind the suite's back. The app logged it plainly — "vault predates the
+   feature flags" — and nothing was reading the app's output until this script
+   started streaming it.
 2. `ensure_features_stamp` rewrites a vault to the legacy all-on profile unless
    `.novalis/config.json` carries the current `prefs_version` — which would
    switch on the embedding model, AI and sync behind a test's back.
