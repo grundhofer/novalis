@@ -118,10 +118,22 @@ input reaches the file on disk on macOS, Windows and Linux. Nothing goes into
 the app to achieve it — no plugin crate, no `withGlobalTauri`, no automation
 server — so the same binary that ships is the one under test.
 
-### The one real defect, and it is a user-facing one
+### One unexplained observation — NOT an established defect
 
-A note containing a header-row table, opened in the editor, takes WebKitGTK's
-whole accessibility tree down. Sampled eight times over twelve seconds:
+> **Read `webkit-repro/FINDINGS.md` before quoting anything below.** The reduced
+> test case built to confirm this framing falsified it instead: a bare
+> `WebKitWebView` page leaves the AT-SPI tree whether or not it contains a
+> table, which is not how the app behaves. The likely explanation reaches back
+> into these measurements — WebKit distinguishes a registered *client* from
+> something merely walking `GetChildren`, which is all our reader does, and it
+> tears down web-content objects when it thinks no client is present. If that is
+> what this is, the table only changed the timing. The upstream report is on
+> hold and the honest summary is narrower: opening a note containing a table
+> COINCIDES with the page leaving the tree, measured with one client whose
+> registration semantics are not established.
+
+With that caveat, what was measured in the app. Sampled eight times over twelve
+seconds:
 
 ```
 Linux    105 -> [109, 6, 6, 6, 6, 6, 6, 6]   persistent, does not recover
@@ -146,10 +158,16 @@ at all, and bisected it. Their note adds "with a window manager present"; this
 CI runs Xvfb, dbus and at-spi2 with no window manager and reproduces anyway,
 which is a genuine difference and not yet explained.
 
-For a Linux screen-reader user this means opening a note with a table empties
-the page from the accessibility tree. Novalis is a notes app that ships table
-editing, so that is a reachable state, and nothing in the repo would have found
-it: no test had ever launched the app.
+It would be easy to conclude from this that a Linux screen-reader user loses the
+page when they open a note with a table — and that claim was made here before
+the reduced test case came back. It is not supported. Orca registers as a real
+AT-SPI client; our reader does not, and the reduction suggests that difference
+alone can empty the tree. **Whether a screen reader is affected at all is
+untested**, and testing it means running Orca against the app, not inferring
+from a client that WebKit may not be talking to properly.
+
+What does stand: nothing in this repo would have surfaced any of it, because no
+test had ever launched the app.
 
 **It is intermittent across runs.** One run showed no collapse at all, which is
 why probe 8 samples a series rather than taking a snapshot — a single reading
