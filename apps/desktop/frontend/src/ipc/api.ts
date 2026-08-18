@@ -211,6 +211,11 @@ export const api = {
   exportIcs: (start: string, end: string) => unwrap(commands.exportIcs(start, end)),
   oauthBegin: (provider: "google" | "outlook") => unwrap(commands.oauthBegin(provider)),
   oauthStatus: (provider: string) => commands.oauthStatus(provider),
+  /** Can this provider be connected at all — is a client id available? */
+  oauthConfigured: (provider: string) => commands.oauthConfigured(provider),
+  oauthClientId: (provider: string) => commands.oauthClientId(provider),
+  oauthSetClientId: (provider: string, clientId: string) =>
+    unwrap(commands.oauthSetClientId(provider, clientId)),
   oauthDisconnect: (provider: string) => unwrap(commands.oauthDisconnect(provider)),
 
   // Plugins

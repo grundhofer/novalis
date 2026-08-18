@@ -85,11 +85,56 @@ pub fn disconnect(provider_id: &str) -> Result<(), CommandError> {
     Ok(())
 }
 
-fn client_id(p: &Provider) -> Result<String, CommandError> {
+/// Where a user-supplied OAuth client id lives. Alongside the tokens rather
+/// than in `settings.json`, because that is the only per-machine store this
+/// module can reach without an `AppHandle` — and it keeps a provider's whole
+/// configuration in one place, so `disconnect` and a future "forget provider"
+/// have one thing to clear. A client id is not a secret; nothing here depends
+/// on it being one.
+fn client_account(provider_id: &str) -> String {
+    format!("oauth-client:{provider_id}")
+}
+
+/// Store the client id the user registered with the provider.
+pub fn set_client_id(provider_id: &str, client_id: &str) -> Result<(), CommandError> {
+    let trimmed = client_id.trim();
+    if trimmed.is_empty() {
+        let _ = crate::secrets::delete(&client_account(provider_id));
+        return Ok(());
+    }
+    crate::secrets::set(&client_account(provider_id), trimmed)
+}
+
+/// Whether connecting this provider can even be attempted.
+pub fn is_configured(provider_id: &str) -> bool {
+    let Some(p) = provider(provider_id) else {
+        return false;
+    };
+    crate::secrets::get(&client_account(provider_id)).is_some()
+        || std::env::var(p.client_id_env).is_ok()
+}
+
+/// The stored client id, if any — so the settings UI can show what is set
+/// without the user re-typing it. Never returns the env fallback: that one is
+/// not the user's to edit here.
+pub fn stored_client_id(provider_id: &str) -> Option<String> {
+    crate::secrets::get(&client_account(provider_id))
+}
+
+fn client_id(p: &Provider, provider_id: &str) -> Result<String, CommandError> {
+    // Stored first, env second. The env var is how a developer runs against
+    // their own client during `pnpm tauri dev`; it is NOT reachable for an app
+    // launched from Finder, the Start menu or a desktop entry — which is every
+    // installed copy — so it cannot be the only way to configure this.
+    if let Some(id) = crate::secrets::get(&client_account(provider_id)) {
+        return Ok(id);
+    }
     std::env::var(p.client_id_env).map_err(|_| CommandError {
         kind: "oauthConfig".to_string(),
         message: format!(
-            "{} is not set. Register an OAuth client (desktop/loopback) and set this env var.",
+            "No OAuth client id for {provider_id}. Register a desktop/loopback client with the \
+             provider and paste its client id in Settings > Calendar, or set {} when running from \
+             a terminal.",
             p.client_id_env
         ),
     })
@@ -144,7 +189,7 @@ fn tokens_from_resp(
 /// completes (or a timeout).
 pub fn connect(app: &tauri::AppHandle, provider_id: &str) -> Result<(), CommandError> {
     let p = provider(provider_id).ok_or_else(|| CommandError::internal("unknown provider"))?;
-    let client_id = client_id(&p)?;
+    let client_id = client_id(&p, provider_id)?;
 
     let listener =
         TcpListener::bind("127.0.0.1:0").map_err(|e| CommandError::internal(e.to_string()))?;
@@ -288,7 +333,7 @@ fn access_token(provider_id: &str) -> Result<String, CommandError> {
         kind: "notConnected".to_string(),
         message: "no refresh token; please reconnect".to_string(),
     })?;
-    let client_id = client_id(&p)?;
+    let client_id = client_id(&p, provider_id)?;
     let resp: serde_json::Value = reqwest::blocking::Client::new()
         .post(p.token_url)
         .form(&[

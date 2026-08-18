@@ -43,6 +43,9 @@
   },
   "calendar": {
     "calendarsDesc": "Abonnements en lecture seule – Google, Outlook ou n'importe quelle URL ICS (y compris les liens iCal secrets).",
+    "clientIdHelp": "Novalis est distribué sans identifiants OAuth. Enregistrez un client de bureau (loopback) auprès du fournisseur et collez son ID client ici — ce n'est pas un secret et il reste sur cet appareil.",
+    "clientIdLabel": "ID client OAuth pour {{provider}}",
+    "clientIdPlaceholder": "ID client OAuth {{provider}}",
     "connectProvider": "Se connecter à {{provider}}",
     "duration": {
       "desc": "Durée d'un événement nouvellement créé.",
@@ -177,6 +180,7 @@
       "desc": "Suit des flux de calendrier .ics en lecture seule.",
       "label": "Abonnements de calendrier"
     },
+    "learnMoreAria": "Ouvrir « {{feature}} » dans le guide des fonctionnalités",
     "math": {
       "aria": "Basculer le rendu des maths",
       "desc": "Affiche les formules $en ligne$ et $$bloc$$.",
@@ -218,8 +222,8 @@
       "label": "Vues de requête"
     },
     "reindexOffer": {
-      "text": "Les notes existantes nécessitent une réindexation pour capter leurs id de bloc.",
-      "action": "Réindexer maintenant"
+      "action": "Réindexer maintenant",
+      "text": "Les notes existantes nécessitent une réindexation pour capter leurs id de bloc."
     },
     "relatedNotes": {
       "aria": "Basculer les notes associées",
@@ -244,29 +248,29 @@
     "sectionWorkspaceDesc": "Masque des vues entières pour une app plus légère — les notes restent toujours.",
     "storage": {
       "action": "Supprimer",
-      "freed": "{{mb}} Mo libérés.",
-      "freedRows": "{{n}} entrées supprimées.",
       "embeddings": {
-        "label": "Index sémantique",
-        "desc": "Vecteurs de notes stockés plus le cache d'environ 130 Mo du modèle local. Reconstructible à tout moment dans Réglages › IA.",
         "aria": "Supprimer l'index sémantique",
+        "confirmBody": "Supprime tous les vecteurs de notes stockés et le cache du modèle local (tous les coffres partagent le modèle). La reconstruction ré-encode chaque note.",
         "confirmTitle": "Supprimer l'index sémantique ?",
-        "confirmBody": "Supprime tous les vecteurs de notes stockés et le cache du modèle local (tous les coffres partagent le modèle). La reconstruction ré-encode chaque note."
+        "desc": "Vecteurs de notes stockés plus le cache d'environ 130 Mo du modèle local. Reconstructible à tout moment dans Réglages › IA.",
+        "label": "Index sémantique"
       },
       "entities": {
-        "label": "Graphe d'entités",
-        "desc": "Les personnes, lieux et sujets extraits. Une nouvelle extraction consomme des jetons.",
         "aria": "Supprimer le graphe d'entités",
+        "confirmBody": "Supprime toutes les entités et mentions extraites. Les notes restent intactes ; ré-extraire consomme des jetons.",
         "confirmTitle": "Supprimer le graphe d'entités ?",
-        "confirmBody": "Supprime toutes les entités et mentions extraites. Les notes restent intactes ; ré-extraire consomme des jetons."
+        "desc": "Les personnes, lieux et sujets extraits. Une nouvelle extraction consomme des jetons.",
+        "label": "Graphe d'entités"
       },
+      "freed": "{{mb}} Mo libérés.",
+      "freedRows": "{{n}} entrées supprimées.",
       "voiceModel": {
-        "label": "Modèle vocal",
+        "aria": "Supprimer le modèle vocal",
+        "confirmBody": "Supprime le modèle de transcription téléchargé (partagé par tous les coffres). La prochaine transcription le retéléchargera (~142 Mo).",
+        "confirmTitle": "Supprimer le modèle vocal ?",
         "desc": "Non téléchargé.",
         "descDownloaded": "{{mb}} Mo sur le disque. Il sera retéléchargé à la prochaine transcription.",
-        "aria": "Supprimer le modèle vocal",
-        "confirmTitle": "Supprimer le modèle vocal ?",
-        "confirmBody": "Supprime le modèle de transcription téléchargé (partagé par tous les coffres). La prochaine transcription le retéléchargera (~142 Mo)."
+        "label": "Modèle vocal"
       }
     },
     "tagAutocomplete": {
@@ -308,8 +312,7 @@
       "aria": "Basculer le bilan hebdomadaire IA",
       "desc": "Un retour sur votre semaine rédigé par l'IA ; le résumé simple reste disponible sans elle.",
       "label": "Bilan hebdomadaire IA"
-    },
-    "learnMoreAria": "Ouvrir « {{feature}} » dans le guide des fonctionnalités"
+    }
   },
   "general": {
     "defaultTaskView": {
@@ -327,12 +330,12 @@
     "sidebar": {
       "title": "Barre latérale"
     },
-    "startup": {
-      "title": "Démarrage"
-    },
     "startView": {
       "desc": "Vue qui s'ouvre au lancement de Novalis.",
       "label": "Vue de démarrage"
+    },
+    "startup": {
+      "title": "Démarrage"
     },
     "strategy": {
       "activeNote": "Note active",
@@ -368,23 +371,23 @@
   },
   "keybindings": {
     "cheatsheet": "Aide-mémoire",
-    "help": "Guide des fonctionnalités",
+    "closeTab": "Fermer l'onglet",
     "commandPalette": "Palette de commandes",
+    "focusPaneLeft": "Panneau précédent",
+    "focusPaneRight": "Panneau suivant",
+    "help": "Guide des fonctionnalités",
     "navBack": "Précédent",
     "navForward": "Suivant",
+    "nextTab": "Onglet suivant",
     "pressKeys": "Appuyer sur les touches…",
+    "prevTab": "Onglet précédent",
     "reset": "Réinitialiser",
     "search": "Rechercher",
     "settings": "Paramètres",
-    "title": "Raccourcis clavier",
-    "toggleSidebar": "Basculer la barre latérale",
-    "closeTab": "Fermer l'onglet",
-    "nextTab": "Onglet suivant",
-    "prevTab": "Onglet précédent",
-    "splitRight": "Scinder à droite",
     "splitDown": "Scinder vers le bas",
-    "focusPaneLeft": "Panneau précédent",
-    "focusPaneRight": "Panneau suivant"
+    "splitRight": "Scinder à droite",
+    "title": "Raccourcis clavier",
+    "toggleSidebar": "Basculer la barre latérale"
   },
   "language": {
     "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",
@@ -421,77 +424,38 @@
     "sectionRail": "Barre d'activité"
   },
   "plugins": {
-    "empty": "Aucun plugin installé. Placer un dossier de plugin dans <2>.novalis/plugins/</2> dans le Vault (voir PLUGINS.md), puis rouvrir les paramètres.",
-    "enableAria": "Activer {{name}}",
-    "loadFailed": "Échec du chargement du plugin {{id}} : {{error}}",
-    "section": "Plugins",
     "apiMismatch": "{{id}} a été écrit pour l'API de plugins {{declared}} ; cette version de Novalis fournit l'API {{current}}. Il n'a pas été chargé.",
     "cap": {
       "notesRead": "Lire toutes les notes de ce Vault",
       "notesWrite": "Créer de nouvelles notes n'importe où dans le Vault",
+      "search": "Lancer des recherches plein texte dans le Vault",
       "tasksRead": "Lire toutes les tâches de ce Vault",
-      "tasksWrite": "Créer des tâches",
-      "search": "Lancer des recherches plein texte dans le Vault"
+      "tasksWrite": "Créer des tâches"
     },
     "consent": {
-      "title": "Activer {{name}} ?",
-      "reviewTitle": "{{name}} demande plus d'accès",
-      "intro": "L'activation exécute le code de ce plugin dans Novalis. N'accordez que l'accès dont il a besoin, et uniquement aux plugins de confiance.",
-      "reviewIntro": "Ce plugin demande désormais un accès que vous n'avez pas accordé. Tant qu'il ne l'est pas, ces appels sont refusés.",
-      "requests": "Accès demandé",
-      "none": "Ce plugin ne demande aucun accès au Vault. Il peut seulement ajouter des commandes et afficher des messages.",
-      "scope": "L'accès vaut par plugin et pour tout le Vault : un plugin autorisé à accéder aux notes peut lire n'importe laquelle et en créer de nouvelles n'importe où. Désactivez le plugin pour tout révoquer.",
-      "newBadge": "nouveau",
       "confirm": "Activer et accorder l'accès",
-      "confirmReview": "Mettre à jour l'accès"
+      "confirmReview": "Mettre à jour l'accès",
+      "intro": "L'activation exécute le code de ce plugin dans Novalis. N'accordez que l'accès dont il a besoin, et uniquement aux plugins de confiance.",
+      "newBadge": "nouveau",
+      "none": "Ce plugin ne demande aucun accès au Vault. Il peut seulement ajouter des commandes et afficher des messages.",
+      "requests": "Accès demandé",
+      "reviewIntro": "Ce plugin demande désormais un accès que vous n'avez pas accordé. Tant qu'il ne l'est pas, ces appels sont refusés.",
+      "reviewTitle": "{{name}} demande plus d'accès",
+      "scope": "L'accès vaut par plugin et pour tout le Vault : un plugin autorisé à accéder aux notes peut lire n'importe laquelle et en créer de nouvelles n'importe où. Désactivez le plugin pour tout révoquer.",
+      "title": "Activer {{name}} ?"
     },
+    "empty": "Aucun plugin installé. Placer un dossier de plugin dans <2>.novalis/plugins/</2> dans le Vault (voir PLUGINS.md), puis rouvrir les paramètres.",
+    "enableAria": "Activer {{name}}",
     "granted": "Accordé : {{caps}}",
     "grantedNone": "Activé sans accès au Vault",
+    "incompatible": "Nécessite l'API de plugins {{declared}} — cette version de Novalis fournit la {{current}}.",
+    "loadFailed": "Échec du chargement du plugin {{id}} : {{error}}",
     "requests": "Demande : {{caps}}",
     "requestsNone": "Ne demande aucun accès au Vault",
     "review": "Vérifier le nouvel accès : {{caps}}",
-    "incompatible": "Nécessite l'API de plugins {{declared}} — cette version de Novalis fournit la {{current}}."
+    "section": "Plugins"
   },
   "sync": {
-    "p2p": {
-      "desc": "Synchronisez directement entre vos propres appareils, sans serveur. Le contenu des fichiers est chiffré de bout en bout, de sorte que seuls vos appareils jumelés peuvent le lire. Une alternative facultative à la synchronisation Git.",
-      "disabledHint": "Activez la synchro d'appareils dans Réglages › Fonctionnalités pour appairer des appareils et synchroniser.",
-      "error": "Échec de la synchronisation : {{message}}",
-      "outcome": {
-        "conflicts": "{{n}} fichier(s) ont divergé et ont été laissés pour résolution dans la vue des conflits",
-        "noPeers": "Jumelez d’abord un appareil",
-        "notConfigured": "Configurez d’abord la synchronisation pair-à-pair",
-        "skippedOversize": "{{n}} fichier(s) ignoré(s) — plus volumineux que la limite de synchronisation de 64 Mio",
-        "synced": "Synchronisé — {{taken}} reçu(s), {{sent}} envoyé(s)",
-        "unreachable": "Aucun appareil jumelé n’était joignable — réessayez lorsque les deux sont en ligne",
-        "upToDate": "À jour"
-      },
-      "pair": {
-        "copied": "Copié",
-        "copy": "Copier le code",
-        "desc": "Créez un code sur un appareil, puis collez-le sur l’autre. Quiconque possède le code peut lire ce coffre — partagez-le en privé.",
-        "generate": "Créer un code de jumelage",
-        "joinBtn": "Jumeler",
-        "joinLabel": "Vous avez un code d’un autre appareil ?",
-        "joinPlaceholder": "Collez un code de jumelage…",
-        "ticketLabel": "Code de jumelage — copiez-le sur votre autre appareil",
-        "title": "Jumeler un appareil"
-      },
-      "peers": {
-        "lastSynced": "dernière synchro {{when}}",
-        "never": "jamais synchronisé",
-        "none": "Aucun appareil jumelé pour l’instant",
-        "title": "Appareils jumelés"
-      },
-      "status": {
-        "notConfigured": "Pas encore configuré",
-        "offline": "Hors ligne",
-        "online": "En ligne",
-        "thisDevice": "Cet appareil : {{id}}"
-      },
-      "syncNow": "Synchroniser maintenant",
-      "title": "Synchronisation pair-à-pair (chiffrée de bout en bout)"
-    },
     "authorEmail": {
       "desc": "Enregistré comme e-mail de l'auteur du commit.",
       "label": "E-mail de l'auteur"
@@ -538,6 +502,45 @@
       "pulled": "{{behind}} commit(s) récupérés",
       "pushed": "{{ahead}} commit(s) envoyés",
       "upToDate": "À jour"
+    },
+    "p2p": {
+      "desc": "Synchronisez directement entre vos propres appareils, sans serveur. Le contenu des fichiers est chiffré de bout en bout, de sorte que seuls vos appareils jumelés peuvent le lire. Une alternative facultative à la synchronisation Git.",
+      "disabledHint": "Activez la synchro d'appareils dans Réglages › Fonctionnalités pour appairer des appareils et synchroniser.",
+      "error": "Échec de la synchronisation : {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} fichier(s) ont divergé et ont été laissés pour résolution dans la vue des conflits",
+        "noPeers": "Jumelez d’abord un appareil",
+        "notConfigured": "Configurez d’abord la synchronisation pair-à-pair",
+        "skippedOversize": "{{n}} fichier(s) ignoré(s) — plus volumineux que la limite de synchronisation de 64 Mio",
+        "synced": "Synchronisé — {{taken}} reçu(s), {{sent}} envoyé(s)",
+        "unreachable": "Aucun appareil jumelé n’était joignable — réessayez lorsque les deux sont en ligne",
+        "upToDate": "À jour"
+      },
+      "pair": {
+        "copied": "Copié",
+        "copy": "Copier le code",
+        "desc": "Créez un code sur un appareil, puis collez-le sur l’autre. Quiconque possède le code peut lire ce coffre — partagez-le en privé.",
+        "generate": "Créer un code de jumelage",
+        "joinBtn": "Jumeler",
+        "joinLabel": "Vous avez un code d’un autre appareil ?",
+        "joinPlaceholder": "Collez un code de jumelage…",
+        "ticketLabel": "Code de jumelage — copiez-le sur votre autre appareil",
+        "title": "Jumeler un appareil"
+      },
+      "peers": {
+        "lastSynced": "dernière synchro {{when}}",
+        "never": "jamais synchronisé",
+        "none": "Aucun appareil jumelé pour l’instant",
+        "title": "Appareils jumelés"
+      },
+      "status": {
+        "notConfigured": "Pas encore configuré",
+        "offline": "Hors ligne",
+        "online": "En ligne",
+        "thisDevice": "Cet appareil : {{id}}"
+      },
+      "syncNow": "Synchroniser maintenant",
+      "title": "Synchronisation pair-à-pair (chiffrée de bout en bout)"
     },
     "remote": {
       "aheadBehind": "{{ahead}} à envoyer · {{behind}} à récupérer",

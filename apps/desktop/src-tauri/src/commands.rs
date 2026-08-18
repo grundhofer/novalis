@@ -1928,6 +1928,31 @@ pub fn oauth_status(provider: String) -> bool {
     crate::oauth::is_connected(&provider)
 }
 
+/// Whether this provider CAN be connected — i.e. a client id is available.
+/// Distinct from `oauth_status`, which reports whether it IS connected. The UI
+/// needs both: an installed app has no environment variables, so without a
+/// stored client id the connect button is a button that can only fail.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_configured(provider: String) -> bool {
+    crate::oauth::is_configured(&provider)
+}
+
+/// The stored client id, so settings can show what is configured. Returns the
+/// stored value only, never the developer env fallback.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_client_id(provider: String) -> Option<String> {
+    crate::oauth::stored_client_id(&provider)
+}
+
+/// Store (or, with an empty string, clear) the client id for a provider.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_set_client_id(provider: String, client_id: String) -> CmdResult<()> {
+    crate::oauth::set_client_id(&provider, &client_id)
+}
+
 /// Disconnect a provider: clear tokens, its source, and its cached events.
 #[tauri::command]
 #[specta::specta]

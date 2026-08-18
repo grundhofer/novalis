@@ -10,6 +10,10 @@ import { useSettings } from "../../../stores/settingsStore";
 import { NumberField, SegmentedControl, SettingRow, SettingsSection, TextField } from "../../ui";
 import { PanelLoading } from "./PanelLoading";
 
+// Provider ids are logic keys, not UI strings — the visible label comes from
+// `calendar.connectProvider`. Hoisted so the JSX carries no literal.
+const PROVIDERS = ["google", "outlook"] as const;
+
 export function CalendarPanel() {
   const { t } = useTranslation(["settings", "common"]);
   const prefs = useSettings((s) => s.prefs);
@@ -17,6 +21,11 @@ export function CalendarPanel() {
   const [srcName, setSrcName] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
   const [calMsg, setCalMsg] = useState<string | null>(null);
+  // Which providers can be connected at all. An installed app has no
+  // environment variables, so without a stored client id "Connect" is a button
+  // whose only outcome is a red line — it should not be offered.
+  const [configured, setConfigured] = useState<Record<string, boolean>>({});
+  const [clientIds, setClientIds] = useState<Record<string, string>>({});
   // Feature-off hides only the "add" affordances (connect buttons / subscribe
   // form); already-configured sources stay listed so refresh/remove keep
   // working — removal is the cleanup path even with the feature off.
@@ -24,8 +33,15 @@ export function CalendarPanel() {
   const icsSubscriptionsOn = useFeature("icsSubscriptions");
 
   const reload = () => void api.listCalendarSources().then(setSources).catch(() => {});
+  const reloadOauth = () => {
+    for (const p of PROVIDERS) {
+      void api.oauthConfigured(p).then((ok) => setConfigured((c) => ({ ...c, [p]: ok })));
+      void api.oauthClientId(p).then((id) => setClientIds((c) => ({ ...c, [p]: id ?? "" })));
+    }
+  };
   useEffect(() => {
     reload();
+    reloadOauth();
   }, []);
 
   if (!prefs) return <PanelLoading />;
@@ -39,6 +55,14 @@ export function CalendarPanel() {
       .oauthBegin(p)
       .then(() => api.refreshCalendarSource(p))
       .then(reload)
+      .catch((e) => setCalMsg(displayError(e)));
+  };
+
+  const saveClientId = (p: string) => {
+    setCalMsg(null);
+    void api
+      .oauthSetClientId(p, clientIds[p] ?? "")
+      .then(reloadOauth)
       .catch((e) => setCalMsg(displayError(e)));
   };
 
@@ -124,17 +148,39 @@ export function CalendarPanel() {
         description={t("calendar.calendarsDesc")}
       >
         {calendarSyncOn && (
-          <div className="mb-3 flex gap-2">
-            {/* eslint-disable-next-line i18next/no-literal-string -- provider ids (logic keys); label via connectProvider */}
-            {(["google", "outlook"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => connect(p)}
-                className="rounded-lg border border-border-strong px-2.5 py-1 text-xs capitalize text-fg-muted transition-colors hover:bg-hover"
-              >
-                {t("calendar.connectProvider", { provider: p })}
-              </button>
+          <div className="mb-3 space-y-2">
+            {PROVIDERS.map((p) => (
+              <div key={p} className="flex items-center gap-2">
+                {configured[p] ? (
+                  <button
+                    onClick={() => connect(p)}
+                    className="rounded-lg border border-border-strong px-2.5 py-1 text-xs capitalize text-fg-muted transition-colors hover:bg-hover"
+                  >
+                    {t("calendar.connectProvider", { provider: p })}
+                  </button>
+                ) : (
+                  <>
+                    <input
+                      value={clientIds[p] ?? ""}
+                      onChange={(e) => setClientIds((c) => ({ ...c, [p]: e.target.value }))}
+                      placeholder={t("calendar.clientIdPlaceholder", { provider: p })}
+                      aria-label={t("calendar.clientIdLabel", { provider: p })}
+                      className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs"
+                    />
+                    <button
+                      onClick={() => saveClientId(p)}
+                      disabled={!(clientIds[p] ?? "").trim()}
+                      className="rounded-lg border border-border-strong px-2.5 py-1 text-xs text-fg-muted transition-colors hover:bg-hover disabled:opacity-50"
+                    >
+                      {t("common:save")}
+                    </button>
+                  </>
+                )}
+              </div>
             ))}
+            {PROVIDERS.some((p) => !configured[p]) && (
+              <p className="text-xs text-fg-faint">{t("calendar.clientIdHelp")}</p>
+            )}
           </div>
         )}
         {calMsg && <p className="mb-2 text-xs text-danger">{calMsg}</p>}
