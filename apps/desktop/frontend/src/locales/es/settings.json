@@ -43,6 +43,9 @@
   },
   "calendar": {
     "calendarsDesc": "Suscripciones de solo lectura – Google, Outlook o cualquier URL ICS (incluidos los enlaces iCal secretos).",
+    "clientIdHelp": "Novalis se distribuye sin credenciales OAuth. Registra un cliente de escritorio (loopback) con el proveedor y pega aquí su ID de cliente: no es un secreto y permanece en este equipo.",
+    "clientIdLabel": "ID de cliente OAuth para {{provider}}",
+    "clientIdPlaceholder": "ID de cliente OAuth de {{provider}}",
     "connectProvider": "Conectar con {{provider}}",
     "duration": {
       "desc": "Duración de un evento recién creado.",
@@ -177,6 +180,7 @@
       "desc": "Sigue fuentes de calendario .ics de solo lectura.",
       "label": "Suscripciones de calendario"
     },
+    "learnMoreAria": "Abrir «{{feature}}» en la guía de funciones",
     "math": {
       "aria": "Alternar renderizado de matemáticas",
       "desc": "Muestra fórmulas $en línea$ y de $$bloque$$.",
@@ -218,8 +222,8 @@
       "label": "Vistas de consulta"
     },
     "reindexOffer": {
-      "text": "Las notas existentes necesitan una reindexación para captar sus id de bloque.",
-      "action": "Reindexar ahora"
+      "action": "Reindexar ahora",
+      "text": "Las notas existentes necesitan una reindexación para captar sus id de bloque."
     },
     "relatedNotes": {
       "aria": "Alternar notas relacionadas",
@@ -244,29 +248,29 @@
     "sectionWorkspaceDesc": "Oculta vistas completas para una app más ligera; las notas siempre se quedan.",
     "storage": {
       "action": "Borrar",
-      "freed": "{{mb}} MB liberados.",
-      "freedRows": "{{n}} entradas eliminadas.",
       "embeddings": {
-        "label": "Índice semántico",
-        "desc": "Vectores de notas almacenados más la caché de ~130 MB del modelo local. Se puede reconstruir en Ajustes › IA.",
         "aria": "Borrar el índice semántico",
+        "confirmBody": "Elimina todos los vectores de notas almacenados y la caché del modelo local (todos los baúles comparten el modelo). Reconstruir vuelve a procesar cada nota.",
         "confirmTitle": "¿Borrar el índice semántico?",
-        "confirmBody": "Elimina todos los vectores de notas almacenados y la caché del modelo local (todos los baúles comparten el modelo). Reconstruir vuelve a procesar cada nota."
+        "desc": "Vectores de notas almacenados más la caché de ~130 MB del modelo local. Se puede reconstruir en Ajustes › IA.",
+        "label": "Índice semántico"
       },
       "entities": {
-        "label": "Grafo de entidades",
-        "desc": "Las personas, lugares y temas extraídos. Volver a extraer consume tokens.",
         "aria": "Borrar el grafo de entidades",
+        "confirmBody": "Elimina todas las entidades y menciones extraídas. Las notas quedan intactas; volver a extraer consume tokens.",
         "confirmTitle": "¿Borrar el grafo de entidades?",
-        "confirmBody": "Elimina todas las entidades y menciones extraídas. Las notas quedan intactas; volver a extraer consume tokens."
+        "desc": "Las personas, lugares y temas extraídos. Volver a extraer consume tokens.",
+        "label": "Grafo de entidades"
       },
+      "freed": "{{mb}} MB liberados.",
+      "freedRows": "{{n}} entradas eliminadas.",
       "voiceModel": {
-        "label": "Modelo de voz",
+        "aria": "Borrar el modelo de voz",
+        "confirmBody": "Elimina el modelo de transcripción descargado (compartido por todos los baúles). La próxima transcripción lo descargará de nuevo (~142 MB).",
+        "confirmTitle": "¿Borrar el modelo de voz?",
         "desc": "No descargado.",
         "descDownloaded": "{{mb}} MB en disco. Se vuelve a descargar en la próxima transcripción.",
-        "aria": "Borrar el modelo de voz",
-        "confirmTitle": "¿Borrar el modelo de voz?",
-        "confirmBody": "Elimina el modelo de transcripción descargado (compartido por todos los baúles). La próxima transcripción lo descargará de nuevo (~142 MB)."
+        "label": "Modelo de voz"
       }
     },
     "tagAutocomplete": {
@@ -308,8 +312,7 @@
       "aria": "Alternar revisión semanal con IA",
       "desc": "Un repaso de tu semana escrito por la IA; el resumen simple sigue disponible sin ella.",
       "label": "Revisión semanal con IA"
-    },
-    "learnMoreAria": "Abrir «{{feature}}» en la guía de funciones"
+    }
   },
   "general": {
     "defaultTaskView": {
@@ -327,12 +330,12 @@
     "sidebar": {
       "title": "Barra lateral"
     },
-    "startup": {
-      "title": "Inicio"
-    },
     "startView": {
       "desc": "Vista que se abre al iniciar Novalis.",
       "label": "Vista inicial"
+    },
+    "startup": {
+      "title": "Inicio"
     },
     "strategy": {
       "activeNote": "Nota activa",
@@ -368,23 +371,23 @@
   },
   "keybindings": {
     "cheatsheet": "Resumen de atajos",
-    "help": "Guía de funciones",
+    "closeTab": "Cerrar pestaña",
     "commandPalette": "Paleta de comandos",
+    "focusPaneLeft": "Panel anterior",
+    "focusPaneRight": "Panel siguiente",
+    "help": "Guía de funciones",
     "navBack": "Atrás",
     "navForward": "Adelante",
+    "nextTab": "Pestaña siguiente",
     "pressKeys": "Pulsa las teclas…",
+    "prevTab": "Pestaña anterior",
     "reset": "Restablecer",
     "search": "Buscar",
     "settings": "Ajustes",
-    "title": "Atajos de teclado",
-    "toggleSidebar": "Alternar barra lateral",
-    "closeTab": "Cerrar pestaña",
-    "nextTab": "Pestaña siguiente",
-    "prevTab": "Pestaña anterior",
-    "splitRight": "Dividir a la derecha",
     "splitDown": "Dividir abajo",
-    "focusPaneLeft": "Panel anterior",
-    "focusPaneRight": "Panel siguiente"
+    "splitRight": "Dividir a la derecha",
+    "title": "Atajos de teclado",
+    "toggleSidebar": "Alternar barra lateral"
   },
   "language": {
     "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",
@@ -421,77 +424,38 @@
     "sectionRail": "Barra de actividad"
   },
   "plugins": {
-    "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",
-    "enableAria": "Activar {{name}}",
-    "loadFailed": "Error al cargar el plugin {{id}}: {{error}}",
-    "section": "Plugins",
     "apiMismatch": "{{id}} se escribió para la API de plugins {{declared}}; esta versión de Novalis ofrece la API {{current}}. No se cargó.",
     "cap": {
       "notesRead": "Leer todas las notas de este Vault",
       "notesWrite": "Crear notas nuevas en cualquier parte del Vault",
+      "search": "Ejecutar búsquedas de texto completo en el Vault",
       "tasksRead": "Leer todas las tareas de este Vault",
-      "tasksWrite": "Crear tareas",
-      "search": "Ejecutar búsquedas de texto completo en el Vault"
+      "tasksWrite": "Crear tareas"
     },
     "consent": {
-      "title": "¿Activar {{name}}?",
-      "reviewTitle": "{{name}} solicita más acceso",
-      "intro": "Al activarlo, Novalis ejecuta el código de este plugin. Concede solo el acceso que necesite, y solo a plugins en los que confíes.",
-      "reviewIntro": "Este plugin solicita ahora un acceso que no has concedido. Hasta que lo concedas, esas llamadas se rechazan.",
-      "requests": "Acceso solicitado",
-      "none": "Este plugin no solicita acceso al Vault. Solo puede añadir comandos y mostrar mensajes.",
-      "scope": "El acceso es por plugin y abarca todo el Vault: un plugin con acceso a las notas puede leer cualquiera de ellas y crear notas nuevas en cualquier parte. Desactiva el plugin para revocarlo todo.",
-      "newBadge": "nuevo",
       "confirm": "Activar y conceder acceso",
-      "confirmReview": "Actualizar acceso"
+      "confirmReview": "Actualizar acceso",
+      "intro": "Al activarlo, Novalis ejecuta el código de este plugin. Concede solo el acceso que necesite, y solo a plugins en los que confíes.",
+      "newBadge": "nuevo",
+      "none": "Este plugin no solicita acceso al Vault. Solo puede añadir comandos y mostrar mensajes.",
+      "requests": "Acceso solicitado",
+      "reviewIntro": "Este plugin solicita ahora un acceso que no has concedido. Hasta que lo concedas, esas llamadas se rechazan.",
+      "reviewTitle": "{{name}} solicita más acceso",
+      "scope": "El acceso es por plugin y abarca todo el Vault: un plugin con acceso a las notas puede leer cualquiera de ellas y crear notas nuevas en cualquier parte. Desactiva el plugin para revocarlo todo.",
+      "title": "¿Activar {{name}}?"
     },
+    "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",
+    "enableAria": "Activar {{name}}",
     "granted": "Concedido: {{caps}}",
     "grantedNone": "Activado sin acceso al Vault",
+    "incompatible": "Necesita la API de plugins {{declared}}: esta versión de Novalis ofrece la {{current}}.",
+    "loadFailed": "Error al cargar el plugin {{id}}: {{error}}",
     "requests": "Solicita: {{caps}}",
     "requestsNone": "No solicita acceso al Vault",
     "review": "Revisar el nuevo acceso: {{caps}}",
-    "incompatible": "Necesita la API de plugins {{declared}}: esta versión de Novalis ofrece la {{current}}."
+    "section": "Plugins"
   },
   "sync": {
-    "p2p": {
-      "desc": "Sincroniza directamente entre tus propios dispositivos, sin servidor. El contenido de los archivos está cifrado de extremo a extremo, de modo que solo tus dispositivos emparejados pueden leerlo. Una alternativa opcional a la sincronización con Git.",
-      "disabledHint": "Activa la sincronización entre dispositivos en Ajustes › Funciones para emparejar dispositivos y sincronizar.",
-      "error": "Error de sincronización: {{message}}",
-      "outcome": {
-        "conflicts": "{{n}} archivo(s) divergieron y se dejaron para que los resuelvas en la vista de conflictos",
-        "noPeers": "Empareja primero un dispositivo",
-        "notConfigured": "Configura primero la sincronización entre pares",
-        "skippedOversize": "{{n}} archivo(s) omitido(s) — superan el límite de sincronización de 64 MiB",
-        "synced": "Sincronizado — {{taken}} recibido(s), {{sent}} enviado(s)",
-        "unreachable": "Ningún dispositivo emparejado estaba accesible — inténtalo de nuevo cuando ambos estén en línea",
-        "upToDate": "Al día"
-      },
-      "pair": {
-        "copied": "Copiado",
-        "copy": "Copiar código",
-        "desc": "Crea un código en un dispositivo y luego pégalo en el otro. Cualquiera con el código puede leer esta bóveda — compártelo en privado.",
-        "generate": "Crear código de emparejamiento",
-        "joinBtn": "Emparejar",
-        "joinLabel": "¿Tienes un código de otro dispositivo?",
-        "joinPlaceholder": "Pega un código de emparejamiento…",
-        "ticketLabel": "Código de emparejamiento — cópialo en tu otro dispositivo",
-        "title": "Emparejar un dispositivo"
-      },
-      "peers": {
-        "lastSynced": "última sincronización {{when}}",
-        "never": "nunca sincronizado",
-        "none": "Aún no hay dispositivos emparejados",
-        "title": "Dispositivos emparejados"
-      },
-      "status": {
-        "notConfigured": "Aún no configurado",
-        "offline": "Sin conexión",
-        "online": "En línea",
-        "thisDevice": "Este dispositivo: {{id}}"
-      },
-      "syncNow": "Sincronizar ahora",
-      "title": "Sincronización entre pares (cifrada de extremo a extremo)"
-    },
     "authorEmail": {
       "desc": "Se registra como correo del autor del commit.",
       "label": "Correo del autor"
@@ -538,6 +502,45 @@
       "pulled": "{{behind}} commit(s) recibidos",
       "pushed": "{{ahead}} commit(s) enviados",
       "upToDate": "Actualizado"
+    },
+    "p2p": {
+      "desc": "Sincroniza directamente entre tus propios dispositivos, sin servidor. El contenido de los archivos está cifrado de extremo a extremo, de modo que solo tus dispositivos emparejados pueden leerlo. Una alternativa opcional a la sincronización con Git.",
+      "disabledHint": "Activa la sincronización entre dispositivos en Ajustes › Funciones para emparejar dispositivos y sincronizar.",
+      "error": "Error de sincronización: {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} archivo(s) divergieron y se dejaron para que los resuelvas en la vista de conflictos",
+        "noPeers": "Empareja primero un dispositivo",
+        "notConfigured": "Configura primero la sincronización entre pares",
+        "skippedOversize": "{{n}} archivo(s) omitido(s) — superan el límite de sincronización de 64 MiB",
+        "synced": "Sincronizado — {{taken}} recibido(s), {{sent}} enviado(s)",
+        "unreachable": "Ningún dispositivo emparejado estaba accesible — inténtalo de nuevo cuando ambos estén en línea",
+        "upToDate": "Al día"
+      },
+      "pair": {
+        "copied": "Copiado",
+        "copy": "Copiar código",
+        "desc": "Crea un código en un dispositivo y luego pégalo en el otro. Cualquiera con el código puede leer esta bóveda — compártelo en privado.",
+        "generate": "Crear código de emparejamiento",
+        "joinBtn": "Emparejar",
+        "joinLabel": "¿Tienes un código de otro dispositivo?",
+        "joinPlaceholder": "Pega un código de emparejamiento…",
+        "ticketLabel": "Código de emparejamiento — cópialo en tu otro dispositivo",
+        "title": "Emparejar un dispositivo"
+      },
+      "peers": {
+        "lastSynced": "última sincronización {{when}}",
+        "never": "nunca sincronizado",
+        "none": "Aún no hay dispositivos emparejados",
+        "title": "Dispositivos emparejados"
+      },
+      "status": {
+        "notConfigured": "Aún no configurado",
+        "offline": "Sin conexión",
+        "online": "En línea",
+        "thisDevice": "Este dispositivo: {{id}}"
+      },
+      "syncNow": "Sincronizar ahora",
+      "title": "Sincronización entre pares (cifrada de extremo a extremo)"
     },
     "remote": {
       "aheadBehind": "{{ahead}} por enviar · {{behind}} por recibir",
