@@ -17,24 +17,24 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@novalis/editor": "workspace:*",
     "@novalis/ui": "workspace:*",
-    "@tanstack/react-virtual": "^3.14.5",
+    "@tanstack/react-virtual": "^3.14.10",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-notification": "^2",
     "d3-force": "^3.0.0",
-    "i18next": "^26.3.0",
-    "lucide-react": "^1.31.0",
+    "i18next": "^26.4.0",
+    "lucide-react": "^1.33.0",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-i18next": "^17.0.8",
-    "zustand": "^5.0.5"
+    "react-i18next": "^17.0.12",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.8",
     "@types/d3-force": "^3.0.10",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "eslint": "^10.8.1",
     "eslint-plugin-i18next": "^6.1.4",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -42,8 +42,8 @@
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.1.8",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.67.0",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }
