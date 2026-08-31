@@ -18,20 +18,20 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.8.0",
-    "@tiptap/core": "^3.30.0",
-    "@tiptap/extension-code-block-lowlight": "^3.30.0",
-    "@tiptap/extension-image": "^3.30.0",
-    "@tiptap/extension-link": "^3.30.0",
-    "@tiptap/extension-list": "^3.30.0",
-    "@tiptap/extension-table": "^3.30.0",
-    "@tiptap/extensions": "^3.30.0",
-    "@tiptap/pm": "^3.30.0",
-    "@tiptap/react": "^3.30.0",
-    "@tiptap/starter-kit": "^3.30.0",
-    "@tiptap/suggestion": "^3.30.0",
+    "@tiptap/core": "^3.30.5",
+    "@tiptap/extension-code-block-lowlight": "^3.30.5",
+    "@tiptap/extension-image": "^3.30.5",
+    "@tiptap/extension-link": "^3.30.5",
+    "@tiptap/extension-list": "^3.30.5",
+    "@tiptap/extension-table": "^3.30.5",
+    "@tiptap/extensions": "^3.30.5",
+    "@tiptap/pm": "^3.30.5",
+    "@tiptap/react": "^3.30.5",
+    "@tiptap/starter-kit": "^3.30.5",
+    "@tiptap/suggestion": "^3.30.5",
     "katex": "^0.18.4",
     "lowlight": "^3.3.0",
-    "mermaid": "^11.4.1",
+    "mermaid": "^11.17.2",
     "tiptap-markdown": "^0.9.0"
   },
   "peerDependencies": {
@@ -40,9 +40,9 @@
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.11"
   }
 }
