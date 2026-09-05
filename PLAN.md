@@ -657,6 +657,38 @@ Read-only preview (`Cmd-E`); board + note split; MCP server; hide-syntax live pr
 
 ## 13. Git cut-over procedure
 
+> **Revised 2026-09-05 — superseded by [`docs/cutover.sh`](docs/cutover.sh).**
+> The sequence below is kept as the record of what was planned. Two of its
+> assumptions did not survive contact with the live repository, and the fix
+> removes the bypass actor entirely:
+>
+> 1. **Step 0 assumed PR #94's four required checks could pass.** They cannot.
+>    `dependency audit` fails on RUSTSEC-2026-0258 (`h2`, unbounded empty DATA
+>    frames), an advisory published after that branch was last built, plus 20
+>    allowed unmaintained-crate warnings. Merging it on GitHub would have needed
+>    an admin override. The script merges it locally into `legacy` instead, with
+>    the reason in the merge commit.
+> 2. **Steps 1b and 5 opened a ~10-minute window with protection lowered.**
+>    Unnecessary. Ruleset 20518201 is scoped to `~DEFAULT_BRANCH`, not to the
+>    literal name `main`, so moving the default branch to `legacy` carries the
+>    protection with it and leaves the old `main` unprotected. The orphan is then
+>    force-pushed onto `main` rather than `main` being renamed, which is what
+>    required the bypass. No bypass actor is ever created.
+> 3. **Step 6's `--notes-file` would have replaced each release's body.** The
+>    original notes are part of what the AGPL's corresponding-source obligation
+>    hangs off, and they are the only changelog those binaries have. The script
+>    prepends a legacy banner and keeps the existing notes below a rule.
+>
+> The revised order is: freeze `legacy` (old main + PR #94) and tag it → close
+> the 5 open PRs → default branch to `legacy` → force-push the orphan to `main`
+> → wait for CI → default branch back to `main` → one ruleset `PUT` for the new
+> job names → relabel releases → prune 12 branches → repoint the old checkout.
+>
+> Already done: ruleset **22348468 "legacy protection"** (`deletion` +
+> `non_fast_forward` on `refs/heads/legacy`) was created ahead of the branch, so
+> it arms the instant `legacy` is pushed. Ruleset 20518201 is untouched and its
+> `bypass_actors` is still `[]`.
+
 Verified: git 2.54 `switch --orphan` (fails if a local branch of that name exists, hence the rename first), `gh repo edit --default-branch`, the GitHub branch-rename API semantics (retargets open PRs, keeps redirects), the ruleset `PUT` endpoint, and GitHub's rule that **renaming or changing a protected default branch requires a bypass actor when force pushes are blocked**. Dry-run the whole sequence on a scratch repository configured with the same two rules and no bypass actor (day 1); it must reproduce the refusal at step 2 without step 1b.
 
 ```sh
