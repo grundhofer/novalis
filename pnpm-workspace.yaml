@@ -1,0 +1,8 @@
+packages:
+  - "apps/desktop/ui"
+  - "packages/*"
+
+# pnpm 10+ refuses to run dependency build scripts unless allowed here.
+# esbuild (via Vite) is the one that needs its postinstall.
+allowBuilds:
+  esbuild: true

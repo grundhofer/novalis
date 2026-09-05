@@ -1,0 +1,12 @@
+{
+  "error": {
+    "candidates": [
+      "index.md",
+      "reading/index.md"
+    ],
+    "code": "ambiguous",
+    "hint": "use the vault-relative path instead of the stem",
+    "message": "ambiguous: index (2 candidates)",
+    "path": null
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": null,
+    "message": "error: unexpected argument '- ' found\n\n  tip: to pass '- ' as a value, use '-- - '\n\nUsage: novalis edit [OPTIONS] <--append <TEXT|->|--prepend <TEXT|->|--replace-section <HEADING>|--insert-after-section <HEADING>|--set-body <TEXT|->|--find <TEXT>> <NOTE>\n\nFor more information, try '--help'.",
+    "path": null
+  }
+}

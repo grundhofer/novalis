@@ -1,0 +1,28 @@
+# cargo-audit configuration.
+#
+# Without this section `cargo audit` exits 0 on a yanked crate — it treats
+# anything that is not a `vulnerability` as a warning. That is how a yanked
+# `spin` reached every asset of an old-repo release candidate with a green CI
+# run behind it. cargo-deny does not cover the gap either: ci.yml runs
+# `check licenses bans sources`, and yanked lives under `advisories`.
+#
+# `yanked` only. NOT `unsound`: Tauri's Linux stack (gtk 0.18, glib) carries
+# unsound-but-unreachable advisories with no fix available, so denying it would
+# pin CI red. `quiet` is a required field of this section; omit it and
+# cargo-audit dies with "missing field `quiet`" on every run.
+[output]
+deny = ["yanked"]
+quiet = false
+#
+# Accepted advisories — each entry needs a reason and a revisit condition.
+# Every justification here must be checkable by a stranger with the command
+# quoted next to it. If a claim stops being true, the entry goes, not the check.
+[advisories]
+ignore = [
+    # (empty) — nothing is accepted. When an entry is added, the shape is:
+    #
+    #   # RUSTSEC-YYYY-NNNN (<crate> <version>): <why it is unreachable or
+    #   # harmless here>. Check: `<command that proves the claim>`.
+    #   # Revisit when: <the condition under which this entry must go>.
+    #   "RUSTSEC-YYYY-NNNN",
+]

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "conflict",
+    "hint": "pass --expect with the real count, or narrow --find",
+    "message": "--find matched 5 time(s) in journal/2026-08-03.md, --expect asked for 1",
+    "path": "journal/2026-08-03.md"
+  }
+}

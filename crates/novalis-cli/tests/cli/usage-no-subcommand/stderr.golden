@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": null,
+    "message": "error: 'novalis' requires a subcommand but one was not provided\n  [subcommands: ls, cat, new, edit, meta, mv, rm, search, links, tags, relink, index, init, doctor, help, board, card, migrate, sync, skill]\n\nUsage: novalis [OPTIONS] <COMMAND>\n\nFor more information, try '--help'.",
+    "path": null
+  }
+}

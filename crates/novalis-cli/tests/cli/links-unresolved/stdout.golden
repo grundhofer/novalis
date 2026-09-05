@@ -1,0 +1,741 @@
+{
+  "items": [
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 35,
+          "path": "reading/index.md"
+        }
+      ],
+      "target": "Article: Against the Infinite Feed"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 34,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 31,
+          "path": "reading/rooms-with-doors.md"
+        },
+        {
+          "line": 25,
+          "path": "research/linking-vs-foldering.md"
+        },
+        {
+          "line": 25,
+          "path": "research/zettelkasten-and-para.md"
+        }
+      ],
+      "target": "Article: The Filing Cabinet Problem"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 31,
+          "path": "reading/article-against-infinite-feed.md"
+        },
+        {
+          "line": 33,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/slow-software.md"
+        }
+      ],
+      "target": "Article: What Latency Costs Attention"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 15,
+          "path": "journal/2026-08-05.md"
+        },
+        {
+          "line": 15,
+          "path": "journal/2026-08-10.md"
+        }
+      ],
+      "target": "Atlas design review"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 9,
+          "path": "journal/2026-08-03.md"
+        }
+      ],
+      "target": "Atlas kickoff"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 11,
+          "path": "journal/2026-08-10.md"
+        }
+      ],
+      "target": "Atlas onboarding scope cut"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 32,
+          "path": "projects/Atlas Next Steps.md"
+        }
+      ],
+      "target": "Atlas onboarding walkthrough"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 14,
+          "path": "research/conflict-resolution-patterns.md"
+        },
+        {
+          "line": 20,
+          "path": "research/local-first-software.md"
+        },
+        {
+          "line": 16,
+          "path": "research/sync-strategies-compared.md"
+        }
+      ],
+      "target": "CRDTs in Practice"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 19,
+          "path": "research/crdts-in-practice.md"
+        },
+        {
+          "line": 26,
+          "path": "research/offline-first-ux.md"
+        }
+      ],
+      "target": "Conflict Resolution Patterns"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 31,
+          "path": "reading/walden.md"
+        },
+        {
+          "line": 25,
+          "path": "research/conflict-resolution-patterns.md"
+        },
+        {
+          "line": 26,
+          "path": "research/local-first-software.md"
+        },
+        {
+          "line": 24,
+          "path": "research/the-cost-of-proprietary-formats.md"
+        }
+      ],
+      "target": "Data Ownership"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 17,
+          "path": "calendar/2026-08-06-design-system-sync.md"
+        },
+        {
+          "line": 9,
+          "path": "journal/2026-08-06.md"
+        }
+      ],
+      "target": "Design system sync"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 32,
+          "path": "reading/gardener-and-archivist.md"
+        },
+        {
+          "line": 28,
+          "path": "research/evergreen-notes.md"
+        }
+      ],
+      "target": "Digital Gardens"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 27,
+          "path": "projects/Harbor Docs Plan.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/cartographers-objection.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/gardener-and-archivist.md"
+        },
+        {
+          "line": 17,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 29,
+          "path": "reading/meditations.md"
+        },
+        {
+          "line": 24,
+          "path": "research/digital-gardens.md"
+        },
+        {
+          "line": 16,
+          "path": "research/spaced-repetition.md"
+        },
+        {
+          "line": 15,
+          "path": "research/zettelkasten-and-para.md"
+        }
+      ],
+      "target": "Evergreen Notes"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 17,
+          "path": "projects/Atlas Overview.md"
+        },
+        {
+          "line": 16,
+          "path": "projects/Harbor Plugin API.md"
+        },
+        {
+          "line": 25,
+          "path": "research/crdts-in-practice.md"
+        },
+        {
+          "line": 26,
+          "path": "research/digital-gardens.md"
+        },
+        {
+          "line": 24,
+          "path": "research/linking-vs-foldering.md"
+        },
+        {
+          "line": 25,
+          "path": "research/local-first-software.md"
+        },
+        {
+          "line": 27,
+          "path": "research/plain-text-durability.md"
+        },
+        {
+          "line": 24,
+          "path": "research/search-vs-browse.md"
+        }
+      ],
+      "target": "File Over App"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 17,
+          "path": "calendar/2026-08-05-harbor-release-review.md"
+        },
+        {
+          "line": 9,
+          "path": "journal/2026-08-05.md"
+        }
+      ],
+      "target": "Harbor release review"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 30,
+          "path": "projects/Harbor Next Steps.md"
+        }
+      ],
+      "target": "Harbor ship window"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 25,
+          "path": "projects/Harbor Command Design.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/article-filing-cabinet-problem.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/rooms-with-doors.md"
+        },
+        {
+          "line": 25,
+          "path": "research/digital-gardens.md"
+        },
+        {
+          "line": 25,
+          "path": "research/markdown-as-a-format.md"
+        },
+        {
+          "line": 21,
+          "path": "research/search-vs-browse.md"
+        },
+        {
+          "line": 23,
+          "path": "research/zettelkasten-and-para.md"
+        }
+      ],
+      "target": "Linking vs Foldering"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 20,
+          "path": "index.md"
+        },
+        {
+          "line": 33,
+          "path": "reading/slow-software.md"
+        },
+        {
+          "line": 25,
+          "path": "research/conflict-resolution-patterns.md"
+        },
+        {
+          "line": 14,
+          "path": "research/crdts-in-practice.md"
+        },
+        {
+          "line": 21,
+          "path": "research/data-ownership.md"
+        },
+        {
+          "line": 25,
+          "path": "research/file-over-app.md"
+        },
+        {
+          "line": 27,
+          "path": "research/offline-first-ux.md"
+        }
+      ],
+      "target": "Local-First Software"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 19,
+          "path": "projects/Harbor Overview.md"
+        },
+        {
+          "line": 27,
+          "path": "research/file-over-app.md"
+        },
+        {
+          "line": 26,
+          "path": "research/plain-text-durability.md"
+        },
+        {
+          "line": 25,
+          "path": "research/sync-strategies-compared.md"
+        }
+      ],
+      "target": "Markdown as a Format"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 23,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 22,
+          "path": "research/spaced-repetition.md"
+        }
+      ],
+      "target": "Notes on: Meditations"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 22,
+          "path": "reading/index.md"
+        }
+      ],
+      "target": "Notes on: The Art of War"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 24,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 40,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 29,
+          "path": "reading/meditations.md"
+        },
+        {
+          "line": 26,
+          "path": "research/data-ownership.md"
+        },
+        {
+          "line": 28,
+          "path": "research/plain-text-durability.md"
+        }
+      ],
+      "target": "Notes on: Walden"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 13,
+          "path": "calendar/2026-08-12-research-readout.md"
+        },
+        {
+          "line": 28,
+          "path": "index.md"
+        },
+        {
+          "line": 15,
+          "path": "journal/2026-08-03.md"
+        },
+        {
+          "line": 11,
+          "path": "journal/2026-08-05.md"
+        },
+        {
+          "line": 9,
+          "path": "journal/2026-08-08.md"
+        },
+        {
+          "line": 19,
+          "path": "meetings/atlas-kickoff.md"
+        },
+        {
+          "line": 12,
+          "path": "meetings/research-readout-empty-states.md"
+        },
+        {
+          "line": 26,
+          "path": "projects/Atlas Field Test Notes.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/article-latency-attention.md"
+        },
+        {
+          "line": 33,
+          "path": "reading/the-quiet-machine.md"
+        },
+        {
+          "line": 23,
+          "path": "research/sync-strategies-compared.md"
+        }
+      ],
+      "target": "Offline-First UX"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 15,
+          "path": "projects/Atlas Offline Bundles.md"
+        },
+        {
+          "line": 31,
+          "path": "reading/walden.md"
+        },
+        {
+          "line": 25,
+          "path": "research/crdts-in-practice.md"
+        },
+        {
+          "line": 26,
+          "path": "research/file-over-app.md"
+        },
+        {
+          "line": 21,
+          "path": "research/markdown-as-a-format.md"
+        },
+        {
+          "line": 26,
+          "path": "research/offline-first-ux.md"
+        },
+        {
+          "line": 25,
+          "path": "research/the-cost-of-proprietary-formats.md"
+        }
+      ],
+      "target": "Plain Text Durability"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 22,
+          "path": "index.md"
+        },
+        {
+          "line": 30,
+          "path": "research/evergreen-notes.md"
+        }
+      ],
+      "target": "Reading Index"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 17,
+          "path": "calendar/2026-08-12-research-readout.md"
+        }
+      ],
+      "target": "Research readout — empty states"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 32,
+          "path": "reading/article-filing-cabinet-problem.md"
+        },
+        {
+          "line": 28,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 25,
+          "path": "research/linking-vs-foldering.md"
+        }
+      ],
+      "target": "Rooms with Doors"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 17,
+          "path": "projects/Atlas Stop Annotations.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/article-against-infinite-feed.md"
+        },
+        {
+          "line": 23,
+          "path": "research/file-over-app.md"
+        },
+        {
+          "line": 24,
+          "path": "research/zettelkasten-and-para.md"
+        }
+      ],
+      "target": "Search vs Browse"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 26,
+          "path": "projects/Atlas Rendering Spec.md"
+        },
+        {
+          "line": 37,
+          "path": "projects/Harbor Performance Budget.md"
+        },
+        {
+          "line": 31,
+          "path": "reading/article-latency-attention.md"
+        },
+        {
+          "line": 26,
+          "path": "reading/index.md"
+        }
+      ],
+      "target": "Slow Software"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 30,
+          "path": "reading/meditations.md"
+        },
+        {
+          "line": 29,
+          "path": "research/evergreen-notes.md"
+        }
+      ],
+      "target": "Spaced Repetition"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 15,
+          "path": "journal/2026-08-07.md"
+        },
+        {
+          "line": 14,
+          "path": "meetings/atlas-onboarding-scope-cut.md"
+        },
+        {
+          "line": 21,
+          "path": "research/data-ownership.md"
+        },
+        {
+          "line": 22,
+          "path": "research/local-first-software.md"
+        },
+        {
+          "line": 22,
+          "path": "research/offline-first-ux.md"
+        }
+      ],
+      "target": "Sync Strategies Compared"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 27,
+          "path": "reading/index.md"
+        }
+      ],
+      "target": "The Cartographer's Objection"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 23,
+          "path": "projects/Atlas Next Steps.md"
+        },
+        {
+          "line": 33,
+          "path": "reading/art-of-war.md"
+        },
+        {
+          "line": 19,
+          "path": "research/plain-text-durability.md"
+        }
+      ],
+      "target": "The Cost of Proprietary Formats"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 9,
+          "path": "journal/2026-08-08.md"
+        },
+        {
+          "line": 19,
+          "path": "meetings/research-readout-empty-states.md"
+        },
+        {
+          "line": 30,
+          "path": "reading/article-filing-cabinet-problem.md"
+        },
+        {
+          "line": 29,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 39,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 34,
+          "path": "reading/the-quiet-machine.md"
+        },
+        {
+          "line": 32,
+          "path": "reading/walden.md"
+        },
+        {
+          "line": 27,
+          "path": "research/digital-gardens.md"
+        }
+      ],
+      "target": "The Gardener and the Archivist"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 32,
+          "path": "reading/art-of-war.md"
+        },
+        {
+          "line": 31,
+          "path": "reading/cartographers-objection.md"
+        },
+        {
+          "line": 31,
+          "path": "reading/gardener-and-archivist.md"
+        },
+        {
+          "line": 25,
+          "path": "reading/index.md"
+        },
+        {
+          "line": 26,
+          "path": "research/conflict-resolution-patterns.md"
+        }
+      ],
+      "target": "The Quiet Machine"
+    },
+    {
+      "form": "wiki",
+      "sources": [
+        {
+          "line": 22,
+          "path": "research/evergreen-notes.md"
+        },
+        {
+          "line": 20,
+          "path": "research/linking-vs-foldering.md"
+        },
+        {
+          "line": 21,
+          "path": "research/spaced-repetition.md"
+        }
+      ],
+      "target": "Zettelkasten and PARA"
+    }
+  ],
+  "truncated": false
+}

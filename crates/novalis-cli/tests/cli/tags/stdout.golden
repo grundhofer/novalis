@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "count": 15,
+      "tag": "reading"
+    },
+    {
+      "count": 13,
+      "tag": "idea"
+    },
+    {
+      "count": 11,
+      "tag": "summary"
+    },
+    {
+      "count": 9,
+      "tag": "local-first"
+    },
+    {
+      "count": 9,
+      "tag": "pkm"
+    },
+    {
+      "count": 9,
+      "tag": "project"
+    }
+  ],
+  "truncated": true
+}

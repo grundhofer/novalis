@@ -1,0 +1,303 @@
+name: Release
+
+# Cut a release by pushing an annotated tag, e.g.:
+#   git tag -a v2.0.0-alpha.1 -m "v2.0.0-alpha.1"
+#   git push origin v2.0.0-alpha.1
+#
+# Builds the Apple Silicon DMG and the CLI tarball and attaches them to a
+# *draft* GitHub release. Review the draft, then publish it by hand.
+#
+# Builds are UNSIGNED this year by owner decision (docs/DECISIONS.md,
+# 2026-09-05): the bundler ad-hoc signs the app. The signing and notarization
+# path below activates by itself once the documented secrets exist
+# (PLAN.md §11.4) — a secrets change, not a pipeline change.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Nothing by default; write scopes are granted to the `release` job alone, so
+# the gate (which compiles third-party build scripts) never sees a token that
+# could push to the repo or edit a release.
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # A tag push does not trigger ci.yml (`push: branches: [main]` only), so
+  # without this a release would ship with zero fmt/clippy/test/lint checks.
+  # Calling ci.yml rather than copying its steps means the release gate cannot
+  # drift away from the PR gate.
+  gate:
+    name: CI gates
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  release:
+    name: build (aarch64-apple-darwin)
+    needs: gate
+    runs-on: macos-latest
+    # tauri-action creates the draft release and uploads the installers.
+    # `id-token: write` + `attestations: write` are the minimum pair
+    # actions/attest-build-provenance needs: it signs with the job's short-lived
+    # OIDC identity and writes the result to the repo's attestation store.
+    #
+    # This is the one job that both compiles third-party build scripts and holds
+    # write scopes. Accepted deliberately: the attestation has to be minted where
+    # the artifact is produced or it attests nothing.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      # `persist-credentials: false` matters most here: this job's token is
+      # write-scoped. tauri-action takes GITHUB_TOKEN from `env`, not from
+      # .git/config, so removing it changes no behaviour.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Keep in sync with rust-toolchain.toml; see the note in ci.yml.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: "1.96.0"
+          targets: aarch64-apple-darwin
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "."
+
+      # The same Tauri CLI developers run locally (`cargo tauri`), pinned to
+      # the version `just setup` expects. cargo-binstall fetches tauri-cli's
+      # published prebuilt binary (tauri-cli ships binstall metadata) instead of
+      # compiling it, which would cost minutes per release.
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2.85.11
+        with:
+          tool: cargo-binstall
+
+      - name: Install tauri-cli
+        run: cargo binstall --no-confirm --locked tauri-cli@2.11.4
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The CLI is built before the app: the bundle carries it at
+      # Contents/MacOS/novalis (PLAN.md §9.4) and the release publishes it as
+      # its own tarball below. `--locked` so the shipped binary uses the same
+      # Cargo.lock the `audit` job cleared.
+      - name: Build the CLI
+        run: cargo build --release --locked -p novalis-cli --target aarch64-apple-darwin
+
+      # Signing and notarization: dormant until the secrets exist. Each
+      # variable is exported only when its secret is non-empty, so an absent
+      # secret leaves NO environment variable behind — an empty
+      # APPLE_SIGNING_IDENTITY would otherwise be taken as an identity and the
+      # bundler's codesign call would fail. Documented names, PLAN.md §11.4:
+      #   APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD   base64 .p12 + its password
+      #   APPLE_SIGNING_IDENTITY                           "Developer ID Application: …"
+      #   APPLE_API_ISSUER / APPLE_API_KEY / APPLE_API_KEY_PATH   App Store Connect API key for notarization
+      #   KEYCHAIN_PASSWORD                                temporary keychain used by tauri-action
+      - name: Enable signing when the secrets exist
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          exported=0
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_PATH KEYCHAIN_PASSWORD; do
+            if [ -n "${!name:-}" ]; then
+              {
+                echo "${name}<<NOVALIS_SECRET_EOF"
+                printf '%s\n' "${!name}"
+                echo "NOVALIS_SECRET_EOF"
+              } >> "$GITHUB_ENV"
+              exported=$((exported + 1))
+            fi
+          done
+          if [ "$exported" -eq 0 ]; then
+            echo "No signing secrets configured: building unsigned (ad-hoc signed by the bundler)."
+          else
+            echo "Exported ${exported} signing variable(s)."
+          fi
+
+      - name: Build & publish (tauri-action)
+        id: tauri
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          # The pinned CLI installed above, not whatever `@tauri-apps/cli@v2`
+          # resolves to today. Setting tauriScript also makes tauri-action skip
+          # its own CLI detection and install.
+          tauriScript: cargo tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: "novalis ${{ github.ref_name }}"
+          releaseBody: |
+            novalis ${{ github.ref_name }} — Apple Silicon, macOS 14 or newer.
+
+            The build is **unsigned** (no Apple Developer Program enrolment this
+            year). On first launch macOS says the app "cannot be opened because
+            Apple cannot check it for malicious software". Either right-click
+            the app → **Open** → **Open**, or remove the quarantine flag:
+
+            ```sh
+            xattr -d com.apple.quarantine /Applications/novalis.app
+            ```
+
+            - **App:** the `.dmg` below. Intel Macs are not supported.
+            - **CLI:** `novalis-cli-<version>-arm64.tar.gz` — the same `novalis`
+              binary the app bundles, for use outside the app.
+
+            ## Verifying a download
+
+            Every asset is built by this repository's `Release` workflow and
+            carries a signed provenance attestation. Since the builds are
+            unsigned, this is the only way to establish where a file came from:
+
+            ```sh
+            gh attestation verify novalis_*.dmg --repo grundhofer/novalis
+            ```
+
+            `SHA256SUMS` covers every asset on this release:
+
+            ```sh
+            sha256sum --ignore-missing -c SHA256SUMS
+            ```
+
+            One `OK` line per file you have. No output at all means you are not
+            in the right directory — not that the check passed.
+          releaseDraft: true
+          # `v*` tags carry a hyphen only when they are pre-releases
+          # (`-alpha.1`, `-rc.1`), so the presence of one is the signal.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # Everything after `--` is forwarded to cargo by the tauri CLI.
+          args: --target aarch64-apple-darwin -- --locked
+
+      # PLAN.md §9.4: the CLI is also published on its own.
+      - name: Package the CLI
+        id: cli
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          NAME="novalis-cli-${VERSION}-arm64"
+          STAGE="${RUNNER_TEMP}/${NAME}"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          cp target/aarch64-apple-darwin/release/novalis "$STAGE/novalis"
+          # AGPL section 4: the license text is conveyed with the binary, so a
+          # missing LICENSE stops the release rather than shipping without it.
+          # (`[ -f LICENSE ] && cp …` would also stop it, under `set -e`, but
+          # without saying why.)
+          if [ ! -f LICENSE ]; then
+            echo "LICENSE is missing at the repository root (ADR-0001)" >&2
+            exit 1
+          fi
+          cp LICENSE "$STAGE/LICENSE"
+          tar -czf "${NAME}.tar.gz" -C "${RUNNER_TEMP}" "${NAME}"
+          ls -l "${NAME}.tar.gz"
+          echo "path=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Attach the CLI tarball
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "${{ steps.cli.outputs.path }}" --clobber
+
+      # `artifactPaths` is a JSON array; attest-build-provenance wants one path
+      # per line. Reading the JSON from env, not interpolating it into the
+      # script, keeps a path containing shell metacharacters from being executed.
+      #
+      # The `.app` -> `.app.tar.gz` rewrite is not cosmetic: tauri-action sets
+      # `artifactPaths` BEFORE its macOS block tars `novalis.app`, so the
+      # snapshot names the .app *directory*, which is not what gets uploaded.
+      - name: Collect installer paths
+        id: subjects
+        shell: bash
+        env:
+          ARTIFACT_PATHS: ${{ steps.tauri.outputs.artifactPaths }}
+          CLI_TARBALL: ${{ steps.cli.outputs.path }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'paths<<SUBJECTS_EOF'
+            node -e 'process.stdout.write([...new Set(JSON.parse(process.env.ARTIFACT_PATHS).map(p => p.endsWith(".app") ? p + ".tar.gz" : p))].join("\n") + "\n")'
+            echo "${CLI_TARBALL}"
+            echo 'SUBJECTS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # Binds each asset's digest to this workflow, this commit and this runner
+      # identity, so `gh attestation verify` can prove a download came from this
+      # repo's release build rather than from someone who merely reached the
+      # releases page.
+      - name: Attest installer and CLI provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.subjects.outputs.paths }}
+
+      # Every asset exists by here, so this is the one point where a manifest
+      # can cover all of them. It adds an offline check
+      # (`sha256sum --ignore-missing -c SHA256SUMS`) that verifies a download
+      # set at once, including copies obtained from a mirror.
+      - name: Build SHA256SUMS
+        id: sums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ASSETS="${RUNNER_TEMP}/assets"
+          rm -rf "$ASSETS" && mkdir -p "$ASSETS"
+          gh release download "${TAG}" --dir "$ASSETS" --pattern '*' --clobber
+          cd "$ASSETS"
+          # A re-run downloads the previous manifest too; hashing it into its
+          # own successor would be both wrong and unverifiable.
+          rm -f SHA256SUMS
+          shasum -a 256 -- * > SHA256SUMS
+          cat SHA256SUMS
+          echo "path=${ASSETS}/SHA256SUMS" >> "$GITHUB_OUTPUT"
+
+      # The manifest is an asset like any other, and the release notes promise
+      # provenance for all of them.
+      - name: Attest SHA256SUMS provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.sums.outputs.path }}
+
+      - name: Publish SHA256SUMS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "${{ steps.sums.outputs.path }}" --clobber
+
+      # tauri-action applies `prerelease:` only when it CREATES a release. On a
+      # re-run against an existing draft the flag keeps whatever the first run
+      # set. Re-asserting it here makes the workflow the source of truth.
+      - name: Re-assert the pre-release flag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "${TAG}" --prerelease=${{ contains(github.ref_name, '-') }}

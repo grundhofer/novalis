@@ -1,0 +1,16 @@
+{
+  "error": {
+    "candidates": [
+      "projects/Atlas Decisions Log.md",
+      "projects/Atlas Field Test Notes.md",
+      "projects/Atlas Overview.md",
+      "projects/Atlas Rendering Spec.md",
+      "research/offline-first-ux.md",
+      "research/the-cost-of-proprietary-formats.md"
+    ],
+    "code": "needs_force",
+    "hint": "re-run with --force to accept this",
+    "message": "--no-relink would leave 6 backlink(s) pointing at projects/Atlas Offline Bundles.md",
+    "path": "projects/Atlas Offline Bundles.md"
+  }
+}

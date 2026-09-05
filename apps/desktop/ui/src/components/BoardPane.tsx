@@ -1,0 +1,239 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
+import { stemOf } from "../lib/paths";
+import { useBoard } from "../stores/board";
+import { useTabs } from "../stores/tabs";
+import { useUi } from "../stores/ui";
+import "../styles/board.css";
+
+/**
+ * The Kanban pane (`Shift+Cmd+B`, mockup L4).
+ *
+ * Every change is one `card_write` — a replayable field change, never a note
+ * rewrite (PLAN.md §2.3 rule 10, §5.3 step 5). Drag and drop only decides a
+ * `Position`; the fractional order key is computed in `novalis_core`, so two
+ * devices dropping into the same gap stay deterministic (§8.3).
+ */
+
+interface DragState {
+  cardId: string;
+  from: string;
+}
+
+export default function BoardPane() {
+  const { t } = useTranslation();
+  const board = useBoard((s) => s.board);
+  const boards = useBoard((s) => s.boards);
+  const busy = useBoard((s) => s.busy);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [over, setOver] = useState<{ column: string; beforeCardId: string | null } | null>(null);
+
+  if (!board) {
+    return (
+      <section className="board board-empty">
+        <button className="btn primary" type="button" onClick={() => void newBoard(t)}>
+          {t("board.newBoard")}
+        </button>
+      </section>
+    );
+  }
+
+  const cardsOf = (column: ColumnDto): CardDto[] =>
+    board.cards
+      .filter(
+        (card) =>
+          card.column === column.id ||
+          (board.orphanCards.includes(card.id) && board.columns[0]?.id === column.id),
+      )
+      .sort((a, b) => (a.order === b.order ? a.id.localeCompare(b.id) : a.order < b.order ? -1 : 1));
+
+  const drop = (column: string) => {
+    if (!drag) return;
+    const beforeCardId = over?.column === column ? over.beforeCardId : null;
+    // Dropped on a card: after it. Dropped on the column's empty space: last.
+    const position: PositionDto = beforeCardId
+      ? { kind: "after", id: beforeCardId }
+      : { kind: "last" };
+    setDrag(null);
+    setOver(null);
+    void useBoard.getState().apply({ kind: "move", id: drag.cardId, column, position });
+  };
+
+  return (
+    <section className="board">
+      <header className="board-head">
+        <span className="board-name">{board.name}</span>
+        <span className="board-sub">
+          {t("board.columns", { count: board.columns.length })} ·{" "}
+          {t("board.cards", { count: board.cards.length })}
+        </span>
+        <span className="board-spacer" />
+        {boards.length > 1 && (
+          <select
+            className="btn ghost"
+            value={board.slug}
+            aria-label={t("board.switcher")}
+            onChange={(event) => {
+              useUi.getState().setActiveBoard(event.target.value);
+              void useBoard.getState().load(event.target.value);
+            }}
+          >
+            {boards.map((ref) => (
+              <option key={ref.slug} value={ref.slug}>
+                {ref.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() =>
+            useUi.getState().ask({
+              titleKey: "board.addColumn",
+              placeholderKey: "board.columnNamePlaceholder",
+              initial: "",
+              submit: async (name) => {
+                const id = crypto.randomUUID();
+                await useBoard.getState().setColumns([...board.columns, { id, name }]);
+              },
+            })
+          }
+        >
+          {t("board.addColumn")}
+        </button>
+      </header>
+
+      <div className="columns">
+        {board.columns.map((column) => {
+          const cards = cardsOf(column);
+          return (
+            <div
+              className="column"
+              key={column.id}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!over || over.column !== column.id) setOver({ column: column.id, beforeCardId: null });
+              }}
+              onDrop={() => drop(column.id)}
+            >
+              <header className="col-head">
+                <span className="col-name">{column.name}</span>
+                <span className="col-count">{cards.length}</span>
+                <button
+                  className="btn ghost col-action"
+                  type="button"
+                  title={t("board.renameColumn")}
+                  aria-label={t("board.renameColumn")}
+                  onClick={() =>
+                    useUi.getState().ask({
+                      titleKey: "board.renameColumn",
+                      placeholderKey: "board.columnNamePlaceholder",
+                      initial: column.name,
+                      submit: async (name) => {
+                        await useBoard
+                          .getState()
+                          .setColumns(board.columns.map((c) => (c.id === column.id ? { ...c, name } : c)));
+                      },
+                    })
+                  }
+                />
+              </header>
+
+              <div className="cards">
+                {cards.map((card) => (
+                  <article
+                    className={drag?.cardId === card.id ? "card dragging" : "card"}
+                    key={card.id}
+                    draggable
+                    onDragStart={() => setDrag({ cardId: card.id, from: column.id })}
+                    onDragEnd={() => {
+                      setDrag(null);
+                      setOver(null);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setOver({ column: column.id, beforeCardId: card.id });
+                    }}
+                    onClick={() => {
+                      const note = card.notes[0];
+                      if (note) void useTabs.getState().open(note);
+                    }}
+                  >
+                    <span className="card-title">{card.title}</span>
+                    {board.orphanCards.includes(card.id) && (
+                      <span className="card-state warn">{t("board.columnMissing")}</span>
+                    )}
+                    {card.notes.map((note) => (
+                      <span className="card-note" key={note}>
+                        <span className="card-note-glyph" aria-hidden="true" />
+                        <span className="card-note-name">{stemOf(note)}</span>
+                      </span>
+                    ))}
+                  </article>
+                ))}
+
+                <button
+                  className="btn ghost card-add"
+                  type="button"
+                  onClick={() =>
+                    useUi.getState().ask({
+                      titleKey: "board.newCard",
+                      placeholderKey: "board.cardTitlePlaceholder",
+                      initial: "",
+                      submit: async (title) => {
+                        await useBoard.getState().apply({
+                          kind: "add",
+                          title,
+                          column: column.id,
+                          notes: [],
+                          position: { kind: "last" },
+                        });
+                      },
+                    })
+                  }
+                >
+                  {t("board.newCard")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {board.columns.length === 0 && (
+          <p className="board-hint">{t("board.empty")}</p>
+        )}
+      </div>
+
+      {busy && <span className="board-busy">{t("editor.loading")}</span>}
+      {board.cloudOnly.length > 0 && (
+        <p className="board-hint">
+          {t("errors.cloudOnlySkipped", { count: board.cloudOnly.length })}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Ask for a name and create a board — the empty state's only action. */
+function newBoard(t: (key: string) => string): void {
+  void t;
+  useUi.getState().ask({
+    titleKey: "board.newBoard",
+    placeholderKey: "board.boardNamePlaceholder",
+    initial: "",
+    submit: async (name) => {
+      const slug = name
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "-")
+        .replace(/^-|-$/g, "");
+      if (!slug) return;
+      await useBoard.getState().createBoard(slug, name.trim());
+      useUi.getState().setActiveBoard(slug);
+    },
+  });
+}

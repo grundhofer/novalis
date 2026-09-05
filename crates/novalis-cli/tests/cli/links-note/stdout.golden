@@ -1,0 +1,50 @@
+{
+  "backlinks": [
+    {
+      "line": 20,
+      "path": "projects/Atlas Decisions Log.md"
+    },
+    {
+      "line": 26,
+      "path": "projects/Atlas Field Test Notes.md"
+    },
+    {
+      "line": 21,
+      "path": "projects/Atlas Overview.md"
+    },
+    {
+      "line": 28,
+      "path": "projects/Atlas Rendering Spec.md"
+    },
+    {
+      "line": 27,
+      "path": "research/offline-first-ux.md"
+    },
+    {
+      "line": 27,
+      "path": "research/the-cost-of-proprietary-formats.md"
+    }
+  ],
+  "cards": [],
+  "outgoing": [
+    {
+      "form": "wiki",
+      "line": 15,
+      "resolvedPath": null,
+      "target": "Plain Text Durability"
+    },
+    {
+      "form": "wiki",
+      "line": 19,
+      "resolvedPath": "projects/Atlas Rendering Spec.md",
+      "target": "Atlas Rendering Spec"
+    },
+    {
+      "form": "wiki",
+      "line": 27,
+      "resolvedPath": "projects/Atlas Decisions Log.md",
+      "target": "Atlas Decisions Log"
+    }
+  ],
+  "path": "projects/Atlas Offline Bundles.md"
+}

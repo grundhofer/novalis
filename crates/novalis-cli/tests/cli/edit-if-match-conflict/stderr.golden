@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "conflict",
+    "hint": "re-read the note and retry with the current --if-match",
+    "message": "conflict: journal/2026-08-03.md changed on disk",
+    "path": "journal/2026-08-03.md"
+  }
+}

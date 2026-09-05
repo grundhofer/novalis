@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "body": "\n# 2026-08-03\n\nBack from a week off, so the morning went to triage rather than anything clever. The repo behind [[Atlas Overview]] had drifted — three open branches nobody could describe in one sentence — and I closed two of them before standup. The [[Atlas kickoff]] meeting in the afternoon was better than I expected: scope came out smaller, not bigger, which almost never happens on day one.\n\nAna walked us through the onboarding funnel numbers. The drop-off is not where we assumed; people don't leave at the account step, they leave at the first empty screen. That reframes the whole epic.\n\n- [ ] Write the one-paragraph Atlas scope statement @project(Atlas) @due(2026-08-05) @status(todo)\n- [ ] Delete the two stale branches and note why in the changelog @due(2026-08-06) @status(review) @project(Atlas)\n- [ ] Read back through [[Offline-First UX]] before Thursday @start(2026-08-05) @status(backlog) @project(Harbor)\n\n#daily\n",
+      "frontmatter": {
+        "keys": [
+          "title",
+          "created",
+          "modified"
+        ],
+        "tags": [],
+        "title": "2026-08-03"
+      },
+      "linkTarget": "2026-08-03",
+      "links": [
+        {
+          "form": "wiki",
+          "line": 9,
+          "resolvedPath": "projects/Atlas Overview.md",
+          "target": "Atlas Overview"
+        },
+        {
+          "form": "wiki",
+          "line": 9,
+          "resolvedPath": null,
+          "target": "Atlas kickoff"
+        },
+        {
+          "form": "wiki",
+          "line": 15,
+          "resolvedPath": null,
+          "target": "Offline-First UX"
+        }
+      ],
+      "path": "journal/2026-08-03.md",
+      "sha256": "35dff82eebbc8848071619d3b5b78c838f18242e0d9f8b0799fb1c59d9341f98",
+      "title": "2026-08-03"
+    }
+  ],
+  "truncated": false
+}

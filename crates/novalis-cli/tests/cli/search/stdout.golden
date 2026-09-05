@@ -1,0 +1,31 @@
+{
+  "cloudOnlySkipped": 0,
+  "items": [
+    {
+      "line": 18,
+      "path": "projects/Atlas Decisions Log.md",
+      "snippet": "**2026-07-11 — No delta updates for offline bundles.** Deltas need a manifest, a version"
+    },
+    {
+      "line": 20,
+      "path": "projects/Atlas Decisions Log.md",
+      "snippet": "button and no new failure modes. See [[Atlas Offline Bundles]]."
+    },
+    {
+      "line": 26,
+      "path": "projects/Atlas Field Test Notes.md",
+      "snippet": "[[Atlas Offline Bundles]]. The general form of the mistake is in [[Offline-First UX]]: never"
+    },
+    {
+      "line": 19,
+      "path": "projects/Atlas Next Steps.md",
+      "snippet": "After that the interesting question is whether the offline bundle format should be readable"
+    },
+    {
+      "line": 2,
+      "path": "projects/Atlas Offline Bundles.md",
+      "snippet": "title: Atlas Offline Bundles"
+    }
+  ],
+  "truncated": true
+}

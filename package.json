@@ -1,0 +1,15 @@
+{
+  "name": "novalis",
+  "version": "2.0.0-alpha.0",
+  "private": true,
+  "description": "Markdown notes, a Sublime-like text editor and a small Kanban board for macOS",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@11.0.9",
+  "scripts": {
+    "setup": "just setup",
+    "dev": "just dev",
+    "check": "just check",
+    "test": "just test",
+    "build": "just app"
+  }
+}

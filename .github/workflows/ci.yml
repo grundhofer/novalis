@@ -1,0 +1,214 @@
+name: CI
+
+# Job names are load-bearing: the repository ruleset requires exactly
+# "check (macos-latest)", "check (ubuntu-latest)" and "audit" (PLAN.md §13).
+# Renaming one silently removes a required check.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Advisory databases move without us. Without a clock trigger, `cargo audit`
+  # and `pnpm audit` only ever see a new RUSTSEC/GHSA entry when someone
+  # happens to push.
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  # release.yml calls this workflow as its gate, so a tag push runs exactly the
+  # same checks as a PR instead of a second, drifting copy.
+  workflow_call:
+  # Manual trigger: `gh workflow run ci.yml --ref main` re-runs a flake or
+  # verifies a commit after an Actions incident swallowed the push event.
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only by default; no job here needs to write to the repo. Explicit
+# because a fork PR runs the fork's copy of this file with our runners.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      # `persist-credentials: false` keeps the job's token out of .git/config
+      # while hundreds of crates' build.rs and esbuild's postinstall run as this user.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Tauri's Linux build needs the WebKitGTK stack. Linux compiles and tests
+      # the workspace; it does not ship (Apple Silicon only, PLAN.md §4.5).
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            patchelf \
+            build-essential
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # dtolnay/rust-toolchain can't read rust-toolchain.toml (its `toolchain`
+      # input is required), so the pin is duplicated here — keep it in sync
+      # with rust-toolchain.toml when bumping.
+      #
+      # The SHA is master's head, not a tag: this action's only tag (`v1`) is
+      # stale. Dependabot cannot map a branch SHA to a version, so this pin is
+      # maintained by hand — re-resolve with
+      # `gh api repos/dtolnay/rust-toolchain/commits/master --jq .sha`.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: "1.96.0"
+          components: rustfmt, clippy
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "."
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The four version stamps must agree (PLAN.md §11.4). Cheap, so it runs
+      # first and on both runners.
+      - name: Version stamps in sync
+        run: node scripts/check-versions.mjs
+
+      # OS-independent JS checks run once, on Linux, to save runner time.
+      - name: UI typecheck
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm -C apps/desktop/ui run typecheck
+
+      - name: UI lint (no literal UI strings, hooks rules)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm -C apps/desktop/ui run lint
+
+      # Both runners: `tauri::generate_context!` embeds `dist/`, so the Rust
+      # build below needs the UI built first.
+      - name: UI build
+        run: pnpm -C apps/desktop/ui run build
+
+      - name: i18n catalogs (shape, parity, drift)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm -C apps/desktop/ui run i18n:check
+
+      - name: Bundle budget (docs/BUDGET.json)
+        if: matrix.os == 'ubuntu-latest'
+        run: node scripts/bundle-budget.mjs
+
+      - name: Rust format check
+        run: cargo fmt --all --check
+
+      # `--locked` on the two cargo invocations below: without it cargo may
+      # silently re-resolve Cargo.lock, so CI would build a dependency set the
+      # `audit` job never looked at. It is the Rust half of `--frozen-lockfile`.
+      - name: Clippy (deny warnings)
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+      # Includes the settings-parity (docs/SETTINGS.md ↔ Settings struct),
+      # keymap-parity (docs/KEYMAP.md ↔ keymap table) and i18n catalog tests,
+      # which are ordinary cargo tests.
+      - name: Test
+        run: cargo test --locked --workspace
+
+      # PLAN.md §11.2: `ui/src/ipc/bindings.ts` is generated from the Rust
+      # command surface by tauri-specta, so a changed command signature must
+      # arrive with a regenerated file. A debug build rewrites it at startup,
+      # which is exactly why the committed copy can go stale unnoticed.
+      - name: IPC bindings are up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo run --locked -p novalis-desktop --example gen_bindings
+          git diff --exit-code -- apps/desktop/ui/src/ipc/bindings.ts
+
+      # Minimalism gate (PLAN.md §11.5): a new top-level Cargo.lock or
+      # pnpm-lock.yaml entry needs an ADR-NNNN reference in the PR body.
+      # The body reaches the script through env, never through interpolation
+      # into the shell.
+      - name: Lockfile additions carry an ADR reference
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          node scripts/lockfile-adr-check.mjs
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    # The Rust half is blocking. Accepted advisories live in `.cargo/audit.toml`,
+    # each with a written justification and a revisit condition — a new advisory
+    # fails CI, and so does a yanked crate, via that file's `[output] deny`.
+    # Deliberately carries no `if:` guard, so the weekly `schedule` trigger
+    # above actually reaches it.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Node toolchain up front, and `!cancelled()` on the pnpm step below, so
+      # one run always reports *both* ecosystems — a failing `cargo audit`
+      # otherwise hides however many JS advisories landed the same week.
+      # `pnpm audit` reads only the lockfile, so there is no `pnpm install`.
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # Prebuilt release binaries, not `cargo install`: compiling cargo-audit
+      # from source costs ~3 min per run and a second toolchain. The versions
+      # are pinned so a tool regression cannot turn CI red on its own schedule.
+      - name: Install cargo-audit and cargo-deny
+        uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2.85.11
+        with:
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
+
+      - name: Run cargo audit
+        run: cargo audit
+
+      # The half `cargo audit` does not cover: what we are allowed to ship, and
+      # where crates come from. `licenses` holds the tree to an allow-list
+      # compatible with conveying the binary under AGPL-3.0-only (our own
+      # crates are named exceptions, not allow-list entries, so a third-party
+      # copyleft crate still fails), `sources` refuses anything from outside
+      # crates.io, `bans` reports duplicate majors. Config and rationale in
+      # `deny.toml`.
+      - name: Run cargo deny
+        if: ${{ !cancelled() }}
+        run: cargo deny --locked check licenses bans sources
+
+      # Blocking, like the Rust half. `--audit-level=high` so a fresh
+      # `moderate` in some dev tool does not wall off the repo overnight;
+      # anything `high` or `critical` does.
+      - name: pnpm audit
+        if: ${{ !cancelled() }}
+        run: pnpm audit --audit-level=high

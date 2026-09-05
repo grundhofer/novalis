@@ -1,0 +1,13 @@
+{
+  "name": "@novalis/tokens",
+  "version": "2.0.0-alpha.0",
+  "private": true,
+  "description": "Semantic design tokens (--ds-*) for the chosen style, GENERATED-PENDING (PLAN.md §5.9)",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "files": ["tokens.css", "swiss.tokens.css", "README.md"],
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./swiss.tokens.css": "./swiss.tokens.css"
+  }
+}

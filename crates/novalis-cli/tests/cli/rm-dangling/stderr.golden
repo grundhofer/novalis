@@ -1,0 +1,29 @@
+{
+  "error": {
+    "candidates": [
+      "calendar/2026-08-06-design-system-sync.md",
+      "calendar/2026-08-11-atlas-design-review.md",
+      "calendar/2026-08-18-atlas-onboarding-walkthrough.md",
+      "index.md",
+      "journal/2026-08-03.md",
+      "journal/2026-08-04.md",
+      "journal/2026-08-06.md",
+      "journal/2026-08-09.md",
+      "meetings/atlas-kickoff.md",
+      "meetings/atlas-onboarding-scope-cut.md",
+      "meetings/design-system-sync.md",
+      "meetings/research-readout-empty-states.md",
+      "projects/Atlas Next Steps.md",
+      "projects/Harbor Decisions Log.md",
+      "projects/Harbor Overview.md",
+      "projects/Harbor Release Checklist.md",
+      "reading/index.md",
+      "research/local-first-software.md",
+      "research/sync-strategies-compared.md"
+    ],
+    "code": "needs_force",
+    "hint": "re-run with --force to accept this",
+    "message": "19 note(s) still link to projects/Atlas Overview.md",
+    "path": "projects/Atlas Overview.md"
+  }
+}

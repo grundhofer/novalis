@@ -1,0 +1,6 @@
+[toolchain]
+# Pinned so every dev machine and CI build the same thing. The same version is
+# duplicated in .github/workflows/ci.yml, release.yml and perf.yml because
+# dtolnay/rust-toolchain cannot read this file — bump all four together.
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]

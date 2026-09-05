@@ -1,0 +1,60 @@
+{
+  "checks": [
+    {
+      "detail": "no .novalis/vault.json; run `novalis init <dir>`",
+      "id": "vault_marker",
+      "status": "warn"
+    },
+    {
+      "detail": "63 notes indexed",
+      "id": "cache",
+      "status": "ok"
+    },
+    {
+      "detail": "cli <VERSION>; no app version recorded",
+      "id": "version_skew",
+      "status": "ok"
+    },
+    {
+      "detail": "0 note(s) whose frontmatter is not a plain mapping",
+      "id": "frontmatter",
+      "status": "ok"
+    },
+    {
+      "detail": "36 link target(s) resolve to nothing",
+      "id": "unresolved_links",
+      "status": "warn"
+    },
+    {
+      "detail": "1 stem(s) shared by more than one note; link them as [[folder/stem]]",
+      "id": "duplicate_stems",
+      "status": "warn"
+    },
+    {
+      "detail": "0 stem(s) contain # or | and can never be linked",
+      "id": "unlinkable_stems",
+      "status": "ok"
+    },
+    {
+      "detail": "0 note(s) live inside a board folder",
+      "id": "notes_in_boards",
+      "status": "ok"
+    },
+    {
+      "detail": "0 conflict cop(y|ies) from the sync client",
+      "id": "conflict_copies",
+      "status": "ok"
+    },
+    {
+      "detail": "0 cloud-only note(s); their links are not indexed",
+      "id": "cloud_only_links",
+      "status": "ok"
+    },
+    {
+      "detail": "63 @due( and 67 @status( token(s) from the old app, left as text",
+      "id": "legacy_tokens",
+      "status": "warn"
+    }
+  ],
+  "ok": false
+}

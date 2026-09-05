@@ -1,0 +1,55 @@
+
+/* structural base shared by every frame; styles override freely (scoped to .style-<slug>) */
+.frame{width:1280px;height:800px;overflow:hidden;position:relative;font-size:14px;line-height:1.5;font-family:system-ui,sans-serif}
+.frame *{box-sizing:border-box;margin:0;padding:0}
+.frame ul{list-style:none}
+.frame .win{display:flex;flex-direction:column;width:100%;height:100%}
+.frame .titlebar{display:flex;align-items:center;gap:12px;height:38px;flex:0 0 auto;padding:0 12px}
+.frame .lights{display:flex;gap:8px}
+.frame .lights span{width:12px;height:12px;border-radius:50%;display:block}
+.frame .crumb{display:none;align-items:center;gap:6px}
+.frame .title{flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frame .titlebar-right{display:flex;gap:8px;align-items:center}
+.frame .body{display:flex;flex:1;min-height:0}
+.frame .sidebar{width:240px;flex:0 0 240px;display:flex;flex-direction:column;min-height:0}
+.frame .sidebar-head{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
+.frame .legend{display:flex;justify-content:space-between}
+.frame .tree{flex:1;overflow:hidden}
+.frame .tree li{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.frame .tree .name{flex:1;overflow:hidden;text-overflow:ellipsis}
+.frame .tree .depth-1{padding-left:16px}
+.frame .chev{width:10px;height:10px;display:inline-block;flex:0 0 auto}
+.frame .active-marker{display:none}
+.frame .sidebar-foot{flex:0 0 auto}
+.frame .main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.frame .tabs{display:flex;flex:0 0 auto;align-items:stretch}
+.frame .tab{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.frame .tab-spacer{flex:1}
+.frame .editor{flex:1;overflow:hidden;min-height:0}
+.frame .line{display:flex;align-items:baseline}
+.frame .ln{display:none;width:32px;flex:0 0 32px;text-align:right}
+.frame .txt{flex:1;white-space:pre-wrap;word-wrap:break-word;min-width:0}
+.frame .statusbar{display:flex;gap:16px;flex:0 0 auto;align-items:center}
+.frame .status-item.sync{margin-left:auto;display:flex;align-items:center;gap:6px}
+.frame .board{flex:1;display:flex;flex-direction:column;min-height:0}
+.frame .board-head{display:flex;align-items:baseline;gap:12px;flex:0 0 auto}
+.frame .board-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.frame .columns{display:flex;flex:1;gap:16px;min-height:0}
+.frame .column{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.frame .col-head{display:flex;align-items:baseline;gap:8px;flex:0 0 auto}
+.frame .col-count{margin-left:auto}
+.frame .cards{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.frame .card-meta{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.frame .card-state{display:flex;align-items:center;gap:6px}
+.frame .card-note{display:flex;align-items:center;gap:6px}
+.frame .split{display:flex;flex:1;min-height:0}
+.frame .split-board{flex:1.2;display:flex;flex-direction:column;min-width:0;min-height:0}
+.frame .split-note{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.frame .scrim{position:absolute;inset:0}
+.frame .palette{position:absolute;left:50%;top:96px;transform:translateX(-50%);width:640px;display:flex;flex-direction:column}
+.frame .palette-input{display:flex;align-items:center;gap:8px}
+.frame .palette-text{flex:0 0 auto}
+.frame .caret{flex:1;position:relative}
+.frame .result{display:flex;align-items:center;gap:10px}
+.frame .result-name{flex:1}
+.frame .palette-foot{display:flex;gap:16px}

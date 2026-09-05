@@ -1,0 +1,717 @@
+/* ==========================================================================
+   novalis · Editorial / Print-Magazin  (slug: editorial-print)
+   --------------------------------------------------------------------------
+   Idea     The window is a page. Hierarchy comes from typeface, tracking and
+            white space; order from hairlines, indents and column edges.
+            Radius 0 throughout, no shadows, no textures, no transforms.
+            One broken accent (Zeitungsrot) for counters, hover and the
+            current position (active file, caret line, selected card).
+   LIGHT    paper #FBF8F1 · paper-2 #F4EFE3 · ink #17140F · ink-soft #4A443A
+            muted #857C6C · rule #D6CDB9 · rule-strong #A99E86 · red #8C2F1F
+   DARK     paper #1B1814 · paper-2 #221E19 · ink #EDE6D8 · ink-soft #C2B9A9
+            muted #9A9080 · rule #3A342B · rule-strong #5A5246 · red #D9705A
+   LABEL    --ep-label = every small tracked label / italic caption that
+            must be read: ink-soft in light (muted is 3.9:1 on paper, under
+            the sheet's 4.5:1 floor for 10-12px caps), muted in dark (5.6:1).
+            muted stays on decorative uses only: markers, frontmatter body,
+            file times, fence lines, result glyphs.
+   CHROME   Traffic lights use the macOS system colours #FF5F57 / #FEBC2E /
+            #28C840 — OS window chrome, not sheet palette (declared deviation).
+   FONTS    text     "Newsreader", Georgia, "Times New Roman", serif
+            display  "Instrument Serif", "Newsreader", Georgia, serif
+            mono     ui-monospace, "SF Mono", Menlo, Consolas, monospace
+            chrome   -apple-system, system-ui, "Helvetica Neue", sans-serif
+                     (native macOS title bar only)
+   LABELS   Newsreader ships no real small caps (no smcp in the Google build),
+            so every "Kapitälchen" label is tracked uppercase, 10-11px,
+            0.14-0.22em, weight 500 — the spec's prescribed fallback.
+   RHYTHM   24px baseline in the text column · 28px rows in the margin column
+            32px running head · 24px folio (status) line · 3px double rules
+            frame the page top and bottom (the catalog sheet frame).
+   MEASURE  560px (~82ch at 16px Newsreader) — the widest measure that still
+            fits all 26 lines on the 24px baseline; the spec's ~66ch would
+            wrap the paragraph lines and push the tag line off the page.
+   MOTION   colour / background-colour / border-colour only, 140ms ease.
+   ========================================================================== */
+
+/* ---- tokens -------------------------------------------------------------- */
+.style-editorial-print{
+  --ep-paper:#FBF8F1;
+  --ep-paper-2:#F4EFE3;
+  --ep-ink:#17140F;
+  --ep-ink-soft:#4A443A;
+  --ep-muted:#857C6C;
+  --ep-label:var(--ep-ink-soft);
+  --ep-rule:#D6CDB9;
+  --ep-rule-strong:#A99E86;
+  --ep-red:#8C2F1F;
+  --ep-scrim:rgba(23,20,15,.25);
+  --ep-text:"Newsreader",Georgia,"Times New Roman",serif;
+  --ep-display:"Instrument Serif","Newsreader",Georgia,serif;
+  --ep-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ep-chrome:-apple-system,system-ui,"Helvetica Neue",sans-serif;
+  --ep-motion:140ms ease;
+  background:var(--ep-paper);
+  color:var(--ep-ink);
+  font-family:var(--ep-text);
+  font-size:15px;
+  line-height:24px;
+  font-feature-settings:"liga" 1,"kern" 1;
+  -webkit-font-smoothing:antialiased;
+  color-scheme:light;
+}
+.style-editorial-print[data-theme="dark"]{
+  --ep-paper:#1B1814;
+  --ep-paper-2:#221E19;
+  --ep-ink:#EDE6D8;
+  --ep-ink-soft:#C2B9A9;
+  --ep-muted:#9A9080;
+  --ep-label:var(--ep-muted);
+  --ep-rule:#3A342B;
+  --ep-rule-strong:#5A5246;
+  --ep-red:#D9705A;
+  --ep-scrim:rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+
+/* ---- motion: paper does not move ----------------------------------------- */
+.style-editorial-print .tab,
+.style-editorial-print .tab-close,
+.style-editorial-print .tree .name,
+.style-editorial-print .tree .meta,
+.style-editorial-print .btn,
+.style-editorial-print .card-title,
+.style-editorial-print .result,
+.style-editorial-print .link{
+  transition:color var(--ep-motion),background-color var(--ep-motion),border-color var(--ep-motion);
+}
+
+/* ---- window: native title bar above the page frame ----------------------- */
+.style-editorial-print .win{border-bottom:3px double var(--ep-ink)}
+.style-editorial-print .titlebar{
+  height:38px;
+  padding:0 14px;
+  background:var(--ep-paper);
+  border-bottom:3px double var(--ep-ink);
+}
+/* macOS system traffic lights (OS chrome, outside the sheet palette) */
+.style-editorial-print .l-close{background:#FF5F57}
+.style-editorial-print .l-min{background:#FEBC2E}
+.style-editorial-print .l-zoom{background:#28C840}
+.style-editorial-print .title{
+  font-family:var(--ep-chrome);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:0;
+  color:var(--ep-ink-soft);
+}
+.style-editorial-print .crumb,
+.style-editorial-print .titlebar .kbd{display:none}
+
+/* ---- sidebar = Marginalspalte -------------------------------------------- */
+.style-editorial-print .sidebar{border-right:1px solid var(--ep-rule)}
+.style-editorial-print .sidebar-head{padding:14px 16px 0;gap:2px}
+.style-editorial-print .vault-name{
+  font-family:var(--ep-display);
+  font-size:24px;
+  line-height:28px;
+  letter-spacing:-.005em;
+  color:var(--ep-ink);
+}
+.style-editorial-print .legend{
+  font-size:10px;
+  line-height:20px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-label);
+  padding-bottom:1px;
+  border-bottom:1px solid var(--ep-rule);
+  margin-bottom:6px;
+}
+
+.style-editorial-print .tree li{
+  position:relative;
+  height:28px;
+  line-height:28px;
+  padding:0 14px 0 16px;
+  gap:6px;
+  align-items:baseline;
+  color:var(--ep-ink);
+}
+.style-editorial-print .tree .depth-1{padding-left:30px}
+.style-editorial-print .tree li:hover .name{color:var(--ep-red)}
+
+.style-editorial-print .tree .chev{
+  width:10px;
+  height:auto;
+  font-size:9px;
+  line-height:28px;
+  text-align:center;
+  color:var(--ep-ink-soft);
+}
+.style-editorial-print .tree .folder .chev::before{content:"\25B8"}
+.style-editorial-print .tree .folder.open .chev::before{content:"\25BE"}
+.style-editorial-print .tree .board-item .chev{font-size:12px;color:var(--ep-ink-soft)}
+.style-editorial-print .tree .board-item .chev::before{content:"\25A6"}
+
+/* folders: rubrics in tracked capitals */
+.style-editorial-print .tree .folder .name{
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:500;
+}
+.style-editorial-print .tree .folder .meta{
+  font-size:12px;
+  color:var(--ep-ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+
+/* files: Werksatz, time italic */
+.style-editorial-print .tree .file .name{font-size:15px}
+.style-editorial-print .tree .file .meta{
+  font-style:italic;
+  font-size:12px;
+  color:var(--ep-muted);
+}
+
+/* active file: red + hanging square in the gutter */
+.style-editorial-print .tree .file.active .name,
+.style-editorial-print .tree .file.active .meta{color:var(--ep-red)}
+.style-editorial-print .tree .file.active .active-marker{
+  display:block;
+  position:absolute;
+  left:30px;
+  top:0;
+  width:10px;
+  line-height:28px;
+  font-size:9px;
+  text-align:center;
+  color:var(--ep-red);
+}
+.style-editorial-print .tree .file.active .active-marker::before{content:"\25A0"}
+
+/* cloud / conflict: form signals in ink, red stays with the current position */
+.style-editorial-print .badge{
+  font-size:11px;
+  line-height:28px;
+  color:var(--ep-ink-soft);
+  flex:0 0 auto;
+}
+.style-editorial-print .badge-conflict{color:var(--ep-ink)}
+.style-editorial-print .tree .conflict .meta{color:var(--ep-ink-soft)}
+
+/* the board in the margin column: a display title */
+.style-editorial-print .tree .board-item .name{
+  font-family:var(--ep-display);
+  font-style:italic;
+  font-size:17px;
+}
+.style-editorial-print .tree .board-item .meta{
+  font-size:10px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-label);
+}
+
+/* footnote under a short Fußnotenstrich; may run to two lines */
+.style-editorial-print .sidebar-foot{padding:0 16px 14px}
+.style-editorial-print .sidebar-foot::before{
+  content:"";
+  display:block;
+  width:48px;
+  border-top:1px solid var(--ep-rule-strong);
+  margin-bottom:8px;
+}
+.style-editorial-print .hint{
+  display:block;
+  font-style:italic;
+  font-size:12px;
+  line-height:18px;
+  color:var(--ep-ink-soft);
+}
+.style-editorial-print .hint-dot{
+  display:inline-block;
+  width:6px;
+  height:6px;
+  margin:0 8px 2px 0;
+  vertical-align:middle;
+  background:var(--ep-red);
+}
+
+/* ---- tabs row = Kolumnentitel (running head) ---------------------------- */
+.style-editorial-print .tabs{
+  height:32px;
+  line-height:31px;
+  padding:0 40px;
+  align-items:baseline;
+  border-bottom:1px solid var(--ep-rule);
+}
+.style-editorial-print .tab{
+  gap:8px;
+  padding:0 18px 0 0;
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-ink-soft);
+  cursor:default;
+}
+.style-editorial-print .tab:hover{color:var(--ep-red)}
+.style-editorial-print .tab.active{
+  font-style:italic;
+  font-size:15px;
+  letter-spacing:.01em;
+  text-transform:none;
+  font-weight:400;
+  color:var(--ep-red);
+}
+.style-editorial-print .tab-close{
+  font-style:normal;
+  font-size:13px;
+  letter-spacing:0;
+  font-weight:400;
+  color:var(--ep-rule-strong);
+}
+.style-editorial-print .tab-close:hover{color:var(--ep-red)}
+.style-editorial-print .tab-spacer{
+  align-self:center;
+  height:0;
+  border-top:1px solid var(--ep-rule);
+  margin-left:6px;
+}
+
+/* ---- editor: decorated source on a 24px baseline ------------------------- */
+.style-editorial-print .editor{padding:20px 40px 0}
+.style-editorial-print .doc{max-width:560px}
+.style-editorial-print .line{position:relative;min-height:24px}
+.style-editorial-print .txt{
+  font-size:16px;
+  line-height:24px;
+  color:var(--ep-ink);
+}
+/* inline spans never grow the line box */
+.style-editorial-print .txt span{line-height:1}
+.style-editorial-print .marker{color:var(--ep-muted);font-weight:400}
+
+/* frontmatter as an impressum */
+.style-editorial-print .fm .txt{
+  font-style:italic;
+  font-size:14px;
+  color:var(--ep-muted);
+}
+.style-editorial-print .fm .marker{font-style:normal}
+.style-editorial-print .fm-key{
+  font-style:normal;
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-ink-soft);
+}
+
+/* headings: display serif, size jump ~3:1 */
+.style-editorial-print .h1 .txt{
+  font-family:var(--ep-display);
+  font-size:44px;
+  line-height:48px;
+  letter-spacing:-.015em;
+}
+.style-editorial-print .h1 .marker{font-size:22px;letter-spacing:0;margin-right:4px}
+.style-editorial-print .h2 .txt{
+  font-family:var(--ep-display);
+  font-size:26px;
+  line-height:24px;
+  letter-spacing:-.005em;
+}
+.style-editorial-print .h2 .marker{font-size:15px;letter-spacing:0;margin-right:2px}
+
+/* lists and tasks: hanging indent */
+.style-editorial-print .li .txt,
+.style-editorial-print .task .txt{padding-left:18px;text-indent:-18px}
+
+.style-editorial-print .strong{font-weight:600}
+
+.style-editorial-print .link{
+  color:var(--ep-red);
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:3px;
+  text-decoration-color:var(--ep-red);
+}
+.style-editorial-print .link:hover{color:var(--ep-ink);text-decoration-color:var(--ep-ink)}
+.style-editorial-print .link .marker{display:inline-block;text-decoration:none}
+
+.style-editorial-print .tag{
+  color:var(--ep-red);
+  font-size:12px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:500;
+}
+
+/* blockquote: italic on a left rule */
+.style-editorial-print .quote .txt{
+  font-style:italic;
+  color:var(--ep-ink-soft);
+  border-left:1px solid var(--ep-rule-strong);
+  padding-left:14px;
+}
+.style-editorial-print .quote .marker{font-style:normal}
+
+/* code: mono on paper-2 with a left rule */
+.style-editorial-print .fence .txt,
+.style-editorial-print .code .txt{
+  font-family:var(--ep-mono);
+  font-size:13px;
+  background:var(--ep-paper-2);
+  border-left:1px solid var(--ep-rule-strong);
+  padding-left:14px;
+  color:var(--ep-ink);
+}
+.style-editorial-print .fence .txt{color:var(--ep-muted)}
+.style-editorial-print .lang{
+  font-family:var(--ep-text);
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-label);
+  margin-left:8px;
+}
+
+/* tasks: hollow / filled square */
+.style-editorial-print .checkbox{font-size:0;color:var(--ep-ink)}
+.style-editorial-print .checkbox::before{content:"\25A1";font-size:12px;line-height:1}
+.style-editorial-print .checkbox.done::before{content:"\25A0"}
+.style-editorial-print .task.done .txt{color:var(--ep-ink-soft)}
+
+/* current line: paper-2 tint + caret bar in the gutter */
+.style-editorial-print .line.cursor{background:var(--ep-paper-2)}
+.style-editorial-print .line.cursor::before{
+  content:"";
+  position:absolute;
+  left:-16px;
+  top:3px;
+  bottom:3px;
+  width:2px;
+  background:var(--ep-red);
+}
+
+/* ---- status bar = folio line -------------------------------------------- */
+.style-editorial-print .statusbar{
+  height:24px;
+  line-height:23px;
+  padding:0 40px;
+  gap:24px;
+  border-top:1px solid var(--ep-rule);
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  color:var(--ep-ink-soft);
+  white-space:nowrap;
+}
+.style-editorial-print .status-item.sync{gap:8px}
+.style-editorial-print .status-dot{
+  display:inline-block;
+  width:7px;
+  height:7px;
+  background:var(--ep-red);
+}
+
+/* ---- board = newspaper columns ------------------------------------------ */
+.style-editorial-print .board{padding:14px 40px 0}
+.style-editorial-print .board-head{
+  padding:0 0 10px;
+  gap:14px;
+  align-items:baseline;
+  border-bottom:1px solid var(--ep-ink);
+}
+.style-editorial-print .board-name{
+  font-family:var(--ep-display);
+  font-size:40px;
+  line-height:44px;
+  letter-spacing:-.015em;
+}
+.style-editorial-print .board-sub{
+  font-style:italic;
+  font-size:13px;
+  color:var(--ep-label);
+}
+.style-editorial-print .board-actions{gap:22px;align-items:baseline}
+
+.style-editorial-print .btn{
+  display:inline-block;
+  font-size:11px;
+  line-height:20px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  font-weight:500;
+  border-radius:0;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.style-editorial-print .btn.primary{
+  background:var(--ep-ink);
+  color:var(--ep-paper);
+  border:1px solid var(--ep-ink);
+  padding:3px 14px 2px;
+}
+.style-editorial-print .btn.primary:hover{background:var(--ep-red);border-color:var(--ep-red)}
+.style-editorial-print .btn.ghost{
+  color:var(--ep-ink);
+  border-bottom:1px solid var(--ep-ink);
+  padding:0 1px;
+}
+.style-editorial-print .btn.ghost:hover{color:var(--ep-red);border-color:var(--ep-red)}
+
+.style-editorial-print .columns{gap:0;padding-top:14px}
+.style-editorial-print .column{
+  padding:0 16px;
+  border-left:1px solid var(--ep-rule);
+}
+.style-editorial-print .column.col-1{border-left:0;padding-left:0}
+.style-editorial-print .column.col-4{padding-right:0}
+
+.style-editorial-print .col-head{
+  height:28px;
+  line-height:27px;
+  gap:10px;
+  align-items:baseline;
+  border-bottom:1px solid var(--ep-ink);
+}
+.style-editorial-print .col-num{
+  font-size:11px;
+  letter-spacing:.18em;
+  font-weight:500;
+  color:var(--ep-label);
+}
+.style-editorial-print .col-name{
+  font-size:11px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-ink);
+}
+.style-editorial-print .col-count{
+  font-family:var(--ep-display);
+  font-size:22px;
+  line-height:27px;
+  color:var(--ep-red);
+}
+
+/* cards are entries: hairline between, no box */
+.style-editorial-print .cards{gap:0}
+.style-editorial-print .card{
+  position:relative;
+  padding:10px 8px;
+  margin:0 -8px;
+  border-bottom:1px solid var(--ep-rule);
+}
+.style-editorial-print .card-title{
+  font-family:var(--ep-display);
+  font-size:21px;
+  line-height:24px;
+  letter-spacing:-.005em;
+  color:var(--ep-ink);
+}
+.style-editorial-print .card:hover .card-title{color:var(--ep-red)}
+
+.style-editorial-print .card-note{
+  margin-top:4px;
+  gap:6px;
+  font-style:italic;
+  font-size:13px;
+  line-height:20px;
+  color:var(--ep-ink-soft);
+}
+.style-editorial-print .card-note-glyph{
+  font-style:normal;
+  font-size:13px;
+  line-height:20px;
+  color:var(--ep-red);
+}
+.style-editorial-print .card-note-glyph::before{content:"\00B6"}
+.style-editorial-print .card-note-name{border-bottom:1px dotted var(--ep-rule-strong)}
+
+.style-editorial-print .card-meta{margin-top:6px;line-height:20px}
+.style-editorial-print .card-state{
+  gap:7px;
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-ink);
+}
+.style-editorial-print .state-mark{font-size:9px;line-height:20px;letter-spacing:0}
+.style-editorial-print .state-mark::before{content:"\25A1"}
+.style-editorial-print .state-doing .state-mark::before,
+.style-editorial-print .state-done .state-mark::before{content:"\25A0"}
+.style-editorial-print .state-waiting .card-state{font-style:italic;color:var(--ep-ink-soft)}
+.style-editorial-print .state-waiting .state-word{border-bottom:1px dotted var(--ep-rule-strong)}
+.style-editorial-print .state-done .card-state,
+.style-editorial-print .state-done .card-title{color:var(--ep-ink-soft)}
+.style-editorial-print .card-when{
+  font-style:italic;
+  font-size:13px;
+  color:var(--ep-label);
+  white-space:nowrap;
+}
+
+/* selected card: tint + red bar, same device as the caret line */
+.style-editorial-print .card.selected{background:var(--ep-paper-2)}
+.style-editorial-print .card.selected::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:10px;
+  bottom:10px;
+  width:2px;
+  background:var(--ep-red);
+}
+
+/* ---- command palette: a sheet with double rules -------------------------- */
+.style-editorial-print .scrim{background:var(--ep-scrim)}
+.style-editorial-print .palette{
+  background:var(--ep-paper);
+  color:var(--ep-ink);
+  border-top:3px double var(--ep-ink);
+  border-bottom:3px double var(--ep-ink);
+  padding:18px 28px 12px;
+}
+.style-editorial-print .palette-input{
+  gap:14px;
+  align-items:baseline;
+  line-height:28px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--ep-ink);
+}
+.style-editorial-print .palette-prompt{font-size:0;color:transparent}
+.style-editorial-print .palette-prompt::before{
+  content:"Register";
+  font-size:11px;
+  line-height:1;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-label);
+}
+.style-editorial-print .palette-text{
+  font-style:italic;
+  font-size:20px;
+  line-height:1;
+  color:var(--ep-ink);
+}
+.style-editorial-print .caret::before{
+  content:"";
+  position:absolute;
+  left:2px;
+  bottom:-5px;
+  width:1px;
+  height:24px;
+  background:var(--ep-red);
+}
+.style-editorial-print .palette-input .kbd{
+  font-size:10px;
+  line-height:1;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-label);
+}
+
+.style-editorial-print .results{padding-top:6px}
+.style-editorial-print .result{
+  position:relative;
+  height:40px;
+  line-height:39px;
+  gap:12px;
+  align-items:baseline;
+  border-bottom:1px solid var(--ep-rule);
+}
+.style-editorial-print .result-glyph{
+  width:14px;
+  flex:0 0 auto;
+  font-size:13px;
+  text-align:center;
+  color:var(--ep-muted);
+}
+.style-editorial-print .result.note .result-glyph::before{content:"\00B6"}
+.style-editorial-print .result.command .result-glyph::before{content:"\203A"}
+.style-editorial-print .result-name{font-size:16px;color:var(--ep-ink)}
+.style-editorial-print .result-meta{
+  font-style:italic;
+  font-size:13px;
+  color:var(--ep-label);
+}
+.style-editorial-print .result.command .result-meta{
+  font-style:normal;
+  font-size:12px;
+  letter-spacing:.08em;
+}
+.style-editorial-print .result.active{background:var(--ep-paper-2)}
+.style-editorial-print .result.active .result-name{color:var(--ep-red)}
+.style-editorial-print .result.active::before{
+  content:"";
+  position:absolute;
+  left:-14px;
+  top:9px;
+  bottom:9px;
+  width:2px;
+  background:var(--ep-red);
+}
+
+.style-editorial-print .palette-foot{
+  padding-top:10px;
+  gap:22px;
+  font-size:10px;
+  line-height:20px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  font-weight:500;
+  color:var(--ep-ink-soft);
+}
+.style-editorial-print .palette-foot .kbd{
+  color:var(--ep-ink);
+  letter-spacing:.06em;
+  text-transform:none;
+  border-bottom:1px solid var(--ep-rule-strong);
+  margin-right:2px;
+}
+
+/* ---- split: board + note, one hairline between --------------------------- */
+/* base ratio 1.2 : 1 kept — the board needs ~130px columns for the titles */
+.style-editorial-print .split-note{border-left:1px solid var(--ep-rule)}
+.style-editorial-print.layout-l5 .board{padding:14px 24px 0}
+.style-editorial-print.layout-l5 .board-name{font-size:32px;line-height:36px}
+.style-editorial-print.layout-l5 .board-sub{display:none}
+.style-editorial-print.layout-l5 .board-actions{gap:14px}
+.style-editorial-print.layout-l5 .column{padding:0 10px}
+.style-editorial-print.layout-l5 .col-head{gap:6px}
+.style-editorial-print.layout-l5 .col-num{font-size:10px;letter-spacing:.12em}
+.style-editorial-print.layout-l5 .col-name{font-size:10px;letter-spacing:.10em}
+.style-editorial-print.layout-l5 .card-title{font-size:17px;line-height:22px}
+.style-editorial-print.layout-l5 .card-note{display:block}
+.style-editorial-print.layout-l5 .card-note-glyph{margin-right:4px}
+.style-editorial-print.layout-l5 .card-meta{flex-wrap:wrap}
+.style-editorial-print.layout-l5 .tabs,
+.style-editorial-print.layout-l5 .editor,
+.style-editorial-print.layout-l5 .statusbar{padding-left:24px;padding-right:24px}
+.style-editorial-print.layout-l5 .editor{padding-top:12px}
+.style-editorial-print.layout-l5 .txt{font-size:14px;line-height:21px}
+.style-editorial-print.layout-l5 .line{min-height:21px}
+.style-editorial-print.layout-l5 .h1 .txt{font-size:34px;line-height:42px}
+.style-editorial-print.layout-l5 .h2 .txt{font-size:22px;line-height:21px}
+.style-editorial-print.layout-l5 .fence .txt,
+.style-editorial-print.layout-l5 .code .txt{font-size:12px}
+
+/* ---- review fix (2026-09-05): long tree names were truncated at 240px with the serif at 15px; the badge rows repeat
+   the state in the badge title and the foot hint, so their meta word is dropped like in the Swiss sheet ---- */
+.style-editorial-print .sidebar{width:256px;flex:0 0 256px}
+.style-editorial-print .tree .cloud .meta,
+.style-editorial-print .tree .conflict .meta{display:none}
+.style-editorial-print .tree .meta{flex:0 0 auto}

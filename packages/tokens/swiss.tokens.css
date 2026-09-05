@@ -1,0 +1,191 @@
+/* ============================================================================
+   novalis design tokens — Swiss (the alternative style, docs/DECISIONS.md §4.6)
+
+   GENERATED-PENDING (PLAN.md §5.9), same status as tokens.css.
+
+   Exactly the same token NAMES as tokens.css, different values: swapping the
+   two files is the whole cost of changing style, which is what "semantic
+   tokens" buys (PLAN.md §4.6 closing paragraph). Nothing imports this file
+   yet; `apps/desktop/ui/src/main.tsx` imports `@novalis/tokens/tokens.css`.
+
+   Swiss character: paper/ink, radius 0, no shadow, one hue (red #E30613),
+   status coded by FORM plus the word — so the success/warning slots carry ink
+   and grey values rather than a second and third hue. `--ds-shadow-modal` is
+   `none`: the palette is separated by a 1px hairline instead.
+   ============================================================================ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --ds-color-bg-canvas: #ffffff;
+  --ds-color-bg-surface: #ffffff;
+  --ds-color-bg-raised: #f3f3f3;
+  --ds-color-bg-hover: #f3f3f3;
+  --ds-color-bg-fill: #f3f3f3;
+  --ds-color-bg-fill-strong: #e7e7e7;
+  --ds-color-bg-scrim: rgba(255, 255, 255, 0.85);
+
+  --ds-color-fg-default: #0b0b0b;
+  --ds-color-fg-muted: #6e6e6e;
+  --ds-color-fg-subtle: #6e6e6e;
+  --ds-color-fg-on-accent: #ffffff;
+
+  --ds-color-border-default: #d4d4d4;
+  --ds-color-border-strong: #0b0b0b;
+  --ds-color-border-control: #0b0b0b;
+
+  --ds-color-accent-default: #e30613;
+  --ds-color-accent-text: #e30613;
+  --ds-color-accent-fill: rgba(227, 6, 19, 0.08);
+  --ds-color-accent-line: #e30613;
+
+  --ds-color-success-default: #0b0b0b;
+  --ds-color-success-text: #0b0b0b;
+  --ds-color-success-fill: #f3f3f3;
+  --ds-color-success-line: #0b0b0b;
+
+  --ds-color-warning-default: #6e6e6e;
+  --ds-color-warning-text: #0b0b0b;
+  --ds-color-warning-fill: #ffffff;
+  --ds-color-warning-line: #6e6e6e;
+
+  --ds-color-editor-selection: rgba(227, 6, 19, 0.14);
+  --ds-color-editor-selection-match: rgba(11, 11, 11, 0.08);
+  --ds-color-editor-cursor: #e30613;
+  --ds-color-editor-active-line: #f3f3f3;
+  --ds-color-editor-gutter: #6e6e6e;
+  --ds-color-editor-match: rgba(227, 6, 19, 0.2);
+
+  --ds-color-syntax-marker: #6e6e6e;
+  --ds-color-syntax-heading: #0b0b0b;
+  --ds-color-syntax-link: #e30613;
+  --ds-color-syntax-tag: #e30613;
+  --ds-color-syntax-code: #0b0b0b;
+  --ds-color-syntax-quote: #6e6e6e;
+  --ds-color-syntax-keyword: #0b0b0b;
+  --ds-color-syntax-string: #6e6e6e;
+  --ds-color-syntax-comment: #6e6e6e;
+  --ds-color-syntax-number: #0b0b0b;
+  --ds-color-syntax-type: #0b0b0b;
+  --ds-color-syntax-invalid: #e30613;
+
+  --ds-shadow-modal: none;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ds-color-bg-canvas: #111111;
+  --ds-color-bg-surface: #111111;
+  --ds-color-bg-raised: #1a1a1a;
+  --ds-color-bg-hover: #1a1a1a;
+  --ds-color-bg-fill: #1a1a1a;
+  --ds-color-bg-fill-strong: #242424;
+  --ds-color-bg-scrim: rgba(17, 17, 17, 0.85);
+
+  --ds-color-fg-default: #ededed;
+  --ds-color-fg-muted: #9c9c9c;
+  --ds-color-fg-subtle: #9c9c9c;
+  --ds-color-fg-on-accent: #ffffff;
+
+  --ds-color-border-default: #2c2c2c;
+  --ds-color-border-strong: #ededed;
+  --ds-color-border-control: #ededed;
+
+  --ds-color-accent-default: #e30613;
+  --ds-color-accent-text: #ff4a55;
+  --ds-color-accent-fill: rgba(227, 6, 19, 0.14);
+  --ds-color-accent-line: #ff4a55;
+
+  --ds-color-success-default: #ededed;
+  --ds-color-success-text: #ededed;
+  --ds-color-success-fill: #1a1a1a;
+  --ds-color-success-line: #ededed;
+
+  --ds-color-warning-default: #9c9c9c;
+  --ds-color-warning-text: #ededed;
+  --ds-color-warning-fill: #111111;
+  --ds-color-warning-line: #9c9c9c;
+
+  --ds-color-editor-selection: rgba(255, 74, 85, 0.2);
+  --ds-color-editor-selection-match: rgba(237, 237, 237, 0.1);
+  --ds-color-editor-cursor: #ff4a55;
+  --ds-color-editor-active-line: #1a1a1a;
+  --ds-color-editor-gutter: #9c9c9c;
+  --ds-color-editor-match: rgba(255, 74, 85, 0.24);
+
+  --ds-color-syntax-marker: #9c9c9c;
+  --ds-color-syntax-heading: #ededed;
+  --ds-color-syntax-link: #ff4a55;
+  --ds-color-syntax-tag: #ff4a55;
+  --ds-color-syntax-code: #ededed;
+  --ds-color-syntax-quote: #9c9c9c;
+  --ds-color-syntax-keyword: #ededed;
+  --ds-color-syntax-string: #9c9c9c;
+  --ds-color-syntax-comment: #9c9c9c;
+  --ds-color-syntax-number: #ededed;
+  --ds-color-syntax-type: #ededed;
+  --ds-color-syntax-invalid: #ff4a55;
+
+  --ds-shadow-modal: none;
+}
+
+:root {
+  --ds-font-sans: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ds-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ds-font-size-root: 13px;
+  --ds-font-size-ui: 13px;
+  --ds-font-size-ui-sm: 11px;
+  --ds-font-size-mono-sm: 10px;
+  --ds-font-size-mono: 11px;
+  --ds-font-size-editor: 15px;
+
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-strong: 700;
+
+  --ds-line-height-ui: 1.85;
+  --ds-line-height-editor: 1.6;
+
+  --ds-letter-spacing-ui: -0.005em;
+  --ds-letter-spacing-title: -0.045em;
+  --ds-letter-spacing-mono: 0;
+
+  --ds-space-1: 2px;
+  --ds-space-2: 4px;
+  --ds-space-3: 6px;
+  --ds-space-4: 8px;
+  --ds-space-5: 12px;
+  --ds-space-6: 16px;
+  --ds-space-7: 20px;
+  --ds-space-8: 24px;
+  --ds-space-9: 40px;
+
+  --ds-radius-control: 0;
+  --ds-radius-container: 0;
+  --ds-radius-chip: 0;
+  --ds-radius-pill: 0;
+
+  --ds-motion-duration: 110ms;
+  --ds-motion-ease: linear;
+
+  --ds-size-titlebar: 38px;
+  --ds-size-tabstrip: 36px;
+  --ds-size-statusbar: 24px;
+  --ds-size-row: 36px;
+  --ds-size-control: 32px;
+  --ds-size-sidebar: 256px;
+  --ds-size-sidebar-min: 180px;
+  --ds-size-sidebar-max: 480px;
+  --ds-size-palette: 640px;
+  --ds-size-board-column: 232px;
+  --ds-measure-editor: 72ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-duration: 1ms;
+  }
+}

@@ -1,0 +1,214 @@
+/* Loaded with the board pane chunk, not with the shell: keeping it out of
+   index.html's stylesheet is what holds eager CSS under the 20 kB budget
+   (PLAN.md §11.3). Tokens only, like every other stylesheet here. */
+
+/* ----------------------------------------------------------------- board */
+.board {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--ds-space-7) var(--ds-space-8) var(--ds-space-7);
+  background: var(--ds-color-bg-canvas);
+  overflow: hidden;
+}
+
+.board-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-5);
+  padding-bottom: var(--ds-space-6);
+}
+
+.board-name {
+  font-size: 17px;
+  font-weight: var(--ds-font-weight-strong);
+  letter-spacing: var(--ds-letter-spacing-title);
+  color: var(--ds-color-fg-default);
+}
+
+.board-sub {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.board-spacer {
+  flex: 1;
+}
+
+.board-hint {
+  margin: var(--ds-space-5) 0 0;
+  color: var(--ds-color-fg-subtle);
+}
+
+.board-busy {
+  margin-top: var(--ds-space-4);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-subtle);
+}
+
+.columns {
+  display: flex;
+  gap: var(--ds-space-5);
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--ds-size-board-column);
+  min-height: 0;
+  background: var(--ds-color-bg-surface);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-container);
+  overflow: hidden;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  height: 40px;
+  padding: 0 var(--ds-space-4) 0 var(--ds-space-6);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.col-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--ds-font-weight-strong);
+  color: var(--ds-color-fg-default);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-count {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-bg-fill);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-fg-muted);
+}
+
+.col-action {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  justify-content: center;
+}
+
+.col-action::before {
+  content: "…";
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  flex: 1;
+  min-height: 0;
+  padding: var(--ds-space-4);
+  overflow-y: auto;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-4) var(--ds-space-5);
+  background: var(--ds-color-bg-raised);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-control);
+  transition:
+    border-color var(--ds-motion-duration) var(--ds-motion-ease),
+    background-color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.card:hover {
+  border-color: var(--ds-color-border-control);
+}
+
+.card.dragging {
+  opacity: 0.5;
+}
+
+.card-title {
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-color-fg-default);
+  overflow-wrap: break-word;
+}
+
+.card-note {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  max-width: 100%;
+  height: 20px;
+  padding: 0 var(--ds-space-3);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-fill);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-muted);
+}
+
+.card-note-glyph {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 9px;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-radius: 1.5px;
+}
+
+.card-note-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-state {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-fill);
+  font-size: var(--ds-font-size-ui-sm);
+  font-weight: var(--ds-font-weight-strong);
+  color: var(--ds-color-fg-muted);
+}
+
+.card-state.warn {
+  border-color: var(--ds-color-warning-line);
+  background: var(--ds-color-warning-fill);
+  color: var(--ds-color-warning-text);
+}
+
+.card-add {
+  justify-content: center;
+  height: 28px;
+  background: none;
+  border-style: dashed;
+  color: var(--ds-color-fg-subtle);
+}

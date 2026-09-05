@@ -1,0 +1,102 @@
+{
+  "prefsVersion": 1,
+  "taskView": {
+    "defaultMode": "list",
+    "kanbanColumns": [
+      {
+        "id": "backlog",
+        "title": "Backlog"
+      },
+      {
+        "id": "todo",
+        "title": "To Do"
+      },
+      {
+        "id": "in-progress",
+        "title": "In Progress"
+      },
+      {
+        "id": "review",
+        "title": "Review"
+      },
+      {
+        "id": "done",
+        "title": "Done"
+      }
+    ],
+    "taskCreation": {
+      "strategy": "inbox",
+      "inboxPath": "_Inbox.md"
+    },
+    "projectColors": {}
+  },
+  "fileTree": {
+    "sortBy": "name",
+    "sortDir": "asc",
+    "folderColors": {},
+    "itemOrder": {}
+  },
+  "appearance": {
+    "theme": "light",
+    "accent": "indigo",
+    "fontSize": 16,
+    "density": "comfortable"
+  },
+  "editor": {
+    "autosaveMs": 600,
+    "serializeMs": 200,
+    "spellcheck": true,
+    "defaultReadingMode": false,
+    "ambientAi": false
+  },
+  "calendar": {
+    "weekStart": "monday",
+    "defaultEventMinutes": 60,
+    "timeFormat": "24h",
+    "eventNotifyLeadMinutes": 10
+  },
+  "general": {
+    "defaultAppView": "notes"
+  },
+  "git": {
+    "enabled": false,
+    "authorName": "Novalis",
+    "authorEmail": "novalis@localhost",
+    "autoCommitSecs": 300
+  },
+  "features": {
+    "ai": true,
+    "aiMetaSuggestions": true,
+    "aiTemplates": true,
+    "taskExtract": true,
+    "weeklyReview": true,
+    "vaultChat": true,
+    "relatedNotes": true,
+    "entityGraph": true,
+    "blockRefs": true,
+    "transclusion": true,
+    "mermaid": true,
+    "math": true,
+    "codeHighlight": true,
+    "callouts": true,
+    "tagAutocomplete": true,
+    "outline": true,
+    "todayView": true,
+    "tasks": true,
+    "calendar": true,
+    "plugins": true,
+    "queryEngine": true,
+    "dailyNotes": true,
+    "reminders": true,
+    "graphView": true,
+    "properties": true,
+    "backlinks": true,
+    "p2pSync": true,
+    "calendarSync": true,
+    "icsSubscriptions": true,
+    "canvas": true,
+    "pdfAnnotate": true,
+    "voice": true
+  },
+  "savedQueries": []
+}

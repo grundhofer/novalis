@@ -1,0 +1,8 @@
+{
+  "changed": true,
+  "diff": "@@ -19,9 +19,1 @@\n-\n-- Perceived speed is dominated by the worst common interaction, not the average one. Users\n-  remember the pause before the first keystroke registers.\n-- Anything above roughly a tenth of a second breaks the illusion of direct manipulation, and\n-  the fix is architectural, not cosmetic.\n-- Loading spinners are an admission, not a solution — she is merciless about this.\n-- Local data is the cheapest performance work available and is usually skipped for reasons\n-  that have nothing to do with users.\n-\n+One replaced line.\n",
+  "dryRun": true,
+  "path": "reading/slow-software.md",
+  "sha256After": "b31469fcf261c0a0c584046f3b6b8d948f7ffc9a86b89ebcda090aa02aa76771",
+  "sha256Before": "9cf1c038ed9d9d36f424bf2387f397dc756d929f93a80214a18d726084880bfc"
+}

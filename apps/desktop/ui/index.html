@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- `data-theme` is stamped statically, and Dev-Noir is dark-first: the window
+     is painted in the right ground colour before any script runs. `main.tsx`
+     corrects it from localStorage on the first line it executes, and
+     `bootstrap()` corrects that from settings.json a few milliseconds later.
+     There is deliberately no inline <script> here: the app's CSP is
+     `script-src 'self'` and an inline block would be refused. -->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>novalis</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "appVersion": null,
+  "cachePath": "<HOME>/Library/Application Support/io.github.grundhofer.novalis/cache/<VAULTKEY>-s1.sqlite",
+  "cliVersion": "<VERSION>",
+  "files": 63,
+  "indexSource": "scan",
+  "stale": false
+}

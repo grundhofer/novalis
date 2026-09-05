@@ -1,0 +1,32 @@
+{
+  "cardsUpdated": [],
+  "cloudOnlySkipped": [],
+  "conflicts": [],
+  "rewritten": [
+    {
+      "count": 1,
+      "path": "projects/Atlas Decisions Log.md"
+    },
+    {
+      "count": 1,
+      "path": "projects/Atlas Field Test Notes.md"
+    },
+    {
+      "count": 1,
+      "path": "projects/Atlas Overview.md"
+    },
+    {
+      "count": 1,
+      "path": "projects/Atlas Rendering Spec.md"
+    },
+    {
+      "count": 1,
+      "path": "research/offline-first-ux.md"
+    },
+    {
+      "count": 1,
+      "path": "research/the-cost-of-proprietary-formats.md"
+    }
+  ],
+  "skipped": []
+}

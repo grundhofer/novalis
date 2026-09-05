@@ -1,0 +1,217 @@
+/* ============================================================================
+   novalis design tokens — Dev-Noir (the chosen style, docs/DECISIONS.md §4.6)
+
+   GENERATED-PENDING (PLAN.md §5.9)
+   ---------------------------------
+   Hand-written from design/variants/css/dev-noir.css until designSprache ships
+   DTCG tokens; `just tokens:sync <slug> <commit>` then replaces this file with
+   its Style Dictionary output plus a SHA-256 manifest, and CI fails on drift.
+   Do not hand-edit values here to "fix" a component: change the component, or
+   change the style and re-derive.
+
+   Rules this file follows and components rely on:
+   - Components use SEMANTIC tokens only. No component may name a raw colour,
+     font, radius or duration (PLAN.md §11.5 PR checklist).
+   - Light and dark are two complete token sets, never `filter: invert()`.
+     Light lives on bare `:root` and `[data-theme="light"]`; dark on
+     `[data-theme="dark"]`. `index.html` stamps `data-theme` before first paint.
+   - Dev-Noir is dark-first: dark carries the catalog values, light is the
+     derived second ladder (both are maintained).
+   - Depth = the layer ladder + 1px hairlines. One shadow exists
+     (`--ds-shadow-modal`) and only the palette/modal may use it. No gradients,
+     no glow, no noise, no textures (§4.6 decision 8).
+   - Status coding is one accent plus green/amber, always paired with a word.
+     There is deliberately no `danger` hue: destructive states use warning.
+
+   Grey ladder, 12 steps, one job each:
+     canvas surface raised hover fill fill-strong
+     border-default border-strong border-control fg-subtle fg-muted fg-default
+   ============================================================================ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* -- surfaces ---------------------------------------------------------- */
+  --ds-color-bg-canvas: #fafafa;
+  --ds-color-bg-surface: #ffffff;
+  --ds-color-bg-raised: #f4f4f5;
+  --ds-color-bg-hover: rgba(0, 0, 0, 0.03);
+  --ds-color-bg-fill: rgba(0, 0, 0, 0.035);
+  --ds-color-bg-fill-strong: rgba(0, 0, 0, 0.06);
+  --ds-color-bg-scrim: rgba(23, 23, 23, 0.32);
+
+  /* -- text -------------------------------------------------------------- */
+  --ds-color-fg-default: #171717;
+  --ds-color-fg-muted: #525252;
+  --ds-color-fg-subtle: #737373;
+  --ds-color-fg-on-accent: #ffffff;
+
+  /* -- lines ------------------------------------------------------------- */
+  --ds-color-border-default: rgba(0, 0, 0, 0.08);
+  --ds-color-border-strong: rgba(0, 0, 0, 0.12);
+  --ds-color-border-control: rgba(0, 0, 0, 0.45);
+
+  /* -- accent (teal, §4.6 decision 5) ------------------------------------ */
+  --ds-color-accent-default: #1f7a83;
+  --ds-color-accent-text: #19666e;
+  --ds-color-accent-fill: rgba(31, 122, 131, 0.1);
+  --ds-color-accent-line: rgba(31, 122, 131, 0.3);
+
+  /* -- success ----------------------------------------------------------- */
+  --ds-color-success-default: #176f49;
+  --ds-color-success-text: #176f49;
+  --ds-color-success-fill: rgba(23, 111, 73, 0.1);
+  --ds-color-success-line: rgba(23, 111, 73, 0.26);
+
+  /* -- warning (also carries every destructive state) -------------------- */
+  --ds-color-warning-default: #9a5b0b;
+  --ds-color-warning-text: #855009;
+  --ds-color-warning-fill: rgba(154, 91, 11, 0.1);
+  --ds-color-warning-line: rgba(154, 91, 11, 0.26);
+
+  /* -- editor ------------------------------------------------------------ */
+  --ds-color-editor-selection: rgba(31, 122, 131, 0.18);
+  --ds-color-editor-selection-match: rgba(31, 122, 131, 0.12);
+  --ds-color-editor-cursor: #1f7a83;
+  --ds-color-editor-active-line: rgba(0, 0, 0, 0.03);
+  --ds-color-editor-gutter: #737373;
+  --ds-color-editor-match: rgba(154, 91, 11, 0.24);
+
+  /* -- syntax (Markdown decorations and lazy code grammars) -------------- */
+  --ds-color-syntax-marker: #737373;
+  --ds-color-syntax-heading: #171717;
+  --ds-color-syntax-link: #1f7a83;
+  --ds-color-syntax-tag: #19666e;
+  --ds-color-syntax-code: #525252;
+  --ds-color-syntax-quote: #525252;
+  --ds-color-syntax-keyword: #7c3f8f;
+  --ds-color-syntax-string: #176f49;
+  --ds-color-syntax-comment: #737373;
+  --ds-color-syntax-number: #9a5b0b;
+  --ds-color-syntax-type: #1f7a83;
+  --ds-color-syntax-invalid: #9a5b0b;
+
+  --ds-shadow-modal: 0 24px 64px -24px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ds-color-bg-canvas: #08080b;
+  --ds-color-bg-surface: #0d0e12;
+  --ds-color-bg-raised: #14151a;
+  --ds-color-bg-hover: rgba(255, 255, 255, 0.028);
+  --ds-color-bg-fill: rgba(255, 255, 255, 0.04);
+  --ds-color-bg-fill-strong: rgba(255, 255, 255, 0.09);
+  --ds-color-bg-scrim: rgba(0, 0, 0, 0.6);
+
+  --ds-color-fg-default: #ededef;
+  --ds-color-fg-muted: #a2a2ae;
+  --ds-color-fg-subtle: #71717f;
+  --ds-color-fg-on-accent: #08080b;
+
+  --ds-color-border-default: rgba(255, 255, 255, 0.07);
+  --ds-color-border-strong: rgba(255, 255, 255, 0.11);
+  --ds-color-border-control: rgba(255, 255, 255, 0.36);
+
+  --ds-color-accent-default: #4fb3bf;
+  --ds-color-accent-text: #4fb3bf;
+  --ds-color-accent-fill: rgba(79, 179, 191, 0.1);
+  --ds-color-accent-line: rgba(79, 179, 191, 0.3);
+
+  --ds-color-success-default: #4cc38a;
+  --ds-color-success-text: #7fd8ac;
+  --ds-color-success-fill: rgba(76, 195, 138, 0.09);
+  --ds-color-success-line: rgba(76, 195, 138, 0.22);
+
+  --ds-color-warning-default: #e3a455;
+  --ds-color-warning-text: #ebbe83;
+  --ds-color-warning-fill: rgba(227, 164, 85, 0.09);
+  --ds-color-warning-line: rgba(227, 164, 85, 0.22);
+
+  --ds-color-editor-selection: rgba(79, 179, 191, 0.24);
+  --ds-color-editor-selection-match: rgba(79, 179, 191, 0.14);
+  --ds-color-editor-cursor: #4fb3bf;
+  --ds-color-editor-active-line: rgba(255, 255, 255, 0.028);
+  --ds-color-editor-gutter: #71717f;
+  --ds-color-editor-match: rgba(227, 164, 85, 0.26);
+
+  --ds-color-syntax-marker: #71717f;
+  --ds-color-syntax-heading: #ededef;
+  --ds-color-syntax-link: #4fb3bf;
+  --ds-color-syntax-tag: #4fb3bf;
+  --ds-color-syntax-code: #a2a2ae;
+  --ds-color-syntax-quote: #a2a2ae;
+  --ds-color-syntax-keyword: #c58af0;
+  --ds-color-syntax-string: #7fd8ac;
+  --ds-color-syntax-comment: #71717f;
+  --ds-color-syntax-number: #ebbe83;
+  --ds-color-syntax-type: #4fb3bf;
+  --ds-color-syntax-invalid: #e3a455;
+
+  --ds-shadow-modal: 0 32px 90px -26px rgba(0, 0, 0, 0.95);
+}
+
+/* Mode-independent tokens: type, space, radius, motion, metrics. ---------- */
+:root {
+  /* Self-hosted @fontsource-variable subsets; never a CDN (PLAN.md §11.3). */
+  --ds-font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --ds-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --ds-font-size-root: 13px;
+  --ds-font-size-ui: 13px;
+  --ds-font-size-ui-sm: 11px;
+  --ds-font-size-mono-sm: 10px;
+  --ds-font-size-mono: 11px;
+  /* The one size the user changes (`editor.fontSize`, Cmd+= / Cmd+- / Cmd+0).
+     The shell writes it onto the root element as a px value. */
+  --ds-font-size-editor: 15px;
+
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 450;
+  --ds-font-weight-strong: 500;
+
+  --ds-line-height-ui: 1.5;
+  --ds-line-height-editor: 1.6;
+
+  --ds-letter-spacing-ui: -0.006em;
+  --ds-letter-spacing-title: -0.022em;
+  --ds-letter-spacing-mono: 0.02em;
+
+  --ds-space-1: 2px;
+  --ds-space-2: 4px;
+  --ds-space-3: 6px;
+  --ds-space-4: 8px;
+  --ds-space-5: 12px;
+  --ds-space-6: 14px;
+  --ds-space-7: 18px;
+  --ds-space-8: 24px;
+  --ds-space-9: 32px;
+
+  --ds-radius-control: 7px;
+  --ds-radius-container: 10px;
+  --ds-radius-chip: 4px;
+  --ds-radius-pill: 999px;
+
+  --ds-motion-duration: 140ms;
+  --ds-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --ds-size-titlebar: 38px;
+  --ds-size-tabstrip: 36px;
+  --ds-size-statusbar: 28px;
+  --ds-size-row: 28px;
+  --ds-size-control: 32px;
+  --ds-size-sidebar: 256px;
+  --ds-size-sidebar-min: 180px;
+  --ds-size-sidebar-max: 480px;
+  --ds-size-palette: 640px;
+  --ds-size-board-column: 268px;
+  --ds-measure-editor: 72ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-duration: 1ms;
+  }
+}

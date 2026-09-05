@@ -1,0 +1,62 @@
+{
+  "items": [
+    {
+      "cloudOnly": false,
+      "folder": "calendar",
+      "linkTarget": "2026-08-05-harbor-release-review",
+      "modified": "<TIME>",
+      "path": "calendar/2026-08-05-harbor-release-review.md",
+      "sha256": "ee37f0d97705d57b259a3736768ea45ae8d479996b8dfa113a3ca066acc7e4a5",
+      "size": 753,
+      "stem": "2026-08-05-harbor-release-review",
+      "tags": [
+        "review"
+      ],
+      "title": "Harbor release review (meeting)"
+    },
+    {
+      "cloudOnly": false,
+      "folder": "calendar",
+      "linkTarget": "2026-08-06-design-system-sync",
+      "modified": "<TIME>",
+      "path": "calendar/2026-08-06-design-system-sync.md",
+      "sha256": "79cf816615cffeefd485fc79080da62dcfcf5c29e7c5b9985cba5c20c36752f0",
+      "size": 773,
+      "stem": "2026-08-06-design-system-sync",
+      "tags": [
+        "meeting"
+      ],
+      "title": "Design system sync (meeting)"
+    },
+    {
+      "cloudOnly": false,
+      "folder": "calendar",
+      "linkTarget": "2026-08-11-atlas-design-review",
+      "modified": "<TIME>",
+      "path": "calendar/2026-08-11-atlas-design-review.md",
+      "sha256": "c2884477f1b50282c5a71a77698eb2c3df38a1cfe1217a7a491f13ec545902f1",
+      "size": 829,
+      "stem": "2026-08-11-atlas-design-review",
+      "tags": [
+        "review"
+      ],
+      "title": "Atlas design review"
+    },
+    {
+      "cloudOnly": false,
+      "folder": "calendar",
+      "linkTarget": "2026-08-12-research-readout",
+      "modified": "<TIME>",
+      "path": "calendar/2026-08-12-research-readout.md",
+      "sha256": "64e01bb01faefdf9f1810f380dbe14e3ddb8c3ed70a0a158ee14468b2bcd4fcd",
+      "size": 775,
+      "stem": "2026-08-12-research-readout",
+      "tags": [
+        "meeting",
+        "review"
+      ],
+      "title": "Research readout (meeting)"
+    }
+  ],
+  "truncated": true
+}

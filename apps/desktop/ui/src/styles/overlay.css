@@ -1,0 +1,139 @@
+/* Loaded with the palette / search chunk, not with the shell: keeping it out of
+   index.html's stylesheet is what holds eager CSS under the 20 kB budget
+   (PLAN.md §11.3). Tokens only, like every other stylesheet here. */
+
+.palette {
+  width: var(--ds-size-palette);
+  max-width: calc(100vw - 2 * var(--ds-space-9));
+  background: var(--ds-color-bg-raised);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-shadow-modal);
+  overflow: hidden;
+}
+
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  height: 46px;
+  padding: 0 var(--ds-space-5) 0 var(--ds-space-6);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.palette-prompt::before {
+  content: "›";
+  font-family: var(--ds-font-mono);
+  font-size: 15px;
+  color: var(--ds-color-fg-muted);
+}
+
+.palette-text {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--ds-color-fg-default);
+  font-family: var(--ds-font-sans);
+  font-size: 14px;
+  font-weight: var(--ds-font-weight-medium);
+  letter-spacing: var(--ds-letter-spacing-ui);
+}
+
+.palette-text::placeholder {
+  color: var(--ds-color-fg-subtle);
+}
+
+.results {
+  max-height: 46vh;
+  overflow: auto;
+  padding: var(--ds-space-3);
+}
+
+.result {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  height: 34px;
+  padding: 0 var(--ds-space-5) 0 var(--ds-space-5);
+  border-radius: var(--ds-radius-control);
+  color: var(--ds-color-fg-muted);
+  transition:
+    background-color var(--ds-motion-duration) var(--ds-motion-ease),
+    color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.result.active {
+  background: var(--ds-color-bg-fill-strong);
+  color: var(--ds-color-fg-default);
+}
+
+.result.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--ds-color-accent-default);
+}
+
+.result.empty {
+  color: var(--ds-color-fg-subtle);
+  justify-content: center;
+}
+
+.result-glyph {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 11px;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-radius: 2px;
+}
+
+.result-glyph.command {
+  width: 9px;
+  height: auto;
+  border: 0;
+  text-align: center;
+  font-family: var(--ds-font-mono);
+  color: var(--ds-color-fg-subtle);
+}
+
+.result-glyph.command::before {
+  content: "»";
+}
+
+.result-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-meta {
+  flex: 0 0 auto;
+  max-width: 40%;
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-7);
+  height: 36px;
+  padding: 0 var(--ds-space-6);
+  border-top: 1px solid var(--ds-color-border-default);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono-sm);
+  color: var(--ds-color-fg-muted);
+}

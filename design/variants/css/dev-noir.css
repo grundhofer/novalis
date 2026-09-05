@@ -1,0 +1,822 @@
+/* ============================================================================
+   novalis · Dev-Noir  (slug: dev-noir, dark-first)
+   Scoped to .style-dev-noir — light tokens on the root class, dark tokens on
+   .style-dev-noir[data-theme="dark"] (the primary look). Depth = layer ladder +
+   1px hairlines only; no glow, no noise, no grid, no gradients.
+
+   GREY LADDER (12 named steps, 12 distinct values, one job each)
+     canvas · surface · raised · hover · fill · fill-strong ·
+     line · line-strong · line-control · text-3 · text-2 · text
+
+   DARK (primary, catalog demo tokens)
+     canvas #08080B  surface #0D0E12  raised #14151A
+     hover rgba(255,255,255,.028)  fill .04  fill-strong .09
+     line rgba(255,255,255,.07)  line-strong .11  line-control .36
+     text #EDEDEF  text-2 #A2A2AE  text-3 #71717F (mono meta on canvas/surface only)
+     accent #4FB3BF (teal, replaces the Linear violet; 8.1:1 on canvas)
+       accent-text #4FB3BF (same step: 6.4:1 on the tinted pill)
+     green #4CC38A (pill text #7FD8AC)  amber #E3A455 (pill text #EBBE83)
+
+   LIGHT (derived second set, anchors #FAFAFA / #171717 from the sheet)
+     canvas #FAFAFA  surface #FFFFFF  raised #F4F4F5
+     hover rgba(0,0,0,.03)  fill .035  fill-strong .06
+     line rgba(0,0,0,.08)  line-strong .12  line-control .45 (3.3:1; spec's .30 = 2.1:1)
+     text #171717  text-2 #525252  text-3 #737373
+     accent #1F7A83 (button fill, 5.0:1 with white)  accent-text #19666E (5.3:1 on tint)
+     green #176F49  amber #9A5B0B (dot)  amber-text #855009 (5.3:1 on tint)
+
+   FONTS
+     sans  "Inter", system-ui, -apple-system, sans-serif   (400 / 450→500 / 500)
+     mono  "Geist Mono", ui-monospace, SFMono-Regular, monospace (tabular-nums)
+
+   RADII  controls 7px · containers 10px · kbd/chip tier 4px · count pills 999px
+   MOTION 140ms cubic-bezier(.2,0,0,1), colour/opacity only
+   ============================================================================ */
+
+/* ---------------------------------------------------------------- tokens */
+.style-dev-noir {
+  color-scheme: light;
+  --dn-canvas: #FAFAFA;
+  --dn-surface: #FFFFFF;
+  --dn-raised: #F4F4F5;
+  --dn-hover: rgba(0, 0, 0, .03);
+  --dn-fill: rgba(0, 0, 0, .035);
+  --dn-fill-strong: rgba(0, 0, 0, .06);
+  --dn-line: rgba(0, 0, 0, .08);
+  --dn-line-strong: rgba(0, 0, 0, .12);
+  --dn-line-control: rgba(0, 0, 0, .45);
+  --dn-text-3: #737373;
+  --dn-text-2: #525252;
+  --dn-text: #171717;
+  --dn-accent: #1F7A83;
+  --dn-accent-text: #19666E;
+  --dn-on-accent: #FFFFFF;
+  --dn-accent-fill: rgba(31, 122, 131, .10);
+  --dn-accent-line: rgba(31, 122, 131, .30);
+  --dn-green: #176F49;
+  --dn-green-text: #176F49;
+  --dn-green-fill: rgba(23, 111, 73, .10);
+  --dn-green-line: rgba(23, 111, 73, .26);
+  --dn-amber: #9A5B0B;
+  --dn-amber-text: #855009;
+  --dn-amber-fill: rgba(154, 91, 11, .10);
+  --dn-amber-line: rgba(154, 91, 11, .26);
+  --dn-scrim: rgba(23, 23, 23, .32);
+  --dn-modal-shadow: 0 24px 64px -24px rgba(0, 0, 0, .35);
+  --dn-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --dn-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --dn-ease: cubic-bezier(.2, 0, 0, 1);
+  --dn-dur: 140ms;
+  --dn-r-ctl: 7px;
+  --dn-r-box: 10px;
+  --dn-r-kbd: 4px;
+  background: var(--dn-canvas);
+  color: var(--dn-text);
+  font-family: var(--dn-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.style-dev-noir[data-theme="dark"] {
+  color-scheme: dark;
+  --dn-canvas: #08080B;
+  --dn-surface: #0D0E12;
+  --dn-raised: #14151A;
+  --dn-hover: rgba(255, 255, 255, .028);
+  --dn-fill: rgba(255, 255, 255, .04);
+  --dn-fill-strong: rgba(255, 255, 255, .09);
+  --dn-line: rgba(255, 255, 255, .07);
+  --dn-line-strong: rgba(255, 255, 255, .11);
+  --dn-line-control: rgba(255, 255, 255, .36);
+  --dn-text-3: #71717F;
+  --dn-text-2: #A2A2AE;
+  --dn-text: #EDEDEF;
+  --dn-accent: #4FB3BF;
+  --dn-accent-text: #4FB3BF;
+  --dn-on-accent: #08080B;
+  --dn-accent-fill: rgba(79, 179, 191, .10);
+  --dn-accent-line: rgba(79, 179, 191, .30);
+  --dn-green: #4CC38A;
+  --dn-green-text: #7FD8AC;
+  --dn-green-fill: rgba(76, 195, 138, .09);
+  --dn-green-line: rgba(76, 195, 138, .22);
+  --dn-amber: #E3A455;
+  --dn-amber-text: #EBBE83;
+  --dn-amber-fill: rgba(227, 164, 85, .09);
+  --dn-amber-line: rgba(227, 164, 85, .22);
+  --dn-scrim: rgba(0, 0, 0, .60);
+  --dn-modal-shadow: 0 32px 90px -26px rgba(0, 0, 0, .95);
+}
+
+.style-dev-noir .win { background: var(--dn-canvas); }
+
+/* ---------------------------------------------------------------- title bar (38px, custom) */
+.style-dev-noir .titlebar {
+  height: 38px;
+  gap: 14px;
+  padding: 0 12px 0 14px;
+  background: var(--dn-surface);
+  border-bottom: 1px solid var(--dn-line-strong);
+}
+
+.style-dev-noir .lights { gap: 8px; flex: 0 0 auto; }
+
+.style-dev-noir .lights span { width: 12px; height: 12px; border: 1px solid rgba(0, 0, 0, .16); }
+
+.style-dev-noir .l-close { background: #FF5F57; }
+.style-dev-noir .l-min   { background: #FEBC2E; }
+.style-dev-noir .l-zoom  { background: #28C840; }
+
+.style-dev-noir .title { display: none; }
+
+.style-dev-noir .crumb {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 7px;
+  font-family: var(--dn-mono);
+  font-size: 11px;
+  letter-spacing: .01em;
+  color: var(--dn-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.style-dev-noir .crumb-sep { opacity: .6; }
+
+.style-dev-noir .crumb-seg.current { color: var(--dn-text-2); font-weight: 500; }
+
+.style-dev-noir .titlebar-right { flex: 0 0 auto; }
+
+/* kbd badge — the signature component */
+.style-dev-noir .kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--dn-line-strong);
+  border-radius: var(--dn-r-kbd);
+  background: var(--dn-fill);
+  font-family: var(--dn-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--dn-text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- sidebar / tree */
+.style-dev-noir .sidebar { width: 256px; flex: 0 0 256px; background: var(--dn-surface); border-right: 1px solid var(--dn-line-strong); }
+
+.style-dev-noir .sidebar-head { gap: 6px; padding: 12px 12px 0 14px; border-bottom: 1px solid var(--dn-line); }
+
+.style-dev-noir .vault-name { font-size: 13px; font-weight: 500; letter-spacing: -.006em; color: var(--dn-text); }
+
+.style-dev-noir .legend {
+  padding: 0 0 6px;
+  font-family: var(--dn-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--dn-text-3);
+}
+
+.style-dev-noir .tree { padding: 6px 0 0; }
+
+.style-dev-noir .tree li {
+  position: relative;
+  height: 28px;
+  padding: 0 12px 0 14px;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 450; /* renders 500 with the static Google Fonts weights; 450 with the bundled variable Inter */
+  letter-spacing: -.006em;
+  color: var(--dn-text);
+  transition: background-color var(--dn-dur) var(--dn-ease), color var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .tree li:hover { background: var(--dn-hover); }
+
+.style-dev-noir .tree li.depth-1 { padding-left: 30px; }
+
+.style-dev-noir .tree li.file { font-weight: 400; }
+
+.style-dev-noir .tree .chev { position: relative; width: 10px; height: 10px; }
+
+/* folder chevron: closed points right, open points down */
+.style-dev-noir .tree .folder .chev::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 2px;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--dn-text-3);
+  border-bottom: 1.5px solid var(--dn-text-3);
+  transform: rotate(-45deg);
+}
+
+.style-dev-noir .tree .folder.open .chev::before { left: 2px; top: 0; transform: rotate(45deg); }
+
+.style-dev-noir .tree .meta {
+  flex: 0 0 auto;
+  font-family: var(--dn-mono);
+  font-size: 11px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--dn-text-3);
+}
+
+/* folder counts as mono pills */
+.style-dev-noir .tree .folder .meta {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--dn-line);
+  border-radius: 999px;
+  background: var(--dn-fill);
+  font-size: 10.5px;
+  color: var(--dn-text-2);
+}
+
+/* active file: raised row + 2px accent bar */
+.style-dev-noir .tree li.active { background: var(--dn-raised); color: var(--dn-text); font-weight: 500; }
+
+.style-dev-noir .tree li.active .active-marker {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--dn-accent);
+}
+
+.style-dev-noir .tree li.active .meta { color: var(--dn-text-2); }
+
+/* cloud-only + conflict copies */
+.style-dev-noir .tree li.cloud .name { color: var(--dn-text-2); }
+
+.style-dev-noir .badge { flex: 0 0 auto; font-size: 11px; line-height: 1; font-variant-emoji: text; }
+
+.style-dev-noir .badge-cloud { color: var(--dn-text-3); }
+
+.style-dev-noir .badge-conflict { color: var(--dn-amber); }
+
+.style-dev-noir .tree li.conflict .meta { color: var(--dn-amber); }
+
+/* board entry: two-column glyph instead of a chevron */
+.style-dev-noir .tree li.board-item { margin-top: 4px; }
+
+.style-dev-noir .tree li.board-item .chev::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--dn-text-2);
+  border-radius: 2px;
+}
+
+.style-dev-noir .tree li.board-item .chev::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 0;
+  width: 1px;
+  height: 10px;
+  background: var(--dn-text-2);
+}
+
+.style-dev-noir .sidebar-foot { padding: 8px 12px 10px 14px; border-top: 1px solid var(--dn-line); }
+
+.style-dev-noir .hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: -.005em;
+  color: var(--dn-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.style-dev-noir .hint-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dn-amber);
+}
+
+/* ---------------------------------------------------------------- tabs */
+.style-dev-noir .tabs { height: 36px; background: var(--dn-surface); }
+
+.style-dev-noir .tab {
+  height: 36px;
+  padding: 0 10px 0 14px;
+  gap: 8px;
+  border-right: 1px solid var(--dn-line);
+  border-bottom: 1px solid var(--dn-line-strong);
+  font-size: 12.5px;
+  font-weight: 450;
+  letter-spacing: -.006em;
+  color: var(--dn-text-2); /* navigation text: text-2 (7.6:1 dark); text-3 stays on the close glyph only */
+  transition: background-color var(--dn-dur) var(--dn-ease), color var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .tab:hover { background: var(--dn-hover); color: var(--dn-text); }
+
+.style-dev-noir .tab.active { background: var(--dn-canvas); color: var(--dn-text); border-bottom-color: transparent; }
+
+.style-dev-noir .tab-spacer { border-bottom: 1px solid var(--dn-line-strong); }
+
+.style-dev-noir .tab-close {
+  font-size: 13px;
+  line-height: 1;
+  color: var(--dn-text-3);
+  opacity: .55;
+  transition: opacity var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .tab.active .tab-close,
+.style-dev-noir .tab:hover .tab-close { opacity: .85; }
+
+/* ---------------------------------------------------------------- editor (decorated source) */
+.style-dev-noir .editor { padding: 18px 32px 10px; background: var(--dn-canvas); }
+
+.style-dev-noir .doc { max-width: 600px; /* ~72ch at 15px Inter (spec: 68-72ch) */ }
+
+.style-dev-noir .line {
+  min-height: 24px; /* keeps blank lines on the grid (an empty flex child would collapse) */
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 400;
+  color: var(--dn-text);
+}
+
+.style-dev-noir .marker { color: var(--dn-text-3); font-weight: 400; }
+
+.style-dev-noir .line.h1 { font-size: 24px; line-height: 30px; font-weight: 500; letter-spacing: -.022em; }
+
+.style-dev-noir .line.h2 { font-size: 18px; line-height: 26px; font-weight: 500; letter-spacing: -.02em; }
+
+.style-dev-noir .strong { font-weight: 500; }
+
+.style-dev-noir .link {
+  color: var(--dn-accent);
+  text-decoration: underline;
+  text-decoration-color: var(--dn-accent-line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.style-dev-noir .link .marker {
+  display: inline-block; /* opts the [[ ]] out of the propagated underline */
+  color: var(--dn-text-3);
+}
+
+.style-dev-noir .tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--dn-accent-line);
+  border-radius: var(--dn-r-kbd);
+  background: var(--dn-accent-fill);
+  font-family: var(--dn-mono);
+  font-size: 11.5px;
+  letter-spacing: 0;
+  color: var(--dn-accent-text);
+  vertical-align: -4px;
+}
+
+/* fenced code: mono on surface, hairline frame, radius 6px split across the fence lines */
+.style-dev-noir .line.fence,
+.style-dev-noir .line.code {
+  font-family: var(--dn-mono);
+  font-size: 13px;
+  background: var(--dn-surface);
+  border-left: 1px solid var(--dn-line-strong);
+  border-right: 1px solid var(--dn-line-strong);
+}
+
+.style-dev-noir .line.fence .txt,
+.style-dev-noir .line.code .txt { padding: 0 12px; }
+
+.style-dev-noir .line.fence { color: var(--dn-text-3); border-top: 1px solid var(--dn-line-strong); border-radius: 6px 6px 0 0; }
+
+.style-dev-noir .line.code + .line.fence { border-top: 0; border-bottom: 1px solid var(--dn-line-strong); border-radius: 0 0 6px 6px; }
+
+.style-dev-noir .line.code { color: var(--dn-text); }
+
+.style-dev-noir .lang { margin-left: 6px; font-size: 11px; color: var(--dn-text-3); }
+
+.style-dev-noir .line.quote .txt { padding-left: 14px; border-left: 2px solid var(--dn-text-3); color: var(--dn-text-2); }
+
+/* tasks: text "[ ]" / "[x]" replaced by a 13px square */
+.style-dev-noir .checkbox {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
+  border: 1px solid var(--dn-line-control);
+  border-radius: var(--dn-r-kbd);
+  overflow: hidden; /* moves the inline-block baseline to its bottom edge */
+  vertical-align: -2px;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+}
+
+.style-dev-noir .checkbox.done { background: var(--dn-accent); border-color: var(--dn-accent); }
+
+.style-dev-noir .checkbox.done::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 3px;
+  height: 6px;
+  border-right: 1.5px solid var(--dn-on-accent);
+  border-bottom: 1.5px solid var(--dn-on-accent);
+  transform: rotate(45deg);
+}
+
+.style-dev-noir .line.task.done .txt { color: var(--dn-text-3); }
+
+/* frontmatter: machine data → mono, dimmed, on a tighter 20px grid */
+.style-dev-noir .line.fm { min-height: 20px; font-family: var(--dn-mono); font-size: 12px; line-height: 20px; color: var(--dn-text-3); }
+
+.style-dev-noir .fm-key { font-weight: 500; }
+
+/* current line: hover-step wash + 1.5px accent caret appended after the text (never over a glyph) */
+.style-dev-noir .line.cursor { margin: 0 -12px; padding: 0 12px; border-radius: var(--dn-r-kbd); background: var(--dn-hover); }
+
+.style-dev-noir .line.cursor .txt::after {
+  content: "";
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: -.15em;
+  background: var(--dn-accent);
+}
+
+/* ---------------------------------------------------------------- status bar (28px, mono 10px) */
+.style-dev-noir .statusbar {
+  height: 28px;
+  gap: 16px;
+  padding: 0 14px;
+  background: var(--dn-surface);
+  border-top: 1px solid var(--dn-line-strong);
+  font-family: var(--dn-mono);
+  font-size: 10px;
+  letter-spacing: .02em;
+  color: var(--dn-text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.style-dev-noir .status-item.sync { gap: 7px; color: var(--dn-text-2); }
+
+.style-dev-noir .status-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dn-green);
+}
+
+/* ---------------------------------------------------------------- board */
+.style-dev-noir .board { padding: 18px 24px 20px; background: var(--dn-canvas); }
+
+.style-dev-noir .board-head { align-items: center; gap: 10px; padding-bottom: 16px; }
+
+.style-dev-noir .board-name { font-size: 17px; font-weight: 500; letter-spacing: -.022em; color: var(--dn-text); }
+
+.style-dev-noir .board-sub { font-family: var(--dn-mono); font-size: 11px; color: var(--dn-text-3); font-variant-numeric: tabular-nums; }
+
+.style-dev-noir .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--dn-r-ctl);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -.005em;
+  white-space: nowrap;
+  transition: background-color var(--dn-dur) var(--dn-ease), color var(--dn-dur) var(--dn-ease), border-color var(--dn-dur) var(--dn-ease), opacity var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .btn.primary { background: var(--dn-accent); border-color: var(--dn-accent); color: var(--dn-on-accent); }
+
+.style-dev-noir .btn.primary:hover { opacity: .9; }
+
+/* ghost: the .04 fill carries the affordance (demo); the hairline border is decorative, see deviations */
+.style-dev-noir .btn.ghost { background: var(--dn-fill); border-color: var(--dn-line-strong); color: var(--dn-text-2); }
+
+.style-dev-noir .btn.ghost:hover { background: var(--dn-fill-strong); color: var(--dn-text); }
+
+.style-dev-noir .columns { gap: 12px; }
+
+.style-dev-noir .column { background: var(--dn-surface); border: 1px solid var(--dn-line-strong); border-radius: var(--dn-r-box); overflow: hidden; }
+
+.style-dev-noir .col-head {
+  align-items: center;
+  height: 40px;
+  padding: 0 10px 0 14px;
+  gap: 8px;
+  border-bottom: 1px solid var(--dn-line);
+}
+
+.style-dev-noir .col-num { display: none; }
+
+.style-dev-noir .col-name { font-size: 13px; font-weight: 500; letter-spacing: -.006em; color: var(--dn-text); }
+
+.style-dev-noir .col-count {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--dn-line);
+  border-radius: 999px;
+  background: var(--dn-fill);
+  font-family: var(--dn-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dn-text-2);
+}
+
+.style-dev-noir .cards { padding: 8px; gap: 8px; }
+
+.style-dev-noir .card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--dn-raised);
+  border: 1px solid var(--dn-line-strong);
+  border-radius: var(--dn-r-ctl);
+  transition: border-color var(--dn-dur) var(--dn-ease), background-color var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .card:hover { border-color: var(--dn-line-control); }
+
+.style-dev-noir .card.selected { border-color: var(--dn-accent); box-shadow: inset 0 0 0 1px var(--dn-accent); }
+
+.style-dev-noir .card-title {
+  font-size: 13.5px;
+  line-height: 1.4;
+  font-weight: 450;
+  letter-spacing: -.008em;
+  color: var(--dn-text);
+  overflow-wrap: break-word; /* a word breaks only when it truly cannot fit the card */
+}
+
+.style-dev-noir .state-done .card-title { color: var(--dn-text-2); }
+
+/* linked note chip */
+.style-dev-noir .card-note {
+  align-self: flex-start;
+  max-width: 100%;
+  height: 20px;
+  padding: 0 7px 0 6px;
+  gap: 6px;
+  border: 1px solid var(--dn-line);
+  border-radius: var(--dn-r-kbd);
+  background: var(--dn-fill);
+  font-family: var(--dn-mono);
+  font-size: 11px;
+  color: var(--dn-text-2);
+}
+
+.style-dev-noir .card-note-glyph {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 9px;
+  border: 1px solid var(--dn-text-3);
+  border-radius: 1.5px;
+}
+
+.style-dev-noir .card-note-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.style-dev-noir .card-meta { margin-top: 2px; }
+
+/* text-2 here: text-3 sits on the raised card and would fall to 3.8:1 in dark */
+.style-dev-noir .card-when {
+  font-family: var(--dn-mono);
+  font-size: 11px;
+  color: var(--dn-text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* status: 6px dot + word inside a tinted pill; idea grey · doing accent · waiting amber · done green */
+.style-dev-noir .card-state {
+  height: 20px;
+  padding: 0 8px 0 7px;
+  gap: 6px;
+  border: 1px solid var(--dn-line);
+  border-radius: var(--dn-r-kbd);
+  background: var(--dn-fill);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .005em;
+  color: var(--dn-text-2);
+  white-space: nowrap;
+}
+
+.style-dev-noir .state-mark {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dn-text-3);
+}
+
+.style-dev-noir .state-doing .card-state { border-color: var(--dn-accent-line); background: var(--dn-accent-fill); color: var(--dn-accent-text); }
+
+.style-dev-noir .state-doing .state-mark { background: var(--dn-accent); }
+
+.style-dev-noir .state-waiting .card-state { border-color: var(--dn-amber-line); background: var(--dn-amber-fill); color: var(--dn-amber-text); }
+
+.style-dev-noir .state-waiting .state-mark { background: var(--dn-amber); }
+
+.style-dev-noir .state-done .card-state { border-color: var(--dn-green-line); background: var(--dn-green-fill); color: var(--dn-green-text); }
+
+.style-dev-noir .state-done .state-mark { background: var(--dn-green); }
+
+/* ---------------------------------------------------------------- command palette (layout l3) */
+.style-dev-noir .scrim { background: var(--dn-scrim); }
+
+.style-dev-noir .palette {
+  top: 96px;
+  width: 640px;
+  background: var(--dn-raised);
+  border: 1px solid var(--dn-line-strong);
+  border-radius: var(--dn-r-box);
+  box-shadow: var(--dn-modal-shadow); /* the one shadow the spec allows: modals/palette only */
+  overflow: hidden;
+}
+
+.style-dev-noir .palette-input {
+  height: 46px;
+  padding: 0 14px 0 16px;
+  gap: 10px;
+  border-bottom: 1px solid var(--dn-line);
+  color: var(--dn-text);
+}
+
+.style-dev-noir .palette-prompt { font-family: var(--dn-mono); font-size: 15px; color: var(--dn-text-2); }
+
+.style-dev-noir .palette-text { font-size: 14px; font-weight: 450; letter-spacing: -.006em; }
+
+/* the caret span starts one flex gap after the query; pull it back so the caret hugs the text */
+.style-dev-noir .caret { margin-left: -8px; }
+
+.style-dev-noir .caret::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1.5px;
+  height: 17px;
+  transform: translateY(-50%);
+  background: var(--dn-accent);
+}
+
+.style-dev-noir .results { padding: 6px; }
+
+.style-dev-noir .result {
+  position: relative;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  gap: 10px;
+  border-radius: var(--dn-r-ctl);
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: -.006em;
+  color: var(--dn-text-2);
+  transition: background-color var(--dn-dur) var(--dn-ease), color var(--dn-dur) var(--dn-ease);
+}
+
+.style-dev-noir .result:hover { background: var(--dn-hover); color: var(--dn-text); }
+
+.style-dev-noir .result.active { background: var(--dn-fill-strong); color: var(--dn-text); }
+
+.style-dev-noir .result.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--dn-accent);
+}
+
+.style-dev-noir .result-glyph {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 11px;
+  border: 1px solid var(--dn-text-3);
+  border-radius: 2px;
+}
+
+.style-dev-noir .result.command .result-glyph {
+  width: 9px;
+  height: auto;
+  border: 0;
+  text-align: center;
+  font-family: var(--dn-mono);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--dn-text-3);
+}
+
+.style-dev-noir .result.command .result-glyph::before { content: "»"; }
+
+/* text-2 on the raised palette (text-3 would be 3.8:1 dark) */
+.style-dev-noir .result-meta {
+  font-family: var(--dn-mono);
+  font-size: 11px;
+  color: var(--dn-text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.style-dev-noir .palette-foot {
+  height: 36px;
+  align-items: center;
+  gap: 18px;
+  padding: 0 14px;
+  border-top: 1px solid var(--dn-line);
+  font-family: var(--dn-mono);
+  font-size: 10.5px;
+  color: var(--dn-text-2);
+}
+
+.style-dev-noir .palette-foot > span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------------------------------------------------------------- split: board + linked note (layout l5) */
+.style-dev-noir .split-note { border-left: 1px solid var(--dn-line-strong); }
+
+.style-dev-noir.layout-l5 .split-board { flex: 1.4; /* ~135px columns; with the tighter card padding below the title column is 103px */ }
+
+.style-dev-noir.layout-l5 .board { padding: 14px 16px 16px; }
+
+.style-dev-noir.layout-l5 .board-head { padding-bottom: 12px; }
+
+.style-dev-noir.layout-l5 .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+
+.style-dev-noir.layout-l5 .columns { gap: 8px; }
+
+.style-dev-noir.layout-l5 .col-head { padding: 0 8px 0 10px; }
+
+.style-dev-noir.layout-l5 .cards { padding: 5px; }
+
+.style-dev-noir.layout-l5 .card { padding: 8px 9px; }
+
+.style-dev-noir.layout-l5 .card-title { font-size: 12px; /* "Wochenrückblick" measures 98px at 12px/500 (102px at 12.5px) against the 103px title column */ }
+
+.style-dev-noir.layout-l5 .card-meta { flex-wrap: wrap; row-gap: 4px; }
+
+.style-dev-noir.layout-l5 .editor { padding: 14px 18px 8px; }
+
+.style-dev-noir.layout-l5 .line { min-height: 20px; font-size: 13.5px; line-height: 20px; }
+
+.style-dev-noir.layout-l5 .line.h1 { font-size: 20px; line-height: 26px; }
+
+.style-dev-noir.layout-l5 .line.h2 { font-size: 16px; line-height: 24px; }
+
+.style-dev-noir.layout-l5 .line.fm { min-height: 18px; font-size: 11px; line-height: 18px; }
+
+.style-dev-noir.layout-l5 .line.fence,
+.style-dev-noir.layout-l5 .line.code { font-size: 10.5px; /* the 56-char JSON line measures 359px here and stays on one line in the 388px pane */ }
+
+.style-dev-noir.layout-l5 .line.fence .txt,
+.style-dev-noir.layout-l5 .line.code .txt { padding: 0 10px; }
+
+.style-dev-noir.layout-l5 .tag { height: 18px; font-size: 10.5px; }
+
+/* ---------------------------------------------------------------- motion */
+@media (prefers-reduced-motion: reduce) {
+  .style-dev-noir .tree li,
+  .style-dev-noir .tab,
+  .style-dev-noir .tab-close,
+  .style-dev-noir .card,
+  .style-dev-noir .btn,
+  .style-dev-noir .result { transition-duration: 1ms; }
+}

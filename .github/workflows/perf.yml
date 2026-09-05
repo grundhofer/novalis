@@ -1,0 +1,72 @@
+name: Perf
+
+# Performance budgets (PLAN.md §11.3) on `main` and release tags only — never
+# on PRs, where runner noise would make the numbers meaningless as a gate.
+#
+# PLACEHOLDER: this runs the core crate's benches and uploads the raw output
+# as `perf.json`. The comparison against the budget table at 2× thresholds is
+# not wired yet; it lands with the core benches (Phase 2) and the
+# `--exit-after-first-frame` harness (Spike C). Until then this job is a
+# record, not a gate.
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  perf:
+    name: perf (macos-latest)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Keep in sync with rust-toolchain.toml; see the note in ci.yml.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: "1.96.0"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: "."
+
+      - name: Run core benches
+        run: cargo bench --locked -p novalis-core 2>&1 | tee bench.log
+
+      # Raw output wrapped with the commit it belongs to. Node rather than jq
+      # because the runner image guarantees node; jq is a runner-image detail.
+      - name: Write perf.json
+        env:
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            fs.writeFileSync("perf.json", JSON.stringify({
+              ref: process.env.REF,
+              sha: process.env.SHA,
+              runner: "macos-latest",
+              date: new Date().toISOString(),
+              budgetCompared: false,
+              benchLog: fs.readFileSync("bench.log", "utf8"),
+            }, null, 2) + "\n");
+          '
+
+      - name: Upload perf.json
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: perf-${{ github.ref_name }}-${{ github.sha }}
+          path: perf.json
+          retention-days: 90

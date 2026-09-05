@@ -1,0 +1,47 @@
+# Weekly dependency PRs, grouped so a solo maintainer gets a few reviewable PRs
+# a week instead of thirty single-crate ones. Majors deliberately stay
+# ungrouped so a human reads the changelog before they land.
+#
+# A Dependabot PR only bumps versions; it never adds a top-level dependency,
+# so it passes `scripts/lockfile-adr-check.mjs` without an ADR.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # ONE entry, pointing at the root. This is a pnpm workspace: the root holds
+  # the single `pnpm-lock.yaml`, and Dependabot resolves the whole workspace
+  # from there — a bump to a dependency declared in `apps/desktop/ui` arrives
+  # as a root-scoped PR that edits that member's `package.json`. Listing the
+  # members as well makes every dependency be seen twice and emits PRs that
+  # edit a member `package.json` WITHOUT the root lockfile, which then fail
+  # `pnpm install --frozen-lockfile` (dependabot-core#11135).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # Keeps the 40-char SHA pins in .github/workflows/*.yml current. It can only
+  # do that for pins whose `# vX.Y.Z` comment names a real tag — the
+  # dtolnay/rust-toolchain pin is a master-branch SHA and stays manual.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions-minor-and-patch:
+        update-types: ["minor", "patch"]

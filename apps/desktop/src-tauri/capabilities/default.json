@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The minimum the main window needs. `core:default` covers the IPC bridge, the event channel the fs-batch and menu-action events ride on, and ordinary window control. Nothing else is granted: there is no filesystem, shell, http or process permission, every file operation goes through a typed command backed by novalis-core, and the folder picker is opened from Rust so the dialog plugin needs no JS permission either.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

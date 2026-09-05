@@ -1,0 +1,23 @@
+# Rust
+/target
+**/target
+
+# Node / pnpm
+node_modules
+.pnpm-store
+*.tsbuildinfo
+
+# Build output
+dist
+**/dist
+
+# Tauri regenerates the capability schemas on every build; its own template
+# ignores the same path. `apps/desktop/src-tauri/capabilities/` stays tracked.
+apps/desktop/src-tauri/gen/schemas
+
+# macOS
+.DS_Store
+
+# Local scratch, never part of the repo (PLAN.md §13). docs/decisions/ is tracked.
+.claude/
+docs/plans/

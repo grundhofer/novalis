@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "not_implemented",
+    "hint": null,
+    "message": "`card` is planned in Phase 4",
+    "path": null
+  }
+}

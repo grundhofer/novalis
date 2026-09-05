@@ -1,0 +1,456 @@
+/* ==========================================================================
+   novalis · style "swiss" — Swiss / International Typographic Style
+   Scope: every selector starts with .style-swiss · radius 0 · no shadow · no texture
+
+   PALETTE LIGHT (catalog, verified)
+     paper #FFFFFF · ink #0B0B0B · grey #6E6E6E (secondary text) · hairline #D4D4D4 · red #E30613
+     derived here: code field #F3F3F3 (spec has no light surface value) · scrim #FFFFFFD9 (spec)
+   PALETTE DARK (derived in the spec, not catalog data)
+     canvas #111111 · ink #EDEDED · grey #9C9C9C · hairline #2C2C2C · surface-2 #1A1A1A
+     red-fill #E30613 (7px squares, 2px bars only) · red-text #FF4A55 (text, underlines, counts)
+     scrim #111111D9
+   FONTS
+     ui + prose: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif — cuts 400 / 500 / 700 only
+     code: ui-monospace, "SF Mono", Menlo, Consolas, monospace (the style defines no mono face)
+   GRID
+     24px baseline · main axis 40px from the sidebar hairline · sidebar axis 20px · 12px half-gutter
+     editor measure 72ch, the column right of it stays EMPTY (signature) · board columns max 232px
+     sidebar 256px (base 240 widened so the longest file names survive at 13px on plain rows;
+     the two badge rows drop their meta word — badge title + foot hint carry that state — so the
+     name keeps ~180px there and no row truncates)
+   STATUS = form + word, one hue: filled 7px red square = in Arbeit · hollow 1px grey square = Ideen/Warten
+     · ink square with inset fill = Fertig · no green, no amber
+   MOTION: 110ms linear, colour only; disabled under prefers-reduced-motion
+   ========================================================================== */
+
+/* ---- tokens ------------------------------------------------------------ */
+.style-swiss{
+  --paper:#FFFFFF;
+  --ink:#0B0B0B;
+  --grey:#6E6E6E;
+  --hair:#D4D4D4;
+  --red:#E30613;
+  --red-text:#E30613;
+  --surface:#F3F3F3;
+  --scrim:#FFFFFFD9;
+  --font:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --t:110ms linear;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:13px;
+  line-height:24px;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  color-scheme:light;
+}
+.style-swiss[data-theme="dark"]{
+  --paper:#111111;
+  --ink:#EDEDED;
+  --grey:#9C9C9C;
+  --hair:#2C2C2C;
+  --red:#E30613;
+  --red-text:#FF4A55;
+  --surface:#1A1A1A;
+  --scrim:#111111D9;
+  color-scheme:dark;
+}
+.style-swiss .win{background:var(--paper);color:var(--ink)}
+
+/* ---- title bar: native macOS look, no custom chrome -------------------- */
+/* the title is centred on the WINDOW (as macOS does), not on the space right of the lights */
+.style-swiss .titlebar{position:relative;height:38px;padding:0 20px;gap:16px}
+.style-swiss .lights{gap:8px}
+.style-swiss .lights span{width:12px;height:12px;border-radius:50%}
+.style-swiss .l-close{background:#FF5F57}
+.style-swiss .l-min{background:#FEBC2E}
+.style-swiss .l-zoom{background:#28C840}
+.style-swiss .title{
+  position:absolute;left:0;right:0;top:0;
+  text-align:center;
+  font-size:13px;font-weight:500;line-height:38px;letter-spacing:-0.005em;
+  color:var(--ink);
+}
+.style-swiss .titlebar-right{display:none}
+
+/* ---- sidebar: a typographic index --------------------------------------- */
+.style-swiss .sidebar{
+  width:256px;flex:0 0 256px;
+  padding:0 12px 0 20px;
+  border-right:1px solid var(--hair);
+}
+.style-swiss .sidebar-head{gap:0}
+.style-swiss .vault-name{
+  display:block;
+  font-size:22px;font-weight:700;letter-spacing:-0.045em;line-height:36px;
+  border-bottom:3px solid var(--ink);
+  white-space:nowrap;overflow:hidden;
+}
+.style-swiss .legend{
+  padding:8px 0 9px;
+  font-size:9px;font-weight:500;line-height:9px;
+  letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--grey);
+}
+.style-swiss .tree{border-top:1px solid var(--ink)}
+.style-swiss .tree .folder,
+.style-swiss .tree .file,
+.style-swiss .tree .board-item{
+  position:relative;
+  height:36px;
+  gap:6px;
+  border-bottom:1px solid var(--hair);
+  font-size:13px;line-height:35px;
+  color:var(--ink);
+}
+.style-swiss .tree > :last-child{border-bottom-color:var(--ink)}
+.style-swiss .tree .depth-1{padding-left:24px}
+.style-swiss .tree .name{font-weight:400;letter-spacing:-0.005em}
+.style-swiss .tree .folder .name{font-weight:500}
+.style-swiss .tree .file.active .name{font-weight:700}
+.style-swiss .tree .cloud .name{color:var(--grey)}
+.style-swiss .tree .board-item .name{font-weight:500}
+.style-swiss .tree .meta{
+  flex:0 0 auto;
+  font-size:12px;font-weight:400;letter-spacing:0.02em;
+  color:var(--grey);
+}
+/* badge rows: the meta word repeats the badge title and the foot hint; hiding it keeps the name whole */
+.style-swiss .tree .cloud .meta,
+.style-swiss .tree .conflict .meta{display:none}
+.style-swiss .tree .board-item .meta{
+  font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--ink);
+}
+/* active file: 2px red bar on the list axis + 700, no fill */
+.style-swiss .tree .active .active-marker{
+  display:block;position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--red);
+}
+/* chevrons: functional triangles, ink */
+.style-swiss .chev{position:relative;width:10px;height:10px}
+.style-swiss .chev::before{
+  content:"";position:absolute;left:3px;top:2px;
+  border-left:4px solid var(--ink);
+  border-top:3px solid transparent;border-bottom:3px solid transparent;
+}
+.style-swiss .folder.open .chev::before{
+  left:2px;top:3px;
+  border-left:3px solid transparent;border-right:3px solid transparent;
+  border-top:4px solid var(--ink);border-bottom:0;
+}
+.style-swiss .chev.none{display:none}
+.style-swiss .tree .board-item .chev{display:block}
+.style-swiss .tree .board-item .chev::before{
+  display:block;left:2px;top:2px;width:6px;height:6px;
+  border:1px solid var(--ink);
+}
+/* badges */
+.style-swiss .badge{flex:0 0 auto;font-size:11px;line-height:1;color:var(--grey)}
+.style-swiss .badge-conflict{color:var(--red-text);font-weight:700}
+/* foot: quiet one-liner on the same hairline as the status bar */
+.style-swiss .sidebar-foot{
+  height:24px;
+  margin:0 -12px 0 -20px;
+  padding:0 0 0 20px;
+  border-top:1px solid var(--hair);
+  display:flex;align-items:center;
+  overflow:hidden;
+}
+.style-swiss .hint{
+  display:block;
+  font-size:11px;font-weight:400;letter-spacing:-0.01em;line-height:23px;
+  color:var(--grey);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.style-swiss .hint-dot{
+  display:inline-block;vertical-align:1px;
+  width:7px;height:7px;margin-right:8px;
+  border:1px solid var(--grey);
+}
+
+/* ---- tabs: typographic row, active = 2px red underline ----------------- */
+.style-swiss .tabs{
+  height:36px;
+  padding:0 40px;
+  gap:24px;
+  border-bottom:1px solid var(--hair);
+}
+.style-swiss .tab{
+  gap:8px;
+  margin-bottom:-1px;
+  border-bottom:2px solid transparent;
+  font-size:13px;font-weight:400;letter-spacing:-0.005em;
+  color:var(--grey);
+  transition:color var(--t),border-color var(--t);
+}
+.style-swiss .tab:hover{color:var(--ink)}
+.style-swiss .tab.active{color:var(--ink);font-weight:500;border-bottom-color:var(--red)}
+.style-swiss .tab-close{font-size:12px;line-height:1;color:var(--grey)}
+
+/* ---- editor: decorated source, 72ch measure, empty margin column ------- */
+.style-swiss .editor{
+  position:relative;
+  padding:24px 0 0 40px;
+  font-size:16px;line-height:24px;
+  color:var(--ink);
+}
+.style-swiss.layout-l1 .editor{padding-top:48px}
+.style-swiss .doc{max-width:72ch}
+/* one hairline on the measure axis makes the empty column deliberate */
+.style-swiss .editor::after{
+  content:"";position:absolute;top:0;bottom:0;left:calc(52px + 72ch);width:1px;
+  background:var(--hair);
+}
+.style-swiss .line{position:relative;min-height:24px}
+.style-swiss .marker{color:var(--grey);font-weight:400}
+.style-swiss .line.fm{color:var(--grey);font-size:14px}
+.style-swiss .fm-key{font-weight:500}
+/* h1 on two baselines (48px) so every line after it stays on the 24px grid */
+.style-swiss .line.h1{font-size:32px;line-height:48px;font-weight:700;letter-spacing:-0.045em}
+.style-swiss .line.h2{font-size:20px;line-height:24px;font-weight:500;letter-spacing:-0.02em}
+.style-swiss .strong{font-weight:700}
+.style-swiss .link{
+  color:var(--ink);
+  text-decoration:underline;
+  text-decoration-color:var(--red-text);
+  text-decoration-thickness:1px;
+  text-underline-offset:3px;
+}
+.style-swiss .link .marker{display:inline-block;text-decoration:none}
+.style-swiss .tag{color:var(--red-text);font-weight:500}
+.style-swiss .line.quote{border-left:1px solid var(--ink);padding-left:12px}
+.style-swiss .line.fence,
+.style-swiss .line.code{
+  font-family:var(--mono);font-size:14px;
+  padding:0 12px;
+  background:var(--surface);
+}
+/* 10px micro caps: ink, like the demo folio — grey on the code field would be 4.6:1, under the 5.1 floor */
+.style-swiss .lang{
+  margin-left:10px;
+  font-family:var(--font);font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--ink);
+}
+/* task square = the same 7px form as the status squares */
+.style-swiss .checkbox{
+  display:inline-block;
+  width:7px;height:7px;margin:0 7px 0 3px;vertical-align:1px;
+  border:1px solid var(--ink);
+  font-size:0;line-height:0;color:transparent;overflow:hidden;
+}
+.style-swiss .checkbox.done{background:var(--ink)}
+.style-swiss .line.task.done{color:var(--grey)}
+/* current line: the red 2px bar of the demo input, in the gutter left of the axis */
+.style-swiss .line.cursor::before{
+  content:"";position:absolute;left:-16px;top:0;bottom:0;width:2px;
+  background:var(--red);
+}
+
+/* ---- status bar: micro caps, one red square ---------------------------- */
+.style-swiss .statusbar{
+  height:24px;
+  padding:0 40px;
+  gap:24px;
+  border-top:1px solid var(--hair);
+  font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;line-height:1;
+  color:var(--grey);
+  white-space:nowrap;overflow:hidden;
+}
+.style-swiss .status-item{flex:0 0 auto}
+.style-swiss .status-item.sync{gap:8px}
+.style-swiss .status-dot{width:7px;height:7px;flex:0 0 auto;background:var(--red)}
+
+/* ---- board: columns are axes, cards are rows --------------------------- */
+.style-swiss .board{padding:24px 40px 0 40px}
+/* head is a fixed 3 baselines (72px) so the column heads start on the grid;
+   name + sub share a baseline, the buttons sit flush to the top edge */
+.style-swiss .board-head{
+  max-width:880px;
+  height:72px;
+  align-items:flex-start;
+  gap:16px;
+  border-bottom:3px solid var(--ink);
+}
+.style-swiss .board-name,
+.style-swiss .board-sub{align-self:baseline}
+.style-swiss .board-name{font-size:28px;font-weight:700;letter-spacing:-0.045em;line-height:44px}
+.style-swiss .board-sub{font-size:12px;letter-spacing:0.02em;color:var(--grey)}
+.style-swiss .board-actions{gap:8px}
+.style-swiss .btn{
+  display:inline-flex;align-items:center;
+  height:44px;padding:0 24px;
+  border:1px solid var(--ink);
+  font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;line-height:1;
+  white-space:nowrap;cursor:pointer;
+  transition:background-color var(--t),color var(--t),border-color var(--t);
+}
+.style-swiss .btn.primary{background:var(--ink);color:var(--paper)}
+.style-swiss .btn.primary:hover{background:var(--red);border-color:var(--red);color:#FFFFFF}
+.style-swiss .btn.ghost{background:transparent;color:var(--ink)}
+.style-swiss .btn.ghost:hover{background:var(--ink);color:var(--paper)}
+
+.style-swiss .columns{gap:0;margin-left:-24px;padding-top:24px}
+.style-swiss .column{
+  flex:1 1 0;
+  max-width:232px;
+  padding:0 24px;
+  border-left:1px solid var(--hair);
+}
+/* column 1 has no axis line; its text starts exactly on the board-head axis (no 1px border offset) */
+.style-swiss .col-1{border-left:0;padding-left:24px}
+.style-swiss .col-head{
+  height:24px;
+  align-items:center;gap:8px;
+  border-bottom:1px solid var(--ink);
+  font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;line-height:1;
+  color:var(--grey);
+  white-space:nowrap;
+}
+.style-swiss .col-num{display:none}
+.style-swiss .col-count{font-size:12px;font-weight:700;letter-spacing:0;color:var(--red-text)}
+
+.style-swiss .cards{gap:0}
+.style-swiss .card{
+  position:relative;
+  display:flex;flex-direction:column;gap:6px;
+  padding:12px 0;
+  border-bottom:1px solid var(--hair);
+}
+.style-swiss .cards > :last-child{border-bottom-color:var(--ink)}
+.style-swiss .card-title{font-size:15px;font-weight:500;line-height:20px;letter-spacing:-0.018em;color:var(--ink)}
+.style-swiss .card.selected .card-title{font-weight:700}
+/* selected card: the 2px red bar sits on the column axis, replacing the hairline for its height */
+.style-swiss .card.selected::before{
+  content:"";position:absolute;left:-25px;top:0;bottom:0;width:2px;
+  background:var(--red);
+}
+.style-swiss .col-1 .card.selected::before{left:-24px}
+.style-swiss .card-note{gap:6px;font-size:12px;line-height:16px}
+.style-swiss .card-note-glyph{flex:0 0 auto;color:var(--grey);line-height:1}
+.style-swiss .card-note-glyph::before{content:"→"}
+.style-swiss .card-note-name{
+  color:var(--ink);
+  text-decoration:underline;
+  text-decoration-color:var(--red-text);
+  text-decoration-thickness:1px;
+  text-underline-offset:2px;
+}
+.style-swiss .card-meta{margin-top:2px;line-height:16px}
+.style-swiss .card-state{
+  gap:8px;
+  font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;line-height:1;
+  color:var(--ink);
+}
+.style-swiss .state-mark{width:7px;height:7px;flex:0 0 auto;border:1px solid var(--grey)}
+.style-swiss .card-when{font-size:12px;letter-spacing:0.02em;color:var(--grey)}
+/* status: form + word, one hue */
+.style-swiss .state-doing .state-mark{border-color:var(--red);background:var(--red)}
+.style-swiss .state-idea .card-state,
+.style-swiss .state-waiting .card-state,
+.style-swiss .state-done .card-state{color:var(--grey)}
+.style-swiss .state-done .state-mark{
+  border-color:var(--ink);
+  padding:1px;
+  background:var(--ink);
+  background-clip:content-box;
+}
+.style-swiss .state-done .card-title{font-weight:400;color:var(--grey)}
+
+/* ---- split (L5): board 1.5 : note 1, one hairline between -------------- */
+.style-swiss .split-board{flex:1.5;border-right:1px solid var(--hair)}
+.style-swiss .split-note{flex:1}
+.style-swiss .split-board .board{padding:24px 24px 0 40px}
+.style-swiss .split-board .board-head{max-width:none;margin-right:12px}
+.style-swiss .split-board .board-name{font-size:24px;line-height:36px}
+.style-swiss .split-board .btn{height:36px;padding:0 14px}
+.style-swiss .split-board .columns{margin-left:-12px}
+.style-swiss .split-board .column{padding:0 12px;max-width:none}
+.style-swiss .split-board .col-1{padding-left:12px}
+/* narrow columns: an unhyphenated compound may break rather than cross the gutter hairline */
+.style-swiss .split-board .card-title{font-size:14px;overflow-wrap:anywhere}
+.style-swiss .split-board .card.selected::before{left:-13px}
+.style-swiss .split-board .col-1 .card.selected::before{left:-12px}
+.style-swiss .split-board .card-meta{flex-wrap:wrap;gap:4px 8px}
+.style-swiss .split-board .card-state{white-space:nowrap}
+.style-swiss .split-board .card-when{flex:0 0 100%}
+.style-swiss .split-note .tabs{padding:0 24px;gap:16px}
+.style-swiss .split-note .editor{padding:24px 24px 0 24px;font-size:14px;line-height:20px}
+.style-swiss .split-note .editor::after{display:none}
+.style-swiss .split-note .doc{max-width:none}
+.style-swiss .split-note .line{min-height:20px}
+.style-swiss .split-note .line.fm{font-size:12px}
+.style-swiss .split-note .line.h1{font-size:24px;line-height:40px}
+.style-swiss .split-note .line.h2{font-size:17px;line-height:20px}
+.style-swiss .split-note .line.fence,
+.style-swiss .split-note .line.code{font-size:12px}
+.style-swiss .split-note .line.cursor::before{left:-12px}
+.style-swiss .split-note .statusbar{padding:0 24px;gap:16px;letter-spacing:0.1em}
+/* the 426px note pane cannot hold all four status items; the encoding is the one that goes */
+.style-swiss .split-note .status-item:nth-child(3){display:none}
+
+/* ---- command palette (L3): sheet with 1px ink border, no shadow -------- */
+.style-swiss .scrim{background:var(--scrim)}
+.style-swiss .palette{
+  left:40px;top:96px;transform:none;
+  width:640px;
+  background:var(--paper);
+  border:1px solid var(--ink);
+}
+.style-swiss .palette-input{
+  height:48px;
+  padding:0 16px 0 14px;
+  gap:10px;
+  border-left:2px solid var(--red);
+  border-bottom:1px solid var(--ink);
+  font-size:16px;line-height:1;
+}
+.style-swiss .palette-prompt{font-size:18px;color:var(--grey)}
+.style-swiss .palette-text{color:var(--ink);letter-spacing:-0.01em}
+.style-swiss .caret{height:18px}
+.style-swiss .caret::before{
+  content:"";position:absolute;left:0;top:0;width:2px;height:18px;
+  background:var(--ink);
+}
+.style-swiss .kbd{
+  font-family:var(--font);
+  font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;line-height:1;
+  color:var(--grey);
+}
+.style-swiss .palette-input .kbd{margin-left:auto}
+.style-swiss .results{padding:0 16px}
+.style-swiss .result{
+  position:relative;
+  height:36px;
+  gap:10px;
+  border-bottom:1px solid var(--hair);
+  font-size:13px;line-height:35px;
+  color:var(--ink);
+}
+.style-swiss .results > :last-child{border-bottom:0}
+.style-swiss .result-glyph{flex:0 0 12px;width:12px;font-size:12px;color:var(--grey)}
+.style-swiss .result.note .result-glyph::before{content:"≡"}
+.style-swiss .result.command .result-glyph::before{content:"⌘"}
+.style-swiss .result-name{letter-spacing:-0.005em}
+.style-swiss .result-meta{font-size:12px;letter-spacing:0.02em;color:var(--grey)}
+.style-swiss .result.active .result-name{font-weight:700}
+.style-swiss .result.active::before{
+  content:"";position:absolute;left:-16px;top:0;bottom:0;width:2px;
+  background:var(--red);
+}
+.style-swiss .palette-foot{
+  height:36px;
+  align-items:center;gap:24px;
+  padding:0 16px;
+  border-top:1px solid var(--ink);
+  font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;line-height:1;
+  color:var(--grey);
+}
+.style-swiss .palette-foot .kbd{color:var(--ink);font-weight:700;margin-right:4px}
+
+/* ---- motion: respect reduced motion ------------------------------------ */
+@media (prefers-reduced-motion: reduce){
+  .style-swiss .btn,
+  .style-swiss .tab{transition:none}
+}
