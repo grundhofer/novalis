@@ -43,6 +43,9 @@
   },
   "calendar": {
     "calendarsDesc": "Read-only subscriptions — Google, Outlook, or any ICS URL (incl. secret iCal links).",
+    "clientIdHelp": "Novalis ships without OAuth credentials. Register a desktop (loopback) client with the provider and paste its client id here — it is not a secret and stays on this machine.",
+    "clientIdLabel": "OAuth client id for {{provider}}",
+    "clientIdPlaceholder": "{{provider}} OAuth client id",
     "connectProvider": "Connect {{provider}}",
     "duration": {
       "desc": "Length of a newly created event.",

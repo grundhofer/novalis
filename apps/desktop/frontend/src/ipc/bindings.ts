@@ -509,6 +509,20 @@ export const commands = {
 	oauthBegin: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_begin", { provider })),
 	/**  Whether a provider is currently connected. */
 	oauthStatus: (provider: string) => __TAURI_INVOKE<boolean>("oauth_status", { provider }),
+	/**
+	 *  Whether this provider CAN be connected — i.e. a client id is available.
+	 *  Distinct from `oauth_status`, which reports whether it IS connected. The UI
+	 *  needs both: an installed app has no environment variables, so without a
+	 *  stored client id the connect button is a button that can only fail.
+	 */
+	oauthConfigured: (provider: string) => __TAURI_INVOKE<boolean>("oauth_configured", { provider }),
+	/**
+	 *  The stored client id, so settings can show what is configured. Returns the
+	 *  stored value only, never the developer env fallback.
+	 */
+	oauthClientId: (provider: string) => __TAURI_INVOKE<string | null>("oauth_client_id", { provider }),
+	/**  Store (or, with an empty string, clear) the client id for a provider. */
+	oauthSetClientId: (provider: string, clientId: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_set_client_id", { provider, clientId })),
 	/**  Disconnect a provider: clear tokens, its source, and its cached events. */
 	oauthDisconnect: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_disconnect", { provider })),
 	listPlugins: () => typedError<PluginInfo[], CommandError>(__TAURI_INVOKE("list_plugins")),

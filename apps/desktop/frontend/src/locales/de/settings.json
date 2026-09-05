@@ -43,6 +43,9 @@
   },
   "calendar": {
     "calendarsDesc": "Schreibgeschützte Abonnements – Google, Outlook oder eine beliebige ICS-URL (inkl. geheimer iCal-Links).",
+    "clientIdHelp": "Novalis wird ohne OAuth-Zugangsdaten ausgeliefert. Registriere beim Anbieter einen Desktop-Client (Loopback) und füge dessen Client-ID hier ein — sie ist kein Geheimnis und bleibt auf diesem Gerät.",
+    "clientIdLabel": "OAuth-Client-ID für {{provider}}",
+    "clientIdPlaceholder": "OAuth-Client-ID für {{provider}}",
     "connectProvider": "{{provider}} verbinden",
     "duration": {
       "desc": "Länge eines neu erstellten Termins.",
@@ -177,6 +180,7 @@
       "desc": "Folgt schreibgeschützten .ics-Kalender-Feeds.",
       "label": "Kalender-Abos"
     },
+    "learnMoreAria": "„{{feature}}“ im Funktions-Guide öffnen",
     "math": {
       "aria": "Mathe-Rendering umschalten",
       "desc": "Rendert $Inline$- und $$Block$$-Formeln.",
@@ -218,8 +222,8 @@
       "label": "Query-Ansichten"
     },
     "reindexOffer": {
-      "text": "Bestehende Notizen brauchen einen Reindex, damit ihre Block-IDs erfasst werden.",
-      "action": "Jetzt reindizieren"
+      "action": "Jetzt reindizieren",
+      "text": "Bestehende Notizen brauchen einen Reindex, damit ihre Block-IDs erfasst werden."
     },
     "relatedNotes": {
       "aria": "Ähnliche Notizen umschalten",
@@ -244,29 +248,29 @@
     "sectionWorkspaceDesc": "Blendet ganze Ansichten für eine schlankere App aus — Notizen bleiben immer.",
     "storage": {
       "action": "Löschen",
-      "freed": "{{mb}} MB freigegeben.",
-      "freedRows": "{{n}} Einträge entfernt.",
       "embeddings": {
-        "label": "Semantischer Index",
-        "desc": "Gespeicherte Notiz-Vektoren plus der ~130-MB-Cache des lokalen Modells. Jederzeit unter Einstellungen › KI neu aufbaubar.",
         "aria": "Semantischen Index löschen",
+        "confirmBody": "Entfernt alle gespeicherten Notiz-Vektoren und den lokalen Modell-Cache (alle Vaults teilen das Modell). Ein Neuaufbau bettet jede Notiz erneut ein.",
         "confirmTitle": "Semantischen Index löschen?",
-        "confirmBody": "Entfernt alle gespeicherten Notiz-Vektoren und den lokalen Modell-Cache (alle Vaults teilen das Modell). Ein Neuaufbau bettet jede Notiz erneut ein."
+        "desc": "Gespeicherte Notiz-Vektoren plus der ~130-MB-Cache des lokalen Modells. Jederzeit unter Einstellungen › KI neu aufbaubar.",
+        "label": "Semantischer Index"
       },
       "entities": {
-        "label": "Entitäten-Graph",
-        "desc": "Die extrahierten Personen, Orte und Themen. Erneutes Extrahieren kostet Tokens.",
         "aria": "Entitäten-Graph löschen",
+        "confirmBody": "Entfernt alle extrahierten Entitäten und Erwähnungen. Notizen bleiben unberührt; erneutes Extrahieren kostet Tokens.",
         "confirmTitle": "Entitäten-Graph löschen?",
-        "confirmBody": "Entfernt alle extrahierten Entitäten und Erwähnungen. Notizen bleiben unberührt; erneutes Extrahieren kostet Tokens."
+        "desc": "Die extrahierten Personen, Orte und Themen. Erneutes Extrahieren kostet Tokens.",
+        "label": "Entitäten-Graph"
       },
+      "freed": "{{mb}} MB freigegeben.",
+      "freedRows": "{{n}} Einträge entfernt.",
       "voiceModel": {
-        "label": "Sprachmodell",
+        "aria": "Sprachmodell löschen",
+        "confirmBody": "Entfernt das heruntergeladene Transkriptionsmodell (von allen Vaults geteilt). Die nächste Transkription lädt es erneut (~142 MB).",
+        "confirmTitle": "Sprachmodell löschen?",
         "desc": "Nicht heruntergeladen.",
         "descDownloaded": "{{mb}} MB auf der Festplatte. Beim nächsten Transkribieren wird es erneut heruntergeladen.",
-        "aria": "Sprachmodell löschen",
-        "confirmTitle": "Sprachmodell löschen?",
-        "confirmBody": "Entfernt das heruntergeladene Transkriptionsmodell (von allen Vaults geteilt). Die nächste Transkription lädt es erneut (~142 MB)."
+        "label": "Sprachmodell"
       }
     },
     "tagAutocomplete": {
@@ -308,8 +312,7 @@
       "aria": "KI-Wochenrückblick umschalten",
       "desc": "Ein von der KI geschriebener Rückblick auf deine Woche; der einfache Digest bleibt auch ohne verfügbar.",
       "label": "KI-Wochenrückblick"
-    },
-    "learnMoreAria": "„{{feature}}“ im Funktions-Guide öffnen"
+    }
   },
   "general": {
     "defaultTaskView": {
@@ -327,12 +330,12 @@
     "sidebar": {
       "title": "Seitenleiste"
     },
-    "startup": {
-      "title": "Start"
-    },
     "startView": {
       "desc": "Welche Ansicht beim Start von Novalis geöffnet wird.",
       "label": "Startansicht"
+    },
+    "startup": {
+      "title": "Start"
     },
     "strategy": {
       "activeNote": "Aktive Notiz",
@@ -368,23 +371,23 @@
   },
   "keybindings": {
     "cheatsheet": "Kürzelübersicht",
-    "help": "Funktions-Guide",
+    "closeTab": "Tab schließen",
     "commandPalette": "Befehlspalette",
+    "focusPaneLeft": "Vorheriger Bereich",
+    "focusPaneRight": "Nächster Bereich",
+    "help": "Funktions-Guide",
     "navBack": "Zurück",
     "navForward": "Vor",
+    "nextTab": "Nächster Tab",
     "pressKeys": "Tasten drücken…",
+    "prevTab": "Vorheriger Tab",
     "reset": "Auf Standard zurücksetzen",
     "search": "Suchen",
     "settings": "Einstellungen",
-    "title": "Tastenkürzel",
-    "toggleSidebar": "Seitenleiste umschalten",
-    "closeTab": "Tab schließen",
-    "nextTab": "Nächster Tab",
-    "prevTab": "Vorheriger Tab",
-    "splitRight": "Rechts teilen",
     "splitDown": "Nach unten teilen",
-    "focusPaneLeft": "Vorheriger Bereich",
-    "focusPaneRight": "Nächster Bereich"
+    "splitRight": "Rechts teilen",
+    "title": "Tastenkürzel",
+    "toggleSidebar": "Seitenleiste umschalten"
   },
   "language": {
     "hint": "Gilt für dieses Gerät. Änderungen werden sofort wirksam.",
@@ -421,77 +424,38 @@
     "sectionRail": "Aktivitätsleiste"
   },
   "plugins": {
-    "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
-    "enableAria": "{{name}} aktivieren",
-    "loadFailed": "Plugin {{id}} konnte nicht geladen werden: {{error}}",
-    "section": "Plugins",
     "apiMismatch": "{{id}} wurde für Plugin-API {{declared}} geschrieben; diese Novalis-Version stellt API {{current}} bereit. Es wurde nicht geladen.",
     "cap": {
       "notesRead": "Alle Notizen in diesem Vault lesen",
       "notesWrite": "Überall im Vault neue Notizen anlegen",
+      "search": "Volltextsuche über den Vault ausführen",
       "tasksRead": "Alle Aufgaben in diesem Vault lesen",
-      "tasksWrite": "Aufgaben anlegen",
-      "search": "Volltextsuche über den Vault ausführen"
+      "tasksWrite": "Aufgaben anlegen"
     },
     "consent": {
-      "title": "{{name}} aktivieren?",
-      "reviewTitle": "{{name}} fordert mehr Zugriff an",
-      "intro": "Beim Aktivieren führt Novalis den Code dieses Plugins aus. Gewähren Sie nur den Zugriff, den es braucht, und nur Plugins, denen Sie vertrauen.",
-      "reviewIntro": "Dieses Plugin fordert jetzt Zugriff an, den Sie nicht gewährt haben. Bis Sie ihn gewähren, werden diese Aufrufe abgelehnt.",
-      "requests": "Angeforderter Zugriff",
-      "none": "Dieses Plugin fordert keinen Vault-Zugriff an. Es kann nur Befehle hinzufügen und Meldungen anzeigen.",
-      "scope": "Zugriff gilt pro Plugin und für den gesamten Vault: Ein Plugin mit Notizzugriff kann jede Notiz darin lesen und überall neue anlegen. Schalten Sie das Plugin aus, um alles zu entziehen.",
-      "newBadge": "neu",
       "confirm": "Aktivieren und Zugriff gewähren",
-      "confirmReview": "Zugriff aktualisieren"
+      "confirmReview": "Zugriff aktualisieren",
+      "intro": "Beim Aktivieren führt Novalis den Code dieses Plugins aus. Gewähren Sie nur den Zugriff, den es braucht, und nur Plugins, denen Sie vertrauen.",
+      "newBadge": "neu",
+      "none": "Dieses Plugin fordert keinen Vault-Zugriff an. Es kann nur Befehle hinzufügen und Meldungen anzeigen.",
+      "requests": "Angeforderter Zugriff",
+      "reviewIntro": "Dieses Plugin fordert jetzt Zugriff an, den Sie nicht gewährt haben. Bis Sie ihn gewähren, werden diese Aufrufe abgelehnt.",
+      "reviewTitle": "{{name}} fordert mehr Zugriff an",
+      "scope": "Zugriff gilt pro Plugin und für den gesamten Vault: Ein Plugin mit Notizzugriff kann jede Notiz darin lesen und überall neue anlegen. Schalten Sie das Plugin aus, um alles zu entziehen.",
+      "title": "{{name}} aktivieren?"
     },
+    "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
+    "enableAria": "{{name}} aktivieren",
     "granted": "Gewährt: {{caps}}",
     "grantedNone": "Aktiviert ohne Vault-Zugriff",
+    "incompatible": "Benötigt Plugin-API {{declared}} — diese Novalis-Version stellt {{current}} bereit.",
+    "loadFailed": "Plugin {{id}} konnte nicht geladen werden: {{error}}",
     "requests": "Fordert an: {{caps}}",
     "requestsNone": "Fordert keinen Vault-Zugriff an",
     "review": "Neuen Zugriff prüfen: {{caps}}",
-    "incompatible": "Benötigt Plugin-API {{declared}} — diese Novalis-Version stellt {{current}} bereit."
+    "section": "Plugins"
   },
   "sync": {
-    "p2p": {
-      "desc": "Synchronisiere direkt zwischen deinen eigenen Geräten – ganz ohne Server. Dateiinhalte sind Ende-zu-Ende-verschlüsselt, sodass nur deine gekoppelten Geräte sie lesen können. Eine optionale Alternative zur Git-Synchronisierung.",
-      "disabledHint": "Schalte Geräte-Sync unter Einstellungen › Funktionen ein, um Geräte zu koppeln und zu synchronisieren.",
-      "error": "Synchronisierung fehlgeschlagen: {{message}}",
-      "outcome": {
-        "conflicts": "{{n}} Datei(en) sind auseinandergelaufen und wurden zur Auflösung in der Konfliktansicht belassen",
-        "noPeers": "Zuerst ein Gerät koppeln",
-        "notConfigured": "Zuerst Peer-to-Peer-Synchronisierung einrichten",
-        "skippedOversize": "{{n}} Datei(en) übersprungen – größer als das 64-MiB-Sync-Limit",
-        "synced": "Synchronisiert – {{taken}} empfangen, {{sent}} gesendet",
-        "unreachable": "Kein gekoppeltes Gerät war erreichbar – versuche es erneut, wenn beide online sind",
-        "upToDate": "Auf dem neuesten Stand"
-      },
-      "pair": {
-        "copied": "Kopiert",
-        "copy": "Code kopieren",
-        "desc": "Erstelle auf einem Gerät einen Code und füge ihn auf dem anderen ein. Wer den Code hat, kann diesen Tresor lesen – teile ihn nur privat.",
-        "generate": "Kopplungscode erstellen",
-        "joinBtn": "Koppeln",
-        "joinLabel": "Hast du einen Code von einem anderen Gerät?",
-        "joinPlaceholder": "Kopplungscode einfügen …",
-        "ticketLabel": "Kopplungscode – kopiere ihn auf dein anderes Gerät",
-        "title": "Gerät koppeln"
-      },
-      "peers": {
-        "lastSynced": "zuletzt synchronisiert {{when}}",
-        "never": "nie synchronisiert",
-        "none": "Noch keine gekoppelten Geräte",
-        "title": "Gekoppelte Geräte"
-      },
-      "status": {
-        "notConfigured": "Noch nicht eingerichtet",
-        "offline": "Offline",
-        "online": "Online",
-        "thisDevice": "Dieses Gerät: {{id}}"
-      },
-      "syncNow": "Jetzt synchronisieren",
-      "title": "Peer-to-Peer-Synchronisierung (Ende-zu-Ende-verschlüsselt)"
-    },
     "authorEmail": {
       "desc": "Wird als E-Mail des Commit-Autors eingetragen.",
       "label": "Autor-E-Mail"
@@ -538,6 +502,45 @@
       "pulled": "{{behind}} Commit(s) geholt",
       "pushed": "{{ahead}} Commit(s) gepusht",
       "upToDate": "Auf dem neuesten Stand"
+    },
+    "p2p": {
+      "desc": "Synchronisiere direkt zwischen deinen eigenen Geräten – ganz ohne Server. Dateiinhalte sind Ende-zu-Ende-verschlüsselt, sodass nur deine gekoppelten Geräte sie lesen können. Eine optionale Alternative zur Git-Synchronisierung.",
+      "disabledHint": "Schalte Geräte-Sync unter Einstellungen › Funktionen ein, um Geräte zu koppeln und zu synchronisieren.",
+      "error": "Synchronisierung fehlgeschlagen: {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} Datei(en) sind auseinandergelaufen und wurden zur Auflösung in der Konfliktansicht belassen",
+        "noPeers": "Zuerst ein Gerät koppeln",
+        "notConfigured": "Zuerst Peer-to-Peer-Synchronisierung einrichten",
+        "skippedOversize": "{{n}} Datei(en) übersprungen – größer als das 64-MiB-Sync-Limit",
+        "synced": "Synchronisiert – {{taken}} empfangen, {{sent}} gesendet",
+        "unreachable": "Kein gekoppeltes Gerät war erreichbar – versuche es erneut, wenn beide online sind",
+        "upToDate": "Auf dem neuesten Stand"
+      },
+      "pair": {
+        "copied": "Kopiert",
+        "copy": "Code kopieren",
+        "desc": "Erstelle auf einem Gerät einen Code und füge ihn auf dem anderen ein. Wer den Code hat, kann diesen Tresor lesen – teile ihn nur privat.",
+        "generate": "Kopplungscode erstellen",
+        "joinBtn": "Koppeln",
+        "joinLabel": "Hast du einen Code von einem anderen Gerät?",
+        "joinPlaceholder": "Kopplungscode einfügen …",
+        "ticketLabel": "Kopplungscode – kopiere ihn auf dein anderes Gerät",
+        "title": "Gerät koppeln"
+      },
+      "peers": {
+        "lastSynced": "zuletzt synchronisiert {{when}}",
+        "never": "nie synchronisiert",
+        "none": "Noch keine gekoppelten Geräte",
+        "title": "Gekoppelte Geräte"
+      },
+      "status": {
+        "notConfigured": "Noch nicht eingerichtet",
+        "offline": "Offline",
+        "online": "Online",
+        "thisDevice": "Dieses Gerät: {{id}}"
+      },
+      "syncNow": "Jetzt synchronisieren",
+      "title": "Peer-to-Peer-Synchronisierung (Ende-zu-Ende-verschlüsselt)"
     },
     "remote": {
       "aheadBehind": "{{ahead}} zu pushen · {{behind}} zu holen",
