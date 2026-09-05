@@ -96,6 +96,7 @@ pub fn rename_excl(from: &Path, to: &Path) -> io::Result<()> {
     }
     #[cfg(not(target_os = "macos"))]
     {
+        let _ = (from, to);
         Err(io::Error::from_raw_os_error(libc::ENOTSUP))
     }
 }

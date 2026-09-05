@@ -432,6 +432,8 @@ pub fn trash(path: &Path) -> CoreResult<()> {
             path: path.to_string_lossy().into_owned(),
         });
     }
+    // Only the macOS branch below mutates it (D8: NsFileManager).
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut ctx = trash::TrashContext::new();
     #[cfg(target_os = "macos")]
     {
