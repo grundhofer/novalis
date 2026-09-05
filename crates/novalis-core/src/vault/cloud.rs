@@ -328,6 +328,11 @@ mod tests {
         assert!(!is_dataless(&std::fs::metadata(tmp.path()).unwrap()));
     }
 
+    // macOS only: every assertion here is about `setiopolicy_np`, which off
+    // macOS is a no-op returning the default policy (vault/sys.rs), so the
+    // guard provably cannot change what this reads back. Linux is built by CI
+    // but does not ship (PLAN.md §4.5).
+    #[cfg(target_os = "macos")]
     #[test]
     fn materialize_off_guard_sets_and_restores_thread_policy() {
         std::thread::spawn(|| {
