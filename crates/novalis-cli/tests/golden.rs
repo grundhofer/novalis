@@ -277,8 +277,8 @@ fn help_json_describes_every_command() {
         .map(|c| c["name"].as_str().expect("a name"))
         .collect();
     for expected in [
-        "cat", "doctor", "edit", "help", "index", "init", "links", "ls", "meta", "mv", "new",
-        "relink", "rm", "search", "tags",
+        "cat", "doctor", "edit", "help", "index", "init", "links", "ls", "meta", "migrate", "mv",
+        "new", "relink", "rm", "search", "tags",
     ] {
         assert!(names.contains(&expected), "{expected} missing from help");
         let entry = commands
@@ -290,7 +290,7 @@ fn help_json_describes_every_command() {
             "{expected} publishes no output schema"
         );
     }
-    for planned in ["board", "card", "migrate", "sync", "skill"] {
+    for planned in ["board", "card", "sync", "skill"] {
         assert!(names.contains(&planned), "{planned} missing from help");
     }
     assert_eq!(

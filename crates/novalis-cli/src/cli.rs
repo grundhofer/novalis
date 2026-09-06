@@ -83,8 +83,8 @@ pub enum Command {
     Board(StubArgs),
     /// Cards (planned in Phase 4).
     Card(StubArgs),
-    /// Migrate a vault written by the old app (planned in Phase 4).
-    Migrate(StubArgs),
+    /// Migrate a vault written by the old app. Dry run unless --apply.
+    Migrate(MigrateArgs),
     /// Sync state of the vault (planned in Phase 4).
     Sync(StubArgs),
     /// Print where the agent skill lives (planned in Phase 4).
@@ -373,6 +373,36 @@ pub struct InitArgs {
 
 /// Argument sink for the commands PLAN.md §12 places in Phase 4. They parse
 /// and then fail with exit 2 so a script hits the contract, not a typo.
+/// The one-time upgrade of a vault written by the old app (PLAN.md §10,
+/// ADR-0005). `--import-status` is deliberately absent: the owner decided old
+/// `@status` tokens stay as text.
+#[derive(Debug, Args)]
+pub struct MigrateArgs {
+    /// Perform the plan. Without it the command only reports what it would do.
+    #[arg(long)]
+    pub apply: bool,
+    /// Rename notes whose stem differs from their frontmatter title. On by
+    /// default; --rename-to-title=false plans links only.
+    #[arg(
+        long,
+        value_name = "BOOL",
+        num_args = 0..=1,
+        default_value_t = true,
+        default_missing_value = "true",
+        action = ArgAction::Set
+    )]
+    pub rename_to_title: bool,
+    /// Import the legacy Kanban columns into boards/kanban/board.json.
+    #[arg(long)]
+    pub import_columns: bool,
+    /// Accept cloud-only skips, migrating the rest.
+    #[arg(long)]
+    pub force: bool,
+    /// Download the cloud-only notes first, so nothing is skipped.
+    #[arg(long)]
+    pub materialize: bool,
+}
+
 #[derive(Debug, Args)]
 pub struct StubArgs {
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]

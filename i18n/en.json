@@ -1,6 +1,8 @@
 {
   "app.cancel": "Cancel",
   "app.close": "Close",
+  "app.confirmTrash.body": "{{name}} can be restored from the Trash.",
+  "app.confirmTrash.title": "Move to Trash?",
   "app.installCli.body": "Links the bundled novalis command into /usr/local/bin so agents and scripts can use it.",
   "app.installCli.done": "The novalis command is now available in /usr/local/bin.",
   "app.installCli.install": "Install",

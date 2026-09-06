@@ -25,6 +25,12 @@ pub const VAULT_ENV: &str = "NOVALIS_VAULT";
 /// The marker file the walk-up discovery looks for (D23).
 pub const VAULT_MARKER: &str = ".novalis/vault.json";
 
+/// The old app's marker. Read only to discover a vault for `novalis migrate`,
+/// which is the one command whose whole purpose is a folder that does not have
+/// [`VAULT_MARKER`] yet (ADR-0003: "the only legacy file the new app reads is
+/// the vault-side `.novalis/config.json`, once, for `novalis migrate`").
+pub const LEGACY_MARKER: &str = ".novalis/config.json";
+
 /// Where the cache row served by this invocation came from, reported by
 /// `index --status` as `indexSource`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +85,11 @@ impl Ctx {
 
     /// `--vault`, else `$NOVALIS_VAULT`, else the nearest ancestor of the
     /// working directory holding `.novalis/vault.json`, else exit 7.
-    pub fn discover(flag: Option<&Path>) -> Result<PathBuf, CliError> {
+    ///
+    /// With `legacy_ok`, a folder carrying only the old app's marker counts
+    /// too. Only `migrate` passes it: without that, the command printed in the
+    /// legacy-vault banner exits 7 on precisely the vault it is meant for.
+    pub fn discover_for(flag: Option<&Path>, legacy_ok: bool) -> Result<PathBuf, CliError> {
         if let Some(dir) = flag {
             return accept_vault(dir, "--vault");
         }
@@ -93,6 +103,9 @@ impl Ctx {
         let mut cur = cwd.as_path();
         loop {
             if cur.join(VAULT_MARKER).is_file() {
+                return accept_vault(cur, "discovery");
+            }
+            if legacy_ok && cur.join(LEGACY_MARKER).is_file() {
                 return accept_vault(cur, "discovery");
             }
             match cur.parent() {

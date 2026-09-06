@@ -594,6 +594,13 @@ button {
   color: var(--ds-color-fg-default);
 }
 
+/* A confirmation shows this line where an input dialog shows its field. */
+.dialog-body {
+  margin: 0;
+  color: var(--ds-color-fg-muted);
+  line-height: var(--ds-line-height-ui);
+}
+
 .dialog-input {
   width: 100%;
   height: var(--ds-size-control);

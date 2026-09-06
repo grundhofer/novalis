@@ -67,6 +67,7 @@ interface EditorSaveState {
   docs: Record<string, Doc>;
   open: (path: string) => Promise<Doc>;
   close: (path: string) => Promise<void>;
+  rename: (from: string, to: string) => void;
   setText: (path: string, text: string) => void;
   save: (path: string) => Promise<void>;
   flushAll: () => Promise<void>;
@@ -154,6 +155,29 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     set((s) => {
       const docs = { ...s.docs };
       delete docs[path];
+      return { docs };
+    });
+  },
+
+  rename: (from, to) => {
+    const doc = get().docs[from];
+    if (!doc || from === to) return;
+    // The map is keyed by path, so a rename has to re-key it or the pane reads
+    // `docs[to]`, finds nothing and falls through to the empty state. Both
+    // callers save before renaming, so dropping the pending autosave — which
+    // is keyed by the old path and would write a file that no longer exists —
+    // loses nothing.
+    cancelTimer(from);
+    set((s) => {
+      const docs = { ...s.docs };
+      delete docs[from];
+      docs[to] = {
+        ...doc,
+        path: to,
+        // Only follow the rename while we are writing to the note itself: a
+        // conflict copy from §5.3 step 3 keeps the path it was given.
+        writePath: doc.writePath === from ? to : doc.writePath,
+      };
       return { docs };
     });
   },

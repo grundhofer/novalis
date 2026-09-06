@@ -9,6 +9,7 @@
 //! the single source of truth for `ui/src/ipc/bindings.ts`, regenerated with
 //! `cargo run -p novalis-desktop --example gen_bindings`.
 
+mod cache;
 mod commands;
 mod dto;
 mod error;
@@ -20,12 +21,13 @@ mod watcher;
 use tauri::Manager;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
+use crate::cache::CacheUpdated;
 use crate::i18n::{resolve_locale, Catalog};
 use crate::menu::{MenuAction, MenuFlags};
 use crate::state::{load_settings, AppState};
 use crate::watcher::FsBatch;
 
-/// The IPC surface. 20 commands — PLAN.md §2.3 rule 8 caps it at 25.
+/// The IPC surface. 22 commands — PLAN.md §2.3 rule 8 caps it at 25.
 fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
         .commands(collect_commands![
@@ -42,6 +44,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::rename,
             commands::trash,
             commands::search,
+            commands::tags,
+            commands::backlinks,
             commands::board_list,
             commands::board_read,
             commands::board_create,
@@ -50,7 +54,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::settings_set,
             commands::state_save,
         ])
-        .events(collect_events![FsBatch, MenuAction])
+        .events(collect_events![FsBatch, MenuAction, CacheUpdated])
 }
 
 /// Regenerate `ui/src/ipc/bindings.ts` from the command and event surface.

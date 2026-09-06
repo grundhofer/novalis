@@ -2,7 +2,15 @@ import { Channel } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { commands, unwrap, type SearchEventDto, type SearchHitDto, type SearchReportDto } from "../ipc/client";
+import {
+  commands,
+  events,
+  unwrap,
+  type SearchEventDto,
+  type SearchHitDto,
+  type SearchReportDto,
+  type TagCountDto,
+} from "../ipc/client";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import "../styles/overlay.css";
@@ -24,6 +32,8 @@ export default function SearchPanel() {
   const [query, setQuery] = useState("");
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [tag, setTag] = useState("");
+  const [tags, setTags] = useState<TagCountDto[]>([]);
   const [hits, setHits] = useState<SearchHitDto[]>([]);
   const [report, setReport] = useState<SearchReportDto | null>(null);
   const [running, setRunning] = useState(false);
@@ -32,6 +42,19 @@ export default function SearchPanel() {
   useEffect(() => {
     const id = requestAnimationFrame(() => input.current?.focus());
     return () => cancelAnimationFrame(id);
+  }, []);
+
+  // The tag list comes from the cache, which indexes in the background: load
+  // it once and again whenever a scan finishes, rather than on a timer.
+  useEffect(() => {
+    const load = () => {
+      void unwrap(commands.tags())
+        .then((list) => setTags(list.tags))
+        .catch(() => setTags([]));
+    };
+    load();
+    const unlisten = events.cacheUpdated.listen(load);
+    return () => void unlisten.then((stop) => stop());
   }, []);
 
   const run = useCallback(async () => {
@@ -56,14 +79,22 @@ export default function SearchPanel() {
     try {
       await unwrap(
         commands.search(
-          { query, regex, caseSensitive, folder: null, limit: MAX_RESULTS, allFiles: false },
+          {
+            query,
+            regex,
+            caseSensitive,
+            folder: null,
+            tag: tag.trim() === "" ? null : tag.trim(),
+            limit: MAX_RESULTS,
+            allFiles: false,
+          },
           channel,
         ),
       );
     } finally {
       setRunning(false);
     }
-  }, [query, regex, caseSensitive]);
+  }, [query, regex, caseSensitive, tag]);
 
   useEffect(() => {
     const timer = setTimeout(() => void run(), DEBOUNCE_MS);
@@ -104,6 +135,33 @@ export default function SearchPanel() {
           >
             {t("editor.find.regex")}
           </button>
+          <input
+            className="palette-filter"
+            list="search-tags"
+            value={tag}
+            placeholder={t("editor.search.filterTag")}
+            aria-label={t("editor.search.filterTag")}
+            onChange={(event) => setTag(event.target.value)}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") close();
+            }}
+          />
+          <datalist id="search-tags">
+            {tags.map((entry) => (
+              <option key={entry.tag} value={entry.tag} />
+            ))}
+          </datalist>
+          {tag !== "" && (
+            <button
+              className="kbd"
+              type="button"
+              title={t("editor.search.clearFilters")}
+              onClick={() => setTag("")}
+            >
+              {t("editor.search.clearFilters")}
+            </button>
+          )}
         </div>
 
         <div className="results">

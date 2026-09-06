@@ -30,11 +30,24 @@ export type Overlay =
  * A one-line question. The app has no preferences window and no modal stack:
  * this is the single dialog shape (new note, new folder, rename, board and
  * column names), always titled and placeheld from the catalog.
+ *
+ * With `confirm` set it asks instead of collecting: the input is replaced by a
+ * line of explanation and `submit` is called with the empty string. That is
+ * the same dialog rather than a second one, because a destructive action needs
+ * a question, not a new modal stack.
  */
 export interface PromptRequest {
   titleKey: string;
-  placeholderKey: string;
-  initial: string;
+  /** Input dialogs only. */
+  placeholderKey?: string;
+  /** Input dialogs only. */
+  initial?: string;
+  confirm?: {
+    bodyKey: string;
+    values?: Record<string, string>;
+    /** Catalog key for the confirming button, which names the action. */
+    confirmKey: string;
+  };
   submit: (value: string) => void | Promise<void>;
 }
 

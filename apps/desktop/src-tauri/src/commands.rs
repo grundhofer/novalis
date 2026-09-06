@@ -1,4 +1,4 @@
-//! The whole IPC surface: 20 commands (PLAN.md §2.3 rule 8 caps it at 25).
+//! The whole IPC surface: 22 commands (PLAN.md §2.3 rule 8 caps it at 25).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use novalis_core::boards::{self, CardChange, Column, NewCard, Position};
+use novalis_core::cache::Cache;
 use novalis_core::notes::relink::{relink_many, RelinkOptions, RelinkSpec};
 use novalis_core::search::{self, SearchHit};
 use novalis_core::settings::Settings;
@@ -34,7 +35,7 @@ use crate::dto::*;
 use crate::error::{IpcError, IpcResult};
 use crate::i18n::{resolve_locale, Catalog};
 use crate::state::{AppState, MenuShape};
-use crate::{menu, watcher};
+use crate::{cache, menu, watcher};
 
 /// Hits are posted in groups: a 10k-note vault otherwise sends 10k messages
 /// and the UI thread spends the whole search doing React updates.
@@ -113,9 +114,17 @@ fn scan_vault(root: &Path) -> IpcResult<VaultOpenDto> {
 
 /// Install a scanned vault: start its watcher and remember it as `lastVault`.
 fn attach_vault(app: &AppHandle, state: &AppState, root: PathBuf) -> IpcResult<()> {
-    let handle = watcher::spawn(app.clone(), root.clone(), state.own_writes.clone())
-        .map_err(|e| IpcError::internal(format!("watcher: {e}")))?;
-    state.set_vault(Some(root.clone()), Some(handle));
+    // The cache actor first: the watcher asks it to rescan, and its first scan
+    // runs on its own thread so opening a vault never waits for it.
+    let cache = cache::spawn(app.clone(), state.cache_dir(), root.clone());
+    let handle = watcher::spawn(
+        app.clone(),
+        root.clone(),
+        state.own_writes.clone(),
+        cache.rescan(),
+    )
+    .map_err(|e| IpcError::internal(format!("watcher: {e}")))?;
+    state.set_vault(Some(root.clone()), Some(handle), Some(cache));
 
     let mut settings = state.settings();
     settings.last_vault = Some(root.to_string_lossy().to_string());
@@ -461,6 +470,7 @@ pub async fn search(
     let counter: Arc<AtomicU64> = state.search_counter();
     let generation = counter.fetch_add(1, Ordering::SeqCst) + 1;
     let core_query = search::SearchQuery::from(&query);
+    let cache_dir = state.cache_dir();
 
     blocking(move || {
         let mut buffer: Vec<SearchHitDto> = Vec::with_capacity(SEARCH_BATCH);
@@ -480,7 +490,14 @@ pub async fn search(
             }
             true
         };
-        let report = search::search(&root, &core_query, None, &mut on_hit)?;
+        // The cache is opened only for a tag-filtered search; a plain scan
+        // does not need it and must not wait on it.
+        let cache = if core_query.tag.is_some() {
+            Cache::open(&cache_dir, &root).ok()
+        } else {
+            None
+        };
+        let report = search::search(&root, &core_query, cache.as_ref(), &mut on_hit)?;
         if !buffer.is_empty() {
             let _ = on_event.send(SearchEventDto::Hits { hits: buffer });
         }
@@ -489,6 +506,70 @@ pub async fn search(
             report: out.clone(),
         });
         Ok(out)
+    })
+    .await
+}
+
+/// Every tag in the vault with its note count, most used first.
+///
+/// Reads the cache on its own short-lived connection rather than through the
+/// actor: the database is WAL and the actor's scan does its file reads before
+/// it opens a write transaction, so a reader never waits on a scan.
+#[tauri::command]
+#[specta::specta]
+pub async fn tags(state: State<'_, AppState>) -> IpcResult<TagListDto> {
+    let root = state.require_vault()?;
+    let cache_dir = state.cache_dir();
+    let indexed = state.cache_indexed();
+    blocking(move || {
+        let Ok(cache) = Cache::open(&cache_dir, &root) else {
+            return Ok(TagListDto {
+                tags: Vec::new(),
+                indexed: false,
+            });
+        };
+        Ok(TagListDto {
+            tags: cache
+                .tags()?
+                .into_iter()
+                .map(|(tag, count)| TagCountDto {
+                    tag,
+                    count: count as u32,
+                })
+                .collect(),
+            indexed,
+        })
+    })
+    .await
+}
+
+/// The notes and cards that link to `path` (§4.4, approved for v1).
+#[tauri::command]
+#[specta::specta]
+pub async fn backlinks(state: State<'_, AppState>, path: String) -> IpcResult<BacklinksDto> {
+    let root = state.require_vault()?;
+    let cache_dir = state.cache_dir();
+    let indexed = state.cache_indexed();
+    blocking(move || {
+        let rel = normalize_rel(&path)?;
+        let Ok(cache) = Cache::open(&cache_dir, &root) else {
+            return Ok(BacklinksDto {
+                notes: Vec::new(),
+                indexed: false,
+            });
+        };
+        Ok(BacklinksDto {
+            notes: cache
+                .backlinks(&rel)?
+                .into_iter()
+                .map(|row| BacklinkDto {
+                    title: stem_of(&row.src).to_string(),
+                    line: row.line as u32,
+                    path: row.src,
+                })
+                .collect(),
+            indexed,
+        })
     })
     .await
 }

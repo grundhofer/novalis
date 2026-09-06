@@ -115,6 +115,7 @@ export default function BoardPane() {
               key={column.id}
               onDragOver={(event) => {
                 event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
                 if (!over || over.column !== column.id) setOver({ column: column.id, beforeCardId: null });
               }}
               onDrop={() => drop(column.id)}
@@ -148,7 +149,15 @@ export default function BoardPane() {
                     className={drag?.cardId === card.id ? "card dragging" : "card"}
                     key={card.id}
                     draggable
-                    onDragStart={() => setDrag({ cardId: card.id, from: column.id })}
+                    onDragStart={(event) => {
+                      // WebKit abandons a drag whose data store is still empty
+                      // when dragstart returns, so the drop never fires. The
+                      // payload is unused — `drag` carries the state — but it
+                      // has to be there.
+                      event.dataTransfer.setData("text/plain", card.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      setDrag({ cardId: card.id, from: column.id });
+                    }}
                     onDragEnd={() => {
                       setDrag(null);
                       setOver(null);
@@ -156,6 +165,7 @@ export default function BoardPane() {
                     onDragOver={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
+                      event.dataTransfer.dropEffect = "move";
                       setOver({ column: column.id, beforeCardId: card.id });
                     }}
                     onClick={() => {

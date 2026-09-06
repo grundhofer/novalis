@@ -12,6 +12,7 @@ pub mod init;
 pub mod links;
 pub mod ls;
 pub mod meta;
+pub mod migrate;
 pub mod mv;
 pub mod new;
 pub mod relink;
@@ -39,6 +40,7 @@ pub fn output_schema(command: &str) -> Option<serde_json::Value> {
         "index" => schema_for!(index::IndexOut),
         "init" => schema_for!(init::InitOut),
         "doctor" => schema_for!(doctor::DoctorOut),
+        "migrate" => schema_for!(migrate::MigrateOut),
         "help" => schema_for!(help::HelpOut),
         _ => return None,
     };
@@ -52,13 +54,13 @@ mod tests {
     #[test]
     fn every_built_command_publishes_a_schema() {
         for name in [
-            "ls", "cat", "new", "edit", "meta", "mv", "rm", "search", "links", "tags", "relink",
-            "index", "init", "doctor", "help",
+            "ls", "cat", "new", "edit", "meta", "migrate", "mv", "rm", "search", "links", "tags",
+            "relink", "index", "init", "doctor", "help",
         ] {
             let schema = output_schema(name).unwrap_or_else(|| panic!("{name} has no schema"));
             assert!(schema.is_object(), "{name}");
         }
-        for name in ["board", "card", "migrate", "sync", "skill"] {
+        for name in ["board", "card", "sync", "skill"] {
             assert!(output_schema(name).is_none(), "{name}");
         }
     }
