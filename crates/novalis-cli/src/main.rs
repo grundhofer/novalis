@@ -53,7 +53,10 @@ fn run() -> Result<i32, CliError> {
     }
 
     let vault = if parsed.command.needs_vault() {
-        Ctx::discover(parsed.global.vault.as_deref())?
+        Ctx::discover_for(
+            parsed.global.vault.as_deref(),
+            matches!(parsed.command, Command::Migrate(_)),
+        )?
     } else if let Command::Init(args) = &parsed.command {
         PathBuf::from(&args.dir)
     } else {
@@ -105,6 +108,7 @@ fn run() -> Result<i32, CliError> {
         Command::Index(args) => finish(&ctx, ops::index::run(&ctx, args)?, &[]),
         Command::Init(args) => finish(&ctx, ops::init::run(&ctx, &args.dir)?, &[]),
         Command::Doctor => finish(&ctx, ops::doctor::run(&ctx, ())?, &[]),
+        Command::Migrate(args) => finish(&ctx, ops::migrate::run(&ctx, args)?, &[]),
         Command::Help => {
             if !ctx.json {
                 Cli::command().print_long_help()?;

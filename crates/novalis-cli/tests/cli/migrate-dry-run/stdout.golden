@@ -1,0 +1,396 @@
+{
+  "alreadyMigrated": null,
+  "applied": false,
+  "cardsUpdated": [],
+  "changes": [
+    {
+      "after": "[[Article – What Latency Costs Attention]] and to the browsing-without-an-end problem in",
+      "before": "[[Article: What Latency Costs Attention]] and to the browsing-without-an-end problem in",
+      "line": 31,
+      "path": "reading/article-against-infinite-feed.md"
+    },
+    {
+      "after": "- [[Notes on – The Art of War]] — position over force",
+      "before": "- [[Notes on: The Art of War]] — position over force",
+      "line": 22,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [[Notes on – Meditations]] — the original daily note",
+      "before": "- [[Notes on: Meditations]] — the original daily note",
+      "line": 23,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [[Notes on – Walden]] — deliberate cost accounting",
+      "before": "- [[Notes on: Walden]] — deliberate cost accounting",
+      "line": 24,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [[Article – What Latency Costs Attention]]",
+      "before": "- [[Article: What Latency Costs Attention]]",
+      "line": 33,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [[Article – The Filing Cabinet Problem]]",
+      "before": "- [[Article: The Filing Cabinet Problem]]",
+      "line": 34,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [[Article – Against the Infinite Feed]]",
+      "before": "- [[Article: Against the Infinite Feed]]",
+      "line": 35,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "- [ ] Write up the margin notes from [[Notes on – Walden]] @start(2026-08-10) @due(2026-08-18) @status(in-progress) @project(Atlas)",
+      "before": "- [ ] Write up the margin notes from [[Notes on: Walden]] @start(2026-08-10) @due(2026-08-18) @status(in-progress) @project(Atlas)",
+      "line": 40,
+      "path": "reading/index.md"
+    },
+    {
+      "after": "abandon every February. Related: [[Notes on – Walden]], [[Evergreen Notes]], and the",
+      "before": "abandon every February. Related: [[Notes on: Walden]], [[Evergreen Notes]], and the",
+      "line": 29,
+      "path": "reading/meditations.md"
+    },
+    {
+      "after": "redundant. I'll stop trying to collapse them. See [[Article – The Filing Cabinet Problem]] and",
+      "before": "redundant. I'll stop trying to collapse them. See [[Article: The Filing Cabinet Problem]] and",
+      "line": 31,
+      "path": "reading/rooms-with-doors.md"
+    },
+    {
+      "after": "[[Article – What Latency Costs Attention]] and gives the local-data claim in",
+      "before": "[[Article: What Latency Costs Attention]] and gives the local-data claim in",
+      "line": 32,
+      "path": "reading/slow-software.md"
+    },
+    {
+      "after": "the experiment in [[Notes on – Walden]].",
+      "before": "the experiment in [[Notes on: Walden]].",
+      "line": 26,
+      "path": "research/data-ownership.md"
+    },
+    {
+      "after": "both modes in [[Rooms with Doors]] and [[Article – The Filing Cabinet Problem]].",
+      "before": "both modes in [[Rooms with Doors]] and [[Article: The Filing Cabinet Problem]].",
+      "line": 25,
+      "path": "research/linking-vs-foldering.md"
+    },
+    {
+      "after": "[[Notes on – Walden]].",
+      "before": "[[Notes on: Walden]].",
+      "line": 28,
+      "path": "research/plain-text-durability.md"
+    },
+    {
+      "after": "working version of the practice is [[Notes on – Meditations]].",
+      "before": "working version of the practice is [[Notes on: Meditations]].",
+      "line": 22,
+      "path": "research/spaced-repetition.md"
+    },
+    {
+      "after": "[[Article – The Filing Cabinet Problem]] is really about.",
+      "before": "[[Article: The Filing Cabinet Problem]] is really about.",
+      "line": 25,
+      "path": "research/zettelkasten-and-para.md"
+    }
+  ],
+  "cloudOnlySkipped": [],
+  "collisions": [],
+  "dryRun": true,
+  "frontmatterFailures": [],
+  "legacyTokens": {
+    "due": 63,
+    "status": 67
+  },
+  "linksRewritten": [
+    {
+      "count": 1,
+      "path": "reading/article-against-infinite-feed.md"
+    },
+    {
+      "count": 7,
+      "path": "reading/index.md"
+    },
+    {
+      "count": 1,
+      "path": "reading/meditations.md"
+    },
+    {
+      "count": 1,
+      "path": "reading/rooms-with-doors.md"
+    },
+    {
+      "count": 1,
+      "path": "reading/slow-software.md"
+    },
+    {
+      "count": 1,
+      "path": "research/data-ownership.md"
+    },
+    {
+      "count": 1,
+      "path": "research/linking-vs-foldering.md"
+    },
+    {
+      "count": 1,
+      "path": "research/plain-text-durability.md"
+    },
+    {
+      "count": 1,
+      "path": "research/spaced-repetition.md"
+    },
+    {
+      "count": 1,
+      "path": "research/zettelkasten-and-para.md"
+    }
+  ],
+  "renames": [
+    {
+      "from": "calendar/2026-08-05-harbor-release-review.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Harbor release review (meeting)",
+      "to": "calendar/Harbor release review (meeting).md"
+    },
+    {
+      "from": "calendar/2026-08-06-design-system-sync.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Design system sync (meeting)",
+      "to": "calendar/Design system sync (meeting).md"
+    },
+    {
+      "from": "calendar/2026-08-11-atlas-design-review.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Atlas design review",
+      "to": "calendar/Atlas design review.md"
+    },
+    {
+      "from": "calendar/2026-08-12-research-readout.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Research readout (meeting)",
+      "to": "calendar/Research readout (meeting).md"
+    },
+    {
+      "from": "calendar/2026-08-14-harbor-ship.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Harbor ship window",
+      "to": "calendar/Harbor ship window.md"
+    },
+    {
+      "from": "calendar/2026-08-18-atlas-onboarding-walkthrough.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Atlas onboarding walkthrough",
+      "to": "calendar/Atlas onboarding walkthrough.md"
+    },
+    {
+      "from": "index.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Start Here",
+      "to": "Start Here.md"
+    },
+    {
+      "from": "meetings/atlas-kickoff.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Atlas kickoff",
+      "to": "meetings/Atlas kickoff.md"
+    },
+    {
+      "from": "meetings/atlas-onboarding-scope-cut.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Atlas onboarding scope cut",
+      "to": "meetings/Atlas onboarding scope cut.md"
+    },
+    {
+      "from": "meetings/design-system-sync.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Design system sync",
+      "to": "meetings/Design system sync.md"
+    },
+    {
+      "from": "meetings/harbor-release-review.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Harbor release review",
+      "to": "meetings/Harbor release review.md"
+    },
+    {
+      "from": "meetings/research-readout-empty-states.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Research readout — empty states",
+      "to": "meetings/Research readout — empty states.md"
+    },
+    {
+      "from": "reading/art-of-war.md",
+      "reason": "titleSanitized",
+      "title": "Notes on: The Art of War",
+      "to": "reading/Notes on – The Art of War.md"
+    },
+    {
+      "from": "reading/article-against-infinite-feed.md",
+      "reason": "titleSanitized",
+      "title": "Article: Against the Infinite Feed",
+      "to": "reading/Article – Against the Infinite Feed.md"
+    },
+    {
+      "from": "reading/article-filing-cabinet-problem.md",
+      "reason": "titleSanitized",
+      "title": "Article: The Filing Cabinet Problem",
+      "to": "reading/Article – The Filing Cabinet Problem.md"
+    },
+    {
+      "from": "reading/article-latency-attention.md",
+      "reason": "titleSanitized",
+      "title": "Article: What Latency Costs Attention",
+      "to": "reading/Article – What Latency Costs Attention.md"
+    },
+    {
+      "from": "reading/cartographers-objection.md",
+      "reason": "titleDiffersFromStem",
+      "title": "The Cartographer's Objection",
+      "to": "reading/The Cartographer's Objection.md"
+    },
+    {
+      "from": "reading/gardener-and-archivist.md",
+      "reason": "titleDiffersFromStem",
+      "title": "The Gardener and the Archivist",
+      "to": "reading/The Gardener and the Archivist.md"
+    },
+    {
+      "from": "reading/index.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Reading Index",
+      "to": "reading/Reading Index.md"
+    },
+    {
+      "from": "reading/meditations.md",
+      "reason": "titleSanitized",
+      "title": "Notes on: Meditations",
+      "to": "reading/Notes on – Meditations.md"
+    },
+    {
+      "from": "reading/rooms-with-doors.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Rooms with Doors",
+      "to": "reading/Rooms with Doors.md"
+    },
+    {
+      "from": "reading/slow-software.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Slow Software",
+      "to": "reading/Slow Software.md"
+    },
+    {
+      "from": "reading/the-quiet-machine.md",
+      "reason": "titleDiffersFromStem",
+      "title": "The Quiet Machine",
+      "to": "reading/The Quiet Machine.md"
+    },
+    {
+      "from": "reading/walden.md",
+      "reason": "titleSanitized",
+      "title": "Notes on: Walden",
+      "to": "reading/Notes on – Walden.md"
+    },
+    {
+      "from": "research/conflict-resolution-patterns.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Conflict Resolution Patterns",
+      "to": "research/Conflict Resolution Patterns.md"
+    },
+    {
+      "from": "research/crdts-in-practice.md",
+      "reason": "titleDiffersFromStem",
+      "title": "CRDTs in Practice",
+      "to": "research/CRDTs in Practice.md"
+    },
+    {
+      "from": "research/data-ownership.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Data Ownership",
+      "to": "research/Data Ownership.md"
+    },
+    {
+      "from": "research/digital-gardens.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Digital Gardens",
+      "to": "research/Digital Gardens.md"
+    },
+    {
+      "from": "research/evergreen-notes.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Evergreen Notes",
+      "to": "research/Evergreen Notes.md"
+    },
+    {
+      "from": "research/file-over-app.md",
+      "reason": "titleDiffersFromStem",
+      "title": "File Over App",
+      "to": "research/File Over App.md"
+    },
+    {
+      "from": "research/linking-vs-foldering.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Linking vs Foldering",
+      "to": "research/Linking vs Foldering.md"
+    },
+    {
+      "from": "research/local-first-software.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Local-First Software",
+      "to": "research/Local-First Software.md"
+    },
+    {
+      "from": "research/markdown-as-a-format.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Markdown as a Format",
+      "to": "research/Markdown as a Format.md"
+    },
+    {
+      "from": "research/offline-first-ux.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Offline-First UX",
+      "to": "research/Offline-First UX.md"
+    },
+    {
+      "from": "research/plain-text-durability.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Plain Text Durability",
+      "to": "research/Plain Text Durability.md"
+    },
+    {
+      "from": "research/search-vs-browse.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Search vs Browse",
+      "to": "research/Search vs Browse.md"
+    },
+    {
+      "from": "research/spaced-repetition.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Spaced Repetition",
+      "to": "research/Spaced Repetition.md"
+    },
+    {
+      "from": "research/sync-strategies-compared.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Sync Strategies Compared",
+      "to": "research/Sync Strategies Compared.md"
+    },
+    {
+      "from": "research/the-cost-of-proprietary-formats.md",
+      "reason": "titleDiffersFromStem",
+      "title": "The Cost of Proprietary Formats",
+      "to": "research/The Cost of Proprietary Formats.md"
+    },
+    {
+      "from": "research/zettelkasten-and-para.md",
+      "reason": "titleDiffersFromStem",
+      "title": "Zettelkasten and PARA",
+      "to": "research/Zettelkasten and PARA.md"
+    }
+  ],
+  "unlinkable": []
+}

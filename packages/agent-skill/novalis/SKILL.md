@@ -73,6 +73,10 @@ Available now (the core harness):
 | `index --status` · `index --rebuild` | cache state; rebuild only when `doctor` says so |
 | `init <dir>` | write `.novalis/vault.json` (idempotent) |
 | `doctor` | read-only health report; there is no `--fix` |
+| `relink <from> <to> [--force] [--materialize]` | rewrite a literal link target everywhere (merges, dedupes) |
+| `meta <note> [--set k=v] [--unset k] [--add-tag T] [--rm-tag T] [--if-match S]` | line-level frontmatter edit; unknown keys preserved |
+| `migrate [--apply] [--rename-to-title[=BOOL]] [--import-columns] [--force] [--materialize]` | one-time upgrade of a vault written by the old app; dry run unless `--apply` |
+| `help --json` | the command tree and the exit-code table |
 
 Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
 
@@ -82,16 +86,11 @@ Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
 | `card ls [--board B] [--note N] [--column C]` | which cards reference a note |
 | `card add <b> --title T [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
 | `card mv <id> …` · `card set <id> …` · `card rm <id>` | one file per change; `--if-updated <rfc3339>` guards |
-| `relink <from> <to> [--force] [--materialize]` | rewrite a literal link target everywhere (merges, dedupes) |
-| `meta <note> [--set k=v] [--unset k] [--add-tag T] [--rm-tag T] [--if-match S]` | line-level frontmatter edit; unknown keys preserved |
-| `migrate [--dry-run] [--apply] [--rename-to-title] [--import-columns] [--materialize]` | one-time upgrade of a vault written by the old app |
 | `sync status` | `vaultKind`, `cloudOnly[]`, `conflictCopies[]` |
-| `help --json` · `skill --path` | command tree; the directory of this skill |
+| `skill --path` | the directory of this skill |
 
-Until `card` and `relink` ship: read `boards/<slug>/cards/*.json` directly when
-the user asks about a board, but do not write board files by hand. Do the
-equivalent of `relink` with `edit --find --replace --expect N` per file, one
-dry run each, then `links --unresolved`.
+Until `card` ships: read `boards/<slug>/cards/*.json` directly when the user
+asks about a board, but do not write board files by hand.
 
 ## Safety
 

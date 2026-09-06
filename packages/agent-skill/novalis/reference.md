@@ -136,7 +136,7 @@ Output `{path, sha256Before, sha256After, changed}` plus `diff` (unified) in
 dry runs. Frontmatter is never touched by `edit`. Line endings of the file are
 preserved.
 
-### `meta <note>` — Status: planned
+### `meta <note>` — Status: harness
 
 Flags: `--set k=v` (repeatable), `--unset k`, `--add-tag T`, `--rm-tag T`,
 `--if-match`, `--dry-run`. Strict YAML parse first; only the named keys are
@@ -194,7 +194,7 @@ Served from the cache (after the incremental scan unless `--no-index`).
 
 `--limit N`. `{items:[{tag, count}]}`, sorted by count descending, then tag.
 
-### `relink <from> <to>` — Status: planned
+### `relink <from> <to>` — Status: harness
 
 `<from>` is a **literal link target string** (wikilink text or Markdown path;
 case-insensitive; percent-decoded; it does not need to resolve). `<to>` must
@@ -243,14 +243,19 @@ failures, unresolved links, duplicate stems, unlinkable stems (`#`, `|`),
 notes under board folders, conflict copies, cloud-only notes with unindexed
 links, legacy `@due`/`@status` token count. Read-only; there is no `--fix`.
 
-### `migrate` — Status: planned
+### `migrate` — Status: harness
 
 Dry-run by default; `--apply` executes the plan shown by the dry run.
 Flags: `--rename-to-title` (rename each note to its frontmatter title with the
 sanitization map `:` → ` –`, `/` → `-`; `#` and `|` reported as unlinkable),
 `--import-columns` (legacy `taskView.kanbanColumns` → `boards/kanban/board.json`),
-`--materialize`. Output `{renames:[{from,to,reason}], linksRewritten:[{path,count}],
-unlinkable:[…], columns, legacyTokens, cloudOnlySkipped}`. The plan is
+`--force` (accept cloud-only skips), `--materialize` (download them first).
+Output `{renames:[{from,to,title,reason}], linksRewritten:[{path,count}],
+cardsUpdated, unlinkable:[…], collisions:[{target,sources}], legacyTokens,
+cloudOnlySkipped, frontmatterFailures, alreadyMigrated, applied}`.
+Exits 4 when collisions refuse the plan whole, 5 on cloud-only skips without
+`--force`. Discovery accepts a folder that has only the old app's
+`.novalis/config.json`, so it runs inside a legacy vault with no flags. The plan is
 all-or-nothing; every rename uses `RENAME_EXCL`; `.novalis/vault.json`
 receives a `migrated` timestamp so a second device does not repeat it.
 
