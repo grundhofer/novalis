@@ -63,6 +63,16 @@ export const commands = {
 	 *  is no cancel command and no way to leak a worker.
 	 */
 	search: (query: SearchQueryDto, onEvent: Channel<SearchEventDto>) => typedError<SearchReportDto, IpcError>(__TAURI_INVOKE("search", { query, onEvent })),
+	/**
+	 *  Every tag in the vault with its note count, most used first.
+	 * 
+	 *  Reads the cache on its own short-lived connection rather than through the
+	 *  actor: the database is WAL and the actor's scan does its file reads before
+	 *  it opens a write transaction, so a reader never waits on a scan.
+	 */
+	tags: () => typedError<TagListDto, IpcError>(__TAURI_INVOKE("tags")),
+	/**  The notes and cards that link to `path` (§4.4, approved for v1). */
+	backlinks: (path: string) => typedError<BacklinksDto, IpcError>(__TAURI_INVOKE("backlinks", { path })),
 	boardList: () => typedError<BoardRefDto[], IpcError>(__TAURI_INVOKE("board_list")),
 	/**
 	 *  A board and its cards in one read. Tombstoned cards are dropped here;
@@ -103,12 +113,26 @@ export const commands = {
 
 /** Events */
 export const events = {
+	cacheUpdated: makeEvent<CacheUpdated>("cache-updated"),
 	fsBatch: makeEvent<FsBatch>("fs-batch"),
 	menuAction: makeEvent<MenuAction>("menu-action"),
 };
 
 /* Types */
 export type AppearanceDto = "system" | "light" | "dark";
+
+export type BacklinkDto = {
+	path: string,
+	title: string,
+	/**  The line the link sits on, 1-based. */
+	line: number,
+};
+
+export type BacklinksDto = {
+	notes: BacklinkDto[],
+	/**  See [`TagListDto::indexed`]. */
+	indexed: boolean,
+};
 
 /**  A board with its cards, in one read. Tombstoned cards are not sent. */
 export type BoardDto = {
@@ -144,6 +168,19 @@ export type BootstrapDto = {
 	 *  resolved here so the UI and the native menu agree.
 	 */
 	locale: string,
+};
+
+/**
+ *  Emitted after every completed scan, so the panels that read the cache
+ *  refetch when there is something new rather than on a timer (§2.3 rule 12
+ *  forbids polling).
+ */
+export type CacheUpdated = {
+	/**
+	 *  False when the cache could not be opened or scanned; the tag filter and
+	 *  the backlinks list then say so instead of showing an empty result.
+	 */
+	indexed: boolean,
 };
 
 export type CardDto = {
@@ -293,6 +330,11 @@ export type SearchQueryDto = {
 	regex: boolean,
 	caseSensitive: boolean,
 	folder: string | null,
+	/**
+	 *  Only notes carrying this tag. Needs the cache; ignored while it is
+	 *  still indexing.
+	 */
+	tag: string | null,
 	limit: number | null,
 	allFiles: boolean,
 };
@@ -326,6 +368,20 @@ export type SettingsPatchDto = {
 	appearance: AppearanceDto | null,
 	fontSize: number | null,
 	spellcheck: boolean | null,
+};
+
+export type TagCountDto = {
+	tag: string,
+	count: number,
+};
+
+export type TagListDto = {
+	tags: TagCountDto[],
+	/**
+	 *  False while the first scan is still running, or if it failed. An empty
+	 *  list then means "not known yet", not "none".
+	 */
+	indexed: boolean,
 };
 
 /**

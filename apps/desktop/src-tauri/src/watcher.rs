@@ -24,6 +24,7 @@ use specta::Type;
 use tauri::AppHandle;
 use tauri_specta::Event;
 
+use crate::cache::Rescan;
 use crate::dto::EntryDto;
 use crate::state::OwnWrites;
 
@@ -186,6 +187,7 @@ pub fn spawn(
     app: AppHandle,
     root: PathBuf,
     own: Arc<Mutex<OwnWrites>>,
+    rescan: Rescan,
 ) -> notify::Result<WatcherHandle> {
     let emit_root = root.clone();
     let handler = move |result: notify_debouncer_full::DebounceEventResult| {
@@ -198,6 +200,8 @@ pub fn spawn(
         };
         let batch = to_batch(&emit_root, &own, events);
         if !batch.is_empty() {
+            // The cache coalesces these; one request per window is enough.
+            rescan.request();
             let _ = batch.emit(&app);
         }
     };

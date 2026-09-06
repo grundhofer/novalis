@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 use novalis_core::settings::{Appearance, Language, Settings};
 use novalis_core::vault::fs::Precondition;
 
+use crate::cache::CacheHandle;
 use crate::error::{IpcError, IpcResult};
 use crate::watcher::WatcherHandle;
 
@@ -59,6 +60,7 @@ struct Inner {
     vault: Option<PathBuf>,
     settings: Settings,
     watcher: Option<WatcherHandle>,
+    cache: Option<CacheHandle>,
     /// What the menu bar was last built for. `state_save` runs on a 400 ms
     /// debounce while the user moves things, and rebuilding a whole menu bar
     /// that often is both wasteful and visible.
@@ -94,6 +96,7 @@ impl AppState {
                 vault: None,
                 settings,
                 watcher: None,
+                cache: None,
                 menu_shape: None,
             }),
             own_writes: Arc::new(Mutex::new(OwnWrites::default())),
@@ -136,11 +139,30 @@ impl AppState {
 
     /// Replace the vault and its watcher in one step; the previous watcher is
     /// dropped (which stops its thread) before the new one is installed.
-    pub fn set_vault(&self, root: Option<PathBuf>, watcher: Option<WatcherHandle>) {
+    pub fn set_vault(
+        &self,
+        root: Option<PathBuf>,
+        watcher: Option<WatcherHandle>,
+        cache: Option<CacheHandle>,
+    ) {
         let mut inner = self.lock();
+        // Both old handles are dropped before the new ones are installed, so
+        // the previous vault's threads stop first.
         inner.watcher = None;
+        inner.cache = None;
         inner.vault = root;
         inner.watcher = watcher;
+        inner.cache = cache;
+    }
+
+    /// The directory the cache database lives in: app-data, never the vault.
+    pub fn cache_dir(&self) -> PathBuf {
+        self.config_dir.join("cache")
+    }
+
+    /// False while the cache is still indexing, or could not be opened.
+    pub fn cache_indexed(&self) -> bool {
+        self.lock().cache.as_ref().is_some_and(|c| c.indexed())
     }
 
     /// True when the menu has to be rebuilt for `shape`, which is then

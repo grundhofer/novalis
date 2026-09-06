@@ -41,6 +41,26 @@
   letter-spacing: var(--ds-letter-spacing-ui);
 }
 
+/* The tag filter sits beside the case/regex toggles, narrower than the query
+   field so the query keeps the room. */
+.palette-filter {
+  width: 9ch;
+  min-width: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--ds-color-border-default);
+  outline: none;
+  padding-left: var(--ds-space-3);
+  color: var(--ds-color-fg-default);
+  font-family: var(--ds-font-sans);
+  font-size: 12px;
+  letter-spacing: var(--ds-letter-spacing-ui);
+}
+
+.palette-filter::placeholder {
+  color: var(--ds-color-fg-subtle);
+}
+
 .palette-text::placeholder {
   color: var(--ds-color-fg-subtle);
 }

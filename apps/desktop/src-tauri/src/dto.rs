@@ -312,6 +312,41 @@ pub struct RenameResultDto {
     pub cloud_only_skipped: Vec<String>,
 }
 
+// ---------------------------------------------------------------- cache
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TagCountDto {
+    pub tag: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TagListDto {
+    pub tags: Vec<TagCountDto>,
+    /// False while the first scan is still running, or if it failed. An empty
+    /// list then means "not known yet", not "none".
+    pub indexed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinkDto {
+    pub path: String,
+    pub title: String,
+    /// The line the link sits on, 1-based.
+    pub line: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinksDto {
+    pub notes: Vec<BacklinkDto>,
+    /// See [`TagListDto::indexed`].
+    pub indexed: bool,
+}
+
 // ---------------------------------------------------------------- search
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -321,6 +356,9 @@ pub struct SearchQueryDto {
     pub regex: bool,
     pub case_sensitive: bool,
     pub folder: Option<String>,
+    /// Only notes carrying this tag. Needs the cache; ignored while it is
+    /// still indexing.
+    pub tag: Option<String>,
     pub limit: Option<u32>,
     pub all_files: bool,
 }
@@ -332,8 +370,7 @@ impl From<&SearchQueryDto> for SearchQuery {
             regex: q.regex,
             case_sensitive: q.case_sensitive,
             folder: q.folder.clone(),
-            // `tag:` needs the cache, which the shell does not open yet.
-            tag: None,
+            tag: q.tag.clone(),
             limit: q.limit.map(|n| n as usize),
             snippets: true,
             all_files: q.all_files,
