@@ -1,6 +1,8 @@
 {
   "app.cancel": "Abbrechen",
   "app.close": "Schließen",
+  "app.confirmTrash.body": "{{name}} kann aus dem Papierkorb wiederhergestellt werden.",
+  "app.confirmTrash.title": "In den Papierkorb verschieben?",
   "app.installCli.body": "Verknüpft den mitgelieferten Befehl novalis in /usr/local/bin, damit Agenten und Skripte ihn nutzen können.",
   "app.installCli.done": "Der Befehl novalis ist jetzt in /usr/local/bin verfügbar.",
   "app.installCli.install": "Installieren",

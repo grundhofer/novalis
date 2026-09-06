@@ -119,7 +119,12 @@ export default function App() {
         if (openDocs[entry.path]) void useEditorSave.getState().externalChange(entry.path);
       }
       for (const rename of batch.renamed) {
-        if (openDocs[rename.from]) useTabs.getState().rename(rename.from, rename.to);
+        if (openDocs[rename.from]) {
+          // The doc map is re-keyed first: the tab rename switches what the
+          // pane looks up, and it must not look up a path that is not there.
+          useEditorSave.getState().rename(rename.from, rename.to);
+          useTabs.getState().rename(rename.from, rename.to);
+        }
       }
       if (batch.added.some((e) => isNote(e.path)) || batch.removed.some(isNote)) {
         void useNotes.getState().refresh();

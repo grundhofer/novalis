@@ -20,8 +20,14 @@ import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 
 export type CommandResult = void | Promise<void>;
 
-/** Errors here are reported once, as a toast keyed by the core's error code. */
-function report(error: unknown): void {
+/**
+ * Errors here are reported once, as a toast keyed by the core's error code.
+ *
+ * Exported because the dialog needs it too: `ask` only stores the request, so
+ * the promise `dispatchCommand` catches has already resolved by the time the
+ * user presses OK, and an error thrown by `submit` would otherwise be lost.
+ */
+export function report(error: unknown): void {
   useUi.getState().showToast(errorKey(error), errorValues(error));
 }
 
@@ -62,6 +68,7 @@ async function renamePath(path: string): Promise<void> {
       if (target === path) return;
       await useEditorSave.getState().save(path);
       await unwrap(commands.rename(path, target));
+      useEditorSave.getState().rename(path, target);
       useTabs.getState().rename(path, target);
       await useVault.getState().reload(folder);
       await useNotes.getState().refresh();
@@ -70,11 +77,23 @@ async function renamePath(path: string): Promise<void> {
 }
 
 async function trashPath(path: string): Promise<void> {
-  await unwrap(commands.trash(path));
-  const tabs = useTabs.getState();
-  if (tabs.tabs.includes(path)) await tabs.close(path);
-  await useVault.getState().reload(folderOf(path));
-  await useNotes.getState().refresh();
+  // Cmd-Delete reaches here from anywhere focus is not inside the editor, so
+  // the one destructive command in the app asks first.
+  useUi.getState().ask({
+    titleKey: "app.confirmTrash.title",
+    confirm: {
+      bodyKey: "app.confirmTrash.body",
+      values: { name: fileNameOf(path) },
+      confirmKey: "menu.file.moveToTrash",
+    },
+    submit: async () => {
+      await unwrap(commands.trash(path));
+      const tabs = useTabs.getState();
+      if (tabs.tabs.includes(path)) await tabs.close(path);
+      await useVault.getState().reload(folderOf(path));
+      await useNotes.getState().refresh();
+    },
+  });
 }
 
 async function openVault(): Promise<void> {
