@@ -87,6 +87,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: perf-${{ github.ref_name }}-${{ github.sha }}
+          # The commit only: an artifact name may not contain a slash, and
+          # `ref_name` is `fix/perf-gate` on a branch. The ref is recorded
+          # inside perf.json, which is the place that needs it.
+          name: perf-${{ github.sha }}
           path: perf.json
           retention-days: 90
