@@ -3,11 +3,18 @@ name: Perf
 # Performance budgets (PLAN.md §11.3) on `main` and release tags only — never
 # on PRs, where runner noise would make the numbers meaningless as a gate.
 #
-# PLACEHOLDER: this runs the core crate's benches and uploads the raw output
-# as `perf.json`. The comparison against the budget table at 2× thresholds is
-# not wired yet; it lands with the core benches (Phase 2) and the
-# `--exit-after-first-frame` harness (Spike C). Until then this job is a
-# record, not a gate.
+# This job MEASURES and GATES the two budgets the core can honestly produce:
+# the cold cache scan and time to first search result, both on a generated
+# 10k-note vault. `scripts/perf-budget.mjs` compares them against
+# `docs/BUDGET.json` at 2× thresholds and fails the job on a breach.
+#
+# It does NOT cover the app-side rows (first paint, keystroke latency, RSS,
+# note-open times): those need the shell with instrumentation that does not
+# exist yet (Spike C). The harness lists them under `unmeasured` and the gate
+# prints them, so a green run can never be mistaken for full coverage.
+#
+# It previously ran `cargo bench` against a crate with no bench targets and
+# reported success, which is why the gate now fails when nothing is measured.
 
 on:
   push:
@@ -42,11 +49,18 @@ jobs:
         with:
           workspaces: "."
 
-      - name: Run core benches
-        run: cargo bench --locked -p novalis-core 2>&1 | tee bench.log
+      - name: Generate a 10k-note vault
+        run: python3 fixtures/gen/gen_vault.py "$RUNNER_TEMP/perf-vault" --count 10000
 
-      # Raw output wrapped with the commit it belongs to. Node rather than jq
-      # because the runner image guarantees node; jq is a runner-image detail.
+      - name: Measure
+        run: |
+          mkdir -p "$RUNNER_TEMP/perf-cache"
+          cargo run --release --locked -p novalis-core --example perf -- \
+            "$RUNNER_TEMP/perf-vault" "$RUNNER_TEMP/perf-cache" | tee measured.json
+
+      # Raw numbers wrapped with the commit they belong to, so a slow drift is
+      # visible in the artifacts even while the gate still passes. Node rather
+      # than jq because the runner image guarantees node.
       - name: Write perf.json
         env:
           REF: ${{ github.ref_name }}
@@ -54,17 +68,23 @@ jobs:
         run: |
           node -e '
             const fs = require("node:fs");
+            const measured = JSON.parse(fs.readFileSync("measured.json", "utf8"));
             fs.writeFileSync("perf.json", JSON.stringify({
               ref: process.env.REF,
               sha: process.env.SHA,
               runner: "macos-latest",
               date: new Date().toISOString(),
-              budgetCompared: false,
-              benchLog: fs.readFileSync("bench.log", "utf8"),
+              budgetCompared: true,
+              ...measured,
             }, null, 2) + "\n");
           '
 
+      - name: Hold to docs/BUDGET.json
+        run: node scripts/perf-budget.mjs measured.json
+
       - name: Upload perf.json
+        # `always()`: a breach is exactly when the numbers are worth keeping.
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: perf-${{ github.ref_name }}-${{ github.sha }}

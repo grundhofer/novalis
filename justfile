@@ -60,6 +60,21 @@ test: _test-rust
 test-cli:
     cargo test -p novalis-cli
 
+# Core perf budgets (PLAN.md §11.3) on a generated 10k-note vault; reproduces perf.yml locally.
+perf:
+    #!/usr/bin/env bash
+    # Deliberately not part of `just check`: it builds in release and writes
+    # 10k files. CI runs it on `main` and tags only, where a number means
+    # something and runner noise is not being compared against a PR.
+    set -euo pipefail
+    work="$(mktemp -d)"
+    trap 'rm -rf "$work"' EXIT
+    python3 "{{root}}/fixtures/gen/gen_vault.py" "$work/vault" --count 10000
+    mkdir -p "$work/cache"
+    cargo run --release --locked -p novalis-core --example perf -- \
+      "$work/vault" "$work/cache" > "$work/measured.json"
+    node "{{root}}/scripts/perf-budget.mjs" "$work/measured.json"
+
 # Build the release app bundle for this Mac (unsigned; ad-hoc signed by the bundler).
 app:
     cd "{{desktop}}" && cargo tauri build
