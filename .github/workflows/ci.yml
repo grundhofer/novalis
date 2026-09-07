@@ -188,7 +188,7 @@ jobs:
       # from source costs ~3 min per run and a second toolchain. The versions
       # are pinned so a tool regression cannot turn CI red on its own schedule.
       - name: Install cargo-audit and cargo-deny
-        uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2.85.11
+        uses: taiki-e/install-action@5bf6ce016fd2e72eefc647cbca1e4213f65955b8 # v2.87.5
         with:
           tool: cargo-audit@0.22.2,cargo-deny@0.20.2
 
