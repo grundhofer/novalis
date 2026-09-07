@@ -1,0 +1,92 @@
+# Spike D — Google Drive for desktop, Stream mode
+
+Date: 2026-09-07. Machine: Apple Silicon, macOS 26.6 (25G72). Google Drive for
+desktop 130.0.2.0, running with `use_mac_fileprovider=on`, domain at
+`~/Library/CloudStorage/GoogleDrive-<account>/`. Probes: shell (`stat -f %Xf`,
+`xattr`, `find`), the workspace CLI binary, and a throwaway
+`novalis-core` example for the IO-policy test (removed after the run).
+
+Scope discipline: everything was created inside `Meine Ablage/novalis-spike-d/`
+and nothing else in the domain was opened, renamed, modified or deleted. The
+domain held 15 files before the run and 15 after. The spike folder was moved to
+Drive's trash rather than deleted, so it is recoverable and will appear in the
+online bin until emptied.
+
+Legend: **verified** = observed directly by this run; **unverified** = needs a
+second client, the Drive web UI, or Mirror mode, which is not configured.
+
+## Headline: the guard works on Drive
+
+| Item | Result | |
+|---|---|---|
+| Stream mode marks cloud-only files with `SF_DATALESS` | all 15 pre-existing files in the domain carry `0x40000000`; `is_dataless` agrees | verified |
+| `MaterializeOff` + `read()` of a dataless Drive file | refused with `EDEADLK`, and the file was **still dataless afterwards** — nothing hydrated | verified |
+
+This was the largest open risk in the sync design: the materialize-off guard is
+what stops a vault-wide search downloading the user's whole Drive. It is a
+per-thread kernel IO policy, so it was expected to be provider-agnostic, and it
+is. Now verified on both providers.
+
+## Two findings that need action
+
+### 1. `~/Google Drive` is a symlink, and the vault kind flips on it
+
+Drive creates `~/Google Drive` as a symlink to the CloudStorage domain. The
+same folder therefore has two paths, and `vault_kind` disagrees between them:
+
+| Path given | `vault_kind` |
+|---|---|
+| `~/Library/CloudStorage/GoogleDrive-<account>/Meine Ablage` | `FileProvider` |
+| `~/Google Drive/Meine Ablage` | `Local` |
+
+`vault_kind` tests the `~/Library/CloudStorage` prefix first, then walks
+ancestors looking for `com.apple.file-provider-domain-id` with
+`XATTR_NOFOLLOW`. Through the symlink the prefix does not match, and the
+symlink itself carries no xattrs, so the walk finds nothing.
+
+**Severity: low, and it fails in the safe direction.** The only consumer is
+`keepMine` (`editorSave.ts`), which writes an extra conflict copy before
+overwriting when the vault is `local`, because a plain folder has no vendor
+version history. A Drive vault misread as local is therefore treated *more*
+cautiously, not less. The materialize-off guard is applied unconditionally in
+`search`, so there is no hydration risk from this.
+
+### 2. Trash goes to Drive's own trash, not the user's
+
+`NsFileManager` trash (the decided method, D8) moved the note to
+`~/Library/CloudStorage/GoogleDrive-<account>/.Trash/`, **not** `~/.Trash`.
+Spike A measured OneDrive putting it in `~/.Trash` with Put Back records.
+
+So on a Drive vault the note does not appear in the Finder Trash at all, and
+the macOS Put Back path does not apply; it goes to Drive's bin and syncs there.
+The confirmation string added on 2026-09-07 (`app.confirmTrash.body`, "can be
+restored from the Trash") is therefore imprecise for Drive vaults. It is not
+wrong that the file is recoverable, only about where from.
+
+## Step results
+
+| Item | Result | |
+|---|---|---|
+| Domain root name | localized: **`Meine Ablage`**, not `My Drive`. The checklist's section B path assumed the English name | verified |
+| temp + rename save | works; one file, no conflict copy and no duplicate over 30 s of polling after create and overwrite | verified (single client) |
+| `st_flags` after save | `0x40` (`UF_TRACKED`) immediately, on both create and overwrite. OneDrive took 14 s on create | verified |
+| Inode across saves | changes on every save, as the rename replaces it (105856764 → 105856794) | verified |
+| Provider xattrs | Drive attaches **`com.google.drivefs.item-id#S`** to synced files, re-created within ~10 s after each save. OneDrive attaches none. So temp+rename does transiently destroy a provider-owned xattr here, and Drive rebuilds it | verified |
+| Case-only rename `note.md` → `Note.md` | same inode, old name still resolves (case-insensitive APFS), no duplicate within 60 s | verified |
+| NFC create, then NFC → NFD rename | stored as given; after the rename the directory entry holds the NFD bytes (`61 cc 88 2e 6d 64`); APFS is normalization-preserving. `novalis ls` returns the name NFC-normalized | verified |
+| Dot-folder policy | `.novalis/vault.json` **does** sync: it gained the Drive item-id xattr like any other file | verified |
+| `boards/` behaviour | five rapid atomic rewrites of one card left exactly one file, no duplicates and no conflict copies; `board.json` and `cards/*.json` sync as ordinary files | verified (single client) |
+| CLI against a Drive vault | `novalis --vault <drive> ls` and `rm` both work end to end; `rm` reported `cloudOnly: false` and removed the file | verified |
+| Conflict-copy naming | — | unverified (needs the web UI as a second client) |
+| Same-card edit on two clients | — | unverified (needs a second client) |
+| What the server stores for an NFD name | — | unverified (needs the web UI) |
+| Trash of a *dataless* note, and Put Back | — | unverified (needs a genuinely cloud-only note in a test vault) |
+| Mirror mode (section C) | — | **unverified: Drive is configured in Stream mode.** `~/Google Drive` is only a symlink to the same domain, not a mirror root. Section C needs the setting changed |
+
+## What this changes in the plan
+
+- Nothing about the storage design. Drive behaves like OneDrive on every
+  mechanism the app depends on: `SF_DATALESS`, the IO policy, temp+rename,
+  case-only and normalization renames, dot-folders, and `boards/`.
+- The one design assumption that did **not** hold across providers is where
+  trashing lands, which was never in the plan either way.

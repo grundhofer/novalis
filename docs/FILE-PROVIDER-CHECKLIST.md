@@ -14,7 +14,7 @@ into the spike write-up. An empty Result means "not run", never "passed".
 | macOS | 26.6 (25G72), Apple Silicon |
 | Machine / hostname (appears in conflict-copy names) | MacBook-Pro-von-Sebastian |
 | OneDrive client version | 26.153.0809 |
-| Google Drive for desktop version | not installed — sections B and C have never been run |
+| Google Drive for desktop version | 130.0.2.0, Stream mode (`use_mac_fileprovider=on`); section B run 2026-09-07, section C not configured |
 | Second client used for concurrent edits | none — every section A row needing one is marked "not run" |
 | novalis build | pre-`v2.0.0-alpha.1` (`2.0.0-alpha.0`); section A used a standalone probe binary, not the app |
 
@@ -54,29 +54,29 @@ the app, placed at the path in the section header. Never use a personal vault.
 
 | Done | ID | Item | How to test | Expected | Result |
 |---|---|---|---|---|---|
-| [ ] | B1 | Vault kind detection | Open the vault | Detected as **File Provider**; cloud hint shown once | |
-| [ ] | B2 | Dot-folder policy | Create `.novalis/vault.json` in the app; check the web UI and a second client | Record whether `.novalis/` syncs at all (decides nothing for v1, D23 needs only local presence) | |
-| [ ] | B3 | Conflict-copy naming | Same procedure as A4 | Record the exact sibling name pattern (undocumented by Google); app detects it | |
-| [ ] | B4 | temp + rename write | Same as A2 | No conflict copies, no duplicate versions in the web UI | |
-| [ ] | B5 | `boards/` behaviour | Create a board in the app; edit cards on two clients | `board.json` and `cards/*.json` sync as files; no renaming, no `(1)` copies from idle saves | |
-| [ ] | B6 | NFD names | Same as A5 | Record the normalization form Drive stores and returns | |
-| [ ] | B7 | FSEvents delivery | Same as A1 | One batch per change window | |
-| [ ] | B8 | Dataless detection and open | Same as A12–A13 | `SF_DATALESS` set for cloud-only files; open downloads with visible state | |
-| [ ] | B9 | `trash` of normal and dataless notes | Same as A8–A9 | Same expectations as OneDrive; record Put Back behaviour | |
-| [ ] | B10 | Case-only rename | Same as A6 | Record; Drive is case-sensitive server-side | |
+| [ ] | B1 | Vault kind detection | Open the vault | Detected as **File Provider**; cloud hint shown once |  Detected as **FileProvider** via the real path `~/Library/CloudStorage/GoogleDrive-<account>/Meine Ablage` (Spike D, 2026-09-07). **But `~/Google Drive` is a symlink to the same domain and is detected as `Local`** — see the spike. Note the root is localized (`Meine Ablage`), not `My Drive`. Cloud-hint-shown-once not checked (needs the app). |
+| [x] | B2 | Dot-folder policy | Create `.novalis/vault.json` in the app; check the web UI and a second client | Record whether `.novalis/` syncs at all (decides nothing for v1, D23 needs only local presence) |  `.novalis/vault.json` **does** sync: it gained `com.google.drivefs.item-id#S` like any other file (Spike D). D23 needs only local presence, so nothing is decided by this either way. |
+| [ ] | B3 | Conflict-copy naming | Same procedure as A4 | Record the exact sibling name pattern (undocumented by Google); app detects it |  not run - needs the Drive web UI as a second client. |
+| [x] | B4 | temp + rename write | Same as A2 | No conflict copies, no duplicate versions in the web UI |  temp+rename leaves exactly one file, no conflict copy and no duplicate over 30 s of polling after create and overwrite; `UF_TRACKED` set immediately (Spike D, single client). Drive attaches its own `com.google.drivefs.item-id#S`, which the inode swap destroys and Drive re-creates within ~10 s. |
+| [ ] | B5 | `boards/` behaviour | Create a board in the app; edit cards on two clients | `board.json` and `cards/*.json` sync as files; no renaming, no `(1)` copies from idle saves |  Five rapid atomic rewrites of one card left exactly one file, no duplicates, no conflict copies; `board.json` and `cards/*.json` sync as ordinary files (Spike D). **The two-client half was not run.** |
+| [x] | B6 | NFD names | Same as A5 | Record the normalization form Drive stores and returns |  NFC name stored as given; NFC->NFD rename keeps the file and the entry holds the NFD bytes (APFS is normalization-preserving); `novalis ls` returns it NFC-normalized (Spike D). Identical to OneDrive. **What the server stores was not checked.** |
+| [ ] | B7 | FSEvents delivery | Same as A1 | One batch per change window |  not run as a separate test - the NFD/NFC path defect this would have caught was found via Spike A and fixed on 2026-09-07 (`rel_of`); FSEvents is a kernel mechanism shared with OneDrive. |
+| [x] | B8 | Dataless detection and open | Same as A12–A13 | `SF_DATALESS` set for cloud-only files; open downloads with visible state |  **All 15 pre-existing files in the domain are dataless (`SF_DATALESS`), and a guarded read fails with `EDEADLK` leaving the file dataless** (Spike D). The materialize-off guard works on Drive; this was the largest open risk in the sync design. Open-with-visible-state not checked (needs the app). |
+| [ ] | B9 | `trash` of normal and dataless notes | Same as A8–A9 | Same expectations as OneDrive; record Put Back behaviour |  `novalis rm` on a normal note succeeded via `NsFileManager`, but the file landed in the **domain's own `.Trash`, not `~/.Trash`** — a real difference from OneDrive, so Finder Put Back does not apply. **Dataless trash not run.** |
+| [x] | B10 | Case-only rename | Same as A6 | Record; Drive is case-sensitive server-side |  Case-only rename keeps the inode, the old name still resolves, no duplicate within 60 s (Spike D). Same as OneDrive. **The second-client/server view was not checked.** |
 
 ## C. Google Drive for desktop — Mirror mode (plain folder) — `~/Google Drive/My Drive/novalis-test` (or the chosen mirror root)
 
 | Done | ID | Item | How to test | Expected | Result |
 |---|---|---|---|---|---|
-| [ ] | C1 | Vault kind detection ("mirrored" heuristic, ASSUMED) | Open the vault | Detected as **mirrored** (record how the mirror root was identified); no dataless files | |
-| [ ] | C2 | Conflict-copy naming | Same as A4 | Record the pattern; app detects it even without File Provider | |
-| [ ] | C3 | temp + rename write | Same as A2 | No conflict copies or duplicate versions | |
-| [ ] | C4 | `boards/` behaviour | Same as B5 | Same expectations | |
-| [ ] | C5 | Dot-folder policy | Same as B2 | Record | |
-| [ ] | C6 | NFD names | Same as A5 | Record | |
-| [ ] | C7 | FSEvents delivery | Same as A1 | One batch per change window | |
-| [ ] | C8 | `trash` and Put Back | Same as A8, A10 | Record | |
+| [ ] | C1 | Vault kind detection ("mirrored" heuristic, ASSUMED) | Open the vault | Detected as **mirrored** (record how the mirror root was identified); no dataless files |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C2 | Conflict-copy naming | Same as A4 | Record the pattern; app detects it even without File Provider |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C3 | temp + rename write | Same as A2 | No conflict copies or duplicate versions |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C4 | `boards/` behaviour | Same as B5 | Same expectations |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C5 | Dot-folder policy | Same as B2 | Record |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C6 | NFD names | Same as A5 | Record |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C7 | FSEvents delivery | Same as A1 | One batch per change window |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
+| [ ] | C8 | `trash` and Put Back | Same as A8, A10 | Record |  not run - Drive is configured in **Stream mode**; `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root. Section C needs the Drive setting changed to Mirror. |
 
 ## D. Cross-provider (run once per release)
 
@@ -92,10 +92,12 @@ the app, placed at the path in the section header. Never use a personal vault.
 | Provider / mode | Date run | All rows green? | Blocking findings (link to issue or spike note) |
 |---|---|---|---|
 | OneDrive | 2026-09-05 (partial) | **No — 2 of 16 rows run.** The rest need a second client, the web UI, the Finder GUI, or a genuinely cloud-only note. | **FSEvents reports NFD paths under an NFC root**, so `rel_of` returned `None` and the watcher dropped every event in silence. Measured in `docs/spikes/2026-09-05-spike-a-onedrive.md` (step 6) and marked mandatory there; fixed 2026-09-07 with a regression test. It only ever worked here because this Mac's OneDrive path is stored NFD. |
-| Google Drive Stream | — | **Never run.** Spike D was not carried out and Google Drive for desktop is not installed. | Unknown: no Google Drive behaviour has been observed at all, on either mode. |
-| Google Drive Mirror | — | **Never run.** | Unknown, as above. |
+| Google Drive Stream | 2026-09-07 (partial) | **No — 5 of 10 rows run.** The rest need the Drive web UI as a second client, or a cloud-only note in a test vault. | Two, both recorded in `docs/spikes/2026-09-07-spike-d-google-drive.md`, neither blocking: (1) `~/Google Drive` is a symlink and `vault_kind` reports `Local` through it while the real CloudStorage path reports `FileProvider` — low severity, fails safe (only `keepMine` reads it, and a `local` vault is treated *more* cautiously). (2) Trash lands in the domain's own `.Trash`, not `~/.Trash` as on OneDrive, so Finder Put Back does not apply and `app.confirmTrash.body` is imprecise for Drive vaults. **The critical mechanism passed:** every file is `SF_DATALESS` and a guarded read fails with `EDEADLK` without hydrating. |
+| Google Drive Mirror | — | **Never run.** | Drive is configured in Stream mode. `~/Google Drive` is only a symlink to the same File Provider domain, not a mirror root, so section C needs the Drive setting changed before it can be run at all. |
 
 A release cannot be tagged from this table: `docs/RELEASING.md` "Before tagging"
 item 1 requires the checklist executed on OneDrive **and** on Google Drive in
-both modes with this table filled in. Two of the three rows have never been
-run, and the OneDrive row is partial.
+both modes with this table filled in. Mirror mode has never been run, and both
+other rows are partial. Everything still outstanding needs a human at the
+machine: a second client (the provider's web UI), the Finder GUI, a genuinely
+cloud-only note in a test vault, or the Drive setting switched to Mirror.
