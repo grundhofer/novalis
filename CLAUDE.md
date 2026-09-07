@@ -37,6 +37,7 @@ scripts/                                        # check-versions.mjs bundle-budg
 | `just check` | Exactly what CI runs: versions, UI typecheck/lint/build, fmt, clippy `-D warnings`, cargo test, i18n, bundle budget |
 | `just test` | Rust + UI tests |
 | `just test-cli` | CLI golden tests; `UPDATE_GOLDEN=1 just test-cli` regenerates them |
+| `just perf` | The core §11.3 budgets on a generated 10k-note vault; what `perf.yml` runs on `main` and tags |
 | `just app` | Release app bundle for this Mac |
 | `just bump X.Y.Z` | Writes the version to all four stamps |
 
