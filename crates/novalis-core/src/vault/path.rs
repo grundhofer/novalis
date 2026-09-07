@@ -105,12 +105,24 @@ pub fn is_note_name(name: &str) -> bool {
 /// The vault-relative, NFC, forward-slashed form of `abs` under `root`, or
 /// `None` when `abs` is not below `root`.
 pub fn rel_of(root: &Path, abs: &Path) -> Option<String> {
-    let rel = abs.strip_prefix(root).ok()?;
-    let s = rel.to_string_lossy();
-    if s.is_empty() {
+    if let Ok(rel) = abs.strip_prefix(root) {
+        let s = rel.to_string_lossy();
+        return Some(if s.is_empty() { String::new() } else { nfc(&s) });
+    }
+    // `strip_prefix` compares bytes, and FSEvents reports paths in NFD even
+    // when the watch was registered with the NFC root (Spike A, 2026-09-05:
+    // `OneDrive-Perso\u{308}nlich`). Every event in a vault whose own path
+    // carries non-ASCII would otherwise fail this and be dropped in silence by
+    // the watcher's `filter_map`. Retry on the normalized forms.
+    let abs_nfc = nfc(&abs.to_string_lossy());
+    let root_nfc = nfc(&root.to_string_lossy());
+    let rest = abs_nfc.strip_prefix(root_nfc.trim_end_matches('/'))?;
+    if rest.is_empty() {
         return Some(String::new());
     }
-    Some(nfc(&s))
+    // Requiring the separator is what keeps `/a/foobar` from looking like it
+    // is under `/a/foo`.
+    Some(rest.strip_prefix('/')?.to_string())
 }
 
 /// The last path segment.
@@ -299,6 +311,45 @@ mod tests {
             Some("a/b.md")
         );
         assert_eq!(rel_of(Path::new("/v"), Path::new("/w/b.md")), None);
+    }
+
+    /// Spike A (2026-09-05) measured FSEvents reporting NFD paths under a
+    /// watch registered with the NFC root, which a byte-wise `strip_prefix`
+    /// misses — and the watcher drops what it cannot make relative, so the
+    /// change vanishes without a trace. The owner's own vault lives under
+    /// `OneDrive-Persönlich`, so this is the normal case, not an edge one.
+    #[test]
+    fn rel_of_survives_an_nfd_event_path_under_an_nfc_root() {
+        let root_nfc = Path::new("/Users/x/OneDrive-Persönlich/vault");
+        // The same bytes FSEvents delivers: o + combining diaeresis.
+        let abs_nfd = PathBuf::from("/Users/x/OneDrive-Perso\u{308}nlich/vault/notes/a.md");
+        assert_ne!(
+            root_nfc.to_string_lossy(),
+            "/Users/x/OneDrive-Perso\u{308}nlich/vault",
+            "the two spellings must really differ, or this test proves nothing"
+        );
+        assert_eq!(
+            rel_of(root_nfc, &abs_nfd).as_deref(),
+            Some("notes/a.md"),
+            "an NFD event path under an NFC root must still resolve"
+        );
+        // The root itself, in the other normalization.
+        assert_eq!(
+            rel_of(
+                root_nfc,
+                Path::new("/Users/x/OneDrive-Perso\u{308}nlich/vault")
+            )
+            .as_deref(),
+            Some("")
+        );
+        // A sibling that merely shares a prefix is still not inside.
+        assert_eq!(
+            rel_of(
+                root_nfc,
+                Path::new("/Users/x/OneDrive-Perso\u{308}nlich/vault-other/a.md")
+            ),
+            None
+        );
     }
 
     #[test]
