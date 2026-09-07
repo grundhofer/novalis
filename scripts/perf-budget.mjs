@@ -57,20 +57,36 @@ if (typeof factor !== "number" || factor <= 0) {
   fail("docs/BUDGET.json has no usable ciNoiseFactor");
 }
 
-console.log(`perf-budget: ${measurement.notesIndexed ?? "?"} notes indexed, thresholds are budget x ${factor}`);
+const perMetric = budget.ciFactors ?? {};
+console.log(
+  `perf-budget: ${measurement.notesIndexed ?? "?"} notes indexed, thresholds are budget x ${factor} unless docs/BUDGET.json overrides`,
+);
 
 let breached = false;
+let overBudget = 0;
 for (const [key, value] of Object.entries(measured)) {
   if (typeof value !== "number") fail(`measured.${key} is not a number`);
   const limit = budget[key];
   // A measured row with no budget is a bug in one file or the other, and
   // silently skipping it is how a gate stops gating.
   if (typeof limit !== "number") fail(`measured.${key} has no budget in docs/BUDGET.json`);
-  const threshold = limit * factor;
+  const metricFactor = typeof perMetric[key] === "number" ? perMetric[key] : factor;
+  const threshold = limit * metricFactor;
   const over = value > threshold;
   breached ||= over;
+  // A row can pass a deliberately loose CI threshold and still be over the
+  // real budget. Saying so is the point: the wide threshold exists for runner
+  // noise, not to make the number look good.
+  const noteworthy = !over && value > limit;
+  if (noteworthy) overBudget += 1;
   console.log(
-    `  ${over ? "OVER" : "ok  "}  ${key.padEnd(36)} ${String(value).padStart(6)} / ${String(threshold).padStart(6)} (budget ${limit})`,
+    `  ${over ? "OVER" : "ok  "}  ${key.padEnd(36)} ${String(value).padStart(6)} / ${String(threshold).padStart(6)} (budget ${limit}, x${metricFactor})${noteworthy ? "  <- over the real budget on this runner" : ""}`,
+  );
+}
+
+if (overBudget > 0) {
+  console.log(
+    `\nperf-budget: ${overBudget} row(s) passed the CI threshold while exceeding the real budget. That is expected on a shared runner; compare the artifact against a developer machine before trusting it.`,
   );
 }
 
@@ -83,4 +99,8 @@ if (unmeasured.length > 0) {
 if (breached) {
   fail("budget exceeded (docs/BUDGET.json); investigate before tagging a release");
 }
-console.log("\nperf-budget: measured rows within budget");
+console.log(
+  overBudget > 0
+    ? "\nperf-budget: within CI thresholds, but see the row(s) flagged above"
+    : "\nperf-budget: measured rows within budget",
+);

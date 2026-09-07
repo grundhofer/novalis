@@ -1,7 +1,13 @@
 {
   "source": "PLAN.md §11.3 (revision 2, 2026-09-05)",
   "ciNoiseFactor": 2,
-  "provisional": ["firstPaintMs", "idleRssMb"],
+  "ciFactors": {
+    "incrementalScan10kNotesMs": 6
+  },
+  "provisional": [
+    "firstPaintMs",
+    "idleRssMb"
+  ],
   "firstPaintMs": 300,
   "treeInteractive10kNotesMs": 500,
   "idleRssMb": 200,
@@ -33,6 +39,7 @@
     "provisional": "Re-set by Spike C (first paint via --exit-after-first-frame; RSS split per process).",
     "cargoLockScaffoldEntries": "Measured 2026-09-05 with `cargo generate-lockfile` on a bare Tauri 2 app (tauri 2.11.5 + tauri-build 2.6.3 + serde + serde_json, no plugins, rust 1.96.0): 431 packages, the number D26 predicted. Budget = scaffold + cargoLockEntriesOverScaffold = 581 (D26); the workspace lock was 511 when this was written.",
     "openNote50MbPlainMs": "Summed RSS must stay under idleRssMb with the 50 MB file open.",
-    "eagerJsGzipKb": "bundle-budget.mjs parses dist/index.html modulepreloads; any preloaded chunk counts as eager."
+    "eagerJsGzipKb": "bundle-budget.mjs parses dist/index.html modulepreloads; any preloaded chunk counts as eager.",
+    "ciFactors": "Per-metric override of ciNoiseFactor, derived from measurement, not guessed. Two dispatched perf runs on macos-latest measured incrementalScan10kNotesMs at 3615 ms and 1168 ms (2026-09-07, runs 34144782352 and 34145006587) against 371 ms on the developer's M-series Mac: a 3x spread between consecutive runs of a cold, IO-bound scan on a shared runner. No threshold at factor 2 both catches a regression and survives an unlucky run, and a gate that fires on noise gets ignored. Factor 6 (9000 ms) sits 2.5x above the worst observed run, so it still catches a catastrophic regression while the real 1500 ms budget stays the number that describes the product. perf-budget.mjs flags any value over the raw budget even when the CI threshold passes, so the loose gate never hides the truth. Revisit when the app-side rows land (Spike C)."
   }
 }
