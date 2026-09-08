@@ -415,6 +415,20 @@ every other editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D` …), not
 replayed there. No new dependency, string key, command id or chord;
 `docs/KEYMAP.md` "Not listed" says which chords the preview answers.
 
+### The four items open after the sync tests (2026-09-08), as of 2026-09-16
+
+Measuring Drive with a second device (the owner's phone) had surfaced four
+gaps between what the plan promised and what the code did; they were listed
+on the backlinks branch and reached `main` only now, so their state is the
+state of today, not of the day they were found.
+
+| Item | State |
+|---|---|
+| **Drive creates no conflict copy** — §5.3's conflict flow waits for a second file that never appears on Drive | Measured and recorded in `docs/SYNC-REALITY.md` (PR #107); the app does not pretend otherwise. Cross-device change detection stays Mode 2 work. |
+| **Two conflict detectors that disagree** — `stores/vault.ts` re-implemented the core's filename patterns, narrower | Settled: the UI counts `conflictCopyOf` as the core decides it; there is one detector. |
+| **The resolve panel does not exist** — §5.3 promises keep-original / keep-copy / keep-both, the five `status.conflicts.*` keys are referenced by no code, only a count shows | **Still open.** `docs/SYNC-REALITY.md` says so. Either build it or drop the promise from the plan. |
+| **Board conflict resolution is unreachable** — `resolve_card_conflicts` and `resolve_board_conflicts` were called by nothing | Settled: both run on the first `board_read` of a board after the vault was opened (PR #107, #111; "Erstes Lesen pro Board" above). |
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
