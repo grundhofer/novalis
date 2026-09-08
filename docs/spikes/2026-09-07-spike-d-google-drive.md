@@ -142,3 +142,29 @@ This is the one behaviour that differs from OneDrive, where Spike A measured the
 note landing in `~/.Trash` with put-back records written. `app.confirmTrash.body`
 ("can be restored from the Trash") is therefore imprecise on a Drive vault: true
 that it is recoverable, wrong about where from.
+
+## Second client (phone), 2026-09-08
+
+The owner's phone supplied the second client the earlier rows were missing. The
+Drive mobile app cannot edit a Markdown file's text, so the content-conflict
+rows stay open; renaming is available and answered two of them.
+
+| Item | Result | |
+|---|---|---|
+| How the app shows an NFD filename | cleanly, as `Ärger mit Sync.md`; Drive does not mangle or escape it | verified |
+| Renaming there, with the new name typed on the phone keyboard (NFC) | arrives on this Mac **as NFD**: `41 cc 88 … 6f cc 88`. A name that left the second client composed reaches the local filesystem decomposed | verified |
+| Is it a rename or a delete plus create? | **same inode** (106585023) — a real rename, so the watcher can stitch it | verified |
+| What novalis makes of it | `novalis ls` reports the path NFC-normalized; content untouched | verified |
+
+**This is the same hazard Spike A measured on OneDrive, now confirmed on Drive
+and from a real second device.** It is exactly the defect fixed on 2026-09-07:
+`rel_of` compared bytes, so an NFD path under an NFC root failed `strip_prefix`
+and the watcher discarded the event in silence. Before that fix, a Drive vault
+whose root was held NFC would have dropped every one of these renames without a
+trace. The rule this settles: **never compare a filename byte-wise across the
+sync boundary.**
+
+Still open, and not answerable from a phone: the conflict-copy filename and the
+same-card two-client edit. Both need the *same file's content* changed in two
+places, and neither the Drive web app nor the mobile app can edit a Markdown
+file. That needs a second computer.
