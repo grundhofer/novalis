@@ -194,3 +194,67 @@ is the kind of thing a user should be told once rather than discover.
 The rename was observed twice, as `Ärger gelöst.md` and then as
 `Ärger geloest.md`. Both arrived with `Ä` as `41 cc 88` — decomposed — from a
 phone keyboard that composes. The finding is the same in both samples.
+
+## The conflict test, 2026-09-08 — Drive creates no conflict copy
+
+Run twice. The second run has a complete evidence chain: every state was
+observed, none inferred.
+
+| Step | State | How it was established |
+|---|---|---|
+| 1 | Local and server both `STAND: BASIS` | written locally, waited for the Drive item-id xattr |
+| 2 | Phone edits to `HANDY A` | **observed arriving on the Mac after 190 s** — proof that the phone's edits reach the server |
+| 3 | Drive quit on the Mac; local edited to `MAC C` at 23:24:43 | local write, provider not running |
+| 4 | Phone edits to `HANDY B` | owner confirmed `HANDY B` visible in the Drive app, which reads from the server |
+| 5 | Drive restarted, watched for 4.7 minutes | nothing changed locally |
+| 6 | **Result: `MAC C` on the Mac and `MAC C` on the phone** | owner read it back in the Drive app |
+
+So Drive resolved a genuine two-sided divergence by **silently discarding the
+server-side version**, and created **no conflict copy anywhere**: not in the
+folder, not elsewhere under the domain, not in the domain trash. The local file
+kept its offline mtime (23:24:43), so Drive simply uploaded it over the server
+copy.
+
+The losing edit was also the *later* one in wall-clock terms, so this is not
+"last writer wins" either — it is "the reconnecting local client wins".
+
+### What this costs novalis
+
+PLAN §5.3's conflict handling waits for a second file to appear and then offers
+the user a choice. On Drive, for this case, that file never appears, so the
+whole path is unreachable and the user is never told. An edit made on another
+device disappears from both devices with no indication anywhere in the app —
+recoverable only by going to Drive's version history, which the user has no
+reason to suspect they need.
+
+This is a property of the Drive client, not something novalis can prevent. What
+novalis *can* do is stop implying otherwise.
+
+### It is overwritten, not destroyed
+
+The file's detail view in the Drive app, read right after the run, settles the
+question the run itself could not:
+
+- **Geändert: 23:24** — the server's current version carries the *Mac's* offline
+  mtime, confirming Drive uploaded the local file as-is over the server copy.
+- **Aktivität: three edits, at 23:04, 23:19 and 23:29.** The 23:29 entry is the
+  phone's losing edit, and it is still recorded *after* the timestamp of the
+  version that won.
+
+So Drive keeps a version history and the discarded edit is still represented in
+it. The correct characterisation is therefore **silently overwritten, with the
+previous version retained by the provider** — not silently destroyed. That is a
+materially smaller problem than it first looked, and the distinction was worth
+establishing before writing it down.
+
+**Still not established:** whether that retained version can actually be
+restored to a file (Drive's "Manage versions" is a web-UI action and was not
+exercised). An activity entry is evidence that a version exists, not proof that
+it is retrievable.
+
+### Contrast
+
+Spike A expected OneDrive to produce a conflict copy named with the machine
+name, but that row was **never verified** either — it needs the same two-client
+setup. So right now we have one provider measured to make no conflict copy, and
+one provider assumed to make one.
