@@ -24,6 +24,16 @@ pub struct FlagDoc {
     pub repeatable: bool,
 }
 
+/// One of `board ls`, `card add`, … — a command whose arguments sit one level
+/// down. The output schema of the parent covers all of them.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct SubcommandDoc {
+    pub name: String,
+    pub summary: String,
+    pub arguments: Vec<FlagDoc>,
+    pub flags: Vec<FlagDoc>,
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandDoc {
@@ -31,8 +41,10 @@ pub struct CommandDoc {
     pub summary: String,
     pub arguments: Vec<FlagDoc>,
     pub flags: Vec<FlagDoc>,
-    /// True for the commands that always write; `index` writes only with
-    /// `--rebuild`.
+    /// The commands with their own subcommands: `board`, `card`.
+    pub subcommands: Vec<SubcommandDoc>,
+    /// True for the commands that always write. `index`, `board` and `card`
+    /// write only on some of their flags or subcommands.
     pub mutation: bool,
     /// The JSON Schema of this command's stdout document.
     pub output: Option<serde_json::Value>,
@@ -67,26 +79,22 @@ pub fn run(_ctx: &Ctx, _args: ()) -> Result<HelpOut, CliError> {
     let mut commands = Vec::new();
     for sub in root.get_subcommands() {
         let name = sub.get_name().to_string();
-        let arguments = sub
-            .get_arguments()
-            .filter(|a| a.is_positional())
-            .map(flag_doc)
-            .collect();
-        let flags = sub
-            .get_arguments()
-            .filter(|a| !a.is_positional() && !a.is_global_set())
-            .map(flag_doc)
-            .collect();
         commands.push(CommandDoc {
             mutation: always_mutates(&name),
             output: ops::output_schema(&name),
-            summary: sub
-                .get_about()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| name.clone()),
+            summary: about_of(sub),
+            arguments: positionals_of(sub),
+            flags: flags_of(sub),
+            subcommands: sub
+                .get_subcommands()
+                .map(|nested| SubcommandDoc {
+                    name: nested.get_name().to_string(),
+                    summary: about_of(nested),
+                    arguments: positionals_of(nested),
+                    flags: flags_of(nested),
+                })
+                .collect(),
             name,
-            arguments,
-            flags,
         });
     }
     commands.sort_by(|a, b| a.name.cmp(&b.name));
@@ -109,6 +117,29 @@ pub fn run(_ctx: &Ctx, _args: ()) -> Result<HelpOut, CliError> {
             })
             .collect(),
     })
+}
+
+fn about_of(command: &clap::Command) -> String {
+    command
+        .get_about()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| command.get_name().to_string())
+}
+
+fn positionals_of(command: &clap::Command) -> Vec<FlagDoc> {
+    command
+        .get_arguments()
+        .filter(|a| a.is_positional())
+        .map(flag_doc)
+        .collect()
+}
+
+fn flags_of(command: &clap::Command) -> Vec<FlagDoc> {
+    command
+        .get_arguments()
+        .filter(|a| !a.is_positional() && !a.is_global_set())
+        .map(flag_doc)
+        .collect()
 }
 
 fn flag_doc(arg: &clap::Arg) -> FlagDoc {

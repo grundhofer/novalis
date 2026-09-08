@@ -31,8 +31,9 @@ JSON shapes: `reference.md`. Worked recipes: `examples.md`.
 4. **Preconditions.** Every write carries the CLI's own read-time
    precondition. For a note you read earlier and are about to change, add
    `--if-match <sha256>`; after every `edit` or `meta`, take `sha256After`
-   from the result as the next `--if-match`. Exit 4 means the file changed
-   underneath you: re-read, re-plan.
+   from the result as the next `--if-match`. On a card the same guard is
+   `--if-updated <updated>`, taken from the card you read. Exit 4 means the
+   file changed underneath you: re-read, re-plan.
 5. **After every `mv` or `relink`:** check `conflicts` and `cloudOnlySkipped`
    in the result, then run `novalis links --unresolved --json`; it must be
    empty or unchanged from before the operation.
@@ -77,20 +78,20 @@ Available now (the core harness):
 | `meta <note> [--set k=v] [--unset k] [--add-tag T] [--rm-tag T] [--if-match S]` | line-level frontmatter edit; unknown keys preserved |
 | `migrate [--apply] [--rename-to-title[=BOOL]] [--import-columns] [--force] [--materialize]` | one-time upgrade of a vault written by the old app; dry run unless `--apply` |
 | `help --json` | the command tree and the exit-code table |
+| `board ls` · `board show <b>` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
+| `card ls [--board B] [--note N] [--column C]` | which cards reference a note; tombstones are never listed |
+| `card add <b> --title T [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
+| `card mv <id> …` · `card set <id> …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
 
 Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
 
 | Command | One line |
 |---|---|
-| `board ls` · `board show <b>` · `board columns <b> --set <json>` | boards, columns, cards |
-| `card ls [--board B] [--note N] [--column C]` | which cards reference a note |
-| `card add <b> --title T [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
-| `card mv <id> …` · `card set <id> …` · `card rm <id>` | one file per change; `--if-updated <rfc3339>` guards |
 | `sync status` | `vaultKind`, `cloudOnly[]`, `conflictCopies[]` |
 | `skill --path` | the directory of this skill |
 
-Until `card` ships: read `boards/<slug>/cards/*.json` directly when the user
-asks about a board, but do not write board files by hand.
+There is no command that creates a board: the app does that, and so does
+`migrate --import-columns`. Never write a board or card file by hand.
 
 ## Safety
 

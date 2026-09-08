@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "not_found",
+    "hint": null,
+    "message": "not found: boards/kanban/board.json",
+    "path": "boards/kanban/board.json"
+  }
+}

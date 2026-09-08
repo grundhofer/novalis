@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": null,
+    "message": "card mv needs --column, --after, --first or --last",
+    "path": null
+  }
+}
