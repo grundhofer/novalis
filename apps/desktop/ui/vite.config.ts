@@ -1,5 +1,8 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+// `vitest/config` re-exports vite's `defineConfig` and adds the `test` key,
+// so the tests compile through the same plugins and aliases as the app
+// (ADR-0011). One config, one way for the build to be wrong.
+import { defineConfig } from "vitest/config";
 
 // The Tauri shell serves `dist/` from the app bundle; `just dev` runs this on
 // 1420 (tauri.conf.json `devUrl`).
@@ -23,5 +26,15 @@ export default defineConfig({
     // macOS 14 ships Safari 17; the WKWebView is the only target (§4.5).
     target: "safari17",
     sourcemap: false,
+  },
+  test: {
+    // jsdom, not a real WebKit view: these cover the UI's own logic — stores,
+    // dispatch, components — which is where every defect ADR-0011 lists lived.
+    // CSS, hover and drag are NOT covered here (ADR-0011 consequences).
+    environment: "jsdom",
+    globals: false,
+    include: ["src/**/*.test.{ts,tsx}"],
+    setupFiles: ["src/test/setup.ts"],
+    restoreMocks: true,
   },
 });

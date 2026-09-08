@@ -106,6 +106,14 @@ Dark is the primary set; the light ladder is derived and ships too (the catalog 
 
 Implementation go on 2026-09-05 ("go with implementation and use subagents where usefull"): the two pending items (accent hue, custom title bar) stand as shown in the mockups.
 
+## Answered 2026-09-08
+
+> add test runner for missing parts
+
+Recorded as **ADR-0011**: `vitest` + `jsdom` + `@testing-library/react` for the
+UI, wired into `just check` and `ci.yml`. `just test` had been reporting success
+while running no UI test at all.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

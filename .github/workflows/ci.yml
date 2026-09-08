@@ -110,6 +110,9 @@ jobs:
 
       # Both runners: `tauri::generate_context!` embeds `dist/`, so the Rust
       # build below needs the UI built first.
+      - name: UI tests
+        run: pnpm -C apps/desktop/ui run test
+
       - name: UI build
         run: pnpm -C apps/desktop/ui run build
 

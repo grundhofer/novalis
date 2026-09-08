@@ -50,11 +50,10 @@ dev:
     cd "{{desktop}}" && cargo tauri dev
 
 # Everything CI checks, in CI's order. Green here means green there.
-check: _versions _ui-check _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
+check: _versions _ui-check _test-ui _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
 
 # Rust and UI tests.
-test: _test-rust
-    pnpm -C "{{ui}}" run --if-present test
+test: _test-rust _test-ui
 
 # CLI golden tests (crates/novalis-cli/tests). `UPDATE_GOLDEN=1 just test-cli` regenerates the .golden files.
 test-cli:
@@ -129,6 +128,11 @@ _ui-check:
     pnpm -C "{{ui}}" run typecheck
     pnpm -C "{{ui}}" run lint
     pnpm -C "{{ui}}" run build
+
+# ADR-0011. Named without `--if-present` on purpose: that flag is what let
+# `just test` report success for months while running nothing.
+_test-ui:
+    pnpm -C "{{ui}}" run test
 
 _fmt-check:
     cargo fmt --all --check
