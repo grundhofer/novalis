@@ -114,7 +114,20 @@ Recorded as **ADR-0011**: `vitest` + `jsdom` + `@testing-library/react` for the
 UI, wired into `just check` and `ci.yml`. `just test` had been reporting success
 while running no UI test at all.
 
-### Backlinks placement (2026-09-08)
+### Open after the sync tests (2026-09-08)
+
+Measuring Drive with a second device (the owner's phone) contradicted a design
+assumption and surfaced four things that need a decision. None was invented
+here; each is a gap between what the plan promises and what the code does.
+
+| Item | Why it is open | Recommendation |
+|---|---|---|
+| **Drive creates no conflict copy** | PLAN §5.3's whole conflict flow waits for a second file that, on Drive, never appears. An edit made on another device is silently superseded and the app says nothing. Measured, full chain. | Tell the truth in the app rather than pretend: on a vault whose provider is not known to make conflict copies, say so once. Building cross-device change detection means tracking remote revisions, which is Mode 2 work. |
+| **Two conflict detectors that disagree** | `novalis_core::vault::cloud` matches four filename patterns; `stores/vault.ts:143` uses its own narrower regex that never matches `Note (1).md`. The count the app shows and the count `doctor` reports differ by construction. | One detector. The UI should ask the core, not re-implement a regex. |
+| **The resolve panel does not exist** | PLAN §5.3 promises "click → list with Keep original / Keep copy / Keep both". The five catalog keys (`status.conflicts.*`) are referenced by no code; only a count is rendered. `find_conflict_copies` has exactly one caller, the CLI's `doctor`. | Either build it or drop the promise from the plan. Shipping a count that cannot be acted on is the worse of the three. |
+| **Board conflict resolution is unreachable** | `resolve_card_conflicts` and `resolve_board_conflicts` are complete and tested but called by nothing in either binary. Worse, `collect_cards` silently skips any card file whose stem is not a bare ULID, so a vendor sibling is invisible rather than merely unresolved. | Call them, at minimum on board load, and make a skipped card file visible instead of silent. |
+
+## Backlinks placement (2026-09-08)
 
 > deliver backlings, also for cards.
 
