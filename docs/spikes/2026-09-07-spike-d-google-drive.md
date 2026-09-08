@@ -1,4 +1,4 @@
-# Spike D — Google Drive for desktop, Stream mode
+# Spike D — Google Drive for desktop, Stream and Mirror
 
 Date: 2026-09-07. Machine: Apple Silicon, macOS 26.6 (25G72). Google Drive for
 desktop 130.0.2.0, running with `use_mac_fileprovider=on`, domain at
@@ -13,7 +13,8 @@ Drive's trash rather than deleted, so it is recoverable and will appear in the
 online bin until emptied.
 
 Legend: **verified** = observed directly by this run; **unverified** = needs a
-second client, the Drive web UI, or Mirror mode, which is not configured.
+second client or the Drive web UI. Mirror mode was switched on by the owner
+partway through and is covered in its own section at the end.
 
 ## Headline: the guard works on Drive
 
@@ -81,7 +82,7 @@ wrong that the file is recoverable, only about where from.
 | Same-card edit on two clients | — | unverified (needs a second client) |
 | What the server stores for an NFD name | — | unverified (needs the web UI) |
 | Trash of a *dataless* note, and Put Back | — | unverified (needs a genuinely cloud-only note in a test vault) |
-| Mirror mode (section C) | — | **unverified: Drive is configured in Stream mode.** `~/Google Drive` is only a symlink to the same domain, not a mirror root. Section C needs the setting changed |
+| Mirror mode (section C) | run separately after the owner switched the setting — see the last section | verified |
 
 ## What this changes in the plan
 
@@ -90,3 +91,40 @@ wrong that the file is recoverable, only about where from.
   case-only and normalization renames, dot-folders, and `boards/`.
 - The one design assumption that did **not** hold across providers is where
   trashing lands, which was never in the plan either way.
+
+## Mirror mode (run the same day, after the owner switched the setting)
+
+Switching Drive to Mirror materialized everything in place: the domain went
+from 15 of 15 files dataless to 16 of 16 materialized, **and the path did not
+change**. There is no plain-folder mirror root; `~/Google Drive` is still only a
+symlink to the same File Provider domain.
+
+| Item | Result | |
+|---|---|---|
+| `vault_kind` in Mirror mode | **`FileProvider`, never `Mirrored`** | verified |
+| temp + rename | one file, no conflict copy, `UF_TRACKED` set; identical to Stream | verified |
+| Dot-folder policy | `.novalis/vault.json` syncs; item-id xattr after ~12-24 s (Stream: ~10 s) | verified |
+| `boards/` | three rapid card rewrites left one file, no duplicates | verified |
+| NFC / NFD rename | identical to Stream and to OneDrive | verified |
+| Trash | domain's own `.Trash` again, not `~/.Trash` | verified |
+| Conflict-copy naming, Put Back, second-client rows | — | unverified |
+
+**PLAN.md §5.6's `Mirrored` heuristic (C1, marked ASSUMED) is unreachable for
+Drive 130.** That is a fact about the client, not a defect: `FileProvider` is
+the correct branch for a vault that does have vendor version history, and
+`vault_kind` only gates `keepMine`. The `Mirrored` variant may still apply to
+other clients that use a plain folder.
+
+### A concrete lead on conflict naming
+
+Trashing a second `Note.md` while one was already in the domain trash produced
+**`Note 2.md`** — space, digit, no parentheses. `conflict_copy_candidate`
+implements `Note (2).md` and does **not** match this form (verified against the
+real function).
+
+This is Drive's *collision* naming, observed directly; whether its *sync
+conflict* naming is the same is a hypothesis, not a result. The pattern was
+deliberately **not** added: `^(.+) (\d+)$` would misclassify an ordinary
+`Chapter 2.md` sitting beside `Chapter.md`, which is far more likely in a real
+vault than the parenthesised form. Confirm with a second client before changing
+the matcher.
