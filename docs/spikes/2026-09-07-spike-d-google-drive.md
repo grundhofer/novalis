@@ -128,3 +128,17 @@ deliberately **not** added: `^(.+) (\d+)$` would misclassify an ordinary
 `Chapter 2.md` sitting beside `Chapter.md`, which is far more likely in a real
 vault than the parenthesised form. Confirm with a second client before changing
 the matcher.
+
+## Put Back, settled 2026-09-08
+
+Deleting a note from a Drive vault through the app's own code path puts it in
+`~/Library/CloudStorage/GoogleDrive-<account>/.Trash/` and **never** in
+`~/.Trash`. macOS writes its put-back records (`ptbL`/`ptbN` in
+`~/.Trash/.DS_Store`) only for items that land in the user's Trash, so **Finder's
+Put Back does not apply to a Drive vault at all** — the file is not in Finder's
+Trash to begin with. Recovery goes through Drive's bin.
+
+This is the one behaviour that differs from OneDrive, where Spike A measured the
+note landing in `~/.Trash` with put-back records written. `app.confirmTrash.body`
+("can be restored from the Trash") is therefore imprecise on a Drive vault: true
+that it is recoverable, wrong about where from.
