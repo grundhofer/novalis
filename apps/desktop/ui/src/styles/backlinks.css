@@ -1,0 +1,101 @@
+/* The backlinks pane sits under the editor and never grows past a third of
+   the pane, so the note it is about stays the larger half. */
+.backlinks {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 33%;
+  border-top: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-bg-surface);
+}
+
+.backlinks-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 0 var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.backlinks-title {
+  font-size: var(--ds-font-size-ui-sm);
+  font-weight: var(--ds-font-weight-strong);
+  letter-spacing: var(--ds-letter-spacing-ui);
+  text-transform: uppercase;
+  color: var(--ds-color-fg-muted);
+}
+
+.backlinks-counts {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-fg-subtle);
+}
+
+.backlinks-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--ds-space-3) 0;
+}
+
+.backlinks-empty {
+  margin: 0;
+  padding: var(--ds-space-4) var(--ds-space-5);
+  color: var(--ds-color-fg-subtle);
+}
+
+.backlink {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  width: 100%;
+  padding: var(--ds-space-3) var(--ds-space-5);
+  border: none;
+  background: none;
+  color: var(--ds-color-fg-default);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backlink:hover {
+  background: var(--ds-color-bg-fill);
+}
+
+.backlink-glyph {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 9px;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-radius: 1.5px;
+}
+
+/* A card is a different kind of thing from a note, so it gets a different
+   mark rather than the same one with a label. */
+.backlink-glyph.card {
+  width: 9px;
+  height: 7px;
+  border-radius: 1px;
+  border-color: var(--ds-color-accent-default);
+}
+
+.backlink-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlink-meta {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono-sm);
+  color: var(--ds-color-fg-subtle);
+}

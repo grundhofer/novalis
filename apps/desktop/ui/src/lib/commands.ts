@@ -147,6 +147,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "palette.open": () => useUi.getState().setOverlay({ kind: "palette" }),
   "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
+  "backlinks.toggle": () => useUi.getState().toggleBacklinks(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "view.fontLarger": () => useUi.getState().changeFontSize(1),
@@ -195,8 +196,15 @@ export function dispatchCommand(id: string): void {
   if (isEditorCommand(id)) runEditorCommand(id);
 }
 
-/** Command ids the palette offers, in the order it shows them. */
-export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
+/**
+ * Command ids the palette offers, in the order it shows them.
+ *
+ * A function, not a constant, because one entry names its own state: the
+ * catalog gives backlinks a `showBacklinks`/`hideBacklinks` pair rather than
+ * the single "Toggle" label the sidebar and board use.
+ */
+export function paletteCommands(): readonly { id: string; labelKey: string }[] {
+  return [
   { id: "quickOpen.open", labelKey: "menu.go.quickOpen" },
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
@@ -208,6 +216,12 @@ export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
   { id: "tree.trash", labelKey: "menu.file.moveToTrash" },
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
+  {
+    id: "backlinks.toggle",
+    labelKey: useUi.getState().backlinksVisible
+      ? "palette.cmd.hideBacklinks"
+      : "palette.cmd.showBacklinks",
+  },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },
@@ -218,4 +232,5 @@ export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
   { id: "view.fontLarger", labelKey: "menu.view.fontLarger" },
   { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller" },
   { id: "view.fontReset", labelKey: "menu.view.fontReset" },
-];
+  ];
+}

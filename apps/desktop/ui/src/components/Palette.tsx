@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { dispatchCommand, PALETTE_COMMANDS } from "../lib/commands";
+import { dispatchCommand, paletteCommands } from "../lib/commands";
 import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
 import { rank } from "../lib/fuzzy";
 import { bindingFor, glyphsOf } from "../lib/keymap";
@@ -58,7 +58,7 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
       name: b.name,
     }));
     if (mode === "quickOpen") return [...noteEntries, ...boardEntries];
-    const commandEntries: Entry[] = PALETTE_COMMANDS.map((c) => ({
+    const commandEntries: Entry[] = paletteCommands().map((c) => ({
       kind: "command",
       id: c.id,
       label: t(c.labelKey),

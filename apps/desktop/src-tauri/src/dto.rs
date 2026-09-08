@@ -134,6 +134,8 @@ pub struct UiStateDto {
     pub sidebar_width: u32,
     pub board_visible: bool,
     pub active_board: Option<String>,
+    #[serde(default)]
+    pub backlinks_visible: bool,
 }
 
 impl Default for UiStateDto {
@@ -145,6 +147,7 @@ impl Default for UiStateDto {
             sidebar_width: 256,
             board_visible: false,
             active_board: None,
+            backlinks_visible: false,
         }
     }
 }
@@ -339,11 +342,25 @@ pub struct BacklinkDto {
     pub line: u32,
 }
 
+/// A card whose `notes[]` references the open note (§4.4: the backlinks list
+/// shows cards linking here, not only notes).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinkCardDto {
+    pub board: String,
+    pub board_name: String,
+    pub id: String,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BacklinksDto {
     pub notes: Vec<BacklinkDto>,
-    /// See [`TagListDto::indexed`].
+    /// Cards come from the board files, not the cache: a card is not a note
+    /// and is never indexed, so this half works even while `indexed` is false.
+    pub cards: Vec<BacklinkCardDto>,
+    /// See [`TagListDto::indexed`]. Applies to `notes` only.
     pub indexed: bool,
 }
 

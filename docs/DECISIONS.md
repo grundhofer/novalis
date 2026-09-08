@@ -114,6 +114,26 @@ Recorded as **ADR-0011**: `vitest` + `jsdom` + `@testing-library/react` for the
 UI, wired into `just check` and `ci.yml`. `just test` had been reporting success
 while running no UI test at all.
 
+### Backlinks placement (2026-09-08)
+
+> deliver backlings, also for cards.
+
+The open question was *where* the list lives, since the approved mockups have no
+frame for it. It did not need a new answer: the catalog already specified the
+shape before the code existed — `editor.backlinks.title` / `.empty` (whose text
+names notes **and** cards) / `.notes` / `.cards` counts, and a
+`palette.cmd.showBacklinks` / `hideBacklinks` pair rather than the single
+"Toggle" label the sidebar and board use.
+
+So: a pane under the editor, toggled from the command palette with a label that
+follows its state, hidden while the board is open (a note's backlinks are
+meaningless there), and persisted in `state.json` like the sidebar. No new
+string, no new shortcut, no new menu item.
+
+Also corrected here: §4.4 approved "backlinks list (incl. cards linking here)"
+and the first cut returned notes only. Cards now come from the board files
+rather than the cache, so that half is correct even during the first scan.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

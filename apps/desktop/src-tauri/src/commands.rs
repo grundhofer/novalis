@@ -552,9 +552,22 @@ pub async fn backlinks(state: State<'_, AppState>, path: String) -> IpcResult<Ba
     let indexed = state.cache_indexed();
     blocking(move || {
         let rel = normalize_rel(&path)?;
+        // Cards first: they are read from the board files, so they do not need
+        // the cache and are correct even during the first scan.
+        let cards = boards::cards_linking(&root, &rel)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(board, card)| BacklinkCardDto {
+                board: board.slug,
+                board_name: board.name,
+                id: card.id,
+                title: card.title,
+            })
+            .collect();
         let Ok(cache) = Cache::open(&cache_dir, &root) else {
             return Ok(BacklinksDto {
                 notes: Vec::new(),
+                cards,
                 indexed: false,
             });
         };
@@ -568,6 +581,7 @@ pub async fn backlinks(state: State<'_, AppState>, path: String) -> IpcResult<Ba
                     path: row.src,
                 })
                 .collect(),
+            cards,
             indexed,
         })
     })

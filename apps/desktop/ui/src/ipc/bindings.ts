@@ -121,6 +121,17 @@ export const events = {
 /* Types */
 export type AppearanceDto = "system" | "light" | "dark";
 
+/**
+ *  A card whose `notes[]` references the open note (§4.4: the backlinks list
+ *  shows cards linking here, not only notes).
+ */
+export type BacklinkCardDto = {
+	board: string,
+	boardName: string,
+	id: string,
+	title: string,
+};
+
 export type BacklinkDto = {
 	path: string,
 	title: string,
@@ -130,7 +141,12 @@ export type BacklinkDto = {
 
 export type BacklinksDto = {
 	notes: BacklinkDto[],
-	/**  See [`TagListDto::indexed`]. */
+	/**
+	 *  Cards come from the board files, not the cache: a card is not a note
+	 *  and is never indexed, so this half works even while `indexed` is false.
+	 */
+	cards: BacklinkCardDto[],
+	/**  See [`TagListDto::indexed`]. Applies to `notes` only. */
 	indexed: boolean,
 };
 
@@ -396,6 +412,7 @@ export type UiStateDto = {
 	sidebarWidth?: number,
 	boardVisible?: boolean,
 	activeBoard?: string | null,
+	backlinksVisible?: boolean,
 };
 
 export type VaultDto = {

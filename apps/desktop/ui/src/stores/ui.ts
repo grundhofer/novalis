@@ -57,6 +57,7 @@ interface UiState {
   sidebarVisible: boolean;
   sidebarWidth: number;
   boardVisible: boolean;
+  backlinksVisible: boolean;
   activeBoard: string | null;
   overlay: Overlay;
   prompt: PromptRequest | null;
@@ -69,6 +70,7 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleBoard: () => void;
+  toggleBacklinks: () => void;
   setActiveBoard: (slug: string | null) => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
@@ -117,6 +119,7 @@ export const useUi = create<UiState>((set, get) => ({
   sidebarVisible: true,
   sidebarWidth: 256,
   boardVisible: false,
+  backlinksVisible: false,
   activeBoard: null,
   overlay: { kind: "none" },
   prompt: null,
@@ -131,6 +134,7 @@ export const useUi = create<UiState>((set, get) => ({
       sidebarVisible: state.sidebarVisible ?? true,
       sidebarWidth: state.sidebarWidth ?? 256,
       boardVisible: state.boardVisible ?? false,
+      backlinksVisible: state.backlinksVisible ?? false,
       activeBoard: state.activeBoard ?? null,
     });
   },
@@ -141,6 +145,7 @@ export const useUi = create<UiState>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarWidth: (width) => set({ sidebarWidth: Math.round(width) }),
   toggleBoard: () => set((s) => ({ boardVisible: !s.boardVisible })),
+  toggleBacklinks: () => set((s) => ({ backlinksVisible: !s.backlinksVisible })),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
 
   setAppearance: async (appearance) => {
