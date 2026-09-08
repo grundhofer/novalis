@@ -168,3 +168,29 @@ Still open, and not answerable from a phone: the conflict-copy filename and the
 same-card two-client edit. Both need the *same file's content* changed in two
 places, and neither the Drive web app nor the mobile app can edit a Markdown
 file. That needs a second computer.
+
+### Deleting from the second client
+
+Trashing the note in the Drive mobile app removed the local file and left **no
+user-visible local copy**: it is not in `~/.Trash`, and not in the domain's own
+`.Trash` where a delete made *by the app* lands. The only local trace was
+`<domain>/.tmp/177/Konflikt.md`, an internal staging path of Drive for desktop,
+which is transient and not a recovery location.
+
+So the two directions are not symmetric, and the asymmetry is worth knowing:
+
+| Deleted from | Local copy afterwards | Recover via |
+|---|---|---|
+| novalis (`NsFileManager`) | domain `.Trash` | Drive's bin |
+| the second client (phone) | **none** | Drive's bin only |
+
+For a notes app that matters: an accidental delete on the phone takes the local
+copy with it, and nothing on the Mac can bring it back. That is Drive's
+behaviour, not novalis's, and it is not something the app can change — but it
+is the kind of thing a user should be told once rather than discover.
+
+### A note on the rename measurement
+
+The rename was observed twice, as `Ärger gelöst.md` and then as
+`Ärger geloest.md`. Both arrived with `Ä` as `41 cc 88` — decomposed — from a
+phone keyboard that composes. The finding is the same in both samples.
