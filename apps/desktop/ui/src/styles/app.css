@@ -709,6 +709,21 @@ button {
 }
 
 /* A failure before React mounts (main.tsx `reportFatal`). */
+/* The overlay form of `.fatal`, used once React has mounted: a render error
+   empties the tree and the window goes white, so the reason has to sit on top
+   of whatever is left rather than inside a container React owns. */
+#fatal-banner {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 100;
+  max-height: 40vh;
+  overflow: auto;
+  padding: var(--ds-space-5);
+  border-top: 1px solid var(--ds-color-warning-line);
+  background: var(--ds-color-bg-raised);
+  color: var(--ds-color-warning-text);
+}
+
 .fatal {
   margin: 0;
   padding: 48px;
