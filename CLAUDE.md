@@ -34,8 +34,8 @@ scripts/                                        # check-versions.mjs bundle-budg
 |---|---|
 | `just setup` | Verifies rustc 1.96 / node 22 / pnpm 11 / `cargo tauri` 2, then `pnpm install` |
 | `just dev` | `cargo tauri dev` in `apps/desktop` |
-| `just check` | Exactly what CI runs: versions, UI typecheck/lint/build, fmt, clippy `-D warnings`, cargo test, i18n, bundle budget |
-| `just test` | Rust + UI tests |
+| `just check` | Exactly what CI runs: versions, UI typecheck/lint/build, UI tests, fmt, clippy `-D warnings`, cargo test, i18n, bundle budget |
+| `just test` | Rust + UI tests. Until 2026-09-08 this ran no UI test at all and still reported success (ADR-0011) |
 | `just test-cli` | CLI golden tests; `UPDATE_GOLDEN=1 just test-cli` regenerates them |
 | `just perf` | The core §11.3 budgets on a generated 10k-note vault; what `perf.yml` runs on `main` and tags |
 | `just app` | Release app bundle for this Mac |
@@ -47,6 +47,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 
 - **User-visible strings** → `i18n/en.json` and `i18n/de.json`, never inline (the lint and the catalog parity test enforce it). Core and CLI carry no strings, only typed errors.
 - **Colours, fonts, radii** → `packages/tokens/tokens.css` (`--ds-*` semantic tokens only). No hard-coded values in components. Light and dark are two token sets.
+- **UI tests** → `vitest` + `jsdom` + `@testing-library/react` (ADR-0011), as `*.test.ts(x)` beside the file they cover. They mock `../ipc/client`; they do not start a shell, and they cannot see CSS, hover or drag.
 - **Settings** → exactly the four in `docs/SETTINGS.md` (`language`, `appearance`, `editor.fontSize`, `spellcheck`) mirrored by the `Settings` struct; a cargo parity test compares them. `lastVault` is state, not a setting. No preferences window.
 - **Keyboard shortcuts** → `docs/KEYMAP.md` mirrored by the keymap table; a cargo parity test compares them.
 - **Decisions** → `docs/decisions/NNNN-*.md` (old ADR voice, owner approval quoted). `docs/DECISIONS.md` is the index.
