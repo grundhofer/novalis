@@ -148,20 +148,16 @@ changes what everyone else sees.
 Goal: the note `projects/Atlas Rendering Spec.md` is done; move its card to
 `done` and record the date in the note.
 
-Planned (`card`):
-
 ```sh
-novalis card ls --note "projects/Atlas Rendering Spec" --json           # find the card id and board
-novalis card mv 01K4G9Z2Q7M3N8RSTV5WXY6ZAB --column done --last --json    # one file changes
+novalis card ls --note "projects/Atlas Rendering Spec" --json           # find the card id, board and updated
+novalis card mv 01K4G9Z2Q7M3N8RSTV5WXY6ZAB --column done --last \
+  --if-updated 2026-09-05T08:41:12.345Z --json                          # one file changes
 novalis edit "projects/Atlas Rendering Spec" --append "Shipped 2026-09-05." --json
 ```
 
-Harness-only fallback: find the card by reading the board files, then ask the
-user to move it in the app.
-
-```sh
-grep -l '"projects/Atlas Rendering Spec.md"' "$V"/boards/*/cards/*.json
-```
+`card mv` takes no board argument: the id is a ULID and finds its own board.
+Exit 4 means someone moved the card while you were reading it — run `card ls`
+again and re-plan.
 
 Do not edit the card JSON by hand: the app and the CLI write these files
 atomically with preconditions and a re-keyed `order`; a hand edit that

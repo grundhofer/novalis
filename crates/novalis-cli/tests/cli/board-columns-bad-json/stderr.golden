@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": "pass JSON like [{\"id\":\"todo\",\"name\":\"To Do\"}]",
+    "message": "--set is not a column list: expected ident at line 1 column 2",
+    "path": null
+  }
+}

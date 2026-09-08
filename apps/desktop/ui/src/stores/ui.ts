@@ -44,7 +44,8 @@ export interface PromptRequest {
   initial?: string;
   confirm?: {
     bodyKey: string;
-    values?: Record<string, string>;
+    /** Interpolation values. Numbers matter: i18next selects plurals on them. */
+    values?: Record<string, string | number>;
     /** Catalog key for the confirming button, which names the action. */
     confirmKey: string;
   };

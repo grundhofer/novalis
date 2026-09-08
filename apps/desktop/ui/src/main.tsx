@@ -26,11 +26,25 @@ try {
 function reportFatal(what: string): void {
   document.title = `novalis — ${what}`;
   const root = document.getElementById("root");
-  if (!root || root.childElementCount > 0) return;
-  const pre = document.createElement("pre");
-  pre.className = "fatal";
-  pre.textContent = what;
-  root.appendChild(pre);
+  if (root && root.childElementCount === 0) {
+    // Nothing mounted: the window would otherwise be blank, so own it.
+    const pre = document.createElement("pre");
+    pre.className = "fatal";
+    pre.textContent = what;
+    root.appendChild(pre);
+    return;
+  }
+  // React is mounted. Bailing out here is what made a post-mount failure
+  // invisible: a render error empties the tree and the window just goes white
+  // with no way to find out why. Overlay instead of replacing, so a working UI
+  // is not destroyed by a benign error either.
+  const id = "fatal-banner";
+  const existing = document.getElementById(id);
+  const banner = existing ?? document.createElement("pre");
+  banner.id = id;
+  banner.className = "fatal";
+  banner.textContent = what;
+  if (!existing) document.body.appendChild(banner);
 }
 window.addEventListener("error", (event) => reportFatal(String(event.message)));
 window.addEventListener("unhandledrejection", (event) => {

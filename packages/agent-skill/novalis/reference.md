@@ -203,26 +203,53 @@ resolve to a note. Rewrites `[[from]]`, `[[from|label]]`, `[[from#h]]`,
 `--dry-run`. Output `{rewritten:[{path,count}], cardsUpdated, conflicts,
 cloudOnlySkipped}`. Exit 5 on cloud-only skips unless `--force`.
 
-### `board` — Status: planned
+### `board` — Status: harness
 
-- `board ls` → `{items:[{slug, name, path, columns:[{id,name}], cards}]}`.
-- `board show <b>` → the board plus `cards[]` sorted by `(column order, order, id)`.
-- `board columns <b> --set '<json>'` → replaces the column list with
-  `[{id, name}]`; a card whose column disappears is shown in the first
-  column with a marker, never lost.
+`<b>` is the board **slug**, the folder name under `boards/`. A board that is
+not there is exit 3. There is no `board new`: the app creates boards, and so
+does `migrate --import-columns`.
 
-### `card` — Status: planned
+- `board ls` → `{items:[{slug, name, path, columns:[{id,name}], cards}],
+  truncated, cloudOnlySkipped}`. `path` is the board folder, `cards` is how
+  many live cards it holds.
+- `board show <b>` → `{slug, name, path, columns, cards:[…], orphanCards,
+  cloudOnlySkipped, updated}`, `cards[]` sorted by `(column order, order,
+  id)`. Tombstoned cards are left out.
+- `board columns <b> --set '<json>'` replaces the column list with
+  `[{"id":"todo","name":"To Do"}]` and answers in the `board show` shape. An
+  empty or repeated column id is exit 2. A card whose column disappears keeps
+  its `column` value, is listed in `orphanCards` and sorts first, as the first
+  column: it is never lost. `--dry-run` writes nothing and answers with the
+  columns the write would store and the `updated` still on disk.
+
+### `card` — Status: harness
+
+A card id is a ULID and is unique across the vault, so `card mv`, `card set`
+and `card rm` take no board argument.
 
 - `card ls [--board B] [--note <note>] [--column C]` →
-  `{items:[{board,id,title,column,order,notes,updated}]}`.
+  `{items:[{board,id,title,column,order,notes,created,updated}], truncated,
+  cloudOnlySkipped}`, sorted by `(board, column order, order, id)`.
+  Tombstones are never listed. `--column` matches the column **id** exactly
+  (`card ls` spans boards); `--note` takes a note reference and must resolve.
 - `card add <b> --title T [--column C] [--note <note>]… [--after ID | --first | --last]`
   → `{card}`. `--column` takes an id, or a name when unambiguous (else exit
-  4); default column = first; default position = last.
-- `card mv <id> [--column C] [--after ID | --first | --last]`,
-  `card set <id> [--title T] [--add-note N] [--rm-note N]`,
-  `card rm <id>` → `{card}`. `--if-updated <rfc3339>` refuses (exit 4) when
-  the card's `updated` differs. One file per change; `rm` writes a `deleted`
-  tombstone.
+  4); default column = first; default position = last. `--note` is repeatable
+  and must resolve. Under `--dry-run` nothing is written, so the answer
+  carries no `id` and no `order`.
+- `card mv <id> [--column C] [--after ID | --first | --last]` → `{card}`.
+  At least one of the four is required.
+- `card set <id> [--title T] [--add-note N]… [--rm-note N]…` → `{card}`. The
+  changes are written one file at a time, in the order title, removals,
+  additions. `--add-note` must resolve; `--rm-note` is kept verbatim when
+  nothing resolves to it, so a reference to a deleted note can be cleaned up.
+- `card rm <id>` → `{card}` with the `deleted` tombstone stamp. The file
+  stays until it is 30 days old.
+- `--if-updated <rfc3339>` on `mv`, `set` and `rm` refuses (exit 4) when the
+  card's `updated` is not the one you read. Take the next value from `updated`
+  in the result, as `--if-match` on a note.
+- `--dry-run` on `mv`, `set` and `rm` validates the id, the column and
+  `--if-updated`, writes nothing, and reports the card as it stands on disk.
 
 ### `index` — Status: harness
 
@@ -291,7 +318,9 @@ mode) can hold **cloud-only** notes: present in listings, `cloudOnly: true`,
 `sha256: null`, body never read implicitly. Google Drive in Mirror mode has
 plain files but still produces conflict copies.
 
-- Reads: `cat` exits 8; `search` counts them in `cloudOnlySkipped`.
+- Reads: `cat` exits 8; `search` counts them in `cloudOnlySkipped`; `board`
+  and `card ls` never open an online-only card file and name it in
+  `cloudOnlySkipped`.
 - Writes: `mv`, `relink`, `migrate` count affected cloud-only notes first and
   report `cloudOnlySkipped` (exit 5) unless `--materialize` downloads them or
   `--force` accepts the skip.
@@ -302,10 +331,9 @@ plain files but still produces conflict copies.
   them. Never delete a conflict copy; the user decides in the app or by
   telling you which side wins.
 
-## 7. Board files (read-only reference)
+## 7. Board files (reference)
 
-Until `board` and `card` ship, read these files directly when asked; do not
-write them by hand.
+`board` and `card` read and write these files. Never write them by hand.
 
 ```
 <vault>/boards/<slug>/

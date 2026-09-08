@@ -108,6 +108,8 @@ fn run() -> Result<i32, CliError> {
         Command::Index(args) => finish(&ctx, ops::index::run(&ctx, args)?, &[]),
         Command::Init(args) => finish(&ctx, ops::init::run(&ctx, &args.dir)?, &[]),
         Command::Doctor => finish(&ctx, ops::doctor::run(&ctx, ())?, &[]),
+        Command::Board(args) => finish(&ctx, ops::board::run(&ctx, args)?, &[]),
+        Command::Card(args) => finish(&ctx, ops::card::run(&ctx, args)?, &[]),
         Command::Migrate(args) => finish(&ctx, ops::migrate::run(&ctx, args)?, &[]),
         Command::Help => {
             if !ctx.json {

@@ -3,6 +3,8 @@
 //! them, `help --json` publishes their schemas, and `novalis mcp` will wrap
 //! the same functions in v2 (§9.5).
 
+pub mod board;
+pub mod card;
 pub mod cat;
 pub mod doctor;
 pub mod edit;
@@ -37,6 +39,8 @@ pub fn output_schema(command: &str) -> Option<serde_json::Value> {
         "links" => schema_for!(links::LinksOut),
         "tags" => schema_for!(tags::TagsOut),
         "relink" => schema_for!(relink::RelinkOut),
+        "board" => schema_for!(board::BoardOut),
+        "card" => schema_for!(card::CardOut),
         "index" => schema_for!(index::IndexOut),
         "init" => schema_for!(init::InitOut),
         "doctor" => schema_for!(doctor::DoctorOut),
@@ -55,12 +59,12 @@ mod tests {
     fn every_built_command_publishes_a_schema() {
         for name in [
             "ls", "cat", "new", "edit", "meta", "migrate", "mv", "rm", "search", "links", "tags",
-            "relink", "index", "init", "doctor", "help",
+            "relink", "board", "card", "index", "init", "doctor", "help",
         ] {
             let schema = output_schema(name).unwrap_or_else(|| panic!("{name} has no schema"));
             assert!(schema.is_object(), "{name}");
         }
-        for name in ["board", "card", "sync", "skill"] {
+        for name in ["sync", "skill"] {
             assert!(output_schema(name).is_none(), "{name}");
         }
     }

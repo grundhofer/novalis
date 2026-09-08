@@ -107,15 +107,80 @@
   color: var(--ds-color-fg-muted);
 }
 
-.col-action {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  justify-content: center;
+/* Column and card controls stay out of the way until the row is hovered or
+   something inside it has keyboard focus, so the board reads as content
+   first. `:focus-within` is what keeps them reachable without a mouse. */
+.col-actions,
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  opacity: 0;
+  transition: opacity var(--ds-motion-duration) var(--ds-motion-ease);
 }
 
-.col-action::before {
-  content: "…";
+.col-head:hover .col-actions,
+.col-head:focus-within .col-actions,
+.card:hover .card-actions,
+.card:focus-within .card-actions {
+  opacity: 1;
+}
+
+.col-action,
+.card-action {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 var(--ds-space-2);
+  justify-content: center;
+  font-size: var(--ds-font-size-ui-sm);
+}
+
+.col-action.wide,
+.card-action {
+  padding: 0 var(--ds-space-3);
+}
+
+.col-action:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.col-action.danger:hover,
+.card-action.danger:hover {
+  border-color: var(--ds-color-warning-line);
+  color: var(--ds-color-warning-text);
+}
+
+/* Their own row under the title, right-aligned. They keep their space while
+   hidden, so revealing them on hover never shifts the card's layout — and
+   never lands on top of the title, which a negative margin did. */
+.card-actions {
+  align-self: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.card-note-unlink {
+  flex: 0 0 auto;
+  margin-left: var(--ds-space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ds-color-fg-subtle);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.card-note:hover .card-note-unlink,
+.card-note-unlink:focus-visible {
+  opacity: 1;
+}
+
+.card-note-unlink:hover {
+  color: var(--ds-color-warning-text);
 }
 
 .cards {

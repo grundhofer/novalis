@@ -277,8 +277,8 @@ fn help_json_describes_every_command() {
         .map(|c| c["name"].as_str().expect("a name"))
         .collect();
     for expected in [
-        "cat", "doctor", "edit", "help", "index", "init", "links", "ls", "meta", "migrate", "mv",
-        "new", "relink", "rm", "search", "tags",
+        "board", "card", "cat", "doctor", "edit", "help", "index", "init", "links", "ls", "meta",
+        "migrate", "mv", "new", "relink", "rm", "search", "tags",
     ] {
         assert!(names.contains(&expected), "{expected} missing from help");
         let entry = commands
@@ -290,7 +290,7 @@ fn help_json_describes_every_command() {
             "{expected} publishes no output schema"
         );
     }
-    for planned in ["board", "card", "sync", "skill"] {
+    for planned in ["sync", "skill"] {
         assert!(names.contains(&planned), "{planned} missing from help");
     }
     assert_eq!(
@@ -303,6 +303,157 @@ fn help_json_describes_every_command() {
         .expect("globalFlags")
         .iter()
         .any(|f| f["name"] == "--vault"));
+}
+
+/// The board and card commands on a board that holds cards. This cannot be a
+/// golden case: the demo vault has no `boards/`, one case is one invocation,
+/// and a card id is a fresh ULID, so nothing about `card add` is comparable
+/// byte for byte.
+#[test]
+fn board_and_card_drive_a_real_board() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::create_dir_all(vault.join("boards/atlas/cards")).expect("the board folder");
+    std::fs::write(
+        vault.join("boards/atlas/board.json"),
+        r#"{"columns":[{"id":"todo","name":"To Do"},{"id":"doing","name":"Doing"}],"format":1,"name":"Atlas","updated":"2026-09-05T08:41:12.345Z"}
+"#,
+    )
+    .expect("board.json");
+
+    let run = |args: &[&str]| -> (serde_json::Value, i32) {
+        let out = Command::new(BIN)
+            .arg("--vault")
+            .arg(&vault)
+            .args(args)
+            .current_dir(&root)
+            .env("HOME", &root)
+            .env_remove("NOVALIS_VAULT")
+            .output()
+            .unwrap_or_else(|e| panic!("cannot run {BIN}: {e}"));
+        let code = out.status.code().unwrap_or(-1);
+        let raw = if out.stdout.is_empty() {
+            &out.stderr
+        } else {
+            &out.stdout
+        };
+        let value = serde_json::from_slice(raw)
+            .unwrap_or_else(|e| panic!("{args:?} printed no JSON ({e}): {raw:?}"));
+        (value, code)
+    };
+
+    let (boards, code) = run(&["board", "ls"]);
+    assert_eq!(code, 0);
+    assert_eq!(boards["items"][0]["slug"], "atlas");
+    assert_eq!(boards["items"][0]["path"], "boards/atlas");
+    assert_eq!(boards["items"][0]["cards"], 0);
+
+    // `--dry-run` writes nothing, so it reports no id and no order key.
+    let (dry, code) = run(&[
+        "--dry-run",
+        "card",
+        "add",
+        "atlas",
+        "--title",
+        "Ship it",
+        "--column",
+        "Doing",
+    ]);
+    assert_eq!(code, 0);
+    assert_eq!(dry["dryRun"], true);
+    assert_eq!(dry["card"]["column"], "doing", "a column name resolves");
+    assert!(dry["card"]["id"].is_null(), "{dry}");
+    assert_eq!(run(&["board", "ls"]).0["items"][0]["cards"], 0);
+
+    let (added, code) = run(&[
+        "card",
+        "add",
+        "atlas",
+        "--title",
+        "Ship it",
+        "--note",
+        "Atlas Overview",
+    ]);
+    assert_eq!(code, 0, "{added}");
+    let id = added["card"]["id"].as_str().expect("a card id").to_string();
+    assert_eq!(id.len(), 26, "a ULID");
+    assert_eq!(added["card"]["column"], "todo", "the first column");
+    assert_eq!(added["card"]["notes"][0], "projects/Atlas Overview.md");
+    let updated = added["card"]["updated"]
+        .as_str()
+        .expect("updated")
+        .to_string();
+
+    let (listed, code) = run(&["card", "ls", "--board", "atlas", "--note", "Atlas Overview"]);
+    assert_eq!(code, 0);
+    assert_eq!(listed["items"].as_array().expect("items").len(), 1);
+    assert_eq!(listed["items"][0]["id"], id.as_str());
+
+    // A stale `--if-updated` is a conflict; the current one goes through.
+    let (stale, code) = run(&[
+        "card",
+        "mv",
+        &id,
+        "--column",
+        "doing",
+        "--if-updated",
+        "2020-01-01T00:00:00.000Z",
+    ]);
+    assert_eq!(code, 4, "{stale}");
+    assert_eq!(stale["error"]["code"], "conflict");
+    let (moved, code) = run(&[
+        "card",
+        "mv",
+        &id,
+        "--column",
+        "doing",
+        "--if-updated",
+        &updated,
+    ]);
+    assert_eq!(code, 0, "{moved}");
+    assert_eq!(moved["card"]["column"], "doing");
+
+    let (retitled, code) = run(&["card", "set", &id, "--title", "Shipped"]);
+    assert_eq!(code, 0, "{retitled}");
+    assert_eq!(retitled["card"]["title"], "Shipped");
+
+    // A column that goes away leaves its card in `orphanCards`, never lost.
+    let (shrunk, code) = run(&[
+        "board",
+        "columns",
+        "atlas",
+        "--set",
+        r#"[{"id":"todo","name":"To Do"}]"#,
+    ]);
+    assert_eq!(code, 0, "{shrunk}");
+    assert_eq!(shrunk["orphanCards"][0], id.as_str());
+    assert_eq!(shrunk["cards"][0]["id"], id.as_str());
+
+    let (removed, code) = run(&["card", "rm", &id]);
+    assert_eq!(code, 0, "{removed}");
+    assert!(removed["card"]["deleted"].is_string(), "{removed}");
+    assert!(
+        vault.join(format!("boards/atlas/cards/{id}.json")).exists(),
+        "the tombstone file stays"
+    );
+    let (empty, code) = run(&["card", "ls"]);
+    assert_eq!(code, 0);
+    assert!(
+        empty["items"].as_array().expect("items").is_empty(),
+        "a tombstone is not a card"
+    );
+
+    // An id nothing holds is exit 3, on every card command.
+    for args in [
+        vec!["card", "rm", "01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+        vec!["card", "set", "01ARZ3NDEKTSV4RRFFQ69G5FAV", "--title", "x"],
+    ] {
+        let (err, code) = run(&args);
+        assert_eq!(code, 3, "{err}");
+        assert_eq!(err["error"]["code"], "not_found");
+    }
 }
 
 /// The two rules that have no output to compare: `--no-index` is refused on a

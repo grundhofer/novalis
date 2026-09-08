@@ -79,10 +79,10 @@ pub enum Command {
     Doctor,
     /// Print the command contract, with --json for agents.
     Help,
-    /// Boards (planned in Phase 4).
-    Board(StubArgs),
-    /// Cards (planned in Phase 4).
-    Card(StubArgs),
+    /// List the boards, show one, or replace a board's column list.
+    Board(BoardArgs),
+    /// List, add, move, change and remove cards.
+    Card(CardArgs),
     /// Migrate a vault written by the old app. Dry run unless --apply.
     Migrate(MigrateArgs),
     /// Sync state of the vault (planned in Phase 4).
@@ -123,6 +123,9 @@ impl Command {
     pub fn is_mutation(&self) -> bool {
         match self {
             Command::Index(a) => a.rebuild,
+            // `board` and `card` are like `index`: the subcommand decides.
+            Command::Board(a) => matches!(a.command, BoardCommand::Columns(_)),
+            Command::Card(a) => !matches!(a.command, CardCommand::Ls(_)),
             other => always_mutates(other.name()),
         }
     }
@@ -371,6 +374,147 @@ pub struct InitArgs {
     pub dir: String,
 }
 
+#[derive(Debug, Args)]
+pub struct BoardArgs {
+    #[command(subcommand)]
+    pub command: BoardCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum BoardCommand {
+    /// List the boards of the vault.
+    Ls,
+    /// Show one board with its columns and its live cards.
+    Show(BoardShowArgs),
+    /// Replace the column list of a board.
+    Columns(BoardColumnsArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct BoardShowArgs {
+    /// The board slug, the folder name under `boards/`.
+    pub board: String,
+}
+
+#[derive(Debug, Args)]
+pub struct BoardColumnsArgs {
+    /// The board slug, the folder name under `boards/`.
+    pub board: String,
+    /// The new column list as JSON: `[{"id":"todo","name":"To Do"}]`.
+    #[arg(long, value_name = "JSON", required = true)]
+    pub set: String,
+}
+
+#[derive(Debug, Args)]
+pub struct CardArgs {
+    #[command(subcommand)]
+    pub command: CardCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CardCommand {
+    /// List cards across the vault, or of one board, column or note.
+    Ls(CardLsArgs),
+    /// Add a card to a board.
+    Add(CardAddArgs),
+    /// Move a card to another column or another place in its column.
+    Mv(CardMvArgs),
+    /// Change a card's title or its note references.
+    Set(CardSetArgs),
+    /// Tombstone a card.
+    Rm(CardRmArgs),
+}
+
+/// Where a card goes inside its column. Without a flag: last.
+#[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("position")
+        .required(false)
+        .multiple(false)
+        .args(["after", "first", "last"])
+))]
+pub struct PositionArgs {
+    /// Directly after this card id.
+    #[arg(long, value_name = "ID", group = "position")]
+    pub after: Option<String>,
+    /// At the top of the column.
+    #[arg(long, group = "position")]
+    pub first: bool,
+    /// At the bottom of the column. The default.
+    #[arg(long, group = "position")]
+    pub last: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct CardLsArgs {
+    /// Only this board.
+    #[arg(long, value_name = "BOARD")]
+    pub board: Option<String>,
+    /// Only cards whose notes[] holds this note.
+    #[arg(long, value_name = "NOTE")]
+    pub note: Option<String>,
+    /// Only cards in this column id.
+    #[arg(long, value_name = "COLUMN")]
+    pub column: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct CardAddArgs {
+    /// The board slug, the folder name under `boards/`.
+    pub board: String,
+    #[arg(long, value_name = "TEXT", required = true)]
+    pub title: String,
+    /// A column id, or a column name when it is unambiguous. Defaults to the
+    /// first column of the board.
+    #[arg(long, value_name = "COLUMN")]
+    pub column: Option<String>,
+    /// A note the card references. Repeatable.
+    #[arg(long = "note", value_name = "NOTE")]
+    pub notes: Vec<String>,
+    #[command(flatten)]
+    pub position: PositionArgs,
+}
+
+#[derive(Debug, Args)]
+pub struct CardMvArgs {
+    /// The card id (ULID). The board is found from it.
+    pub id: String,
+    /// A column id, or a column name when it is unambiguous.
+    #[arg(long, value_name = "COLUMN")]
+    pub column: Option<String>,
+    #[command(flatten)]
+    pub position: PositionArgs,
+    /// The `updated` stamp the card must still carry.
+    #[arg(long, value_name = "RFC3339")]
+    pub if_updated: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct CardSetArgs {
+    /// The card id (ULID). The board is found from it.
+    pub id: String,
+    #[arg(long, value_name = "TEXT")]
+    pub title: Option<String>,
+    /// Add a note reference. Repeatable.
+    #[arg(long = "add-note", value_name = "NOTE")]
+    pub add_note: Vec<String>,
+    /// Remove a note reference. Repeatable.
+    #[arg(long = "rm-note", value_name = "NOTE")]
+    pub rm_note: Vec<String>,
+    /// The `updated` stamp the card must still carry.
+    #[arg(long, value_name = "RFC3339")]
+    pub if_updated: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct CardRmArgs {
+    /// The card id (ULID). The board is found from it.
+    pub id: String,
+    /// The `updated` stamp the card must still carry.
+    #[arg(long, value_name = "RFC3339")]
+    pub if_updated: Option<String>,
+}
+
 /// Argument sink for the commands PLAN.md §12 places in Phase 4. They parse
 /// and then fail with exit 2 so a script hits the contract, not a typo.
 /// The one-time upgrade of a vault written by the old app (PLAN.md §10,
@@ -441,6 +585,20 @@ mod tests {
         assert!(rebuild.command.is_mutation());
         let status = Cli::try_parse_from(["novalis", "index", "--status"]).unwrap();
         assert!(!status.command.is_mutation());
+        // `board` and `card` write only on some of their subcommands.
+        for argv in [
+            vec!["novalis", "card", "add", "kanban", "--title", "x"],
+            vec!["novalis", "board", "columns", "kanban", "--set", "[]"],
+        ] {
+            assert!(Cli::try_parse_from(argv).unwrap().command.is_mutation());
+        }
+        for argv in [
+            vec!["novalis", "card", "ls"],
+            vec!["novalis", "board", "ls"],
+            vec!["novalis", "board", "show", "kanban"],
+        ] {
+            assert!(!Cli::try_parse_from(argv).unwrap().command.is_mutation());
+        }
     }
 
     #[test]
@@ -475,8 +633,19 @@ mod tests {
 
     #[test]
     fn phase_four_stubs_swallow_their_arguments() {
-        let cli =
-            Cli::try_parse_from(["novalis", "card", "add", "kanban", "--title", "x"]).unwrap();
-        assert_eq!(cli.command.name(), "card");
+        let cli = Cli::try_parse_from(["novalis", "sync", "status"]).unwrap();
+        assert_eq!(cli.command.name(), "sync");
+    }
+
+    #[test]
+    fn a_card_position_is_at_most_one_flag() {
+        assert!(Cli::try_parse_from([
+            "novalis", "card", "add", "b", "--title", "x", "--first", "--last"
+        ])
+        .is_err());
+        assert!(
+            Cli::try_parse_from(["novalis", "card", "add", "b", "--title", "x", "--first"]).is_ok()
+        );
+        assert!(Cli::try_parse_from(["novalis", "card", "add", "b", "--title", "x"]).is_ok());
     }
 }
