@@ -322,7 +322,7 @@ pub fn relink_many(
 
     if !matcher.paths.is_empty() {
         for b in boards::list_boards(vault)? {
-            let (docs, cloud) = boards::list_cards_lenient(vault, &b.slug)?;
+            let (docs, cloud, _unreadable) = boards::list_cards_lenient(vault, &b.slug)?;
             report.cloud_only_skipped.extend(
                 cloud
                     .into_iter()

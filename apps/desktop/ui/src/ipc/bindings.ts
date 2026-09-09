@@ -147,6 +147,18 @@ export type BoardDto = {
 	 *  the first column with a marker (`board.columnMissing`).
 	 */
 	orphanCards: string[],
+	/**
+	 *  Card files that could not be used: a name that is not a bare ULID
+	 *  (a vendor conflict copy looks like that) or a body that does not parse.
+	 *  They used to be dropped in silence, so a card vanished with no reason.
+	 */
+	unreadable: string[],
+	/**
+	 *  Cards that had conflicting siblings and were resolved on this read
+	 *  (§8.4). Non-zero means the newer card won and the older is under
+	 *  `conflicts/`; the UI says so once with `board.conflictNotice`.
+	 */
+	resolvedConflicts: number,
 };
 
 export type BoardRefDto = {
@@ -226,6 +238,13 @@ export type EntryDto = {
 	cloudOnly: boolean,
 	/**  Set when this directory holds a valid `board.json` (PLAN.md §5.5). */
 	boardSlug: string | null,
+	/**
+	 *  The note this file looks like a vendor conflict copy *of*, when a
+	 *  sibling by that name exists. Decided by `novalis_core`, so the tree and
+	 *  `novalis doctor` agree — the UI used to re-implement a narrower regex
+	 *  of its own and the two counts disagreed by construction.
+	 */
+	conflictCopyOf: string | null,
 };
 
 export type FileDto = {

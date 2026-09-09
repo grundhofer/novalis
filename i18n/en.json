@@ -59,6 +59,8 @@
   "board.switcher": "Boards",
   "board.title": "Board",
   "board.unlinkNote": "Remove Link",
+  "board.unreadableCards_one": "{{count}} card file could not be read and is not shown.",
+  "board.unreadableCards_other": "{{count}} card files could not be read and are not shown.",
   "editor.backlinks.cards_one": "{{count}} card",
   "editor.backlinks.cards_other": "{{count}} cards",
   "editor.backlinks.empty": "No note or card links here yet.",

@@ -198,10 +198,20 @@ pub struct EntryDto {
     pub cloud_only: bool,
     /// Set when this directory holds a valid `board.json` (PLAN.md §5.5).
     pub board_slug: Option<String>,
+    /// The note this file looks like a vendor conflict copy *of*, when a
+    /// sibling by that name exists. Decided by `novalis_core`, so the tree and
+    /// `novalis doctor` agree — the UI used to re-implement a narrower regex
+    /// of its own and the two counts disagreed by construction.
+    pub conflict_copy_of: Option<String>,
 }
 
 impl EntryDto {
-    pub fn from_dir_entry(folder: &str, entry: &DirEntry, board_slug: Option<String>) -> Self {
+    pub fn from_dir_entry(
+        folder: &str,
+        entry: &DirEntry,
+        board_slug: Option<String>,
+        conflict_copy_of: Option<String>,
+    ) -> Self {
         let path = if folder.is_empty() {
             entry.name.clone()
         } else {
@@ -215,6 +225,7 @@ impl EntryDto {
             mtime_ns: entry.mtime_ns.to_string(),
             cloud_only: entry.cloud_only,
             board_slug,
+            conflict_copy_of,
         }
     }
 
@@ -228,6 +239,9 @@ impl EntryDto {
             mtime_ns: stat.mtime_ns.to_string(),
             cloud_only: stat.cloud_only,
             board_slug,
+            // A single re-stat has no sibling list, so it cannot decide this.
+            // The next `list_dir` of the folder fills it in.
+            conflict_copy_of: None,
         }
     }
 }
@@ -503,6 +517,14 @@ pub struct BoardDto {
     /// Cards whose `column` is not in `columns` any more; the UI shows them in
     /// the first column with a marker (`board.columnMissing`).
     pub orphan_cards: Vec<String>,
+    /// Card files that could not be used: a name that is not a bare ULID
+    /// (a vendor conflict copy looks like that) or a body that does not parse.
+    /// They used to be dropped in silence, so a card vanished with no reason.
+    pub unreadable: Vec<String>,
+    /// Cards that had conflicting siblings and were resolved on this read
+    /// (§8.4). Non-zero means the newer card won and the older is under
+    /// `conflicts/`; the UI says so once with `board.conflictNotice`.
+    pub resolved_conflicts: u32,
 }
 
 impl BoardDto {
@@ -520,6 +542,8 @@ impl BoardDto {
             cards,
             cloud_only,
             orphan_cards,
+            unreadable: Vec::new(),
+            resolved_conflicts: 0,
         }
     }
 }

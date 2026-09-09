@@ -34,6 +34,8 @@ const board = {
   cards: [card("c1", "Write the spec", "todo", ["Roadmap.md"]), card("c2", "Ship it", "doing")],
   orphanCards: [],
   cloudOnly: [],
+  unreadable: [],
+  resolvedConflicts: 0,
 };
 
 describe("BoardPane", () => {
@@ -178,5 +180,26 @@ describe("BoardPane", () => {
 
     expect(setData).toHaveBeenCalled();
     expect(dataTransfer.effectAllowed).toBe("move");
+  });
+  // Both of these used to happen in silence: §8.4 resolution never ran because
+  // nothing called it, and a card file the reader could not use was dropped
+  // without a word, so the card was simply absent with no reason given.
+  describe("notices", () => {
+    it("says so when a card conflict was resolved on this read", () => {
+      useBoard.setState({ board: { ...board, resolvedConflicts: 2 } as never });
+      render(<BoardPane />);
+      expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
+    });
+
+    it("says so when a card file could not be read", () => {
+      useBoard.setState({ board: { ...board, unreadable: ["01J bad.json"] } as never });
+      render(<BoardPane />);
+      expect(screen.getByRole("status").textContent).toContain("board.unreadableCards");
+    });
+
+    it("stays quiet when there is nothing to report", () => {
+      render(<BoardPane />);
+      expect(screen.queryByRole("status")).toBeNull();
+    });
   });
 });
