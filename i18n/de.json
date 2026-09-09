@@ -59,6 +59,8 @@
   "board.switcher": "Boards",
   "board.title": "Board",
   "board.unlinkNote": "Verknüpfung entfernen",
+  "board.unreadableCards_one": "{{count}} Kartendatei konnte nicht gelesen werden und wird nicht angezeigt.",
+  "board.unreadableCards_other": "{{count}} Kartendateien konnten nicht gelesen werden und werden nicht angezeigt.",
   "editor.backlinks.cards_one": "{{count}} Karte",
   "editor.backlinks.cards_other": "{{count}} Karten",
   "editor.backlinks.empty": "Noch keine Notiz und keine Karte verweist hierher.",

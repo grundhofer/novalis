@@ -187,6 +187,26 @@ export default function BoardPane() {
         </button>
       </header>
 
+      {/* §8.4 ran on this read, or a card file could not be used. Both were
+          silent before: a card simply was not on the board and nothing said
+          why. The strings for this were in the catalog from the start. */}
+      {(board.resolvedConflicts > 0 || board.unreadable.length > 0) && (
+        <div className="board-notice" role="status">
+          {board.resolvedConflicts > 0 && (
+            <span>
+              {t("board.conflictNotice", {
+                board: board.name,
+                count: board.resolvedConflicts,
+                time: new Date().toLocaleTimeString(),
+              })}
+            </span>
+          )}
+          {board.unreadable.length > 0 && (
+            <span>{t("board.unreadableCards", { count: board.unreadable.length })}</span>
+          )}
+        </div>
+      )}
+
       <div className="columns">
         {board.columns.map((column, columnIndex) => {
           const cards = cardsOf(column);

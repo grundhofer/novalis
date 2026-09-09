@@ -325,23 +325,27 @@ pub fn list_cards(vault: &Path, slug: &str) -> CoreResult<Vec<CardDoc>> {
 /// that must not fail on one unreadable file: cloud-only card files are
 /// returned as file names in the second tuple element and never read
 /// (rule 7), and files that do not parse are skipped.
-pub fn list_cards_lenient(vault: &Path, slug: &str) -> CoreResult<(Vec<CardDoc>, Vec<String>)> {
+pub fn list_cards_lenient(vault: &Path, slug: &str) -> CoreResult<CardScan> {
     collect_cards(vault, slug, true)
 }
 
-fn collect_cards(
-    vault: &Path,
-    slug: &str,
-    lenient: bool,
-) -> CoreResult<(Vec<CardDoc>, Vec<String>)> {
+/// Returns the readable cards, the card files that are online only, and the
+/// card files that could not be used at all — a name that is not a bare ULID
+/// (which is what a vendor conflict copy looks like) or a body that does not
+/// parse. The third list exists because dropping those silently left the app
+/// blind twice over: the card is missing from the board and nothing says why.
+type CardScan = (Vec<CardDoc>, Vec<String>, Vec<String>);
+
+fn collect_cards(vault: &Path, slug: &str, lenient: bool) -> CoreResult<CardScan> {
     let dir = cards_dir(vault, slug)?;
     let entries = match list_dir(&dir) {
         Ok(e) => e,
-        Err(e) if e.is_not_found() => return Ok((Vec::new(), Vec::new())),
+        Err(e) if e.is_not_found() => return Ok((Vec::new(), Vec::new(), Vec::new())),
         Err(e) => return Err(e),
     };
     let mut out = Vec::new();
     let mut cloud_only = Vec::new();
+    let mut unreadable = Vec::new();
     for e in entries {
         if e.kind != EntryKind::File || is_hidden(&e.name) {
             continue;
@@ -350,6 +354,12 @@ fn collect_cards(
             continue;
         };
         if !is_ulid(stem) {
+            // A vendor conflict copy lands here as `<ULID> (1).json` or
+            // `<ULID> 2.json`. Dropping it silently made the app blind twice
+            // over: the card is not on the board and nothing says why.
+            // `resolve_card_conflicts` groups by the *parsed* id and can deal
+            // with it, so report the name instead of swallowing it.
+            unreadable.push(e.name.clone());
             continue;
         }
         if lenient && e.cloud_only {
@@ -368,7 +378,10 @@ fn collect_cards(
         };
         let card = match parse_card(&bytes, &p) {
             Ok(c) => c,
-            Err(_) if lenient => continue,
+            Err(_) if lenient => {
+                unreadable.push(e.name.clone());
+                continue;
+            }
             Err(e) => return Err(e),
         };
         out.push(CardDoc {
@@ -384,7 +397,7 @@ fn collect_cards(
             &b.card.id,
         ))
     });
-    Ok((out, cloud_only))
+    Ok((out, cloud_only, unreadable))
 }
 
 /// Read one card.

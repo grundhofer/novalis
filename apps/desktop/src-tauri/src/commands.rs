@@ -70,6 +70,12 @@ fn visible_entries(root: &Path, folder: &str) -> IpcResult<Vec<EntryDto>> {
     // A directory directly under `boards/` is a board only if it holds a valid
     // `board.json`; anything else there is an ordinary folder (PLAN.md §5.5).
     let in_boards_dir = folder == boards::BOARDS_DIR;
+    // Conflict-copy detection belongs to the core, which owns the four naming
+    // patterns; the UI used to guess with a narrower regex of its own, so its
+    // count and `novalis doctor`'s disagreed. One directory listing is exactly
+    // the context the classifier needs: it asks whether the original sibling
+    // is present.
+    let names: std::collections::HashSet<&str> = entries.iter().map(|e| e.name.as_str()).collect();
     Ok(entries
         .iter()
         .map(|entry| {
@@ -81,7 +87,17 @@ fn visible_entries(root: &Path, folder: &str) -> IpcResult<Vec<EntryDto>> {
             } else {
                 None
             };
-            EntryDto::from_dir_entry(folder, entry, slug)
+            let conflict_of = if entry.kind == EntryKind::Dir {
+                None
+            } else {
+                novalis_core::vault::cloud::conflict_copy_candidate(
+                    &entry.name,
+                    |sibling| names.contains(sibling),
+                    Some(hostname().as_str()),
+                )
+                .map(|(original, _kind)| join_rel(folder, &original))
+            };
+            EntryDto::from_dir_entry(folder, entry, slug, conflict_of)
         })
         .collect())
 }
@@ -170,14 +186,23 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
 }
 
 fn board_snapshot(root: &Path, slug: String) -> IpcResult<BoardDto> {
+    // §8.4: a vendor conflict copy in `cards/` is resolved by whole-card
+    // last-writer-wins before the board is read, so the newer card is the one
+    // shown and the loser is preserved under `conflicts/`. This is written and
+    // tested in the core but was called by nothing, so it had never run.
+    // Failure is not fatal — a board that cannot be tidied is still a board.
+    let resolved = boards::resolve_card_conflicts(root, &slug).ok();
     let doc = boards::read_board(root, &slug)?;
-    let (cards, cloud_only) = boards::list_cards_lenient(root, &slug)?;
+    let (cards, cloud_only, unreadable) = boards::list_cards_lenient(root, &slug)?;
     let cards = cards
         .iter()
         .filter(|c| !c.card.is_deleted())
         .map(|c| CardDto::from(&c.card))
         .collect();
-    Ok(BoardDto::new(slug, &doc.board, cards, cloud_only))
+    let mut board = BoardDto::new(slug, &doc.board, cards, cloud_only);
+    board.unreadable = unreadable;
+    board.resolved_conflicts = resolved.map(|r| r.resolved.len() as u32).unwrap_or(0);
+    Ok(board)
 }
 
 // ---------------------------------------------------------------- 1. bootstrap

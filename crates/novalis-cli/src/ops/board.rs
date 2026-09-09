@@ -198,7 +198,7 @@ fn list(ctx: &Ctx) -> Result<BoardOut, CliError> {
     let mut cloud_only_skipped = Vec::new();
     for b in boards::list_boards(&ctx.vault)? {
         let board = read_board(ctx, &b.slug)?;
-        let (cards, cloud_only) = boards::list_cards_lenient(&ctx.vault, &b.slug)?;
+        let (cards, cloud_only, _unreadable) = boards::list_cards_lenient(&ctx.vault, &b.slug)?;
         cloud_only_skipped.extend(skipped_paths(&b.slug, &cloud_only));
         items.push(BoardItem {
             path: board_path(&b.slug),
@@ -228,7 +228,7 @@ fn columns(ctx: &Ctx, args: BoardColumnsArgs) -> Result<BoardOut, CliError> {
 }
 
 fn detail(ctx: &Ctx, slug: &str, board: &Board, dry_run: bool) -> Result<BoardOut, CliError> {
-    let (docs, cloud_only) = boards::list_cards_lenient(&ctx.vault, slug)?;
+    let (docs, cloud_only, _unreadable) = boards::list_cards_lenient(&ctx.vault, slug)?;
     let mut cards: Vec<CardView> = docs
         .iter()
         .filter(|d| !d.card.is_deleted())
