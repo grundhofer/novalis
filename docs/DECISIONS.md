@@ -114,6 +114,36 @@ Recorded as **ADR-0011**: `vitest` + `jsdom` + `@testing-library/react` for the
 UI, wired into `just check` and `ci.yml`. `just test` had been reporting success
 while running no UI test at all.
 
+## Answered 2026-09-13
+
+The §8.4 card-conflict resolution first landed on the PR #107 branch as a
+write on every board read, with its error swallowed and the notice stamped
+with the render time. The proposal to separate detection (on read) from resolution (once),
+report the error and drop the time was accepted on 2026-09-10:
+
+> folge deinen vorschlägen
+
+Building it moved the moment from "vault open" to "first read of each board
+after the vault was opened", because §2.3 rule 12 rules out a sweep over every
+board before the tree is interactive. Asked on 2026-09-13, with the alternatives
+"beim Öffnen des Vaults, alle Boards" and "beim nächsten Schreiben (wie
+Tombstone-Purge)" on the table:
+
+> Erstes Lesen pro Board
+
+The notice is kept in the UI until dismissed, with the existing `banner.dismiss`
+string — a control the plan did not name:
+
+> Ja, Schließen-Knopf
+
+The `({{time}})` fragment is gone from `board.conflictNotice`, since one time
+is undefined for several cards; the example sentence in §8.4 says the same now:
+
+> PLAN.md-Beispiel angleichen
+
+Recorded in `docs/SYNC-REALITY.md` and PLAN.md §8.4. No ADR: no new
+dependency, setting, menu item or shortcut.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

@@ -2,11 +2,13 @@
 //! our own writes.
 //!
 //! There is no global lock over filesystem work (PLAN.md §2.3 rule 6): the
-//! mutex here is held only long enough to read or replace a small value, never
+//! state mutex is held only long enough to read or replace a small value, never
 //! across IO. Commands take a `PathBuf` copy of the vault root and then work
-//! outside the lock.
+//! outside the lock. The per-board locks in `board_locks` are the one scoped
+//! exception: `board_read` holds a board's lock for its filesystem work, so
+//! only a second read of that same board waits.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
@@ -65,6 +67,24 @@ struct Inner {
     /// debounce while the user moves things, and rebuilding a whole menu bar
     /// that often is both wasteful and visible.
     menu_shape: Option<MenuShape>,
+    /// Board slugs read since this vault was opened. The first read of a board
+    /// is the one that resolves its card conflicts (PLAN.md §8.4); every later
+    /// read only looks.
+    read_boards: HashSet<String>,
+    /// One lock per board, held by `board_read` while it works, so a read of a
+    /// board waits for that board's tidy-up and sees the files before or after
+    /// it, never a `cards/` directory between two renames. Only reads of the
+    /// same board wait; rule 6 keeps every other command out of it.
+    board_locks: HashMap<String, Arc<Mutex<()>>>,
+}
+
+/// What `board_read` needs from the state, taken in one step.
+pub struct BoardRead {
+    pub root: PathBuf,
+    /// True the first time this board is read since the vault was opened.
+    pub first: bool,
+    /// Held for the read's whole filesystem work; see `Inner::board_locks`.
+    pub lock: Arc<Mutex<()>>,
 }
 
 /// Everything the native menu's labels and check marks depend on.
@@ -98,6 +118,8 @@ impl AppState {
                 watcher: None,
                 cache: None,
                 menu_shape: None,
+                read_boards: HashSet::new(),
+                board_locks: HashMap::new(),
             }),
             own_writes: Arc::new(Mutex::new(OwnWrites::default())),
             search_generation: Arc::new(AtomicU64::new(0)),
@@ -153,6 +175,34 @@ impl AppState {
         inner.vault = root;
         inner.watcher = watcher;
         inner.cache = cache;
+        inner.read_boards.clear();
+        inner.board_locks.clear();
+    }
+
+    /// The open vault root, whether this is the first read of `slug` since it
+    /// was opened, and the board's own lock. The first read resolves the
+    /// board's card conflicts (§8.4) and reports what it did; a board whose
+    /// resolution failed is not retried until the next open, so the failure is
+    /// said once rather than on every refresh. All three under one lock:
+    /// taken separately, a vault switch in between would mark a board of the
+    /// new vault for a read of the old one.
+    pub fn begin_board_read(&self, slug: &str) -> IpcResult<BoardRead> {
+        let mut inner = self.lock();
+        let root = inner.vault.clone().ok_or_else(IpcError::no_vault)?;
+        let first = inner.read_boards.insert(slug.to_string());
+        let lock = inner
+            .board_locks
+            .entry(slug.to_string())
+            .or_default()
+            .clone();
+        Ok(BoardRead { root, first, lock })
+    }
+
+    /// Undo `begin_board_read`'s mark when that read failed, so the next read
+    /// tries again. Resolving is idempotent, so this is safe whether the
+    /// failure came before or after the tidy-up.
+    pub fn forget_board_read(&self, slug: &str) {
+        self.lock().read_boards.remove(slug);
     }
 
     /// The directory the cache database lives in: app-data, never the vault.
@@ -194,5 +244,46 @@ pub fn load_settings(path: &Path) -> (Settings, Option<IpcError>) {
     match Settings::load(path) {
         Ok(settings) => (settings, None),
         Err(err) => (Settings::default(), Some(err.into())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppState;
+    use novalis_core::settings::Settings;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    #[test]
+    fn a_board_is_first_read_once_per_open_vault() {
+        let state = AppState::new(PathBuf::new(), Settings::default());
+        assert!(state.begin_board_read("plan").is_err(), "no vault open");
+        state.set_vault(Some(PathBuf::from("/vault-a")), None, None);
+        let first = state.begin_board_read("plan").unwrap();
+        assert_eq!(first.root, PathBuf::from("/vault-a"));
+        assert!(first.first);
+        let again = state.begin_board_read("plan").unwrap();
+        assert!(!again.first);
+        assert!(state.begin_board_read("other").unwrap().first);
+        // A read that failed gives the mark back.
+        state.forget_board_read("plan");
+        assert!(state.begin_board_read("plan").unwrap().first);
+        // Opening a vault starts afresh, even the same path.
+        state.set_vault(Some(PathBuf::from("/vault-a")), None, None);
+        assert!(state.begin_board_read("plan").unwrap().first);
+    }
+
+    // Pins one lock per board. That `board_read` holds it across its
+    // filesystem work is in `commands.rs` and has no test: it would need a
+    // board on disk and two pool threads racing a slowed-down resolution.
+    #[test]
+    fn reads_of_one_board_share_a_lock_and_other_boards_do_not() {
+        let state = AppState::new(PathBuf::new(), Settings::default());
+        state.set_vault(Some(PathBuf::from("/vault-a")), None, None);
+        let a = state.begin_board_read("plan").unwrap();
+        let b = state.begin_board_read("plan").unwrap();
+        let other = state.begin_board_read("other").unwrap();
+        assert!(Arc::ptr_eq(&a.lock, &b.lock));
+        assert!(!Arc::ptr_eq(&a.lock, &other.lock));
     }
 }

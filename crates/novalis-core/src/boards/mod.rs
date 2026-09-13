@@ -18,7 +18,8 @@ use crate::error::{CoreError, CoreResult};
 use crate::util::{now_rfc3339_ms, parse_rfc3339_ms};
 use crate::vault::cloud::conflict_copy_candidate;
 use crate::vault::fs::{
-    create_atomic, list_dir, read_bytes, rename_excl, trash, write_atomic, EntryKind, Precondition,
+    create_atomic, list_dir, read_bytes, rename_excl, stat, trash, write_atomic, EntryKind,
+    Precondition,
 };
 use crate::vault::path::{fold, is_hidden, nfc, normalize_rel};
 
@@ -653,23 +654,60 @@ fn move_to_conflicts(board: &Path, file: &Path, id: &str, updated: &str) -> Core
 /// otherwise the newest `updated` wins (tie: bytewise larger content), the
 /// winner's bytes land verbatim at `cards/<id>.json` (`updated` untouched),
 /// and losers move to `conflicts/<id>-<updated>.json` with `RENAME_EXCL`.
+///
+/// The files are read first and moved after, and nothing keeps other writers
+/// out in between — a relink, the CLI, the sync client. A file that changed
+/// since it was read would be moved on stale knowledge (a just-written card
+/// parked as the "older" one), so a group is moved only while every file in
+/// it still matches its read-time `Precondition`, and a group that changed is
+/// read again on the next pass, three passes at most, the way `update_card`
+/// replays. A group still changing after that is left for the next call. The
+/// gap between the stat and the move itself stays; closing it would take an
+/// atomic swap, which the plan does not have.
 pub fn resolve_card_conflicts(vault: &Path, slug: &str) -> CoreResult<ConflictReport> {
+    let mut report = ConflictReport::default();
+    for _attempt in 0..3 {
+        if !resolve_cards_once(vault, slug, &mut report)? {
+            break;
+        }
+    }
+    Ok(report)
+}
+
+/// One card file as the resolver read it: path, verbatim bytes, the parsed
+/// card, and what was read, so the move can tell whether it still holds.
+type ReadCard = (PathBuf, Vec<u8>, Card, Precondition);
+
+/// True while `path` is still exactly what was read: same size and mtime by
+/// `lstat`, nothing read. A file that is gone counts as changed.
+fn unchanged(path: &Path, pre: &Precondition) -> bool {
+    matches!(stat(path), Ok(st) if st.size == pre.size && st.mtime_ns == pre.mtime_ns)
+}
+
+/// One pass of [`resolve_card_conflicts`]. Returns `true` when a group was
+/// left alone because one of its files changed between the read and the move,
+/// so another pass should look.
+fn resolve_cards_once(vault: &Path, slug: &str, report: &mut ConflictReport) -> CoreResult<bool> {
     let board = board_dir(vault, slug)?;
     let dir = board.join("cards");
-    let mut report = ConflictReport::default();
     let entries = match list_dir(&dir) {
         Ok(e) => e,
-        Err(e) if e.is_not_found() => return Ok(report),
+        Err(e) if e.is_not_found() => return Ok(false),
         Err(e) => return Err(e),
     };
-    // id → (path, bytes, card)
-    let mut groups: BTreeMap<String, Vec<(PathBuf, Vec<u8>, Card)>> = BTreeMap::new();
+    let mut groups: BTreeMap<String, Vec<ReadCard>> = BTreeMap::new();
     for e in &entries {
         if e.kind != EntryKind::File || is_hidden(&e.name) || !e.name.ends_with(".json") {
             continue;
         }
+        // Rule 7: a cloud-only sibling is never downloaded to be compared, the
+        // same as `collect_cards`. It stays where it is, unresolved, until it
+        // has been materialized by something else.
+        if e.cloud_only {
+            continue;
+        }
         let p = dir.join(&e.name);
-        let Ok((bytes, _)) = read_bytes(&p) else {
+        let Ok((bytes, pre)) = read_bytes(&p) else {
             continue;
         };
         let Ok(card) = parse_card(&bytes, &p) else {
@@ -681,17 +719,33 @@ pub fn resolve_card_conflicts(vault: &Path, slug: &str) -> CoreResult<ConflictRe
         groups
             .entry(card.id.clone())
             .or_default()
-            .push((p, bytes, card));
+            .push((p, bytes, card, pre));
     }
+    let mut changed = false;
     for (id, mut files) in groups {
         if files.len() < 2 {
             continue;
         }
         let canonical = dir.join(format!("{id}.json"));
+        // The canonical file is on disk but was not read, so it is cloud-only:
+        // its `updated` is unknown and `RENAME_EXCL` onto it would fail after
+        // the losers were already parked. Leave the whole group alone.
+        let canonical_name = format!("{id}.json");
+        if !files.iter().any(|f| f.0 == canonical)
+            && entries.iter().any(|e| e.name == canonical_name)
+        {
+            continue;
+        }
+        // Somebody wrote one of these since they were read: the winner was
+        // decided on stale bytes. Look again instead of moving.
+        if !files.iter().all(|f| unchanged(&f.0, &f.3)) {
+            changed = true;
+            continue;
+        }
         // Winner: max (updated_ms, bytes).
         files.sort_by(|a, b| (a.2.updated_ms(), &a.1).cmp(&(b.2.updated_ms(), &b.1)));
-        let (win_path, win_bytes, _) = files.pop().unwrap();
-        for (path, bytes, card) in files {
+        let (win_path, win_bytes, _, _) = files.pop().unwrap();
+        for (path, bytes, card, _) in files {
             if bytes == win_bytes {
                 trash(&path)?;
                 report.trashed_identical.push(rel_name(&path));
@@ -705,7 +759,7 @@ pub fn resolve_card_conflicts(vault: &Path, slug: &str) -> CoreResult<ConflictRe
         }
         report.resolved.push(id);
     }
-    Ok(report)
+    Ok(changed)
 }
 
 /// Resolve `board.json` conflict copies (`board-<host>.json`, `board (1).json`)
@@ -1138,6 +1192,109 @@ mod tests {
             .map(|e| e.name)
             .collect();
         assert_eq!(names, vec![format!("{}.json", a.id)]);
+    }
+
+    /// A sparse file has size > 0 and no blocks: the cloud-only stand-in the
+    /// cache and relink tests use. Unlike a real dataless file it reads fine
+    /// (as zeros) and then fails to parse, so these tests pin the outcome —
+    /// nothing around it is moved — not that it was never opened. That half
+    /// of rule 7 is checked by reading `resolve_card_conflicts`, as for
+    /// `collect_cards`.
+    fn cloud_only_stand_in(path: &Path) {
+        let f = std::fs::File::create(path).unwrap();
+        f.set_len(1 << 16).unwrap();
+    }
+
+    #[test]
+    fn cloud_only_sibling_is_left_alone() {
+        let t = vault();
+        let a = add(t.path(), "A", None, Position::Last);
+        let cards = t.path().join("boards/atlas/cards");
+        let sibling = cards.join(format!("{} (1).json", a.id));
+        cloud_only_stand_in(&sibling);
+        assert_eq!(
+            resolve_card_conflicts(t.path(), "atlas").unwrap(),
+            ConflictReport::default()
+        );
+        assert!(sibling.exists());
+        assert!(cards.join(format!("{}.json", a.id)).exists());
+        assert!(!t.path().join("boards/atlas/conflicts").exists());
+    }
+
+    #[test]
+    fn cloud_only_canonical_leaves_its_hydrated_siblings_untouched() {
+        let t = vault();
+        let a = add(t.path(), "A", None, Position::Last);
+        let cards = t.path().join("boards/atlas/cards");
+        let canonical = cards.join(format!("{}.json", a.id));
+        let mine = std::fs::read(&canonical).unwrap();
+        // The canonical goes cloud-only; two hydrated siblings with the same id
+        // arrive from elsewhere. Without the guard the older sibling was
+        // parked under `conflicts/` and the rename of the winner onto the
+        // canonical then failed with `AlreadyExists`: half a resolution.
+        std::fs::remove_file(&canonical).unwrap();
+        cloud_only_stand_in(&canonical);
+        let older = String::from_utf8(mine.clone())
+            .unwrap()
+            .replace(&a.updated, "2000-01-01T00:00:00.000Z");
+        std::fs::write(cards.join(format!("{} (1).json", a.id)), &older).unwrap();
+        std::fs::write(cards.join(format!("{}-MacBook-Pro.json", a.id)), &mine).unwrap();
+        assert_eq!(
+            resolve_card_conflicts(t.path(), "atlas").unwrap(),
+            ConflictReport::default()
+        );
+        let names: Vec<String> = list_dir(&cards)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(!t.path().join("boards/atlas/conflicts").exists());
+    }
+
+    // The race itself — a relink landing between the resolver's read and its
+    // move — cannot be staged inside one call, so the gate is pinned directly
+    // and its wiring in `resolve_cards_once` is checked by reading.
+    #[test]
+    fn a_card_written_since_it_was_read_counts_as_changed() {
+        let t = vault();
+        let a = add(t.path(), "A", None, Position::Last);
+        let canonical = t
+            .path()
+            .join("boards/atlas/cards")
+            .join(format!("{}.json", a.id));
+        let (_, pre) = read_bytes(&canonical).unwrap();
+        assert!(unchanged(&canonical, &pre));
+        update_card(
+            t.path(),
+            "atlas",
+            &a.id,
+            &CardChange::Title("A, written by a relink meanwhile".into()),
+            None,
+        )
+        .unwrap();
+        assert!(!unchanged(&canonical, &pre), "a rewrite is a change");
+        // A relink usually rewrites a card at the same length (`updated` is
+        // fixed-width), so only the mtime tells. Set rather than written, so
+        // the assertion does not depend on the clock's tick on ext4 in CI.
+        let (_, pre) = read_bytes(&canonical).unwrap();
+        assert!(unchanged(&canonical, &pre));
+        let f = std::fs::File::options()
+            .write(true)
+            .open(&canonical)
+            .unwrap();
+        f.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(1))
+            .unwrap();
+        drop(f);
+        assert!(
+            !unchanged(&canonical, &pre),
+            "a same-size rewrite is a change: the mtime tells"
+        );
+        std::fs::remove_file(&canonical).unwrap();
+        assert!(
+            !unchanged(&canonical, &pre),
+            "a file that is gone is a change"
+        );
     }
 
     #[test]

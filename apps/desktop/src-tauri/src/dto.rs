@@ -521,10 +521,16 @@ pub struct BoardDto {
     /// (a vendor conflict copy looks like that) or a body that does not parse.
     /// They used to be dropped in silence, so a card vanished with no reason.
     pub unreadable: Vec<String>,
-    /// Cards that had conflicting siblings and were resolved on this read
-    /// (§8.4). Non-zero means the newer card won and the older is under
-    /// `conflicts/`; the UI says so once with `board.conflictNotice`.
+    /// Cards that had conflicting siblings and were resolved by this read
+    /// (§8.4): the newer card won and the older is under `conflicts/`. Only
+    /// the first read of a board after the vault was opened resolves, so this
+    /// is non-zero at most once per board and the UI keeps it until dismissed
+    /// (`board.conflictNotice`); every later read carries 0.
     pub resolved_conflicts: u32,
+    /// Set when that first read tried to resolve and could not. The board is
+    /// still returned — a board that cannot be tidied is still a board — and
+    /// the UI reports the error like any failed command.
+    pub resolve_error: Option<crate::error::IpcError>,
 }
 
 impl BoardDto {
@@ -544,6 +550,7 @@ impl BoardDto {
             orphan_cards,
             unreadable: Vec::new(),
             resolved_conflicts: 0,
+            resolve_error: None,
         }
     }
 }

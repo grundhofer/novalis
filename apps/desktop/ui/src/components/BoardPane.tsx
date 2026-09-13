@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
+import { report } from "../lib/commands";
 import { stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
@@ -27,6 +28,7 @@ export default function BoardPane() {
   const board = useBoard((s) => s.board);
   const boards = useBoard((s) => s.boards);
   const busy = useBoard((s) => s.busy);
+  const notices = useBoard((s) => s.notices);
   const activeNote = useTabs((s) => s.active);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [over, setOver] = useState<{ column: string; beforeCardId: string | null } | null>(null);
@@ -94,7 +96,7 @@ export default function BoardPane() {
     const displaced = board.columns[target];
     if (!moving || !displaced) return;
     const next = board.columns.map((c, i) => (i === index ? displaced : i === target ? moving : c));
-    void useBoard.getState().setColumns(next);
+    void useBoard.getState().setColumns(next).catch(report);
   };
 
   const deleteColumn = (column: ColumnDto) => {
@@ -123,7 +125,7 @@ export default function BoardPane() {
       : { kind: "last" };
     setDrag(null);
     setOver(null);
-    void useBoard.getState().apply({ kind: "move", id: drag.cardId, column, position });
+    void useBoard.getState().apply({ kind: "move", id: drag.cardId, column, position }).catch(report);
   };
 
   return (
@@ -158,7 +160,7 @@ export default function BoardPane() {
             aria-label={t("board.switcher")}
             onChange={(event) => {
               useUi.getState().setActiveBoard(event.target.value);
-              void useBoard.getState().load(event.target.value);
+              void useBoard.getState().load(event.target.value).catch(report);
             }}
           >
             {boards.map((ref) => (
@@ -187,18 +189,23 @@ export default function BoardPane() {
         </button>
       </header>
 
-      {/* §8.4 ran on this read, or a card file could not be used. Both were
-          silent before: a card simply was not on the board and nothing said
-          why. The strings for this were in the catalog from the start. */}
-      {(board.resolvedConflicts > 0 || board.unreadable.length > 0) && (
+      {/* §8.4 resolved cards when this board was first read, or a card file
+          could not be used. Both were silent before: a card simply was not on
+          the board and nothing said why. The resolution is a past event, so
+          its line can be dismissed; the unreadable line describes what is
+          still on disk and stays as long as that is true. */}
+      {(notices[board.slug] !== undefined || board.unreadable.length > 0) && (
         <div className="board-notice" role="status">
-          {board.resolvedConflicts > 0 && (
-            <span>
-              {t("board.conflictNotice", {
-                board: board.name,
-                count: board.resolvedConflicts,
-                time: new Date().toLocaleTimeString(),
-              })}
+          {notices[board.slug] !== undefined && (
+            <span className="board-notice-line">
+              {t("board.conflictNotice", { board: board.name, count: notices[board.slug] })}
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => useBoard.getState().dismissNotice(board.slug)}
+              >
+                {t("banner.dismiss")}
+              </button>
             </span>
           )}
           {board.unreadable.length > 0 && (
@@ -332,7 +339,8 @@ export default function BoardPane() {
                           if (activeNote) {
                             void useBoard
                               .getState()
-                              .apply({ kind: "linkNote", id: card.id, path: activeNote });
+                              .apply({ kind: "linkNote", id: card.id, path: activeNote })
+                              .catch(report);
                           }
                         }}
                       >
@@ -369,7 +377,8 @@ export default function BoardPane() {
                             event.stopPropagation();
                             void useBoard
                               .getState()
-                              .apply({ kind: "unlinkNote", id: card.id, path: note });
+                              .apply({ kind: "unlinkNote", id: card.id, path: note })
+                              .catch(report);
                           }}
                         >
                           ×

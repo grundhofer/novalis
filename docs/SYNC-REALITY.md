@@ -51,10 +51,20 @@ the machine appears. Until that run happens, treat it as an assumption.
   patterns of OneDrive, Dropbox and the numbered form — it counts it, in the
   sidebar and the status bar. Both counts now come from the same detector in
   the core, so they agree with `novalis doctor`.
-- On a Kanban board it resolves conflicting card files on read: the newer card
-  wins, the older is preserved under `conflicts/`, and the board says so once.
-- A card file it cannot use at all is now reported rather than dropped in
-  silence.
+- The first time a Kanban board is shown after the vault was opened, the app
+  resolves conflicting card files: the newer card wins, the older is preserved
+  under `conflicts/`, and the board says so once, until you dismiss it. Later
+  reads of that board only look, so a refresh never writes; a copy that
+  arrives after that first look waits for the next time the vault is opened.
+  A cloud-only sibling is never downloaded for this: it stays unresolved until
+  it has been materialized *and* the board is first shown again after an open.
+  If the tidy-up fails, the board still opens and the failure is reported like
+  any other error. The CLI does none of this: `board show` and `card ls` read
+  the canonical card only.
+- A card file the app cannot use at all is reported rather than dropped in
+  silence — a copy that arrived after the board's first look shows up here, and
+  so does a cloud-only copy, since it cannot be read either. The CLI skips such
+  files without a word; only `novalis doctor` counts them.
 
 ## What it deliberately does not do
 
@@ -66,6 +76,10 @@ the machine appears. Until that run happens, treat it as an assumption.
 - It does not offer to resolve vendor conflict copies from the app yet. It only
   counts them. PLAN.md §5.3 promises a list with keep-original / keep-copy /
   keep-both; that is not built, and the count is honest about being a count.
+- It does not resolve a conflict copy of `board.json` either. PLAN.md §8.4
+  promises the same rule with the columns of both versions kept; the core has
+  it (`resolve_board_conflicts`), nothing calls it yet, and such a copy is
+  counted like any other.
 
 ## Practical advice
 

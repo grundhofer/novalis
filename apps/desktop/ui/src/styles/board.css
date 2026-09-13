@@ -278,8 +278,8 @@
   color: var(--ds-color-fg-subtle);
 }
 
-/* One line above the columns when §8.4 resolved something on this read, or a
-   card file could not be used. Both used to happen in silence. */
+/* One line above the columns when §8.4 resolved something on the board's first
+   read, or a card file could not be used. Both used to happen in silence. */
 .board-notice {
   display: flex;
   flex-direction: column;
@@ -292,4 +292,14 @@
   background: var(--ds-color-warning-fill);
   color: var(--ds-color-warning-text);
   font-size: var(--ds-font-size-ui-sm);
+}
+
+.board-notice-line {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+}
+
+.board-notice-line .btn {
+  margin-left: auto;
 }

@@ -2,8 +2,10 @@
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
-//! nothing else (rule 6). None of them holds a lock across IO: they copy the
-//! vault root out of the state and then work on their own.
+//! nothing else (rule 6). None of them holds the state lock across IO: they
+//! copy the vault root out of the state and then work on their own. The one
+//! lock that is held across IO is `board_read`'s per-board lock, which only a
+//! second read of the same board ever waits for.
 //!
 //! The materialize-off guard is *not* applied here. These are explicit user
 //! actions running under the default policy, which is exactly what §2.3 rule 7
@@ -34,7 +36,7 @@ use tauri_plugin_dialog::DialogExt;
 use crate::dto::*;
 use crate::error::{IpcError, IpcResult};
 use crate::i18n::{resolve_locale, Catalog};
-use crate::state::{AppState, MenuShape};
+use crate::state::{AppState, BoardRead, MenuShape};
 use crate::{cache, menu, watcher};
 
 /// Hits are posted in groups: a 10k-note vault otherwise sends 10k messages
@@ -185,24 +187,26 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
     });
 }
 
+/// A board and its cards as they are on disk. A read, nothing else: what the
+/// files say is what the pane shows, and a file the reader cannot use is named
+/// in `unreadable` rather than dropped.
 fn board_snapshot(root: &Path, slug: String) -> IpcResult<BoardDto> {
-    // §8.4: a vendor conflict copy in `cards/` is resolved by whole-card
-    // last-writer-wins before the board is read, so the newer card is the one
-    // shown and the loser is preserved under `conflicts/`. This is written and
-    // tested in the core but was called by nothing, so it had never run.
-    // Failure is not fatal — a board that cannot be tidied is still a board.
-    let resolved = boards::resolve_card_conflicts(root, &slug).ok();
     let doc = boards::read_board(root, &slug)?;
+    cards_snapshot(root, slug, &doc.board)
+}
+
+/// The card half of [`board_snapshot`], for a caller that has read `board.json`
+/// already.
+fn cards_snapshot(root: &Path, slug: String, board: &boards::Board) -> IpcResult<BoardDto> {
     let (cards, cloud_only, unreadable) = boards::list_cards_lenient(root, &slug)?;
     let cards = cards
         .iter()
         .filter(|c| !c.card.is_deleted())
         .map(|c| CardDto::from(&c.card))
         .collect();
-    let mut board = BoardDto::new(slug, &doc.board, cards, cloud_only);
-    board.unreadable = unreadable;
-    board.resolved_conflicts = resolved.map(|r| r.resolved.len() as u32).unwrap_or(0);
-    Ok(board)
+    let mut dto = BoardDto::new(slug, board, cards, cloud_only);
+    dto.unreadable = unreadable;
+    Ok(dto)
 }
 
 // ---------------------------------------------------------------- 1. bootstrap
@@ -615,12 +619,51 @@ pub async fn board_list(state: State<'_, AppState>) -> IpcResult<Vec<BoardRefDto
 }
 
 /// A board and its cards in one read. Tombstoned cards are dropped here;
-/// cloud-only card files are reported, never read (§8.2).
+/// cloud-only card files are reported, never read (§8.2). The first read of a
+/// board after the vault was opened also resolves its card conflicts (§8.4)
+/// and says how many in `resolved_conflicts`; only that read writes, every
+/// later one carries 0.
 #[tauri::command]
 #[specta::specta]
 pub async fn board_read(state: State<'_, AppState>, slug: String) -> IpcResult<BoardDto> {
-    let root = state.require_vault()?;
-    blocking(move || board_snapshot(&root, normalize_rel(&slug)?)).await
+    let slug = normalize_rel(&slug)?;
+    // Why the first read and not every read: a read that writes on every
+    // refresh re-triggers itself through the watcher, which is the sweep
+    // PLAN.md §2.3 rule 12 forbids — and the refresh it caused had nothing
+    // left to report, so the notice was gone before anyone saw it. Why not
+    // every board at open: the same rule. A copy that arrives after a board's
+    // first read shows in `unreadable` until the vault is opened again.
+    let BoardRead { root, first, lock } = state.begin_board_read(&slug)?;
+    let work_slug = slug.clone();
+    let result = blocking(move || {
+        let slug = work_slug;
+        // A second read of this board while the first is still renaming
+        // would otherwise list a `cards/` directory with the loser already
+        // parked and the winner not yet in place. A poisoned lock only means
+        // an earlier read panicked; there is nothing half-written to protect.
+        let _board = lock.lock().unwrap_or_else(|e| e.into_inner());
+        // `board.json` before anything is moved: a board that cannot be read
+        // is not tidied. A failure after the tidy-up (one card file the
+        // listing cannot read) still returns the error and loses the count —
+        // the files are under `conflicts/` regardless, and a count cannot
+        // ride on an error.
+        let doc = boards::read_board(&root, &slug)?;
+        let resolved = first.then(|| boards::resolve_card_conflicts(&root, &slug));
+        let mut board = cards_snapshot(&root, slug, &doc.board)?;
+        match resolved {
+            Some(Ok(report)) => board.resolved_conflicts = report.resolved.len() as u32,
+            // A board that cannot be tidied is still a board, so this is not
+            // fatal — but it is said, not swallowed.
+            Some(Err(e)) => board.resolve_error = Some(e.into()),
+            None => {}
+        }
+        Ok(board)
+    })
+    .await;
+    if first && result.is_err() {
+        state.forget_board_read(&slug);
+    }
+    result
 }
 
 /// Create `boards/<slug>/board.json`. The board starts without columns: column
