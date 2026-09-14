@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row becomes an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5). Until then this file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0014). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -43,7 +43,7 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Multi-vault / recent vaults | no |
 | E-paper mode | no |
 | Flat 2.0 control mockup row | yes |
-| Kanban extra card fields | no |
+| Kanban extra card fields | no, except description (ADR-0013, 2026-09-14) |
 | Kanban soft-delete tombstones | yes |
 | Several boards per vault | yes |
 | CLI `relink` public | yes |
@@ -143,6 +143,71 @@ is undefined for several cards; the example sentence in §8.4 says the same now:
 
 Recorded in `docs/SYNC-REALITY.md` and PLAN.md §8.4. No ADR: no new
 dependency, setting, menu item or shortcut.
+
+## Answered 2026-09-14
+
+The owner opened the app on 2026-09-14 and wrote:
+
+> aktuell kann ich keine neuen markdown files oder andere unterstützte formate
+> erstellen. diese funktion sollte bestehen. es sollte links auch eine sektion
+> gebeb um schnelle tägliche notizen anzuzeigen.
+> Den kanban mode sehe ich auch nicht.
+> es sollte ein icon um die settings zu öffnen.
+> außerdem benötigen wir ein sortiericon für die notizen, die ordner immer
+> alphabetisch anzeigen.
+> ich möchte auf dem kanban mode auch die karte etwas befüllen können.
+> bitte lass uns eine einfache aber gute verbesserung links in der steuerung
+> vornehmen ohne probleme zu verursachen.
+> in den settings denke ich darüber nach ob wir nicht auch einen zusätzlichen
+> sync in ein bucket von cloudflare zum cross device sync anbieten sollten. als
+> alternative zu den anderen. das würde eine mobile und eine webapp ermöglichen.
+
+Four questions were put to them the same day, each with the smallest form
+recommended. Asked "Welche Steuerelemente sollen in die Sidebar?" (several
+answers allowed):
+
+> Neue Notiz / Neuer Ordner (Recommended), Board-Knopf (Recommended),
+> Sortierung über die Spaltenköpfe (Recommended)
+
+The fourth option, "Einstellungen-Knopf", was not selected. Its description had
+said the four settings reach the palette (`Shift+Cmd+P`) either way, so they
+gain palette entries and no button; no preferences window, `Cmd+,` stays
+unbound. Asked "Tagesnotizen: welche Form?", with the file fixed as
+`journal/JJJJ-MM-TT.md`, created empty, no template:
+
+> Eine Zeile Heute oben im Baum (Recommended)
+
+Asked "Karteninhalt auf dem Board":
+
+> Feld description (Recommended)
+
+Asked "Andere Dateiformate anlegen":
+
+> Dialog Neue Notiz erkennt §7.3-Endungen (Recommended)
+
+Recorded as **ADR-0012** (sidebar controls: the New Note / New Folder / board
+buttons, the legend as the sort control with `treeSort` as state, the Today's
+Note row and palette command, the settings in the palette), **ADR-0013** (the
+optional card `description`, amending ADR-0006) and **ADR-0014** (the New Note
+dialog keeps a typed §7.3 extension). The "Kanban extra card fields" row above
+is changed accordingly; PLAN.md §2.2, §4.2, §4.4, §5.3, §7.3, §8.2 and §9.2,
+`docs/SETTINGS.md` and `docs/KEYMAP.md` prose carry the details. Three things
+fixed on the way — board folders drawn as root-level tree rows with their
+display name as the L2/L4 frames show, opening a note hiding the board pane,
+the title-bar drag permission — are recorded in ADR-0012 as fidelity and
+defects, not decisions.
+
+### Open
+
+The Cloudflare bucket ("zusätzlichen sync in ein bucket von cloudflare zum
+cross device sync … das würde eine mobile und eine webapp ermöglichen") was
+answered with an assessment only, no decision: it would be the first outbound
+connection of the app, whose row in the `docs/PRIVACY.md` table exists only
+once an ADR puts it there, and whose HTTP client the lockfile check refuses
+without one; it needs an account, credentials or a token in the app, a conflict
+story for a third writer next to Mode 1, and a web or mobile client that does
+not exist. It is not opened now. If the owner wants it, it is a v2 question of
+the size of Mode 2 (§5.7) and gets its own ADR before any code.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

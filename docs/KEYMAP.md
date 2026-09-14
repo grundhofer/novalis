@@ -99,10 +99,12 @@ sidebar tree), `board` (focus in the board pane).
 
 - PLAN.md §7.4 groups `Shift+Cmd+N` (new folder) under "Tree" together with
   `Enter` and `Cmd+Delete`. Here its scope is `global`, because it is backed by
-  the File ▸ New Folder menu item and menu items fire regardless of focus; the
-  folder is created next to the tree selection, or in the vault root when
-  nothing is selected. `Enter` and `Cmd+Delete` stay `tree`-scoped: both collide
-  with editor defaults (newline, delete-to-line-start).
+  the File ▸ New Folder menu item and menu items fire regardless of focus. It
+  and `Cmd+N` place the new folder or file the same way: inside a selected
+  folder, beside a selected file, or in the vault root when nothing is
+  selected (ADR-0012; the sidebar buttons fire the same two command ids).
+  `Enter` and `Cmd+Delete` stay `tree`-scoped: both collide with editor
+  defaults (newline, delete-to-line-start).
 - System-provided edit keys (`Cmd+A/C/V/X`, `Cmd+H`, `Cmd+M`, arrows, word and
   line movement, `Escape`) come from macOS and WKWebView and are neither bound
   nor overridden by the app; the parity test ignores them. `Cmd+Q` and

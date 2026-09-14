@@ -13,8 +13,9 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
 - Not in this file, by design: window size and position, open tabs, sidebar
   width and every other transient value. Those live in `<app-data>/state.json`,
   free-form, disposable, and are never documented here.
-- No preferences window. Each setting has exactly one place where it changes
-  (the "Changed via" column).
+- No preferences window. Each setting has exactly one persisted place where it
+  changes (the "Changed via" column); the command palette is a second launcher
+  for the same command ids, not a second place (ADR-0012).
 
 <!-- settings-table:start -->
 | Key | Kind | Type | Values | Default | Changed via | ADR |
@@ -52,3 +53,6 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
   recent-vaults list (PLAN.md §4.4).
 - Hard-coded defaults that would otherwise be settings are listed in PLAN.md
   §4.2 and are not persisted anywhere.
+- The tree's file order (`treeSort`: by name, or by modified time newest
+  first, chosen in the sidebar legend, ADR-0012) is state in `state.json` next
+  to the sidebar width, not a fifth setting: losing it costs one click.

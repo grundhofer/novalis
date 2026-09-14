@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-05 · **Decider:** Sebastian Grundhöfer
 
+**Amended by:** ADR-0013 (2026-09-14) — "No further card fields" becomes no further card fields except the optional `description`; due date, tags, colour, WIP limits and swimlanes stay no.
+
 ## Context
 
 The old app kept Kanban state as `@status(...)` tokens inside note lines and rewrote notes on every column move, which violates the rewrite's "never rewrite untouched bytes" rule. Sync clients copy files, not records: one JSON file per board turns every concurrent edit into a vendor conflict copy the app would have to parse and merge, and SQLite in a synced folder is documented to corrupt. Google Drive's policy on dot-folders could not be verified, and the old watcher and sync manifest skipped dot-paths, so `.novalis/kanban/` is not a safe home. Two devices editing different cards offline must never conflict in any sync client.

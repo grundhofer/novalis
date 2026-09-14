@@ -55,9 +55,9 @@ Research found facts that differ from the brief or the old docs. The plan uses t
 
 ### 2.2 What novalis is not (dropped from the old app, absent from the codebase, not flagged off)
 
-AI features, voice, PDF, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, daily notes, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
+AI features, voice, PDF, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
 
-Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first.
+Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped.
 
 ### 2.3 Architecture rules (each backed by a measured failure of the old app)
 
@@ -131,7 +131,7 @@ No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question. State that i
 
 ### 4.2 Hard-coded defaults that would otherwise be settings (confirm or change the value)
 
-Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders-first, name ascending · editor measure 66–72 ch · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
+Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
 
 ### 4.3 Sublime/GFM baseline that the plan treats as part of "text editor" and "Markdown", listed so you see it before code exists
 
@@ -153,7 +153,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Multi-vault / recent vaults list | monorepo | no | Single vault + "Open Vault…" |
 | E-paper focus/print mode | design | no | A mode = a feature |
 | Flat 2.0 "control" mockup row | design | yes (an afternoon) | Shows what the framework default looks like |
-| Kanban: card description (Markdown), due date, tags, colour, WIP limits, swimlanes, done semantics | kanban | no (description first if anything) | Each is a schema addition |
+| Kanban: card description (Markdown), due date, tags, colour, WIP limits, swimlanes, done semantics | kanban | yes: description only (ADR-0013); the rest no | Each is a schema addition |
 | Kanban: soft-delete tombstones (`deleted` timestamp, purged on next write after 30 days) | kanban | **yes** | Without it a card edited on one device and deleted on another is resurrected by the sync client |
 | Kanban: several boards per vault | kanban | yes (zero cost) | The layout supports it; a board switcher appears only if >1 board exists |
 | CLI `relink <from> <to>` as a public command | cli | **yes** | The one primitive merges, dedupes and link repair need; `mv` uses it internally anyway |
@@ -284,7 +284,7 @@ Dependency budget: D26.
      - buffer dirty → banner *„Auf der Festplatte geändert"* / "Changed on disk" with **Neu laden / Meine behalten / Als Konfliktkopie speichern**; if the disk diff is exactly a link rewrite from a rename, re-apply it to the buffer instead of raising the banner.
   3. On save (autosave tick or `Cmd-S`): stat target; if `(mtime, size)` differ from captured and the disk hash differs from last-known → **the buffer is written immediately and atomically to `<name> (conflict <host> <YYYY-MM-DD HHMM>).md` in the same folder and keeps autosaving there** until the banner is resolved: *Neu laden* trashes the copy; *Meine behalten* renames it over the target (the user chose, so no precondition; in a non-cloud vault the disk version is first written to a conflict copy because there is no vendor history); *Als Konfliktkopie speichern* keeps both. `Cmd-W` and `Cmd-Q` never block and never lose text.
   4. Watcher events matching a recorded own write are dropped.
-  5. Board and card writes carry the `(mtime, size, hash)` captured when that JSON was last read; on mismatch the store re-reads, re-applies the single field change (column / order / title / notes) and writes again; card edits are field-level and replayable, so no banner.
+  5. Board and card writes carry the `(mtime, size, hash)` captured when that JSON was last read; on mismatch the store re-reads, re-applies the single field change (column / order / title / description / notes) and writes again; card edits are field-level and replayable, so no banner.
   6. CLI `edit --if-match <sha256>` maps to step 3 (refuse with exit 4 instead of writing a copy); `mv`/`relink` write each affected file under its scan-time precondition and report `conflicts`.
 - **Cloud hints:** one-line, dismissable, in the status bar: vault is in a cloud folder · N notes cloud-only · N conflict copies found (click → list with Keep original / Keep copy / Keep both, resolution per §5.2 `vault::cloud`).
 
@@ -412,7 +412,7 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 | B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
 | C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
 
-Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner.
+Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of these types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014).
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
@@ -452,11 +452,12 @@ Board folders appear in the file tree as one "board" item (the treatment the old
 ```json
 { "id": "01K4G9Z2Q7M3N8RSTV5WXY6ZAB", "title": "Zoom-Stufen für Offline-Bundles festlegen",
   "column": "doing", "order": "a0V",
+  "description": "Für die Offline-Bundles die Stufen 8–14 prüfen; 15+ nur online.",
   "notes": [ "projects/Atlas Rendering Spec.md" ],
   "created": "2026-09-01T07:12:03.010Z", "updated": "2026-09-05T08:41:12.345Z" }
 ```
 
-Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
+Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), `description` (Markdown by convention, ADR-0013) omitted when empty, titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
 
 ### 8.3 Identity and ordering
 
@@ -499,9 +500,9 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `tags` | `--limit` | `{items:[{tag,count}]}` | cache |
 | `relink <from> <to>` | `--force`, `--materialize` | `{rewritten:[{path,count}],cardsUpdated,conflicts,cloudOnlySkipped}` | `<from>` is a **literal link target string** (wikilink text or Markdown path, case-insensitive, percent-decoded, not required to resolve); `<to>` must resolve; rewrites `[[from]]`, `[[from\|l]]`, `[[from#h]]`, `[text](from)` and card `notes[]` |
 | `board ls` / `board show <b>` / `board columns <b> --set <json>` | | boards, columns, cards | boards store |
-| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated}]}` | answers "which cards link to X" |
-| `card add <b> --title T [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
-| `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
+| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated,description?}]}` | answers "which cards link to X" |
+| `card add <b> --title T [--description D] [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
+| `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
 | `index --rebuild` / `--status` | | `{cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |
 | `sync status` | | `{vaultKind:"fileProvider"\|"mirrored"\|"local",cloudOnly:[path],conflictCopies:[path]}` | Mode 1 read-only |
 | `doctor` | | `{ok,checks:[{id,status,detail}]}` | vault marker, cache opens, app/CLI version skew, frontmatter parse failures, unresolved links, duplicate stems, unlinkable stems (`#`/`\|`), notes under board folders, conflict copies, cloud-only notes with unindexed links, legacy `@due/@status` count |
