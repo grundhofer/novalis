@@ -3,11 +3,10 @@ import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDay } from "../i18n";
-import { report } from "../lib/commands";
 import { nsToMs } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
-import { useUi } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
 
 /**
@@ -49,10 +48,10 @@ export default function Sidebar() {
       return;
     }
     if (entry.dir) {
-      void useVault.getState().toggleFolder(entry.path);
+      void useVault.getState().toggleFolder(entry.path).catch(report);
       return;
     }
-    void useTabs.getState().open(entry.path);
+    void useTabs.getState().open(entry.path).catch(report);
   };
 
   if (!vault) return <nav className="sidebar" />;

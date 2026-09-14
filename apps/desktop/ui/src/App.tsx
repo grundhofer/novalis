@@ -10,14 +10,14 @@ import TitleBar from "./components/TitleBar";
 import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
-import { dispatchCommand, report } from "./lib/commands";
+import { dispatchCommand } from "./lib/commands";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
 import { useNotes } from "./stores/notes";
 import { useTabs } from "./stores/tabs";
-import { useUi, watchSystemAppearance } from "./stores/ui";
+import { report, useUi, watchSystemAppearance } from "./stores/ui";
 import { useVault } from "./stores/vault";
 
 // Everything expensive is behind a dynamic import so it never lands in the
@@ -83,42 +83,38 @@ export default function App() {
     if (booted.current) return;
     booted.current = true;
     void (async () => {
-      try {
-        // i18n first and without IPC: a boot that fails must still be able to
-        // say so in the user's language (fail loud, never a blank window).
-        await initI18n(navigator.language.startsWith("de") ? "de" : "en");
-        const boot = await unwrap(commands.bootstrap());
-        await initI18n(boot.locale);
-        useUi.getState().hydrate(boot.settings, boot.lastOpen, boot.locale);
-        if (boot.vault) {
-          useVault.getState().setVault(boot.vault, boot.tree);
-          useBoard.getState().setBoards(boot.vault.boards);
-        }
-        setReady(true);
-
-        // After the tree is interactive: the note list and the last session's
-        // tabs. Never before (rule 12). A failure here is not fatal — the
-        // window is already usable — so it only reports itself.
-        if (boot.vault) {
-          void useNotes.getState().refresh();
-          for (const path of boot.lastOpen.openTabs ?? []) {
-            await useTabs.getState().open(path, { background: true });
-          }
-          if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
-          // A board that is gone since last time (deleted elsewhere, or a
-          // different vault) is a toast, not a red overlay over a working
-          // window; `load` itself forgets the board so the next start does
-          // not try again.
-          if (boot.lastOpen.activeBoard) {
-            void useBoard.getState().load(boot.lastOpen.activeBoard).catch(report);
-          }
-        }
-      } catch (error) {
-        // Anything thrown before `ready` would otherwise leave an empty window
-        // with no way to find out why (Rule 5: fail loud).
-        setBootError(error);
+      // i18n first and without IPC: a boot that fails must still be able to
+      // say so in the user's language (fail loud, never a blank window).
+      await initI18n(navigator.language.startsWith("de") ? "de" : "en");
+      const boot = await unwrap(commands.bootstrap());
+      await initI18n(boot.locale);
+      useUi.getState().hydrate(boot.settings, boot.lastOpen, boot.locale);
+      if (boot.vault) {
+        useVault.getState().setVault(boot.vault, boot.tree);
+        useBoard.getState().setBoards(boot.vault.boards);
       }
-    })();
+      setReady(true);
+
+      // After the tree is interactive: the note list and the last session's
+      // tabs. Never before (rule 12). A failure here is not fatal — the
+      // window is already usable — so it only reports itself.
+      if (boot.vault) {
+        void useNotes.getState().refresh().catch(report);
+        for (const path of boot.lastOpen.openTabs ?? []) {
+          await useTabs.getState().open(path, { background: true });
+        }
+        if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
+        // A board that is gone since last time (deleted elsewhere, or a
+        // different vault) is a toast, not a red overlay over a working
+        // window; `load` itself forgets the board so the next start does
+        // not try again.
+        if (boot.lastOpen.activeBoard) {
+          void useBoard.getState().load(boot.lastOpen.activeBoard).catch(report);
+        }
+      }
+      // Anything thrown before `ready` would otherwise leave an empty window
+      // with no way to find out why (Rule 5: fail loud).
+    })().catch(setBootError);
   }, []);
 
   // ---- watcher batches ---------------------------------------------------
@@ -129,7 +125,7 @@ export default function App() {
 
       const openDocs = useEditorSave.getState().docs;
       for (const entry of batch.modified) {
-        if (openDocs[entry.path]) void useEditorSave.getState().externalChange(entry.path);
+        if (openDocs[entry.path]) void useEditorSave.getState().externalChange(entry.path).catch(report);
       }
       for (const rename of batch.renamed) {
         if (openDocs[rename.from]) {
@@ -140,20 +136,20 @@ export default function App() {
         }
       }
       if (batch.added.some((e) => isNote(e.path)) || batch.removed.some(isNote)) {
-        void useNotes.getState().refresh();
+        void useNotes.getState().refresh().catch(report);
       }
       const board = useBoard.getState().slug;
       if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
         void useBoard.getState().refresh().catch(report);
       }
     });
-    return () => void unlisten.then((stop) => stop());
+    return () => void unlisten.then((stop) => stop()).catch(report);
   }, []);
 
   // ---- native menu -------------------------------------------------------
   useEffect(() => {
     const unlisten = events.menuAction.listen((event) => dispatch(event.payload.id));
-    return () => void unlisten.then((stop) => stop());
+    return () => void unlisten.then((stop) => stop()).catch(report);
   }, [dispatch]);
 
   // ---- the keymap (docs/KEYMAP.md) ---------------------------------------
@@ -184,7 +180,7 @@ export default function App() {
   useEffect(() => watchSystemAppearance(), []);
 
   useEffect(() => {
-    const flush = () => void useEditorSave.getState().flushAll();
+    const flush = () => void useEditorSave.getState().flushAll().catch(report);
     window.addEventListener("blur", flush);
     window.addEventListener("beforeunload", flush);
     return () => {
@@ -228,7 +224,7 @@ export default function App() {
     const hit =
       paths.find((path) => path.toLowerCase().replace(/\.md$/, "") === wanted) ??
       paths.find((path) => path.toLowerCase().replace(/\.md$/, "").endsWith(`/${wanted}`));
-    if (hit) void useTabs.getState().open(hit);
+    if (hit) void useTabs.getState().open(hit).catch(report);
   }, []);
 
   const notePaths = useCallback(() => useNotes.getState().paths, []);

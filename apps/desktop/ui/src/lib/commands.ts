@@ -1,10 +1,10 @@
 import { isEditorCommand, runEditorCommand } from "./editorBridge";
-import { commands, errorKey, errorValues, unwrap } from "../ipc/client";
+import { commands, unwrap } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
-import { useUi } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 
@@ -19,19 +19,6 @@ import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
  */
 
 export type CommandResult = void | Promise<void>;
-
-/**
- * Errors here are reported once, as a toast keyed by the core's error code.
- *
- * Exported for every caller that fires a store promise without awaiting it:
- * the dialog, whose `submit` runs after the promise `dispatchCommand` catches
- * has resolved, and the board loads and writes the components and the watcher
- * start. Without it a rejection reaches `unhandledrejection` in `main.tsx`,
- * which paints the fatal overlay over a working window.
- */
-export function report(error: unknown): void {
-  useUi.getState().showToast(errorKey(error), errorValues(error));
-}
 
 async function newNote(folder: string): Promise<void> {
   useUi.getState().ask({

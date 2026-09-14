@@ -3,6 +3,8 @@ import { create } from "zustand";
 import { setLocale } from "../i18n";
 import {
   commands,
+  errorKey,
+  errorValues,
   unwrap,
   type AppearanceDto,
   type LanguageDto,
@@ -125,7 +127,7 @@ export const useUi = create<UiState>((set, get) => ({
   hydrate: (settings, state, locale) => {
     applyAppearance(settings.appearance);
     applyFontSize(settings.editor.fontSize);
-    void setLocale(locale);
+    void setLocale(locale).catch(report);
     set({
       settings,
       sidebarVisible: state.sidebarVisible ?? true,
@@ -172,6 +174,24 @@ export const useUi = create<UiState>((set, get) => ({
   showToast: (key, values = {}) => set({ toast: { key, values } }),
   clearToast: () => set({ toast: null }),
 }));
+
+/**
+ * Errors are reported once, as a toast keyed by the core's error code.
+ *
+ * This is the handler for every promise the UI fires without awaiting it:
+ * `void store.x().catch(report)`. The dialog's `submit` runs after the promise
+ * `dispatchCommand` catches has resolved; a click on a tab or a tree row, an
+ * autosave timer and a watcher batch have no caller to throw to at all.
+ * Without it a rejection reaches `unhandledrejection` in `main.tsx`, which
+ * paints the fatal overlay over a working window. The lint rule
+ * `no-floating-promises` (eslint.config.js) refuses a fire-and-forget without
+ * a handler, so the convention cannot erode one call site at a time. It lives
+ * here rather than in `lib/commands.ts` because the stores need it too, and
+ * `commands.ts` imports every store.
+ */
+export function report(error: unknown): void {
+  useUi.getState().showToast(errorKey(error), errorValues(error));
+}
 
 /** Follow the system theme while `appearance` is `system`. */
 export function watchSystemAppearance(): () => void {

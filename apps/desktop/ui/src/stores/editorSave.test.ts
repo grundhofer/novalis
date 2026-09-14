@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useEditorSave } from "./editorSave";
+import { useUi } from "./ui";
 
 // The store reaches the shell through `../ipc/client`; a store test has no
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
@@ -14,6 +15,8 @@ vi.mock("../ipc/client", () => ({
   },
   unwrap: vi.fn(),
   NovalisError: class extends Error {},
+  errorKey: () => "errors.internal",
+  errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
 
 /** A document as `open()` would have left it. */
@@ -91,5 +94,38 @@ describe("useEditorSave.rename", () => {
     useEditorSave.getState().rename("a.md", "a.md");
 
     expect(Object.keys(useEditorSave.getState().docs)).toEqual(["a.md"]);
+  });
+});
+
+describe("useEditorSave.setText", () => {
+  beforeEach(() => {
+    useEditorSave.setState({ docs: {} });
+    useUi.setState({ toast: null });
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The defect: the autosave timer fired `void get().save(path)` with no
+  // handler. A save that fails for any reason but a conflict (§5.3 handles
+  // that one inside `save`) rethrows, and from a timer there is nobody to
+  // rethrow to: it went to `unhandledrejection` and painted the fatal overlay
+  // while the user was typing. It is a toast now (`report`, stores/ui.ts).
+  it("reports a failed autosave as a toast", async () => {
+    const boom = new Error("EROFS");
+    useEditorSave.setState({
+      docs: { "a.md": doc("a.md") },
+      save: vi.fn().mockRejectedValue(boom),
+    });
+
+    useEditorSave.getState().setText("a.md", "body edited");
+    await vi.runAllTimersAsync();
+
+    expect(useEditorSave.getState().save).toHaveBeenCalledWith("a.md");
+    expect(useUi.getState().toast).toEqual({
+      key: "errors.internal",
+      values: { detail: String(boom) },
+    });
   });
 });

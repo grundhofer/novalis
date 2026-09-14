@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { stemOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
+import { report } from "../stores/ui";
 
 /** The tab strip (layout L2, the decided layout — docs/DECISIONS.md §4.6). */
 export default function TabStrip() {
@@ -27,10 +28,10 @@ export default function TabStrip() {
             onMouseDown={(event) => {
               if (event.button === 1) {
                 event.preventDefault();
-                void useTabs.getState().close(path);
+                void useTabs.getState().close(path).catch(report);
               }
             }}
-            onClick={() => void useTabs.getState().activate(path)}
+            onClick={() => void useTabs.getState().activate(path).catch(report)}
           >
             <span className="tab-name">{stemOf(path)}</span>
             {doc?.dirty && <span className="tab-dot" aria-hidden="true" />}
@@ -41,7 +42,7 @@ export default function TabStrip() {
               aria-label={t("menu.file.closeTab")}
               onClick={(event) => {
                 event.stopPropagation();
-                void useTabs.getState().close(path);
+                void useTabs.getState().close(path).catch(report);
               }}
             />
           </div>

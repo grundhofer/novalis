@@ -1,12 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { report } from "../lib/commands";
 import { useUi } from "../stores/ui";
 import Prompt from "./Prompt";
-
-// `report` is the one thing this component is supposed to reach on failure.
-vi.mock("../lib/commands", () => ({ report: vi.fn() }));
 
 // The catalog is not under test; render the key so assertions read plainly.
 vi.mock("react-i18next", () => ({
@@ -17,7 +13,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("Prompt", () => {
   beforeEach(() => {
-    useUi.setState({ prompt: null });
+    useUi.setState({ prompt: null, toast: null });
   });
 
   it("renders nothing when nothing was asked", () => {
@@ -45,7 +41,11 @@ describe("Prompt", () => {
     fireEvent.click(screen.getByText("app.ok"));
     await flush();
 
-    expect(report).toHaveBeenCalledWith(boom);
+    // `report` (stores/ui.ts): a toast, never the fatal overlay.
+    expect(useUi.getState().toast).toEqual({
+      key: "errors.internal",
+      values: { detail: String(boom) },
+    });
   });
 
   it("passes the trimmed value through and closes on success", async () => {
@@ -127,7 +127,10 @@ describe("Prompt", () => {
       fireEvent.click(screen.getByText("menu.file.moveToTrash"));
       await flush();
 
-      expect(report).toHaveBeenCalledWith(boom);
+      expect(useUi.getState().toast).toEqual({
+        key: "errors.internal",
+        values: { detail: String(boom) },
+      });
     });
   });
 });
