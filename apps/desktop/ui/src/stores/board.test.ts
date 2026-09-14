@@ -8,7 +8,7 @@ import { useUi } from "./ui";
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
 // runs (ADR-0011).
 vi.mock("../ipc/client", () => ({
-  commands: { boardRead: vi.fn() },
+  commands: { boardRead: vi.fn(), boardList: vi.fn() },
   unwrap: vi.fn(),
   NovalisError: class extends Error {
     ipc: { code: string };
@@ -117,5 +117,30 @@ describe("useBoard.load", () => {
     expect(state.board).toBeNull();
     expect(state.slug).toBeNull();
     expect(state.notices).toEqual({});
+  });
+});
+
+describe("useBoard.refreshList", () => {
+  beforeEach(() => {
+    useBoard.setState({ boards: [{ slug: "old", name: "Old" }] });
+    vi.mocked(commands.boardList).mockClear();
+  });
+
+  // A board created by the CLI or arriving by sync used to show in the tree
+  // and the palette only after the vault was reopened: the list came with
+  // `bootstrap()` and nothing re-read it. The watcher batch does now.
+  it("re-reads the list from the shell, sorted by name", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce([
+      { slug: "zeta", name: "Zeta" },
+      { slug: "alpha", name: "Alpha" },
+    ]);
+
+    await useBoard.getState().refreshList();
+
+    expect(commands.boardList).toHaveBeenCalledTimes(1);
+    expect(useBoard.getState().boards).toEqual([
+      { slug: "alpha", name: "Alpha" },
+      { slug: "zeta", name: "Zeta" },
+    ]);
   });
 });

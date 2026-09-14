@@ -168,13 +168,109 @@ button {
   border-bottom: 1px solid var(--ds-color-border-default);
 }
 
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+
 .vault-name {
+  flex: 1;
+  min-width: 0;
   font-size: var(--ds-font-size-ui);
   font-weight: var(--ds-font-weight-strong);
   color: var(--ds-color-fg-default);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+}
+
+/* The three head controls (ADR-0012): `.btn.ghost` at row height. The
+   selectors carry the whole class list because the button section further
+   down would otherwise take the colour back. */
+.btn.ghost.sidebar-tool {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 var(--ds-space-2);
+  justify-content: center;
+  border-radius: var(--ds-radius-chip);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-subtle);
+}
+
+.btn.ghost.sidebar-tool:focus-visible {
+  outline: 2px solid var(--ds-color-accent-default);
+}
+
+.btn.ghost.sidebar-tool.on {
+  border-color: var(--ds-color-accent-line);
+  background: var(--ds-color-accent-fill);
+  color: var(--ds-color-accent-text);
+}
+
+/* The folder and board glyphs are borders, like `.chev`: no icon font, no
+   image (PLAN.md §11.5). */
+.glyph-folder,
+.glyph-board {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 10px;
+}
+
+.glyph-folder::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 12px;
+  height: 8px;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-radius: 1px;
+}
+
+.glyph-folder::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 3px;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-bottom: none;
+  border-radius: 1px 1px 0 0;
+}
+
+.glyph-board::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ds-color-fg-subtle);
+  border-radius: 2px;
+}
+
+.glyph-board::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  bottom: 1px;
+  width: 4px;
+  border-left: 1px solid var(--ds-color-fg-subtle);
+  border-right: 1px solid var(--ds-color-fg-subtle);
+}
+
+.sidebar-tool.on .glyph-board::before,
+.sidebar-tool.on .glyph-board::after {
+  border-color: var(--ds-color-accent-text);
 }
 
 .legend {
@@ -186,6 +282,70 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ds-color-fg-subtle);
+}
+
+/* The legend's two labels are the sort switch (ADR-0012). They inherit the
+   legend's look: a button resets `text-transform` and `letter-spacing` on
+   its own, which the global reset does not give back. */
+.legend-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+
+.legend-sort.on {
+  color: var(--ds-color-fg-muted);
+}
+
+/* The direction mark: the `.chev` square, pointing where the order goes.
+   Name is ascending (up), modified is newest first (down); the legend has
+   exactly these two, in this order. */
+.legend-sort.on::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-bottom: 2px;
+  border-right: 1.5px solid var(--ds-color-fg-subtle);
+  border-bottom: 1.5px solid var(--ds-color-fg-subtle);
+  transform: rotate(-135deg);
+}
+
+.legend-sort:last-child.on::after {
+  margin-top: 2px;
+  margin-bottom: 0;
+  transform: rotate(45deg);
+}
+
+/* The "Today" row sits above the virtualized tree, so it is its own class:
+   a `.tree-row` is absolutely positioned by the virtualizer. */
+.today-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  flex: 0 0 auto;
+  width: 100%;
+  height: var(--ds-size-row);
+  padding: 0 var(--ds-space-5) 0 14px;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  text-align: left;
+  color: var(--ds-color-fg-default);
+  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.today-row:hover {
+  background: var(--ds-color-bg-hover);
+}
+
+.today-row .chev::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ds-color-accent-default);
+  border-radius: var(--ds-radius-pill);
 }
 
 .tree {
@@ -276,7 +436,8 @@ button {
   transform: none;
 }
 
-.tree-row .name {
+.tree-row .name,
+.today-row .name {
   flex: 1;
   min-width: 0;
   overflow: hidden;

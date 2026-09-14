@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dispatchCommand } from "../lib/commands";
+import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
@@ -26,19 +28,28 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
+// The head controls and the today row hand a command id to the dispatcher;
+// what the command then does is `lib/commands.ts`'s business, not the tree's.
+vi.mock("../lib/commands", () => ({
+  dispatchCommand: vi.fn(),
+}));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const entry = (path: string, dir: boolean) => ({
+const entry = (path: string, dir: boolean, mtimeNs = "0") => ({
   path,
   name: path,
   dir,
   size: "0",
-  mtimeNs: "0",
+  mtimeNs,
   cloudOnly: false,
   boardSlug: null,
   conflictCopyOf: null,
 });
+
+/** The tree rows' names, top to bottom; the today row is not a tree item. */
+const rowNames = () =>
+  screen.getAllByRole("treeitem").map((row) => row.querySelector(".name")?.textContent);
 
 describe("Sidebar", () => {
   beforeEach(() => {
@@ -47,7 +58,9 @@ describe("Sidebar", () => {
       entry("a.md", false),
     ]);
     useTabs.setState({ tabs: [], active: null });
-    useUi.setState({ toast: null });
+    useUi.setState({ toast: null, boardVisible: false, activeBoard: null, treeSort: "name" });
+    useBoard.setState({ boards: [], slug: null, board: null });
+    vi.mocked(dispatchCommand).mockClear();
   });
 
   // The defect: a click on a tree row fired `void useTabs.getState().open()`
@@ -81,5 +94,90 @@ describe("Sidebar", () => {
       key: "errors.internal",
       values: { detail: String(boom) },
     });
+  });
+
+  // ADR-0012: the head controls are the menu items, reached by mouse. They
+  // dispatch by id so a click and `Cmd+N` cannot drift apart.
+  it("dispatches the three head controls by command id", () => {
+    render(<Sidebar />);
+
+    fireEvent.click(screen.getByLabelText("menu.file.newNote"));
+    fireEvent.click(screen.getByLabelText("menu.file.newFolder"));
+    fireEvent.click(screen.getByLabelText("menu.view.showBoard"));
+
+    expect(vi.mocked(dispatchCommand).mock.calls).toEqual([
+      ["file.newNote"],
+      ["tree.newFolder"],
+      ["board.toggle"],
+    ]);
+  });
+
+  it("presses the board control while the board is shown", () => {
+    const { rerender } = render(<Sidebar />);
+    expect(screen.getByLabelText("menu.view.showBoard").getAttribute("aria-pressed")).toBe("false");
+
+    useUi.setState({ boardVisible: true });
+    rerender(<Sidebar />);
+
+    expect(screen.queryByLabelText("menu.view.showBoard")).toBeNull();
+    expect(screen.getByLabelText("menu.view.hideBoard").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("re-orders the files, folders first, when the legend switches the sort", () => {
+    useVault.getState().setVault({ root: "/v", name: "v", kind: "local", boards: [] }, [
+      entry("Notes", true),
+      entry("a.md", false, "1000000000"),
+      entry("b.md", false, "2000000000"),
+    ]);
+    render(<Sidebar />);
+    expect(rowNames()).toEqual(["Notes", "a.md", "b.md"]);
+
+    fireEvent.click(screen.getByText("tree.columnModified"));
+
+    expect(useUi.getState().treeSort).toBe("modified");
+    expect(rowNames()).toEqual(["Notes", "b.md", "a.md"]);
+    expect(screen.getByText("tree.columnModified").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("tree.columnName").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("draws a board as a root row that opens it", async () => {
+    const load = vi.fn().mockResolvedValue(undefined);
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas" }], load });
+    render(<Sidebar />);
+
+    const row = screen.getByText("Atlas").closest("[role=treeitem]");
+    expect(row?.querySelector(".meta")?.textContent).toBe("tree.board");
+
+    fireEvent.click(row!);
+    await flush();
+
+    expect(useUi.getState().activeBoard).toBe("atlas");
+    expect(load).toHaveBeenCalledWith("atlas");
+  });
+
+  // The board directory is also an entry of the `boards` folder. Expanded,
+  // that folder used to draw the board a second time, in place.
+  it("draws a board once when its directory is listed under an expanded boards folder", () => {
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas" }] });
+    useVault.setState({
+      children: {
+        "": [entry("boards", true), entry("a.md", false)],
+        boards: [{ ...entry("boards/atlas", true), name: "atlas", boardSlug: "atlas" }],
+      },
+      expanded: { boards: true },
+    });
+    render(<Sidebar />);
+
+    expect(screen.getAllByText("tree.board")).toHaveLength(1);
+    expect(screen.queryByText("atlas")).toBeNull();
+    expect(rowNames()).toEqual(["boards", "a.md", "Atlas"]);
+  });
+
+  it("dispatches the today row", () => {
+    render(<Sidebar />);
+
+    fireEvent.click(screen.getByText("tree.todayNote"));
+
+    expect(dispatchCommand).toHaveBeenCalledWith("file.todayNote");
   });
 });

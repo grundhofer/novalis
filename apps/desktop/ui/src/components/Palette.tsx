@@ -61,7 +61,7 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
     const commandEntries: Entry[] = PALETTE_COMMANDS.map((c) => ({
       kind: "command",
       id: c.id,
-      label: t(c.labelKey),
+      label: c.valueKey ? t(c.labelKey, { value: t(c.valueKey) }) : t(c.labelKey),
     }));
     return [...commandEntries, ...headingsOfActiveDocument(), ...noteEntries, ...boardEntries];
   }, [mode, notes, boards, t]);

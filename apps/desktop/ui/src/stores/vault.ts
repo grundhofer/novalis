@@ -1,7 +1,15 @@
 import { create } from "zustand";
 
-import { commands, unwrap, type EntryDto, type FsBatch, type VaultDto } from "../ipc/client";
-import { ancestorsOf, folderOf } from "../lib/paths";
+import {
+  commands,
+  unwrap,
+  type BoardRefDto,
+  type EntryDto,
+  type FsBatch,
+  type TreeSortDto,
+  type VaultDto,
+} from "../ipc/client";
+import { ancestorsOf, compareNs, folderOf } from "../lib/paths";
 
 /**
  * The tree.
@@ -130,20 +138,63 @@ export interface TreeRow {
   expanded: boolean;
 }
 
-/** Flatten the loaded, expanded folders into the list the virtualizer draws. */
+/**
+ * One folder's entries in the order the tree draws them: folders first in
+ * their stored (name) order, then the files by `sort`. Only the files follow
+ * the sort (ADR-0012); a folder has no modification time worth ordering by.
+ */
+function orderEntries(entries: EntryDto[], sort: TreeSortDto): EntryDto[] {
+  const folders = entries.filter((e) => e.dir);
+  const files = entries.filter((e) => !e.dir);
+  if (sort === "modified") {
+    files.sort((a, b) => compareNs(b.mtimeNs, a.mtimeNs) || a.name.localeCompare(b.name));
+  }
+  return [...folders, ...files];
+}
+
+/**
+ * The row a board is drawn as: a synthetic entry at the root, named after the
+ * board rather than its directory, so the tree does not need `boards/` to be
+ * expanded — or listed at all — to show it.
+ */
+function boardEntry(board: BoardRefDto): EntryDto {
+  return {
+    path: `boards/${board.slug}`,
+    name: board.name,
+    dir: true,
+    size: "0",
+    mtimeNs: "0",
+    cloudOnly: false,
+    boardSlug: board.slug,
+    conflictCopyOf: null,
+  };
+}
+
+/**
+ * Flatten the loaded, expanded folders into the list the virtualizer draws,
+ * then the boards as the last root rows (ADR-0012). A board directory met
+ * inside an expanded `boards` folder is skipped: it is drawn once, at the
+ * root, from the vault's board list.
+ */
 export function treeRows(
   children: Record<string, EntryDto[]>,
   expandedFolders: Record<string, boolean>,
+  sort: TreeSortDto,
+  boards: BoardRefDto[],
 ): TreeRow[] {
   const rows: TreeRow[] = [];
   const walk = (folder: string, depth: number) => {
-    for (const entry of children[folder] ?? []) {
-      const expanded = entry.dir && !entry.boardSlug && !!expandedFolders[entry.path];
+    for (const entry of orderEntries(children[folder] ?? [], sort)) {
+      if (entry.boardSlug) continue;
+      const expanded = entry.dir && !!expandedFolders[entry.path];
       rows.push({ entry, depth, expanded });
       if (expanded) walk(entry.path, depth + 1);
     }
   };
   walk("", 0);
+  for (const board of [...boards].sort((a, b) => a.name.localeCompare(b.name))) {
+    rows.push({ entry: boardEntry(board), depth: 0, expanded: false });
+  }
   return rows;
 }
 

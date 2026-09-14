@@ -48,6 +48,12 @@ interface BoardState {
   load: (slug: string) => Promise<void>;
   dismissNotice: (slug: string) => void;
   refresh: () => Promise<void>;
+  /**
+   * Re-read the list of boards. `setBoards` is what the vault open brings;
+   * this is for a board that appeared or went since — `novalis board create`
+   * from the CLI, or a sync client — which the watcher reports.
+   */
+  refreshList: () => Promise<void>;
   apply: (op: CardOpDto) => Promise<void>;
   createBoard: (slug: string, name: string) => Promise<void>;
   setColumns: (columns: ColumnDto[]) => Promise<void>;
@@ -113,6 +119,11 @@ export const useBoard = create<BoardState>((set, get) => ({
   refresh: async () => {
     const slug = get().slug;
     if (slug) await get().load(slug);
+  },
+
+  refreshList: async () => {
+    const boards = await unwrap(commands.boardList());
+    set({ boards: [...boards].sort((a, b) => a.name.localeCompare(b.name)) });
   },
 
   apply: async (op) => {

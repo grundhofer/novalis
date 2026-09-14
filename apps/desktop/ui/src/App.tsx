@@ -37,6 +37,15 @@ const STATE_SAVE_MS = 400;
 const DEDUPE_MS = 60;
 
 /**
+ * A board's `board.json`, or the board folder itself: what `novalis board
+ * create` and a board arriving by sync touch. The list of boards is otherwise
+ * read once, when the vault opens, so it never learned of them.
+ */
+function touchesBoardList(path: string): boolean {
+  return /^boards\/[^/]+\/board\.json$/.test(path) || /^boards\/[^/]+$/.test(path);
+}
+
+/**
  * What a failed boot shows. Deliberately the raw code and message rather than a
  * catalog sentence: this is diagnostic data, and it has to survive a failure of
  * anything the catalog depends on.
@@ -100,16 +109,20 @@ export default function App() {
       // window is already usable — so it only reports itself.
       if (boot.vault) {
         void useNotes.getState().refresh().catch(report);
+        const { boardVisible: boardWasVisible, activeBoard } = boot.lastOpen;
         for (const path of boot.lastOpen.openTabs ?? []) {
           await useTabs.getState().open(path, { background: true });
         }
         if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
+        // Making the tab current hid the board (stores/tabs.ts); one that was
+        // showing when the app quit comes back over it.
+        if (boardWasVisible && activeBoard) useUi.getState().setActiveBoard(activeBoard);
         // A board that is gone since last time (deleted elsewhere, or a
         // different vault) is a toast, not a red overlay over a working
         // window; `load` itself forgets the board so the next start does
         // not try again.
-        if (boot.lastOpen.activeBoard) {
-          void useBoard.getState().load(boot.lastOpen.activeBoard).catch(report);
+        if (activeBoard) {
+          void useBoard.getState().load(activeBoard).catch(report);
         }
       }
       // Anything thrown before `ready` would otherwise leave an empty window
@@ -141,6 +154,13 @@ export default function App() {
       const board = useBoard.getState().slug;
       if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
         void useBoard.getState().refresh().catch(report);
+      }
+      if (
+        [...batch.added, ...batch.modified].some((e) => touchesBoardList(e.path)) ||
+        batch.removed.some(touchesBoardList) ||
+        batch.renamed.some((r) => touchesBoardList(r.from) || touchesBoardList(r.to))
+      ) {
+        void useBoard.getState().refreshList().catch(report);
       }
     });
     return () => void unlisten.then((stop) => stop()).catch(report);
@@ -193,9 +213,12 @@ export default function App() {
   // ---- persist the disposable half of the state --------------------------
   const tabs = useTabs((s) => s.tabs);
   const activeBoard = useUi((s) => s.activeBoard);
+  const treeSort = useUi((s) => s.treeSort);
   useEffect(() => {
     if (!ready) return undefined;
     const timer = setTimeout(() => {
+      // `state.json` keeps a field only while it is sent: one left out here
+      // is reset at the next launch.
       void unwrap(
         commands.stateSave({
           openTabs: tabs,
@@ -204,13 +227,14 @@ export default function App() {
           sidebarWidth,
           boardVisible,
           activeBoard,
+          treeSort,
         }),
       ).catch(() => {
         // Losing the window layout is not worth a message; the next save wins.
       });
     }, STATE_SAVE_MS);
     return () => clearTimeout(timer);
-  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard]);
+  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard, treeSort]);
 
   const followLink = useCallback((target: string) => {
     const clean = target

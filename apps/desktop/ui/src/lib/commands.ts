@@ -1,12 +1,12 @@
 import { isEditorCommand, runEditorCommand } from "./editorBridge";
-import { commands, unwrap } from "../ipc/client";
+import { commands, NovalisError, unwrap } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
+import { fileNameOf, folderOf, joinRel } from "./paths";
 
 /**
  * One dispatcher for every command id in `docs/KEYMAP.md`, plus the menu-only
@@ -44,6 +44,40 @@ async function newFolder(folder: string): Promise<void> {
       await useVault.getState().reload(folder);
     },
   });
+}
+
+/**
+ * Hard-coded like the PLAN.md §4.2 defaults (ADR-0012): the demo vault and
+ * the mockups use this folder and `YYYY-MM-DD.md` names.
+ */
+const JOURNAL_FOLDER = "journal";
+
+/**
+ * Today as `YYYY-MM-DD` in local time, never `toISOString()`: that is UTC,
+ * and a note written at 23:30 belongs to that day.
+ */
+function localIsoDay(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+async function todayNote(): Promise<void> {
+  const stem = localIsoDay();
+  const path = joinRel(JOURNAL_FOLDER, `${stem}.md`);
+  try {
+    await unwrap(commands.createNote(JOURNAL_FOLDER, stem));
+    // `create_atomic` made the folder along with the first note, and the root
+    // listing does not know it yet.
+    const vault = useVault.getState();
+    if (!vault.children[""]?.some((e) => e.path === JOURNAL_FOLDER)) await vault.reload("");
+    await vault.reload(JOURNAL_FOLDER);
+    await useNotes.getState().refresh();
+  } catch (error) {
+    // `create_atomic` is mkdir -p plus RENAME_EXCL, so `already_exists` is
+    // exact — the note is there — and there is no pre-check to race with.
+    if (!(error instanceof NovalisError && error.code === "already_exists")) throw error;
+  }
+  await useTabs.getState().open(path);
 }
 
 async function renamePath(path: string): Promise<void> {
@@ -123,12 +157,31 @@ function targetPath(): string | null {
   return useVault.getState().selected ?? useTabs.getState().active;
 }
 
+/**
+ * Where a new note or folder goes: inside the selected folder, beside the
+ * selected file, in the vault root when nothing is selected — the same rule
+ * for both commands, as in Finder. `Cmd+N` used to create beside a selected
+ * folder while `Shift+Cmd+N` created inside it, and the latter told a `.wav`
+ * from a folder by its extension, so it tried to create under the file.
+ *
+ * A board item counts as a file, and so does an entry the tree has not
+ * loaded (the active tab of a folder nobody expanded): only a listed folder
+ * is created into.
+ */
+function targetFolder(): string {
+  const path = targetPath();
+  if (!path) return "";
+  const entry = useVault.getState().children[folderOf(path)]?.find((e) => e.path === path);
+  return entry?.dir && !entry.boardSlug ? path : folderOf(path);
+}
+
 const REGISTRY: Record<string, () => CommandResult> = {
   "file.save": () => {
     const active = useTabs.getState().active;
     if (active) return useEditorSave.getState().save(active);
   },
-  "file.newNote": () => newNote(folderOf(targetPath() ?? "")),
+  "file.newNote": () => newNote(targetFolder()),
+  "file.todayNote": () => todayNote(),
   "vault.open": () => openVault(),
   "tab.close": () => useTabs.getState().closeActive(),
   "tab.reopenClosed": () => useTabs.getState().reopenClosed(),
@@ -145,12 +198,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "view.fontLarger": () => useUi.getState().changeFontSize(1),
   "view.fontSmaller": () => useUi.getState().changeFontSize(-1),
   "view.fontReset": () => useUi.getState().changeFontSize("reset"),
-  "tree.newFolder": () => {
-    // Next to the tree selection when it is a folder, otherwise beside the
-    // selected file, otherwise in the vault root (docs/KEYMAP.md "Not listed").
-    const path = targetPath();
-    return newFolder(path && !isNote(path) ? path : folderOf(path ?? ""));
-  },
+  "tree.newFolder": () => newFolder(targetFolder()),
   "tree.rename": () => {
     const path = targetPath();
     if (path) return renamePath(path);
@@ -188,11 +236,16 @@ export function dispatchCommand(id: string): void {
   if (isEditorCommand(id)) runEditorCommand(id);
 }
 
-/** Command ids the palette offers, in the order it shows them. */
-export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
+/**
+ * Command ids the palette offers, in the order it shows them. `valueKey`
+ * fills the label's `{{value}}`: the four settings have no window and no
+ * button, so the palette is where they are set (PLAN.md §5.3, ADR-0012).
+ */
+export const PALETTE_COMMANDS: readonly { id: string; labelKey: string; valueKey?: string }[] = [
   { id: "quickOpen.open", labelKey: "menu.go.quickOpen" },
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
+  { id: "file.todayNote", labelKey: "tree.todayNote" },
   { id: "tree.newFolder", labelKey: "menu.file.newFolder" },
   { id: "board.new", labelKey: "menu.file.newBoard" },
   { id: "vault.open", labelKey: "menu.file.openVault" },
@@ -211,4 +264,11 @@ export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
   { id: "view.fontLarger", labelKey: "menu.view.fontLarger" },
   { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller" },
   { id: "view.fontReset", labelKey: "menu.view.fontReset" },
+  { id: "settings.appearance.system", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.system" },
+  { id: "settings.appearance.light", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.light" },
+  { id: "settings.appearance.dark", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.dark" },
+  { id: "settings.language.system", labelKey: "palette.cmd.language", valueKey: "settings.language.system" },
+  { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de" },
+  { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en" },
+  { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping" },
 ];

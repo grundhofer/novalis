@@ -9,6 +9,7 @@ import {
   type VaultKindDto,
 } from "../ipc/client";
 import { report } from "./ui";
+import { useVault } from "./vault";
 
 /**
  * The external-change state machine of PLAN.md §5.3, steps 1–4.
@@ -209,6 +210,10 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
 
     try {
       const precondition = await unwrap(commands.writeFile(doc.writePath, text, expected));
+      // Step 4 cuts both ways: the tree never hears of this write either, so
+      // its "Modified" column kept the time the note was opened. A conflict
+      // copy is not the tree's interest.
+      if (doc.writePath === doc.path) useVault.getState().touch(path, precondition);
       set((s) => {
         const current = s.docs[path];
         if (!current) return s;
@@ -371,6 +376,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
       }
     }
     const precondition = await unwrap(commands.writeFile(path, doc.text, null));
+    useVault.getState().touch(path, precondition);
     if (doc.writePath !== doc.path) await unwrap(commands.trash(doc.writePath));
     set((s) => {
       const current = s.docs[path];

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { useEditorSave } from "./editorSave";
-import { report } from "./ui";
+import { report, useUi } from "./ui";
 import { useVault } from "./vault";
 
 /**
@@ -62,6 +62,12 @@ export const useTabs = create<TabsState>((set, get) => ({
       const history = [...s.history.slice(0, s.historyIndex + 1), path].slice(-MAX_HISTORY);
       return { active: path, history, historyIndex: history.length - 1 };
     });
+    // The board pane covers the editor while it is visible, so a note made
+    // current from the tree, quick-open, a new note or a tab click stayed
+    // invisible behind it. Making a tab current means showing it (D21); the
+    // board toggle brings the board back. A background open — how boot
+    // restores the last session — makes nothing current and leaves it.
+    useUi.getState().hideBoard();
   },
 
   close: async (path) => {
@@ -120,6 +126,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     set({ historyIndex: historyIndex - 1 });
     await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    useUi.getState().hideBoard();
   },
 
   forward: async () => {
@@ -130,6 +137,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     set({ historyIndex: historyIndex + 1 });
     await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    useUi.getState().hideBoard();
   },
 
   rename: (from, to) =>
