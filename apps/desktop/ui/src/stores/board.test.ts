@@ -31,6 +31,7 @@ function doc(overrides: Partial<BoardDto> = {}): BoardDto {
     orphanCards: [],
     unreadable: [],
     resolvedConflicts: 0,
+    resolvedColumns: false,
     resolveError: null,
     ...overrides,
   };
@@ -51,12 +52,20 @@ describe("useBoard.load", () => {
   it("keeps the notice from the read that resolved across the reads that follow", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce(doc({ resolvedConflicts: 2 }));
     await useBoard.getState().load("plan");
-    expect(useBoard.getState().notices).toEqual({ plan: 2 });
+    expect(useBoard.getState().notices).toEqual({ plan: { cards: 2, columns: false } });
 
     vi.mocked(unwrap).mockResolvedValueOnce(doc());
     await useBoard.getState().refresh();
-    expect(useBoard.getState().notices).toEqual({ plan: 2 });
+    expect(useBoard.getState().notices).toEqual({ plan: { cards: 2, columns: false } });
     expect(useBoard.getState().board?.resolvedConflicts).toBe(0);
+  });
+
+  // `resolve_board_conflicts` existed in the core and was called by nothing;
+  // the same first read now runs it, and a merged column list is said too.
+  it("keeps a resolved board.json the same way", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ resolvedColumns: true }));
+    await useBoard.getState().load("plan");
+    expect(useBoard.getState().notices).toEqual({ plan: { cards: 0, columns: true } });
   });
 
   it("reports a failed resolution as a toast instead of swallowing it", async () => {

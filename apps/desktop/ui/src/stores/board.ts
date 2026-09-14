@@ -24,19 +24,25 @@ import { useUi } from "./ui";
  * take the document the write returns.
  */
 
+export interface BoardNotice {
+  cards: number;
+  columns: boolean;
+}
+
 interface BoardState {
   boards: BoardRefDto[];
   slug: string | null;
   board: BoardDto | null;
   busy: boolean;
   /**
-   * Per board, how many cards its first read after the vault was opened
-   * resolved (§8.4). The shell reports that on the one read that resolves and
-   * on no other, so it is kept here: the first version showed it from the
-   * board document, and the refresh that follows the shell's own renames
-   * replaced the document with one that had nothing to say.
+   * Per board, what its first read after the vault was opened resolved
+   * (§8.4): how many cards, and whether `board.json` itself. The shell
+   * reports that on the one read that resolves and on no other, so it is
+   * kept here: the first version showed it from the board document, and the
+   * refresh that follows the shell's own renames replaced the document with
+   * one that had nothing to say.
    */
-  notices: Record<string, number>;
+  notices: Record<string, BoardNotice>;
 
   setBoards: (boards: BoardRefDto[]) => void;
   load: (slug: string) => Promise<void>;
@@ -70,8 +76,11 @@ export const useBoard = create<BoardState>((set, get) => ({
       set((s) => ({
         board,
         notices:
-          board.resolvedConflicts > 0
-            ? { ...s.notices, [board.slug]: board.resolvedConflicts }
+          board.resolvedConflicts > 0 || board.resolvedColumns
+            ? {
+                ...s.notices,
+                [board.slug]: { cards: board.resolvedConflicts, columns: board.resolvedColumns },
+              }
             : s.notices,
       }));
       // Not a failed command — the board came back — but a failed tidy-up is

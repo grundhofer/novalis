@@ -527,6 +527,11 @@ pub struct BoardDto {
     /// is non-zero at most once per board and the UI keeps it until dismissed
     /// (`board.conflictNotice`); every later read carries 0.
     pub resolved_conflicts: u32,
+    /// True when that same first read found conflict copies of `board.json`
+    /// and resolved them (§8.4, "same rule"): the newer document won, the
+    /// columns of both were unioned, the older copy is under `conflicts/`.
+    /// Kept by the UI until dismissed (`board.columnsMerged`).
+    pub resolved_columns: bool,
     /// Set when that first read tried to resolve and could not. The board is
     /// still returned — a board that cannot be tidied is still a board — and
     /// the UI reports the error like any failed command.
@@ -550,6 +555,7 @@ impl BoardDto {
             orphan_cards,
             unreadable: Vec::new(),
             resolved_conflicts: 0,
+            resolved_columns: false,
             resolve_error: None,
         }
     }

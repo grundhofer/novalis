@@ -61,6 +61,10 @@ the machine appears. Until that run happens, treat it as an assumption.
   If the tidy-up fails, the board still opens and the failure is reported like
   any other error. The CLI does none of this: `board show` and `card ls` read
   the canonical card only.
+- The same first read resolves a conflict copy of `board.json` by the same
+  rule — the newer document wins, the columns of both versions are kept so no
+  card loses its column, the older copy goes under `conflicts/` — and the
+  board says so on its own line, dismissed together with the card notice.
 - A card file the app cannot use at all is reported rather than dropped in
   silence — a copy that arrived after the board's first look shows up here, and
   so does a cloud-only copy, since it cannot be read either. The CLI skips such
@@ -76,10 +80,6 @@ the machine appears. Until that run happens, treat it as an assumption.
 - It does not offer to resolve vendor conflict copies from the app yet. It only
   counts them. PLAN.md §5.3 promises a list with keep-original / keep-copy /
   keep-both; that is not built, and the count is honest about being a count.
-- It does not resolve a conflict copy of `board.json` either. PLAN.md §8.4
-  promises the same rule with the columns of both versions kept; the core has
-  it (`resolve_board_conflicts`), nothing calls it yet, and such a copy is
-  counted like any other.
 
 ## Practical advice
 

@@ -300,6 +300,13 @@
   gap: var(--ds-space-4);
 }
 
+/* Cards and columns resolved by the same read: one line each, one dismiss. */
+.board-notice-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+}
+
 .board-notice-line .btn {
   margin-left: auto;
 }
