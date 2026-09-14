@@ -58,3 +58,13 @@ export function nsToMs(mtimeNs: string): number {
   const ns = Number(mtimeNs);
   return Number.isFinite(ns) ? Math.round(ns / 1e6) : 0;
 }
+
+/**
+ * Order two `mtimeNs` strings exactly. They are non-negative decimal integers
+ * without leading zeros, so the longer one is the larger and equal lengths
+ * compare as text; `Number()` would round them (see `nsToMs`).
+ */
+export function compareNs(a: string, b: string): number {
+  if (a.length !== b.length) return a.length - b.length;
+  return a < b ? -1 : a > b ? 1 : 0;
+}

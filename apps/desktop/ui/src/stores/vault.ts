@@ -26,6 +26,12 @@ export interface VaultState {
   reveal: (path: string) => Promise<void>;
   reload: (folder: string) => Promise<void>;
   applyBatch: (batch: FsBatch) => void;
+  /**
+   * Patch one entry's size and mtime after an own write. The watcher drops
+   * events for our own writes (§5.3 step 4), so without this the "Modified"
+   * column showed the time a note was opened, not the time it was last saved.
+   */
+  touch: (path: string, stat: { mtimeNs: string; size: string }) => void;
 }
 
 /** Folders first, then name ascending — the same order the shell returns. */
@@ -104,6 +110,17 @@ export const useVault = create<VaultState>((set, get) => ({
       return { children };
     });
   },
+
+  touch: (path, stat) =>
+    set((state) => {
+      const folder = folderOf(path);
+      const list = state.children[folder];
+      const entry = list?.find((e) => e.path === path);
+      // A folder nobody has opened has nothing to patch (see `applyBatch`).
+      if (!list || !entry) return state;
+      const next = list.map((e) => (e === entry ? { ...e, mtimeNs: stat.mtimeNs, size: stat.size } : e));
+      return { children: { ...state.children, [folder]: next } };
+    }),
 }));
 
 /** One flattened, visible row of the tree. */
