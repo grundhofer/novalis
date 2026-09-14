@@ -41,6 +41,12 @@ export const commands = {
 	 *  (§5.3 step 3).
 	 */
 	writeConflictCopy: (path: string, text: string) => typedError<string, IpcError>(__TAURI_INVOKE("write_conflict_copy", { path, text })),
+	/**
+	 *  Create an empty file in the vault: a note (`.md`) or, when the typed name
+	 *  carries a §7.3 extension, that file type (ADR-0014). Both go through the
+	 *  same guards as `vault_note_rel` minus the `.md` requirement; nothing hidden
+	 *  and nothing outside the vault is ever created.
+	 */
 	createNote: (folder: string, name: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("create_note", { folder, name })),
 	createFolder: (folder: string, name: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("create_folder", { folder, name })),
 	/**
@@ -222,13 +228,17 @@ export type CardDto = {
 	notes: string[],
 	created: string,
 	updated: string,
+	/**  Markdown text under the title (ADR-0013); `None` when the card has none. */
+	description: string | null,
 };
 
 /**
  *  The one write the board pane makes. Field-level and replayable, so a
  *  conflicting board never raises a banner (PLAN.md §5.3 step 5).
  */
-export type CardOpDto = { kind: "add"; title: string; column: string | null; notes: string[]; position: PositionDto } | { kind: "retitle"; id: string; title: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string };
+export type CardOpDto = { kind: "add"; title: string; column: string | null; notes: string[]; position: PositionDto } | { kind: "retitle"; id: string; title: string } | 
+/**  The empty string clears the description. */
+{ kind: "setDescription"; id: string; description: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string };
 
 export type ColumnDto = {
 	id: string,
@@ -423,6 +433,12 @@ export type TagListDto = {
 };
 
 /**
+ *  The two file orders of the tree: by name ascending (PLAN.md §4.2), or by
+ *  modification time, newest first.
+ */
+export type TreeSortDto = "name" | "modified";
+
+/**
  *  Everything that is persisted but is not a setting (PLAN.md §4.1): it lives
  *  in `<app-data>/state.json`, is disposable, and never appears in
  *  `docs/SETTINGS.md`.
@@ -434,6 +450,11 @@ export type UiStateDto = {
 	sidebarWidth?: number,
 	boardVisible?: boolean,
 	activeBoard?: string | null,
+	/**
+	 *  How the tree orders the files of a folder (ADR-0012). Folders are
+	 *  always first and by name, whatever this says.
+	 */
+	treeSort?: TreeSortDto,
 };
 
 export type VaultDto = {

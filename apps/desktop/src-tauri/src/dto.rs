@@ -134,6 +134,9 @@ pub struct UiStateDto {
     pub sidebar_width: u32,
     pub board_visible: bool,
     pub active_board: Option<String>,
+    /// How the tree orders the files of a folder (ADR-0012). Folders are
+    /// always first and by name, whatever this says.
+    pub tree_sort: TreeSortDto,
 }
 
 impl Default for UiStateDto {
@@ -145,8 +148,19 @@ impl Default for UiStateDto {
             sidebar_width: 256,
             board_visible: false,
             active_board: None,
+            tree_sort: TreeSortDto::Name,
         }
     }
+}
+
+/// The two file orders of the tree: by name ascending (PLAN.md §4.2), or by
+/// modification time, newest first.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum TreeSortDto {
+    #[default]
+    Name,
+    Modified,
 }
 
 // ---------------------------------------------------------------- vault + tree
@@ -488,6 +502,8 @@ pub struct CardDto {
     pub notes: Vec<String>,
     pub created: String,
     pub updated: String,
+    /// Markdown text under the title (ADR-0013); `None` when the card has none.
+    pub description: Option<String>,
 }
 
 impl From<&Card> for CardDto {
@@ -500,6 +516,7 @@ impl From<&Card> for CardDto {
             notes: card.notes.clone(),
             created: card.created.clone(),
             updated: card.updated.clone(),
+            description: card.description.clone(),
         }
     }
 }
@@ -584,6 +601,11 @@ pub enum CardOpDto {
     Retitle {
         id: String,
         title: String,
+    },
+    /// The empty string clears the description.
+    SetDescription {
+        id: String,
+        description: String,
     },
     Move {
         id: String,

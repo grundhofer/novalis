@@ -30,6 +30,7 @@
   "banner.replacedBySync.title": "Your last change was replaced by sync",
   "board.addColumn": "Add Column",
   "board.boardNamePlaceholder": "Board name",
+  "board.cardDescriptionPlaceholder": "Description (Markdown)",
   "board.cardTitlePlaceholder": "Card title",
   "board.cards_one": "{{count}} card",
   "board.cards_other": "{{count}} cards",
@@ -45,6 +46,7 @@
   "board.deleteColumn": "Delete Column",
   "board.deleteColumnBody_one": "{{count}} card will show in the first column with a marker until you move it.",
   "board.deleteColumnBody_other": "{{count}} cards will show in the first column with a marker until you move them.",
+  "board.editDescription": "Edit Description",
   "board.empty": "No cards yet.",
   "board.linkNote": "Link Note…",
   "board.linkNoteNeedsNote": "Open a note first, then link it to this card.",
@@ -261,6 +263,9 @@
   "tree.newNoteHere": "New Note Here",
   "tree.openInNewTab": "Open in New Tab",
   "tree.renamePlaceholder": "New name",
+  "tree.sortByModified": "Sort by date modified, newest first",
+  "tree.sortByName": "Sort by name",
   "tree.today": "today",
+  "tree.todayNote": "Today's Note",
   "tree.yesterday": "yesterday"
 }

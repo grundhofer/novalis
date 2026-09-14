@@ -25,10 +25,11 @@ use novalis_core::util::{hostname, local_now};
 use novalis_core::vault::cloud::vault_kind;
 use novalis_core::vault::fs::{self, DirEntry, EntryKind, Precondition};
 use novalis_core::vault::path::{
-    is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of, vault_note_rel, vault_rel,
+    file_name_of, is_hidden, is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of,
+    vault_note_rel, vault_rel,
 };
 use novalis_core::vault::walk::walk_notes;
-use novalis_core::CoreError;
+use novalis_core::{CoreError, PathReason};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
@@ -376,6 +377,30 @@ pub async fn write_conflict_copy(
     .await
 }
 
+/// The extensions a typed name keeps in `create_note` (ADR-0014): the file
+/// types the editor opens, PLAN.md §7.3 tiers A–C, lower-case. A name with
+/// any other extension, or none, gets `.md`: "v1.2" becomes "v1.2.md".
+const CREATABLE_EXTENSIONS: &[&str] = &[
+    "md", "markdown", "txt", "text", "json", "map", "yaml", "yml", "toml", "xml", "svg", "html",
+    "htm", "css", "js", "mjs", "cjs", "jsx", "ts", "mts", "cts", "tsx", "py", "rs", "sh", "bash",
+    "zsh", "ini", "conf", "cfg", "properties", "env", "swift", "csv", "tsv", "log",
+];
+
+/// Whether `name` ends in one of [`CREATABLE_EXTENSIONS`], case-insensitively.
+fn keeps_extension(name: &str) -> bool {
+    match name.rfind('.') {
+        Some(i) if i > 0 => {
+            let ext = name[i + 1..].to_ascii_lowercase();
+            CREATABLE_EXTENSIONS.contains(&ext.as_str())
+        }
+        _ => false,
+    }
+}
+
+/// Create an empty file in the vault: a note (`.md`) or, when the typed name
+/// carries a §7.3 extension, that file type (ADR-0014). Both go through the
+/// same guards as `vault_note_rel` minus the `.md` requirement; nothing hidden
+/// and nothing outside the vault is ever created.
 #[tauri::command]
 #[specta::specta]
 pub async fn create_note(
@@ -386,20 +411,40 @@ pub async fn create_note(
     let root = state.require_vault()?;
     blocking(move || {
         let name = nfc(name.trim());
-        let name = if is_note_name(&name) {
+        let name = if keeps_extension(&name) {
             name
         } else {
             format!("{name}.md")
         };
         let rel = normalize_rel(&join_rel(&folder, &name))?;
-        let abs = vault_note_rel(&root, &rel)?;
+        let abs = if is_note_name(file_name_of(&rel)) {
+            vault_note_rel(&root, &rel)?
+        } else {
+            creatable_file_rel(&root, &rel)?
+        };
         create_note_file(&abs)?;
         Ok(EntryDto::from_stat(rel, &fs::stat(&abs)?, None))
     })
     .await
 }
 
-/// `RENAME_EXCL` create: an existing note is never clobbered (§2.3 rule 4).
+/// `vault_rel` plus the invariants `vault_note_rel` enforces for notes,
+/// without the `.md` one: non-empty, no hidden component.
+fn creatable_file_rel(root: &Path, rel: &str) -> IpcResult<PathBuf> {
+    let invalid = |reason| CoreError::InvalidPath {
+        path: rel.to_string(),
+        reason,
+    };
+    if rel.is_empty() {
+        return Err(invalid(PathReason::Empty).into());
+    }
+    if rel.split('/').any(is_hidden) {
+        return Err(invalid(PathReason::Hidden).into());
+    }
+    Ok(vault_rel(root, rel)?)
+}
+
+/// `RENAME_EXCL` create: an existing file is never clobbered (§2.3 rule 4).
 fn create_note_file(abs: &Path) -> IpcResult<()> {
     fs::create_atomic(abs, b"")?;
     Ok(())
@@ -781,11 +826,19 @@ pub async fn card_write(
                     column,
                     notes,
                     position: position(pos),
+                    description: None,
                 },
             )?,
             CardOpDto::Retitle { id, title } => {
                 boards::update_card(&root, &slug, &id, &CardChange::Title(title), None)?
             }
+            CardOpDto::SetDescription { id, description } => boards::update_card(
+                &root,
+                &slug,
+                &id,
+                &CardChange::Description(description),
+                None,
+            )?,
             CardOpDto::Move {
                 id,
                 column,

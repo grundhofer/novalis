@@ -519,6 +519,7 @@ mod tests {
                 column: None,
                 notes: vec!["Old.md".into(), "keep.md".into()],
                 position: Position::Last,
+                description: None,
             },
         )
         .unwrap();

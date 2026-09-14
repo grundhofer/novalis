@@ -30,6 +30,7 @@
   "banner.replacedBySync.title": "Deine letzte Änderung wurde von der Synchronisierung ersetzt",
   "board.addColumn": "Spalte hinzufügen",
   "board.boardNamePlaceholder": "Boardname",
+  "board.cardDescriptionPlaceholder": "Beschreibung (Markdown)",
   "board.cardTitlePlaceholder": "Kartentitel",
   "board.cards_one": "{{count}} Karte",
   "board.cards_other": "{{count}} Karten",
@@ -45,6 +46,7 @@
   "board.deleteColumn": "Spalte löschen",
   "board.deleteColumnBody_one": "{{count}} Karte erscheint mit Markierung in der ersten Spalte, bis du sie verschiebst.",
   "board.deleteColumnBody_other": "{{count}} Karten erscheinen mit Markierung in der ersten Spalte, bis du sie verschiebst.",
+  "board.editDescription": "Beschreibung bearbeiten",
   "board.empty": "Noch keine Karten.",
   "board.linkNote": "Notiz verknüpfen…",
   "board.linkNoteNeedsNote": "Öffne zuerst eine Notiz, um sie mit dieser Karte zu verknüpfen.",
@@ -261,6 +263,9 @@
   "tree.newNoteHere": "Neue Notiz hier",
   "tree.openInNewTab": "In neuem Tab öffnen",
   "tree.renamePlaceholder": "Neuer Name",
+  "tree.sortByModified": "Nach Änderungsdatum sortieren, neueste zuerst",
+  "tree.sortByName": "Nach Name sortieren",
   "tree.today": "heute",
+  "tree.todayNote": "Heutige Notiz",
   "tree.yesterday": "gestern"
 }

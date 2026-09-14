@@ -56,6 +56,11 @@ pub struct Card {
     pub notes: Vec<String>,
     pub created: String,
     pub updated: String,
+    /// Free text under the title, Markdown by convention (ADR-0013). Absent
+    /// from the file when empty, so a card without one is byte-identical to
+    /// what every earlier version wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deleted: Option<String>,
     #[serde(flatten)]
@@ -108,6 +113,8 @@ pub enum Position {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CardChange {
     Title(String),
+    /// The empty string clears the field (the key leaves the file).
+    Description(String),
     Notes(Vec<String>),
     AddNote(String),
     RemoveNote(String),
@@ -128,6 +135,8 @@ pub struct NewCard {
     pub column: Option<String>,
     pub notes: Vec<String>,
     pub position: Position,
+    /// `None` and `Some("")` both mean no description.
+    pub description: Option<String>,
 }
 
 /// Outcome of resolving same-card conflict copies (§8.4).
@@ -482,6 +491,7 @@ pub fn add_card(vault: &Path, slug: &str, new: NewCard) -> CoreResult<Card> {
         notes: new.notes.into_iter().map(|n| nfc(&n)).collect(),
         created: now.clone(),
         updated: now,
+        description: new.description.filter(|d| !d.is_empty()),
         deleted: None,
         extra: BTreeMap::new(),
     };
@@ -494,6 +504,9 @@ pub fn add_card(vault: &Path, slug: &str, new: NewCard) -> CoreResult<Card> {
 fn apply_change(card: &mut Card, change: &CardChange, cards: &[CardDoc]) -> CoreResult<()> {
     match change {
         CardChange::Title(t) => card.title = t.clone(),
+        CardChange::Description(d) => {
+            card.description = if d.is_empty() { None } else { Some(d.clone()) }
+        }
         CardChange::Notes(n) => card.notes = n.iter().map(|x| nfc(x)).collect(),
         CardChange::AddNote(n) => {
             let n = nfc(n);
@@ -889,6 +902,7 @@ mod tests {
                 column: column.map(str::to_string),
                 notes: vec![],
                 position,
+                description: None,
             },
         )
         .unwrap()
@@ -994,7 +1008,8 @@ mod tests {
                     title: "E".into(),
                     column: Some("nope".into()),
                     notes: vec![],
-                    position: Position::Last
+                    position: Position::Last,
+                    description: None,
                 }
             ),
             Err(CoreError::NotFound { .. })

@@ -10,6 +10,7 @@ import {
   type LanguageDto,
   type SettingsDto,
   type SettingsPatchDto,
+  type TreeSortDto,
   type UiStateDto,
 } from "../ipc/client";
 
@@ -44,6 +45,13 @@ export interface PromptRequest {
   placeholderKey?: string;
   /** Input dialogs only. */
   initial?: string;
+  /**
+   * Input dialogs only: a textarea instead of the one-line field (the card
+   * description, ADR-0013). `Cmd+Enter` submits, `Enter` is a newline, and an
+   * empty value is submitted rather than swallowed, because emptying the
+   * field is how the text is cleared.
+   */
+  multiline?: boolean;
   confirm?: {
     bodyKey: string;
     /** Interpolation values. Numbers matter: i18next selects plurals on them. */
@@ -60,6 +68,8 @@ interface UiState {
   sidebarWidth: number;
   boardVisible: boolean;
   activeBoard: string | null;
+  /** The tree's file order (ADR-0012); folders ignore it. `state.json` state. */
+  treeSort: TreeSortDto;
   overlay: Overlay;
   prompt: PromptRequest | null;
   toast: { key: string; values: Record<string, string> } | null;
@@ -71,7 +81,10 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleBoard: () => void;
+  /** Hide the board pane so the editor shows; a no-op when it is hidden. */
+  hideBoard: () => void;
   setActiveBoard: (slug: string | null) => void;
+  setTreeSort: (sort: TreeSortDto) => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
@@ -120,6 +133,7 @@ export const useUi = create<UiState>((set, get) => ({
   sidebarWidth: 256,
   boardVisible: false,
   activeBoard: null,
+  treeSort: "name",
   overlay: { kind: "none" },
   prompt: null,
   toast: null,
@@ -134,6 +148,7 @@ export const useUi = create<UiState>((set, get) => ({
       sidebarWidth: state.sidebarWidth ?? 256,
       boardVisible: state.boardVisible ?? false,
       activeBoard: state.activeBoard ?? null,
+      treeSort: state.treeSort ?? "name",
     });
   },
 
@@ -143,7 +158,9 @@ export const useUi = create<UiState>((set, get) => ({
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarWidth: (width) => set({ sidebarWidth: Math.round(width) }),
   toggleBoard: () => set((s) => ({ boardVisible: !s.boardVisible })),
+  hideBoard: () => set((s) => (s.boardVisible ? { boardVisible: false } : s)),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
+  setTreeSort: (treeSort) => set({ treeSort }),
 
   setAppearance: async (appearance) => {
     applyAppearance(appearance);

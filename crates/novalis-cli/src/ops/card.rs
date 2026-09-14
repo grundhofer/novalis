@@ -249,6 +249,7 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
         column,
         notes,
         position: position_of(&args.position),
+        description: None,
     };
 
     if ctx.dry_run {
@@ -430,6 +431,7 @@ mod tests {
             notes: vec![],
             created: "2026-09-05T08:41:12.345Z".into(),
             updated: "2026-09-05T08:41:12.345Z".into(),
+            description: None,
             deleted: None,
             extra: Default::default(),
         };
