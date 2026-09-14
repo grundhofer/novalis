@@ -11,6 +11,11 @@ import tseslint from "typescript-eslint";
 //     attributes that reach the user.
 //   react-hooks/*              — the recommended set; the stores are plain
 //     zustand hooks and a missing dependency is a stale-render bug.
+//   no-floating-promises       — every promise the UI fires without awaiting
+//     ends in `.catch(report)` (stores/ui.ts). A bare `void store.x()` used to
+//     send a failed tab close or tree click to `unhandledrejection`, which
+//     paints the fatal overlay over a working window. This is the one rule
+//     that needs type information, hence `projectService`.
 export default tseslint.config(
   { ignores: ["dist", "src/ipc/bindings.ts"] },
   js.configs.recommended,
@@ -20,6 +25,7 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: { ...globals.browser, ...globals.es2021 },
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     plugins: { i18next, "react-hooks": reactHooks },
     rules: {
@@ -49,6 +55,9 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       eqeqeq: ["error", "smart"],
       "no-console": "error",
+      // `ignoreVoid: false`: `void` is how a handled promise is discarded
+      // here, not a way to opt out of handling it.
+      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
     },
   },
   {

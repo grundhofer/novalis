@@ -8,6 +8,7 @@ import {
   type PreconditionDto,
   type VaultKindDto,
 } from "../ipc/client";
+import { report } from "./ui";
 
 /**
  * The external-change state machine of PLAN.md §5.3, steps 1–4.
@@ -191,7 +192,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
       path,
       setTimeout(() => {
         timers.delete(path);
-        void get().save(path);
+        void get().save(path).catch(report);
       }, AUTOSAVE_MS),
     );
   },

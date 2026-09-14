@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
+import { report } from "../stores/ui";
 import { useVault } from "../stores/vault";
 
 /**
@@ -26,13 +27,17 @@ export default function Banner() {
       <div className="banner banner-warning" role="alert">
         <span className="banner-title">{t("banner.replacedBySync.title")}</span>
         <div className="banner-actions">
-          <button className="btn ghost" type="button" onClick={() => void store.reloadFromDisk(active)}>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => void store.reloadFromDisk(active).catch(report)}
+          >
             {t("banner.replacedBySync.reload")}
           </button>
           <button
             className="btn primary"
             type="button"
-            onClick={() => void store.keepMine(active, vaultKind)}
+            onClick={() => void store.keepMine(active, vaultKind).catch(report)}
           >
             {t("banner.replacedBySync.restoreMine")}
           </button>
@@ -47,13 +52,17 @@ export default function Banner() {
         <span className="banner-title">{t("banner.changedOnDisk.title")}</span>
         {copy && <span className="banner-body">{t("banner.changedOnDisk.body", { path: copy })}</span>}
         <div className="banner-actions">
-          <button className="btn ghost" type="button" onClick={() => void store.reloadFromDisk(active)}>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => void store.reloadFromDisk(active).catch(report)}
+          >
             {t("banner.changedOnDisk.reload")}
           </button>
           <button
             className="btn ghost"
             type="button"
-            onClick={() => void store.keepMine(active, vaultKind)}
+            onClick={() => void store.keepMine(active, vaultKind).catch(report)}
           >
             {t("banner.changedOnDisk.keepMine")}
           </button>
@@ -61,7 +70,10 @@ export default function Banner() {
             className="btn primary"
             type="button"
             onClick={() => {
-              void store.keepBoth(active).then((path) => useTabs.getState().rename(active, path));
+              void store
+                .keepBoth(active)
+                .then((path) => useTabs.getState().rename(active, path))
+                .catch(report);
             }}
           >
             {t("banner.changedOnDisk.saveConflictCopy")}

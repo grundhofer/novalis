@@ -36,6 +36,7 @@ const board = {
   cloudOnly: [],
   unreadable: [],
   resolvedConflicts: 0,
+  resolvedColumns: false,
   resolveError: null,
 };
 
@@ -191,27 +192,43 @@ describe("BoardPane", () => {
     // document carries the count on the one read that resolved and on no
     // other, and the first version lost the notice on the very next refresh.
     it("says so when this board's first read resolved a card conflict", () => {
-      useBoard.setState({ notices: { plan: 2 } });
+      useBoard.setState({ notices: { plan: { cards: 2, columns: false } } });
       render(<BoardPane />);
       expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
     });
 
     it("keeps the notice when the document it came with is refreshed away", () => {
-      useBoard.setState({ notices: { plan: 1 }, board: { ...board, resolvedConflicts: 0 } as never });
+      useBoard.setState({ notices: { plan: { cards: 1, columns: false } }, board: { ...board, resolvedConflicts: 0 } as never });
       render(<BoardPane />);
       expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
     });
 
     it("lets the user dismiss it", () => {
-      useBoard.setState({ notices: { plan: 1 } });
+      useBoard.setState({ notices: { plan: { cards: 1, columns: false } } });
       render(<BoardPane />);
       fireEvent.click(screen.getByText("banner.dismiss"));
       expect(screen.queryByRole("status")).toBeNull();
       expect(useBoard.getState().notices).toEqual({});
     });
 
+    it("says so when this board's first read merged a conflicting board.json", () => {
+      useBoard.setState({ notices: { plan: { cards: 0, columns: true } } });
+      render(<BoardPane />);
+      const text = screen.getByRole("status").textContent;
+      expect(text).toContain("board.columnsMerged");
+      expect(text).not.toContain("board.conflictNotice");
+    });
+
+    it("says both when the same read resolved cards and columns", () => {
+      useBoard.setState({ notices: { plan: { cards: 1, columns: true } } });
+      render(<BoardPane />);
+      const text = screen.getByRole("status").textContent;
+      expect(text).toContain("board.columnsMerged");
+      expect(text).toContain("board.conflictNotice");
+    });
+
     it("shows another board's notice only on that board", () => {
-      useBoard.setState({ notices: { other: 3 } });
+      useBoard.setState({ notices: { other: { cards: 3, columns: false } } });
       render(<BoardPane />);
       expect(screen.queryByRole("status")).toBeNull();
     });

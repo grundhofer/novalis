@@ -620,9 +620,10 @@ pub async fn board_list(state: State<'_, AppState>) -> IpcResult<Vec<BoardRefDto
 
 /// A board and its cards in one read. Tombstoned cards are dropped here;
 /// cloud-only card files are reported, never read (§8.2). The first read of a
-/// board after the vault was opened also resolves its card conflicts (§8.4)
-/// and says how many in `resolved_conflicts`; only that read writes, every
-/// later one carries 0.
+/// board after the vault was opened also resolves its `board.json` and card
+/// conflicts (§8.4) and says so in `resolved_columns` and
+/// `resolved_conflicts`; only that read writes, every later one carries
+/// false and 0.
 #[tauri::command]
 #[specta::specta]
 pub async fn board_read(state: State<'_, AppState>, slug: String) -> IpcResult<BoardDto> {
@@ -642,20 +643,31 @@ pub async fn board_read(state: State<'_, AppState>, slug: String) -> IpcResult<B
         // parked and the winner not yet in place. A poisoned lock only means
         // an earlier read panicked; there is nothing half-written to protect.
         let _board = lock.lock().unwrap_or_else(|e| e.into_inner());
-        // `board.json` before anything is moved: a board that cannot be read
-        // is not tidied. A failure after the tidy-up (one card file the
-        // listing cannot read) still returns the error and loses the count —
-        // the files are under `conflicts/` regardless, and a count cannot
-        // ride on an error.
+        // `board.json` first, because its columns decide which cards are
+        // orphans below; the resolver parses the canonical file before it
+        // moves anything, so a board that cannot be read is still not tidied.
+        // It used to exist and be called by nothing, which is how a column
+        // added on the other device stayed in a `board-<host>.json` nobody
+        // read.
+        let resolved_board = first.then(|| boards::resolve_board_conflicts(&root, &slug));
+        // A failure after either tidy-up (one card file the listing cannot
+        // read) still returns the error and loses the count — the files are
+        // under `conflicts/` regardless, and a count cannot ride on an error.
         let doc = boards::read_board(&root, &slug)?;
         let resolved = first.then(|| boards::resolve_card_conflicts(&root, &slug));
         let mut board = cards_snapshot(&root, slug, &doc.board)?;
-        match resolved {
-            Some(Ok(report)) => board.resolved_conflicts = report.resolved.len() as u32,
-            // A board that cannot be tidied is still a board, so this is not
-            // fatal — but it is said, not swallowed.
+        // A board that cannot be tidied is still a board, so neither failure
+        // is fatal — but it is said, not swallowed. The first one is the one
+        // that is said.
+        match resolved_board {
+            Some(Ok(report)) => board.resolved_columns = !report.resolved.is_empty(),
             Some(Err(e)) => board.resolve_error = Some(e.into()),
             None => {}
+        }
+        match resolved {
+            Some(Ok(report)) => board.resolved_conflicts = report.resolved.len() as u32,
+            Some(Err(e)) if board.resolve_error.is_none() => board.resolve_error = Some(e.into()),
+            _ => {}
         }
         Ok(board)
     })

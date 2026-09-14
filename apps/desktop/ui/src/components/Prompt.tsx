@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { report } from "../lib/commands";
-import { useUi } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 
 /** The app's one dialog: a title, a line of text or a question, OK and Cancel. */
 export default function Prompt() {

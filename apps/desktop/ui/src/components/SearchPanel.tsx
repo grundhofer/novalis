@@ -12,7 +12,7 @@ import {
   type TagCountDto,
 } from "../ipc/client";
 import { useTabs } from "../stores/tabs";
-import { useUi } from "../stores/ui";
+import { report as reportError, useUi } from "../stores/ui";
 import "../styles/overlay.css";
 
 /**
@@ -54,7 +54,7 @@ export default function SearchPanel() {
     };
     load();
     const unlisten = events.cacheUpdated.listen(load);
-    return () => void unlisten.then((stop) => stop());
+    return () => void unlisten.then((stop) => stop()).catch(reportError);
   }, []);
 
   const run = useCallback(async () => {
@@ -97,7 +97,7 @@ export default function SearchPanel() {
   }, [query, regex, caseSensitive, tag]);
 
   useEffect(() => {
-    const timer = setTimeout(() => void run(), DEBOUNCE_MS);
+    const timer = setTimeout(() => void run().catch(reportError), DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [run]);
 
@@ -175,7 +175,7 @@ export default function SearchPanel() {
               key={`${hit.path}:${hit.line}`}
               onClick={() => {
                 close();
-                void useTabs.getState().open(hit.path);
+                void useTabs.getState().open(hit.path).catch(reportError);
               }}
             >
               <span className="result-glyph" />

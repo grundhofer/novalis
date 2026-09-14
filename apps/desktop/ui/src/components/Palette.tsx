@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { dispatchCommand, PALETTE_COMMANDS, report } from "../lib/commands";
+import { dispatchCommand, PALETTE_COMMANDS } from "../lib/commands";
 import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
 import { rank } from "../lib/fuzzy";
 import { bindingFor, glyphsOf } from "../lib/keymap";
@@ -9,7 +9,7 @@ import { folderOf, stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
-import { useUi } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 import "../styles/overlay.css";
 
 /**
@@ -96,7 +96,7 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
     close();
     switch (entry.kind) {
       case "note":
-        void useTabs.getState().open(entry.path);
+        void useTabs.getState().open(entry.path).catch(report);
         break;
       case "board":
         useUi.getState().setActiveBoard(entry.slug);

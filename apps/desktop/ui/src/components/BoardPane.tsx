@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
-import { report } from "../lib/commands";
 import { stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
-import { useUi } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 import "../styles/board.css";
 
 /**
@@ -28,7 +27,7 @@ export default function BoardPane() {
   const board = useBoard((s) => s.board);
   const boards = useBoard((s) => s.boards);
   const busy = useBoard((s) => s.busy);
-  const notices = useBoard((s) => s.notices);
+  const notice = useBoard((s) => (s.board ? s.notices[s.board.slug] : undefined));
   const activeNote = useTabs((s) => s.active);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [over, setOver] = useState<{ column: string; beforeCardId: string | null } | null>(null);
@@ -60,7 +59,7 @@ export default function BoardPane() {
   const openCardNote = (card: CardDto) => {
     const note = card.notes[0];
     if (!note) return;
-    void useTabs.getState().open(note);
+    void useTabs.getState().open(note).catch(report);
     if (useUi.getState().boardVisible) useUi.getState().toggleBoard();
   };
 
@@ -189,16 +188,21 @@ export default function BoardPane() {
         </button>
       </header>
 
-      {/* §8.4 resolved cards when this board was first read, or a card file
-          could not be used. Both were silent before: a card simply was not on
-          the board and nothing said why. The resolution is a past event, so
-          its line can be dismissed; the unreadable line describes what is
-          still on disk and stays as long as that is true. */}
-      {(notices[board.slug] !== undefined || board.unreadable.length > 0) && (
+      {/* §8.4 resolved cards or columns when this board was first read, or a
+          card file could not be used. All were silent before: a card simply
+          was not on the board and nothing said why. The resolution is a past
+          event, so its lines can be dismissed; the unreadable line describes
+          what is still on disk and stays as long as that is true. */}
+      {(notice !== undefined || board.unreadable.length > 0) && (
         <div className="board-notice" role="status">
-          {notices[board.slug] !== undefined && (
+          {notice !== undefined && (
             <span className="board-notice-line">
-              {t("board.conflictNotice", { board: board.name, count: notices[board.slug] })}
+              <span className="board-notice-text">
+                {notice.cards > 0 && (
+                  <span>{t("board.conflictNotice", { board: board.name, count: notice.cards })}</span>
+                )}
+                {notice.columns && <span>{t("board.columnsMerged", { board: board.name })}</span>}
+              </span>
               <button
                 className="btn ghost"
                 type="button"

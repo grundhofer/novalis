@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
 import { useEditorSave } from "../stores/editorSave";
+import { report } from "../stores/ui";
 import { setActiveView } from "./commands";
 import { buildExtensions } from "./setup";
 import { editorTheme, markdownHighlight } from "./theme";
@@ -48,7 +49,7 @@ export default function Editor({
       const extensions = await buildExtensions(path, {
         onChange: (text) => useEditorSave.getState().setText(path, text),
         onFollowLink,
-        onSave: () => void useEditorSave.getState().save(path),
+        onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
         readOnly: doc.readOnly,
         plainMode: doc.plainMode,
@@ -64,7 +65,7 @@ export default function Editor({
       });
       setActiveView(view);
       view.focus();
-    })();
+    })().catch(report);
 
     return () => {
       cancelled = true;

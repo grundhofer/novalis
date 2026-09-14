@@ -77,9 +77,10 @@ export const commands = {
 	/**
 	 *  A board and its cards in one read. Tombstoned cards are dropped here;
 	 *  cloud-only card files are reported, never read (§8.2). The first read of a
-	 *  board after the vault was opened also resolves its card conflicts (§8.4)
-	 *  and says how many in `resolved_conflicts`; only that read writes, every
-	 *  later one carries 0.
+	 *  board after the vault was opened also resolves its `board.json` and card
+	 *  conflicts (§8.4) and says so in `resolved_columns` and
+	 *  `resolved_conflicts`; only that read writes, every later one carries
+	 *  false and 0.
 	 */
 	boardRead: (slug: string) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_read", { slug })),
 	/**
@@ -164,6 +165,13 @@ export type BoardDto = {
 	 *  (`board.conflictNotice`); every later read carries 0.
 	 */
 	resolvedConflicts: number,
+	/**
+	 *  True when that same first read found conflict copies of `board.json`
+	 *  and resolved them (§8.4, "same rule"): the newer document won, the
+	 *  columns of both were unioned, the older copy is under `conflicts/`.
+	 *  Kept by the UI until dismissed (`board.columnsMerged`).
+	 */
+	resolvedColumns: boolean,
 	/**
 	 *  Set when that first read tried to resolve and could not. The board is
 	 *  still returned — a board that cannot be tidied is still a board — and

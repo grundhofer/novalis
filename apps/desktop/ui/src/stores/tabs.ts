@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { useEditorSave } from "./editorSave";
+import { report } from "./ui";
 import { useVault } from "./vault";
 
 /**
@@ -50,7 +51,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     await get().activate(path);
     // Opening from quick-open or a link should show where the note lives.
     useVault.getState().select(path);
-    void useVault.getState().reveal(path);
+    void useVault.getState().reveal(path).catch(report);
   },
 
   activate: async (path) => {
