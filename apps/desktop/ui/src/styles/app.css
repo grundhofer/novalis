@@ -617,6 +617,15 @@ button {
   border-color: var(--ds-color-accent-default);
 }
 
+/* The multi-line form of the one dialog (card description, ADR-0013). */
+.dialog-textarea {
+  height: auto;
+  min-height: calc(var(--ds-size-control) * 4);
+  padding: var(--ds-space-4);
+  line-height: var(--ds-line-height-ui);
+  resize: vertical;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
