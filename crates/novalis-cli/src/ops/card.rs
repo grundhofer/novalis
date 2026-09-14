@@ -200,7 +200,7 @@ fn list(ctx: &Ctx, args: CardLsArgs) -> Result<CardOut, CliError> {
     let mut cloud_only_skipped = Vec::new();
     for slug in &slugs {
         let board = read_board(ctx, slug)?;
-        let (docs, cloud_only) = boards::list_cards_lenient(&ctx.vault, slug)?;
+        let (docs, cloud_only, _unreadable) = boards::list_cards_lenient(&ctx.vault, slug)?;
         cloud_only_skipped.extend(
             cloud_only
                 .iter()

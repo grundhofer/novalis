@@ -2,12 +2,16 @@ import { create } from "zustand";
 
 import {
   commands,
+  errorKey,
+  errorValues,
+  NovalisError,
   unwrap,
   type BoardDto,
   type BoardRefDto,
   type CardOpDto,
   type ColumnDto,
 } from "../ipc/client";
+import { useUi } from "./ui";
 
 /**
  * The Kanban pane (PLAN.md §8).
@@ -25,9 +29,18 @@ interface BoardState {
   slug: string | null;
   board: BoardDto | null;
   busy: boolean;
+  /**
+   * Per board, how many cards its first read after the vault was opened
+   * resolved (§8.4). The shell reports that on the one read that resolves and
+   * on no other, so it is kept here: the first version showed it from the
+   * board document, and the refresh that follows the shell's own renames
+   * replaced the document with one that had nothing to say.
+   */
+  notices: Record<string, number>;
 
   setBoards: (boards: BoardRefDto[]) => void;
   load: (slug: string) => Promise<void>;
+  dismissNotice: (slug: string) => void;
   refresh: () => Promise<void>;
   apply: (op: CardOpDto) => Promise<void>;
   createBoard: (slug: string, name: string) => Promise<void>;
@@ -40,17 +53,53 @@ export const useBoard = create<BoardState>((set, get) => ({
   slug: null,
   board: null,
   busy: false,
+  notices: {},
 
-  setBoards: (boards) => set({ boards }),
+  // Called when a vault is opened: nothing of the previous vault's board may
+  // outlive it — not the document the pane showed, and not a notice, since
+  // the shell starts resolving afresh for the new vault. Opening a vault
+  // used to reset the list only, so the pane kept showing the old vault's
+  // board until the user picked one of the new vault's.
+  setBoards: (boards) => set({ boards, slug: null, board: null, notices: {} }),
 
   load: async (slug) => {
+    const previous = get().slug;
     set({ busy: true, slug });
     try {
-      set({ board: await unwrap(commands.boardRead(slug)) });
+      const board = await unwrap(commands.boardRead(slug));
+      set((s) => ({
+        board,
+        notices:
+          board.resolvedConflicts > 0
+            ? { ...s.notices, [board.slug]: board.resolvedConflicts }
+            : s.notices,
+      }));
+      // Not a failed command — the board came back — but a failed tidy-up is
+      // reported the same way, because silence is how it went unnoticed.
+      if (board.resolveError) {
+        const error = new NovalisError(board.resolveError);
+        useUi.getState().showToast(errorKey(error), errorValues(error));
+      }
+    } catch (error) {
+      // The board that could not be read is not the active one. Left as it
+      // was, the pane kept showing the previous board while every write went
+      // to this slug, and at boot the missing board was saved back to
+      // `state.json` and failed again at every start. The UI's `activeBoard`
+      // follows, because the callers set it before they call this.
+      set({ slug: previous });
+      useUi.getState().setActiveBoard(previous);
+      throw error;
     } finally {
       set({ busy: false });
     }
   },
+
+  dismissNotice: (slug) =>
+    set((s) => {
+      const notices = { ...s.notices };
+      delete notices[slug];
+      return { notices };
+    }),
 
   refresh: async () => {
     const slug = get().slug;

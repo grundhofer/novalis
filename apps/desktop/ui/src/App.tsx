@@ -10,7 +10,7 @@ import TitleBar from "./components/TitleBar";
 import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
-import { dispatchCommand } from "./lib/commands";
+import { dispatchCommand, report } from "./lib/commands";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
@@ -56,6 +56,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<unknown>(null);
   const lastCommand = useRef<{ id: string; at: number }>({ id: "", at: 0 });
+  const booted = useRef(false);
 
   const vault = useVault((s) => s.vault);
   const active = useTabs((s) => s.active);
@@ -75,6 +76,12 @@ export default function App() {
 
   // ---- boot: one call, then paint (PLAN.md §2.3 rules 1 and 8) ------------
   useEffect(() => {
+    // Development mounts twice (StrictMode) and there is no cancelling a
+    // `bootstrap()` already in flight: it would attach the vault and start a
+    // watcher a second time, and the two boots' answers would race in the
+    // stores. Booting once per mount is the behaviour of the built app.
+    if (booted.current) return;
+    booted.current = true;
     void (async () => {
       try {
         // i18n first and without IPC: a boot that fails must still be able to
@@ -98,7 +105,13 @@ export default function App() {
             await useTabs.getState().open(path, { background: true });
           }
           if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
-          if (boot.lastOpen.activeBoard) void useBoard.getState().load(boot.lastOpen.activeBoard);
+          // A board that is gone since last time (deleted elsewhere, or a
+          // different vault) is a toast, not a red overlay over a working
+          // window; `load` itself forgets the board so the next start does
+          // not try again.
+          if (boot.lastOpen.activeBoard) {
+            void useBoard.getState().load(boot.lastOpen.activeBoard).catch(report);
+          }
         }
       } catch (error) {
         // Anything thrown before `ready` would otherwise leave an empty window
@@ -131,7 +144,7 @@ export default function App() {
       }
       const board = useBoard.getState().slug;
       if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
-        void useBoard.getState().refresh();
+        void useBoard.getState().refresh().catch(report);
       }
     });
     return () => void unlisten.then((stop) => stop());

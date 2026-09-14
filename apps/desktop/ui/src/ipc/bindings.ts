@@ -76,7 +76,10 @@ export const commands = {
 	boardList: () => typedError<BoardRefDto[], IpcError>(__TAURI_INVOKE("board_list")),
 	/**
 	 *  A board and its cards in one read. Tombstoned cards are dropped here;
-	 *  cloud-only card files are reported, never read (§8.2).
+	 *  cloud-only card files are reported, never read (§8.2). The first read of a
+	 *  board after the vault was opened also resolves its card conflicts (§8.4)
+	 *  and says how many in `resolved_conflicts`; only that read writes, every
+	 *  later one carries 0.
 	 */
 	boardRead: (slug: string) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_read", { slug })),
 	/**
@@ -147,6 +150,26 @@ export type BoardDto = {
 	 *  the first column with a marker (`board.columnMissing`).
 	 */
 	orphanCards: string[],
+	/**
+	 *  Card files that could not be used: a name that is not a bare ULID
+	 *  (a vendor conflict copy looks like that) or a body that does not parse.
+	 *  They used to be dropped in silence, so a card vanished with no reason.
+	 */
+	unreadable: string[],
+	/**
+	 *  Cards that had conflicting siblings and were resolved by this read
+	 *  (§8.4): the newer card won and the older is under `conflicts/`. Only
+	 *  the first read of a board after the vault was opened resolves, so this
+	 *  is non-zero at most once per board and the UI keeps it until dismissed
+	 *  (`board.conflictNotice`); every later read carries 0.
+	 */
+	resolvedConflicts: number,
+	/**
+	 *  Set when that first read tried to resolve and could not. The board is
+	 *  still returned — a board that cannot be tidied is still a board — and
+	 *  the UI reports the error like any failed command.
+	 */
+	resolveError: IpcError | null,
 };
 
 export type BoardRefDto = {
@@ -226,6 +249,13 @@ export type EntryDto = {
 	cloudOnly: boolean,
 	/**  Set when this directory holds a valid `board.json` (PLAN.md §5.5). */
 	boardSlug: string | null,
+	/**
+	 *  The note this file looks like a vendor conflict copy *of*, when a
+	 *  sibling by that name exists. Decided by `novalis_core`, so the tree and
+	 *  `novalis doctor` agree — the UI used to re-implement a narrower regex
+	 *  of its own and the two counts disagreed by construction.
+	 */
+	conflictCopyOf: string | null,
 };
 
 export type FileDto = {

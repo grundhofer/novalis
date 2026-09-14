@@ -140,7 +140,10 @@ export function cloudCounts(children: Record<string, EntryDto[]>): {
   for (const list of Object.values(children)) {
     for (const entry of list) {
       if (entry.cloudOnly) cloudOnly += 1;
-      if (/\(conflict |\(conflicted copy|-[^/]*conflict/i.test(entry.name)) conflicts += 1;
+      // `conflictCopyOf` is decided by novalis_core, which owns the four
+      // naming patterns. This used to be a regex here that never matched the
+      // numbered form, so this count and `novalis doctor`'s disagreed.
+      if (entry.conflictCopyOf) conflicts += 1;
     }
   }
   return { cloudOnly, conflicts };

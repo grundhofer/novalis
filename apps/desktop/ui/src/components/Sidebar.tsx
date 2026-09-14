@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDay } from "../i18n";
+import { report } from "../lib/commands";
 import { nsToMs } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
@@ -44,7 +45,7 @@ export default function Sidebar() {
     useVault.getState().select(entry.path);
     if (entry.boardSlug) {
       useUi.getState().setActiveBoard(entry.boardSlug);
-      void useBoard.getState().load(entry.boardSlug);
+      void useBoard.getState().load(entry.boardSlug).catch(report);
       return;
     }
     if (entry.dir) {

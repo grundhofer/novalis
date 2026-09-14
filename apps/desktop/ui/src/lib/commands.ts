@@ -23,9 +23,11 @@ export type CommandResult = void | Promise<void>;
 /**
  * Errors here are reported once, as a toast keyed by the core's error code.
  *
- * Exported because the dialog needs it too: `ask` only stores the request, so
- * the promise `dispatchCommand` catches has already resolved by the time the
- * user presses OK, and an error thrown by `submit` would otherwise be lost.
+ * Exported for every caller that fires a store promise without awaiting it:
+ * the dialog, whose `submit` runs after the promise `dispatchCommand` catches
+ * has resolved, and the board loads and writes the components and the watcher
+ * start. Without it a rejection reaches `unhandledrejection` in `main.tsx`,
+ * which paints the fatal overlay over a working window.
  */
 export function report(error: unknown): void {
   useUi.getState().showToast(errorKey(error), errorValues(error));
@@ -102,6 +104,10 @@ async function openVault(): Promise<void> {
   const open = await unwrap(commands.openVault(picked));
   useVault.getState().setVault(open.vault, open.tree);
   useBoard.getState().setBoards(open.vault.boards);
+  // The board pane closes with the tabs: `activeBoard` named a board of the
+  // previous vault, and left alone it was saved to `state.json` and loaded
+  // at the next start against a vault that may not have it.
+  useUi.getState().setActiveBoard(null);
   useTabs.getState().restore([], null);
   await useNotes.getState().refresh();
 }

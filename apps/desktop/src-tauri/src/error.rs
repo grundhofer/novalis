@@ -12,7 +12,7 @@ use specta::Type;
 /// A failed command. `code` is `CoreError::code()` for core failures, or one of
 /// the shell's own codes: `bad_request` (the UI sent something impossible),
 /// `no_vault` (no vault is open) and `internal`.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct IpcError {
     /// Catalog selector, e.g. `not_found`, `conflict`, `cloud_only`.

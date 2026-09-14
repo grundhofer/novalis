@@ -34,6 +34,9 @@ const board = {
   cards: [card("c1", "Write the spec", "todo", ["Roadmap.md"]), card("c2", "Ship it", "doing")],
   orphanCards: [],
   cloudOnly: [],
+  unreadable: [],
+  resolvedConflicts: 0,
+  resolveError: null,
 };
 
 describe("BoardPane", () => {
@@ -43,6 +46,7 @@ describe("BoardPane", () => {
       boards: [{ slug: "plan", name: "Plan" }] as never,
       busy: false,
       slug: "plan",
+      notices: {},
       apply: vi.fn().mockResolvedValue(undefined),
       setColumns: vi.fn().mockResolvedValue(undefined),
       renameBoard: vi.fn().mockResolvedValue(undefined),
@@ -178,5 +182,49 @@ describe("BoardPane", () => {
 
     expect(setData).toHaveBeenCalled();
     expect(dataTransfer.effectAllowed).toBe("move");
+  });
+  // Both of these used to happen in silence: §8.4 resolution never ran because
+  // nothing called it, and a card file the reader could not use was dropped
+  // without a word, so the card was simply absent with no reason given.
+  describe("notices", () => {
+    // The notice is read from the store, not from the board document: the
+    // document carries the count on the one read that resolved and on no
+    // other, and the first version lost the notice on the very next refresh.
+    it("says so when this board's first read resolved a card conflict", () => {
+      useBoard.setState({ notices: { plan: 2 } });
+      render(<BoardPane />);
+      expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
+    });
+
+    it("keeps the notice when the document it came with is refreshed away", () => {
+      useBoard.setState({ notices: { plan: 1 }, board: { ...board, resolvedConflicts: 0 } as never });
+      render(<BoardPane />);
+      expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
+    });
+
+    it("lets the user dismiss it", () => {
+      useBoard.setState({ notices: { plan: 1 } });
+      render(<BoardPane />);
+      fireEvent.click(screen.getByText("banner.dismiss"));
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(useBoard.getState().notices).toEqual({});
+    });
+
+    it("shows another board's notice only on that board", () => {
+      useBoard.setState({ notices: { other: 3 } });
+      render(<BoardPane />);
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("says so when a card file could not be read", () => {
+      useBoard.setState({ board: { ...board, unreadable: ["01J bad.json"] } as never });
+      render(<BoardPane />);
+      expect(screen.getByRole("status").textContent).toContain("board.unreadableCards");
+    });
+
+    it("stays quiet when there is nothing to report", () => {
+      render(<BoardPane />);
+      expect(screen.queryByRole("status")).toBeNull();
+    });
   });
 });

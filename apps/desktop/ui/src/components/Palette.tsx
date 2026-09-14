@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { dispatchCommand, PALETTE_COMMANDS } from "../lib/commands";
+import { dispatchCommand, PALETTE_COMMANDS, report } from "../lib/commands";
 import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
 import { rank } from "../lib/fuzzy";
 import { bindingFor, glyphsOf } from "../lib/keymap";
@@ -100,7 +100,7 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
         break;
       case "board":
         useUi.getState().setActiveBoard(entry.slug);
-        void useBoard.getState().load(entry.slug);
+        void useBoard.getState().load(entry.slug).catch(report);
         break;
       case "command":
         dispatchCommand(entry.id);
