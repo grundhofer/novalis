@@ -153,10 +153,27 @@ fn attach_vault(app: &AppHandle, state: &AppState, root: PathBuf) -> IpcResult<(
 }
 
 fn read_ui_state(path: &Path) -> UiStateDto {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return UiStateDto::default();
+    };
+    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return UiStateDto::default();
+    };
+    // The file is parsed as a whole and a failure resets all of it — tabs,
+    // sidebar, board — so a `treeSort` this build does not know (a later
+    // build's, or a hand edit) is dropped first and reads as the default.
+    // (`serde(other)` on the enum would do the same, but specta refuses it
+    // on an externally tagged enum, and `deserialize_with` splits the DTO
+    // into two wire types.)
+    if let Some(state) = value.as_object_mut() {
+        let unknown = state
+            .get("treeSort")
+            .is_some_and(|sort| serde_json::from_value::<TreeSortDto>(sort.clone()).is_err());
+        if unknown {
+            state.remove("treeSort");
+        }
+    }
+    serde_json::from_value(value).unwrap_or_default()
 }
 
 /// Rebuild the native menu, but only when something it shows has changed.
@@ -419,14 +436,22 @@ const CREATABLE_EXTENSIONS: &[&str] = &[
     "log",
 ];
 
-/// Whether `name` ends in one of [`CREATABLE_EXTENSIONS`], case-insensitively.
-fn keeps_extension(name: &str) -> bool {
-    match name.rfind('.') {
-        Some(i) if i > 0 => {
-            let ext = name[i + 1..].to_ascii_lowercase();
-            CREATABLE_EXTENSIONS.contains(&ext.as_str())
-        }
-        _ => false,
+/// The file name a typed name becomes (ADR-0014). An extension from
+/// [`CREATABLE_EXTENSIONS`] is kept as typed, case-insensitively — except
+/// `.md`, which is written lower-case whatever was typed, because the core
+/// recognises a note by exactly `.md` (`is_note_name`) and `Todo.MD` would
+/// otherwise be a file no search, link or cache ever sees.
+fn creatable_name(name: &str) -> String {
+    let ext = match name.rfind('.') {
+        Some(i) if i > 0 => name[i + 1..].to_ascii_lowercase(),
+        _ => String::new(),
+    };
+    if ext == "md" {
+        format!("{}.md", &name[..name.len() - 3])
+    } else if CREATABLE_EXTENSIONS.contains(&ext.as_str()) {
+        name.to_string()
+    } else {
+        format!("{name}.md")
     }
 }
 
@@ -443,12 +468,7 @@ pub async fn create_note(
 ) -> IpcResult<EntryDto> {
     let root = state.require_vault()?;
     blocking(move || {
-        let name = nfc(name.trim());
-        let name = if keeps_extension(&name) {
-            name
-        } else {
-            format!("{name}.md")
-        };
+        let name = creatable_name(&nfc(name.trim()));
         let rel = normalize_rel(&join_rel(&folder, &name))?;
         let abs = if is_note_name(file_name_of(&rel)) {
             vault_note_rel(&root, &rel)?
@@ -954,4 +974,61 @@ pub async fn state_save(
         Ok(())
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{creatable_file_rel, creatable_name};
+
+    /// ADR-0014: a §7.3 extension is kept, `.md` is normalised, anything
+    /// else gets `.md` appended.
+    #[test]
+    fn typed_extensions_are_kept_and_md_is_lower_cased() {
+        for (typed, created) in [
+            ("Meine Notiz", "Meine Notiz.md"),
+            ("notes.txt", "notes.txt"),
+            ("Notes.TXT", "Notes.TXT"),
+            ("config.json", "config.json"),
+            ("Todo.MD", "Todo.md"),
+            ("Todo.Md", "Todo.md"),
+            ("v1.2", "v1.2.md"),
+            ("clip.wav", "clip.wav.md"),
+            ("archive.tar.gz", "archive.tar.gz.md"),
+            (".env", ".env.md"),
+            ("a.b/c.txt", "a.b/c.txt"),
+        ] {
+            assert_eq!(creatable_name(typed), created, "typed {typed:?}");
+        }
+    }
+
+    /// The non-note guard refuses what `vault_note_rel` refuses, minus the
+    /// `.md` rule: a hidden component and the empty path.
+    #[test]
+    fn creatable_file_rel_refuses_hidden_and_empty() {
+        let root = std::env::temp_dir();
+        for rel in [".env.txt", "sub/.hidden/notes.txt", ""] {
+            let err = creatable_file_rel(&root, rel).expect_err(rel);
+            assert_eq!(err.code, "invalid_path", "{rel:?}");
+        }
+        assert!(creatable_file_rel(&root, "sub/notes.txt").is_ok());
+    }
+
+    /// One field this build does not understand must not throw away the
+    /// tabs and the board with it.
+    #[test]
+    fn unknown_tree_sort_reads_as_the_default_and_keeps_the_rest() {
+        let dir = std::env::temp_dir().join(format!("novalis-state-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.json");
+        std::fs::write(
+            &path,
+            r#"{"openTabs":["a.md"],"activeTab":"a.md","boardVisible":true,"activeBoard":"atlas","treeSort":"size"}"#,
+        )
+        .unwrap();
+        let state = super::read_ui_state(&path);
+        assert_eq!(state.open_tabs, vec!["a.md".to_string()]);
+        assert_eq!(state.active_board.as_deref(), Some("atlas"));
+        assert_eq!(state.tree_sort, super::TreeSortDto::Name);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

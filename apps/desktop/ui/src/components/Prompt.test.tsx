@@ -121,6 +121,18 @@ describe("Prompt", () => {
       expect(useUi.getState().prompt).toBeNull();
     });
 
+    it("closes on Escape without submitting", async () => {
+      const submit = vi.fn();
+      useUi.setState({ prompt: multilineRequest(submit) });
+      render(<Prompt />);
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+      await flush();
+
+      expect(submit).not.toHaveBeenCalled();
+      expect(useUi.getState().prompt).toBeNull();
+    });
+
     it("submits an emptied field, because that is how the text is cleared", async () => {
       const submit = vi.fn().mockResolvedValue(undefined);
       useUi.setState({ prompt: multilineRequest(submit, "old text") });

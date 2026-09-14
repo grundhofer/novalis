@@ -115,6 +115,20 @@ describe("treeRows", () => {
     expect(rows.filter((row) => row.entry.boardSlug === "atlas")).toHaveLength(1);
     expect(rows.at(-1)?.entry.name).toBe("Atlas");
   });
+
+  // A sync client writes the folder in one watcher window and `board.json` in
+  // the next: the listed entry has no `boardSlug` yet while the board list
+  // already knows the board. Two rows with the same path would be two React
+  // keys.
+  it("skips a board directory the tree listed before its board.json arrived", () => {
+    const withBoards = {
+      "": [entry("boards", { dir: true })],
+      boards: [entry("boards/foo", { dir: true })],
+    };
+    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo" }]);
+    expect(paths(rows)).toEqual(["boards", "boards/foo"]);
+    expect(rows.at(-1)?.entry.boardSlug).toBe("foo");
+  });
 });
 
 describe("useVault.touch", () => {

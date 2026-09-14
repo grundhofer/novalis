@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// CI runs in UTC, where a `toISOString()` regression of the local date would
+// be invisible; east of UTC, 00:30 local is still the day before in UTC.
+vi.stubEnv("TZ", "Europe/Berlin");
+
 import { commands, NovalisError, unwrap } from "../ipc/client";
 import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";

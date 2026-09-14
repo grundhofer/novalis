@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commands, unwrap, type BoardDto } from "../ipc/client";
 import { useBoard } from "./board";
 import { useUi } from "./ui";
+import { useVault } from "./vault";
 
 // The store reaches the shell through `../ipc/client`; a store test has no
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
 // runs (ADR-0011).
 vi.mock("../ipc/client", () => ({
-  commands: { boardRead: vi.fn(), boardList: vi.fn() },
+  commands: { boardRead: vi.fn(), boardList: vi.fn(), boardCreate: vi.fn() },
   unwrap: vi.fn(),
   NovalisError: class extends Error {
     ipc: { code: string };
@@ -97,6 +98,21 @@ describe("useBoard.load", () => {
     expect(useBoard.getState().busy).toBe(false);
   });
 
+  // The editor is showing (the board was hidden by `tabs.activate`) when the
+  // watcher re-reads the board and fails: the roll-back must not bring the
+  // pane back over the note.
+  it("keeps a hidden board hidden when a re-read fails", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(doc());
+    await useBoard.getState().load("plan");
+    useUi.getState().setActiveBoard("plan");
+    useUi.getState().hideBoard();
+
+    vi.mocked(unwrap).mockRejectedValueOnce(new Error("parse"));
+    await expect(useBoard.getState().load("plan")).rejects.toThrow("parse");
+    expect(useUi.getState().activeBoard).toBe("plan");
+    expect(useUi.getState().boardVisible).toBe(false);
+  });
+
   it("forgets a board that is gone at boot, so the next start does not try again", async () => {
     useUi.getState().setActiveBoard("gone");
     vi.mocked(unwrap).mockRejectedValueOnce(new Error("not_found"));
@@ -142,5 +158,31 @@ describe("useBoard.refreshList", () => {
       { slug: "alpha", name: "Alpha" },
       { slug: "zeta", name: "Zeta" },
     ]);
+  });
+
+  // A batch from the previous vault can resolve after Open Vault… replaced
+  // the list with the new vault's.
+  it("drops an answer that arrives after another vault was opened", async () => {
+    useVault.setState({ vault: { root: "/a", name: "a", kind: "local", boards: [] } as never });
+    let answer: (boards: unknown) => void = () => {};
+    vi.mocked(unwrap).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const pending = useBoard.getState().refreshList();
+    useVault.setState({ vault: { root: "/b", name: "b", kind: "local", boards: [] } as never });
+    useBoard.getState().setBoards([{ slug: "b1", name: "B1" }]);
+    answer([{ slug: "a1", name: "A1" }]);
+    await pending;
+    expect(useBoard.getState().boards).toEqual([{ slug: "b1", name: "B1" }]);
+  });
+});
+
+describe("useBoard.createBoard", () => {
+  // `board_create` is not an own write: the watcher can list the new board
+  // through `refreshList` before the create call returns.
+  it("does not list a board twice when the watcher was first", async () => {
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan" }] });
+    vi.mocked(unwrap).mockResolvedValueOnce({ slug: "plan", name: "Plan" });
+    vi.mocked(unwrap).mockResolvedValueOnce(doc());
+    await useBoard.getState().createBoard("plan", "Plan");
+    expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan" }]);
   });
 });

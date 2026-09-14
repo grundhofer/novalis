@@ -12,6 +12,7 @@ import {
   type ColumnDto,
 } from "../ipc/client";
 import { useUi } from "./ui";
+import { useVault } from "./vault";
 
 /**
  * The Kanban pane (PLAN.md §8).
@@ -100,9 +101,12 @@ export const useBoard = create<BoardState>((set, get) => ({
       // was, the pane kept showing the previous board while every write went
       // to this slug, and at boot the missing board was saved back to
       // `state.json` and failed again at every start. The UI's `activeBoard`
-      // follows, because the callers set it before they call this.
+      // follows, because the callers set it before they call this — but only
+      // the slug: a board the watcher re-reads while the editor is showing
+      // (`hideBoard`, stores/tabs.ts) must not come back over the note.
       set({ slug: previous });
-      useUi.getState().setActiveBoard(previous);
+      if (previous === null) useUi.getState().setActiveBoard(null);
+      else useUi.setState({ activeBoard: previous });
       throw error;
     } finally {
       set({ busy: false });
@@ -122,7 +126,11 @@ export const useBoard = create<BoardState>((set, get) => ({
   },
 
   refreshList: async () => {
+    const root = useVault.getState().vault?.root;
     const boards = await unwrap(commands.boardList());
+    // A batch from the previous vault can resolve after Open Vault… replaced
+    // the list; its answer is about a vault that is no longer open.
+    if (useVault.getState().vault?.root !== root) return;
     set({ boards: [...boards].sort((a, b) => a.name.localeCompare(b.name)) });
   },
 
@@ -137,7 +145,12 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   createBoard: async (slug, name) => {
     const ref = await unwrap(commands.boardCreate(slug, name));
-    set((s) => ({ boards: [...s.boards, ref].sort((a, b) => a.name.localeCompare(b.name)) }));
+    // The watcher may have listed it already (`refreshList`); once is enough.
+    set((s) => ({
+      boards: s.boards.some((b) => b.slug === ref.slug)
+        ? s.boards
+        : [...s.boards, ref].sort((a, b) => a.name.localeCompare(b.name)),
+    }));
     await get().load(ref.slug);
   },
 

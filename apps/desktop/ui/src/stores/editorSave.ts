@@ -211,9 +211,9 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     try {
       const precondition = await unwrap(commands.writeFile(doc.writePath, text, expected));
       // Step 4 cuts both ways: the tree never hears of this write either, so
-      // its "Modified" column kept the time the note was opened. A conflict
-      // copy is not the tree's interest.
-      if (doc.writePath === doc.path) useVault.getState().touch(path, precondition);
+      // its "Modified" column kept the time the note was opened. The conflict
+      // copy is a row of its own while the autosaves go there.
+      useVault.getState().touch(doc.writePath, precondition);
       set((s) => {
         const current = s.docs[path];
         if (!current) return s;

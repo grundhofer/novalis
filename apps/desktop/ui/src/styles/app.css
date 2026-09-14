@@ -226,6 +226,8 @@ button {
   height: 10px;
 }
 
+/* `currentColor`: the glyphs follow the button's text colour, so the pressed
+   board button needs no rule of its own. */
 .glyph-folder::before {
   content: "";
   position: absolute;
@@ -233,7 +235,7 @@ button {
   top: 2px;
   width: 12px;
   height: 8px;
-  border: 1px solid var(--ds-color-fg-subtle);
+  border: 1px solid currentColor;
   border-radius: 1px;
 }
 
@@ -244,7 +246,7 @@ button {
   top: 0;
   width: 5px;
   height: 3px;
-  border: 1px solid var(--ds-color-fg-subtle);
+  border: 1px solid currentColor;
   border-bottom: none;
   border-radius: 1px 1px 0 0;
 }
@@ -253,7 +255,7 @@ button {
   content: "";
   position: absolute;
   inset: 0;
-  border: 1px solid var(--ds-color-fg-subtle);
+  border: 1px solid currentColor;
   border-radius: 2px;
 }
 
@@ -264,13 +266,8 @@ button {
   top: 1px;
   bottom: 1px;
   width: 4px;
-  border-left: 1px solid var(--ds-color-fg-subtle);
-  border-right: 1px solid var(--ds-color-fg-subtle);
-}
-
-.sidebar-tool.on .glyph-board::before,
-.sidebar-tool.on .glyph-board::after {
-  border-color: var(--ds-color-accent-text);
+  border-left: 1px solid currentColor;
+  border-right: 1px solid currentColor;
 }
 
 .legend {
@@ -284,17 +281,13 @@ button {
   color: var(--ds-color-fg-subtle);
 }
 
-/* The legend's two labels are the sort switch (ADR-0012). They inherit the
-   legend's look: a button resets `text-transform` and `letter-spacing` on
-   its own, which the global reset does not give back. */
+/* The legend's two labels are the sort switch (ADR-0012). The global button
+   reset gives back font, spacing and colour; `text-transform` it does not. */
 .legend-sort {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-2);
-  font: inherit;
-  letter-spacing: inherit;
   text-transform: inherit;
-  color: inherit;
 }
 
 .legend-sort.on {

@@ -37,12 +37,13 @@ const STATE_SAVE_MS = 400;
 const DEDUPE_MS = 60;
 
 /**
- * A board's `board.json`, or the board folder itself: what `novalis board
- * create` and a board arriving by sync touch. The list of boards is otherwise
- * read once, when the vault opens, so it never learned of them.
+ * A board's `board.json`, the board folder, or `boards/` itself: what a board
+ * arriving by sync or the CLI touches, and what trashing or renaming the
+ * folder does. The list of boards is otherwise read once, when the vault
+ * opens, so it never learned of them.
  */
 function touchesBoardList(path: string): boolean {
-  return /^boards\/[^/]+\/board\.json$/.test(path) || /^boards\/[^/]+$/.test(path);
+  return path === "boards" || /^boards\/[^/]+(\/board\.json)?$/.test(path);
 }
 
 /**

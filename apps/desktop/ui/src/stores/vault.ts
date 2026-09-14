@@ -183,9 +183,14 @@ export function treeRows(
   boards: BoardRefDto[],
 ): TreeRow[] {
   const rows: TreeRow[] = [];
+  // By flag, and by name for a directory listed before its `board.json`
+  // arrived (a sync client writes them in two batches): drawn once either way.
+  const isBoard = (entry: EntryDto) =>
+    !!entry.boardSlug ||
+    (folderOf(entry.path) === "boards" && entry.dir && boards.some((b) => b.slug === entry.name));
   const walk = (folder: string, depth: number) => {
     for (const entry of orderEntries(children[folder] ?? [], sort)) {
-      if (entry.boardSlug) continue;
+      if (isBoard(entry)) continue;
       const expanded = entry.dir && !!expandedFolders[entry.path];
       rows.push({ entry, depth, expanded });
       if (expanded) walk(entry.path, depth + 1);
