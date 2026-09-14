@@ -24,8 +24,8 @@ What it writes (manifest.json lists every special item):
   * boards/atlas/ and boards/harbor/ with board.json + cards/<ULID>.json per
     PLAN.md section 8.2: a conflict sibling that wins on `updated`, an
     identical-bytes sibling, a tombstone, a card in a missing column, a card
-    with an unknown key, a card linking a missing note, a card linking an NFD
-    note in NFC form
+    with an unknown key, a card with a description, a card linking a missing
+    note, a card linking an NFD note in NFC form
   * non-UTF-8, CRLF and empty notes, broken frontmatter, other file types,
     files the watcher must ignore
   * cloud-only stand-ins: sparse files (size > 0, no allocated blocks)
@@ -450,7 +450,8 @@ class Vault:
         orders = ["a0", "a0V", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "aA"]
         cards = [
             card(t0 + 100, "Zoom-Stufen für Offline-Bundles festlegen", "doing", orders[0], [picks[0]["path"]]),
-            card(t0 + 200, "Onboarding-Notiz schreiben", "doing", orders[1], [picks[1]["path"], picks[2]["path"]]),
+            card(t0 + 200, "Onboarding-Notiz schreiben", "doing", orders[1], [picks[1]["path"], picks[2]["path"]],
+                 {"description": "Erst das *Warum*, dann die drei Schritte.\n\n- Vault öffnen\n- Notiz anlegen\n- Karte verknüpfen"}),
             card(t0 + 300, "Spaltennamen abstimmen", "todo", orders[2], []),
             card(t0 + 400, "Release-Checkliste prüfen", "todo", orders[3], [picks[3]["path"]]),
             card(t0 + 500, "Demo-Vault aufräumen", "done", orders[4], []),

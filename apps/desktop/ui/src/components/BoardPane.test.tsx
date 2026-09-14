@@ -22,6 +22,7 @@ const card = (id: string, title: string, column: string, notes: string[] = []) =
   notes,
   created: "2026-09-08T10:00:00.000Z",
   updated: "2026-09-08T10:00:00.000Z",
+  description: null,
 });
 
 const board = {
@@ -100,6 +101,64 @@ describe("BoardPane", () => {
     });
   });
 
+  // ADR-0013: the description is plain text on the card and a textarea in the
+  // same dialog as the rename; the store never sees a value that did not change.
+  describe("description", () => {
+    const described = {
+      ...board,
+      cards: [{ ...card("c1", "Write the spec", "todo"), description: "First the *why*." }],
+    };
+
+    it("shows a card's description as plain text", () => {
+      useBoard.setState({ board: described as never });
+      render(<BoardPane />);
+      expect(screen.getByText("First the *why*.")).toBeTruthy();
+    });
+
+    it("edits it in a multi-line dialog that starts from the current text", () => {
+      useBoard.setState({ board: described as never });
+      render(<BoardPane />);
+
+      fireEvent.click(screen.getByLabelText("board.editDescription"));
+
+      const prompt = useUi.getState().prompt;
+      expect(prompt?.multiline).toBe(true);
+      expect(prompt?.initial).toBe("First the *why*.");
+    });
+
+    it("writes the new text through the dialog", async () => {
+      useBoard.setState({ board: described as never });
+      render(<BoardPane />);
+
+      fireEvent.click(screen.getByLabelText("board.editDescription"));
+      await useUi.getState().prompt!.submit("new text");
+
+      expect(useBoard.getState().apply).toHaveBeenCalledWith({
+        kind: "setDescription",
+        id: "c1",
+        description: "new text",
+      });
+    });
+
+    it("writes nothing when the text did not change", async () => {
+      useBoard.setState({ board: described as never });
+      render(<BoardPane />);
+
+      fireEvent.click(screen.getByLabelText("board.editDescription"));
+      await useUi.getState().prompt!.submit("First the *why*.");
+
+      expect(useBoard.getState().apply).not.toHaveBeenCalled();
+    });
+
+    it("starts from the empty string on a card without one", () => {
+      render(<BoardPane />);
+
+      fireEvent.click(screen.getAllByLabelText("board.editDescription")[0]!);
+
+      expect(useUi.getState().prompt?.initial).toBe("");
+    });
+  });
+
   it("links the note that is open, and offers nothing when none is", () => {
     render(<BoardPane />);
     // No active note: the control is there but refuses.
@@ -158,10 +217,10 @@ describe("BoardPane", () => {
     expect(prompt?.confirm?.values).toEqual({ count: 1 });
   });
 
-  // D21: the board fills the same pane as the editor, so opening the note
-  // without closing the board left it invisible behind the board — the exact
-  // outcome D21 chose card-click over a split view to avoid.
-  it("closes the board when a card opens its note, so the note is visible", () => {
+  // D21: the card opens its note in a tab. Hiding the board so the note is
+  // visible is `tabs.activate`'s job, the same as for every other foreground
+  // open; the click only has to open the right note.
+  it("opens the card's first note when the card is clicked", () => {
     const open = vi.fn().mockResolvedValue(undefined);
     useTabs.setState({ open } as never);
     render(<BoardPane />);
@@ -169,7 +228,6 @@ describe("BoardPane", () => {
     fireEvent.click(screen.getByText("Write the spec"));
 
     expect(open).toHaveBeenCalledWith("Roadmap.md");
-    expect(useUi.getState().boardVisible).toBe(false);
   });
 
   // WebKit abandons a drag whose data store is still empty when dragstart

@@ -76,6 +76,79 @@ describe("Prompt", () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
+  // The card description (ADR-0013): the same dialog with a textarea, where
+  // Enter is a line break, the chord submits, and an emptied field is how
+  // the text is cleared rather than a slip to swallow.
+  describe("as a textarea", () => {
+    const multilineRequest = (submit: (value: string) => void | Promise<void>, initial = "") => ({
+      titleKey: "board.editDescription",
+      placeholderKey: "board.cardDescriptionPlaceholder",
+      initial,
+      multiline: true,
+      submit,
+    });
+
+    it("renders a textarea", () => {
+      useUi.setState({ prompt: multilineRequest(vi.fn()) });
+      render(<Prompt />);
+
+      expect(screen.getByRole("textbox").tagName).toBe("TEXTAREA");
+    });
+
+    it("does not submit on Enter", async () => {
+      const submit = vi.fn();
+      useUi.setState({ prompt: multilineRequest(submit) });
+      render(<Prompt />);
+
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: "line" } });
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+      await flush();
+
+      expect(submit).not.toHaveBeenCalled();
+      expect(useUi.getState().prompt).not.toBeNull();
+    });
+
+    it("submits the value on Cmd+Enter", async () => {
+      const submit = vi.fn().mockResolvedValue(undefined);
+      useUi.setState({ prompt: multilineRequest(submit) });
+      render(<Prompt />);
+
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: "one\ntwo " } });
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter", metaKey: true });
+      await flush();
+
+      expect(submit).toHaveBeenCalledWith("one\ntwo");
+      expect(useUi.getState().prompt).toBeNull();
+    });
+
+    it("submits an emptied field, because that is how the text is cleared", async () => {
+      const submit = vi.fn().mockResolvedValue(undefined);
+      useUi.setState({ prompt: multilineRequest(submit, "old text") });
+      render(<Prompt />);
+
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+      fireEvent.click(screen.getByText("app.ok"));
+      await flush();
+
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(submit).toHaveBeenCalledWith("");
+    });
+
+    it("leaves the one-line dialog closing silently on an empty value", async () => {
+      const submit = vi.fn();
+      useUi.setState({
+        prompt: { titleKey: "t", placeholderKey: "p", initial: "", submit },
+      });
+      render(<Prompt />);
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+      await flush();
+
+      expect(submit).not.toHaveBeenCalled();
+      expect(useUi.getState().prompt).toBeNull();
+    });
+  });
+
   describe("as a confirmation", () => {
     const confirmRequest = (submit: () => void | Promise<void>) => ({
       titleKey: "app.confirmTrash.title",

@@ -1125,6 +1125,101 @@ mod tests {
         .is_not_found());
     }
 
+    // ADR-0013: the key is in the file only while there is text, so a card
+    // without a description is byte-identical to what every earlier version
+    // wrote, and an earlier version's file reads as "none".
+    #[test]
+    fn description_is_a_key_only_while_it_has_text() {
+        let t = vault();
+        let path = |id: &str| t.path().join(format!("boards/atlas/cards/{id}.json"));
+        let a = add_card(
+            t.path(),
+            "atlas",
+            NewCard {
+                title: "A".into(),
+                column: None,
+                notes: vec![],
+                position: Position::Last,
+                description: Some("body".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(a.description.as_deref(), Some("body"));
+        let raw = std::fs::read_to_string(path(&a.id)).unwrap();
+        assert!(raw.contains("\"description\": \"body\""), "{raw}");
+        assert_eq!(
+            read_card(t.path(), "atlas", &a.id)
+                .unwrap()
+                .card
+                .description
+                .as_deref(),
+            Some("body")
+        );
+        // A title change is its own field change: the description stays.
+        let titled = update_card(
+            t.path(),
+            "atlas",
+            &a.id,
+            &CardChange::Title("A2".into()),
+            None,
+        )
+        .unwrap();
+        assert_eq!(titled.description.as_deref(), Some("body"));
+        // The empty string clears it, and the key leaves the file.
+        let cleared = update_card(
+            t.path(),
+            "atlas",
+            &a.id,
+            &CardChange::Description(String::new()),
+            None,
+        )
+        .unwrap();
+        assert_eq!(cleared.description, None);
+        let bytes = std::fs::read(path(&a.id)).unwrap();
+        assert!(!String::from_utf8_lossy(&bytes).contains("description"));
+        // `Some("")` on a new card means none, the same as `None`.
+        let b = add_card(
+            t.path(),
+            "atlas",
+            NewCard {
+                title: "B".into(),
+                column: None,
+                notes: vec![],
+                position: Position::Last,
+                description: Some(String::new()),
+            },
+        )
+        .unwrap();
+        assert_eq!(b.description, None);
+        assert!(!std::fs::read_to_string(path(&b.id))
+            .unwrap()
+            .contains("description"));
+        // A file from before the field, with an unknown key of its own.
+        let raw = std::fs::read_to_string(path(&b.id)).unwrap().replace(
+            "\"column\": \"todo\",",
+            "\"color\": \"amber\",\n  \"column\": \"todo\",",
+        );
+        std::fs::write(path(&b.id), &raw).unwrap();
+        let doc = read_card(t.path(), "atlas", &b.id).unwrap();
+        assert_eq!(doc.card.description, None);
+        assert_eq!(doc.card.extra.get("color").unwrap(), "amber");
+        let described = update_card(
+            t.path(),
+            "atlas",
+            &b.id,
+            &CardChange::Description("later".into()),
+            None,
+        )
+        .unwrap();
+        assert_eq!(described.description.as_deref(), Some("later"));
+        let raw = std::fs::read_to_string(path(&b.id)).unwrap();
+        assert!(
+            raw.contains("\"color\": \"amber\""),
+            "unknown keys round-trip: {raw}"
+        );
+        assert!(raw.contains("\"description\": \"later\""), "{raw}");
+    }
+
     #[test]
     fn tombstones_are_written_and_purged_after_30_days_on_next_write() {
         let t = vault();

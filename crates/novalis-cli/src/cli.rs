@@ -464,6 +464,9 @@ pub struct CardAddArgs {
     pub board: String,
     #[arg(long, value_name = "TEXT", required = true)]
     pub title: String,
+    /// Text under the title, Markdown.
+    #[arg(long, value_name = "TEXT")]
+    pub description: Option<String>,
     /// A column id, or a column name when it is unambiguous. Defaults to the
     /// first column of the board.
     #[arg(long, value_name = "COLUMN")]
@@ -495,6 +498,9 @@ pub struct CardSetArgs {
     pub id: String,
     #[arg(long, value_name = "TEXT")]
     pub title: Option<String>,
+    /// Replace the description; an empty string clears it.
+    #[arg(long, value_name = "TEXT")]
+    pub description: Option<String>,
     /// Add a note reference. Repeatable.
     #[arg(long = "add-note", value_name = "NOTE")]
     pub add_note: Vec<String>,

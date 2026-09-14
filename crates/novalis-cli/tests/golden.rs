@@ -375,12 +375,15 @@ fn board_and_card_drive_a_real_board() {
         "Ship it",
         "--note",
         "Atlas Overview",
+        "--description",
+        "First the *why*.",
     ]);
     assert_eq!(code, 0, "{added}");
     let id = added["card"]["id"].as_str().expect("a card id").to_string();
     assert_eq!(id.len(), 26, "a ULID");
     assert_eq!(added["card"]["column"], "todo", "the first column");
     assert_eq!(added["card"]["notes"][0], "projects/Atlas Overview.md");
+    assert_eq!(added["card"]["description"], "First the *why*.");
     let updated = added["card"]["updated"]
         .as_str()
         .expect("updated")
@@ -415,9 +418,17 @@ fn board_and_card_drive_a_real_board() {
     assert_eq!(code, 0, "{moved}");
     assert_eq!(moved["card"]["column"], "doing");
 
+    // The title is its own change: the description rides along untouched.
     let (retitled, code) = run(&["card", "set", &id, "--title", "Shipped"]);
     assert_eq!(code, 0, "{retitled}");
     assert_eq!(retitled["card"]["title"], "Shipped");
+    assert_eq!(retitled["card"]["description"], "First the *why*.");
+
+    // The empty string clears it, and a cleared description is no key at all.
+    let (cleared, code) = run(&["card", "set", &id, "--description", ""]);
+    assert_eq!(code, 0, "{cleared}");
+    assert!(cleared["card"]["description"].is_null(), "{cleared}");
+    assert_eq!(cleared["card"]["title"], "Shipped");
 
     // A column that goes away leaves its card in `orphanCards`, never lost.
     let (shrunk, code) = run(&[

@@ -220,6 +220,21 @@
   overflow-wrap: break-word;
 }
 
+/* Three lines of the description on the card, the whole text in the dialog:
+   the column is 268px wide and a card is a summary, not the note. */
+.card-body {
+  margin: 0;
+  font-size: var(--ds-font-size-ui-sm);
+  line-height: var(--ds-line-height-ui);
+  color: var(--ds-color-fg-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
 .card-note {
   align-self: flex-start;
   display: inline-flex;
