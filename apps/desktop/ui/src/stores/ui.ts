@@ -52,6 +52,8 @@ export interface PromptRequest {
    * field is how the text is cleared.
    */
   multiline?: boolean;
+  /** Input dialogs only: one muted line under the field. */
+  hint?: { key: string; values?: Record<string, string | number> };
   confirm?: {
     bodyKey: string;
     /** Interpolation values. Numbers matter: i18next selects plurals on them. */

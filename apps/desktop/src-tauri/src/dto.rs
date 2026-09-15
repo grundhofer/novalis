@@ -120,6 +120,21 @@ impl SettingsPatchDto {
     }
 }
 
+// ---------------------------------------------------------------- blobs
+
+/// A file the viewer shows as it is (PDF, image — ADR-0015). Base64 because
+/// the typed IPC has no raw-bytes return; the viewer turns it into a `blob:`
+/// URL and never keeps it. Capped at [`HUGE_FILE_BYTES`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobDto {
+    pub path: String,
+    /// Bytes, base64 (standard alphabet, padded).
+    pub base64: String,
+    /// Byte count as a decimal string (see `EntryDto`).
+    pub size: String,
+}
+
 // ---------------------------------------------------------------- window state
 
 /// Everything that is persisted but is not a setting (PLAN.md §4.1): it lives

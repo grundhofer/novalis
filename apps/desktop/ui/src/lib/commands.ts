@@ -6,6 +6,7 @@ import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
+import { CREATABLE_EXTENSIONS } from "./fileTypes";
 import { fileNameOf, folderOf, joinRel } from "./paths";
 
 /**
@@ -25,6 +26,8 @@ async function newNote(folder: string): Promise<void> {
     titleKey: "menu.file.newNote",
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
+    // What a typed extension does (ADR-0014), and which ones count.
+    hint: { key: "tree.newNoteHint", values: { extensions: CREATABLE_EXTENSIONS.map((e) => `.${e}`).join(" ") } },
     submit: async (name) => {
       const entry = await unwrap(commands.createNote(folder, name));
       await useVault.getState().reload(folder);

@@ -11,6 +11,7 @@ import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand } from "./lib/commands";
+import { viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
@@ -26,6 +27,7 @@ const Editor = lazy(() => import("./editor/Editor"));
 const Palette = lazy(() => import("./components/Palette"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
+const Viewer = lazy(() => import("./components/Viewer"));
 
 /** `state.json` is written at most this often while the user moves things. */
 const STATE_SAVE_MS = 400;
@@ -71,6 +73,7 @@ export default function App() {
   const vault = useVault((s) => s.vault);
   const active = useTabs((s) => s.active);
   const doc = useEditorSave((s) => (active ? s.docs[active] : undefined));
+  const view = active ? viewKind(active) : null;
   const sidebarVisible = useUi((s) => s.sidebarVisible);
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
@@ -293,6 +296,10 @@ export default function App() {
                 {t("app.openVault.button")}
               </button>
             </div>
+          ) : active && view ? (
+            <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+              <Viewer path={active} kind={view} />
+            </Suspense>
           ) : active && doc ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Editor

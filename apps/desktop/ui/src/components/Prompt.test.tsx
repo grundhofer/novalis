@@ -63,6 +63,21 @@ describe("Prompt", () => {
     expect(useUi.getState().prompt).toBeNull();
   });
 
+  it("shows the hint under the field, with its values", () => {
+    useUi.setState({
+      prompt: {
+        titleKey: "menu.file.newNote",
+        placeholderKey: "tree.renamePlaceholder",
+        initial: "",
+        hint: { key: "tree.newNoteHint", values: { extensions: ".md .txt" } },
+        submit: vi.fn(),
+      },
+    });
+    render(<Prompt />);
+
+    expect(screen.getByText("tree.newNoteHint")).toBeTruthy();
+  });
+
   it("does not submit an empty value", async () => {
     const submit = vi.fn();
     useUi.setState({

@@ -27,7 +27,7 @@ use crate::menu::{MenuAction, MenuFlags};
 use crate::state::{load_settings, AppState};
 use crate::watcher::FsBatch;
 
-/// The IPC surface. 22 commands — PLAN.md §2.3 rule 8 caps it at 25.
+/// The IPC surface. 23 commands — PLAN.md §2.3 rule 8 caps it at 25.
 fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
         .commands(collect_commands![
@@ -37,6 +37,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::list_dir,
             commands::list_notes,
             commands::read_file,
+            commands::read_blob,
             commands::write_file,
             commands::write_conflict_copy,
             commands::create_note,

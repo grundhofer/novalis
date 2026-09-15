@@ -2223,6 +2223,7 @@ dependencies = [
 name = "novalis-desktop"
 version = "2.0.0-alpha.0"
 dependencies = [
+ "base64 0.22.1",
  "notify",
  "notify-debouncer-full",
  "novalis-core",

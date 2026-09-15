@@ -14,6 +14,9 @@ name = "novalis_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
+# ADR-0015: `read_blob` hands a PDF or image to the viewer as base64; the
+# crate is already in Cargo.lock through Tauri, so this adds no entry.
+base64 = "0.22.1"
 notify = "8.2.0"
 notify-debouncer-full = "0.7.0"
 novalis-core.workspace = true

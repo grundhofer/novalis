@@ -55,9 +55,9 @@ Research found facts that differ from the brief or the old docs. The plan uses t
 
 ### 2.2 What novalis is not (dropped from the old app, absent from the codebase, not flagged off)
 
-AI features, voice, PDF, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
+AI features, voice, PDF editing, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
 
-Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped.
+Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped. "PDF" became "PDF editing" on 2026-09-15 (ADR-0015): a PDF or image in the vault opens read-only in a viewer; annotation and export stay out.
 
 ### 2.3 Architecture rules (each backed by a measured failure of the old app)
 
@@ -411,8 +411,9 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 | A (Lezer) | `md markdown` · `txt text` (none) · `json map` · `yaml yml` · `toml` (legacy stream) · `xml svg` · `html htm` · `css` · `js mjs cjs jsx ts mts cts tsx` · `py` · `rs` | `@codemirror/language-data`, lazy |
 | B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
 | C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
+| D (view, ADR-0015) | `pdf png jpg jpeg gif webp` | none; read-only in the viewer pane through the WebView's own PDF view or an `<img>`, no annotation |
 
-Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of these types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014).
+Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 

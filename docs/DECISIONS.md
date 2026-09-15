@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0014). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0015). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -196,6 +196,29 @@ fixed on the way — board folders drawn as root-level tree rows with their
 display name as the L2/L4 frames show, opening a note hiding the board pane,
 the title-bar drag permission — are recorded in ADR-0012 as fidelity and
 defects, not decisions.
+
+## Answered 2026-09-15
+
+Testing the sidebar branch, the owner wrote:
+
+> wir sollten hier unterstützte dateitypen anzeigen
+
+> macht es sinn beim lesen der dateien pdf zu unterstützen? bitte einfach
+> möchlich machen. gerne auch epub etc. alles was sinnvoll zum lesen ist.
+
+> bitte in der seitenleiste ganz links nur unterstützte dateitypen anzeigen
+> lassen. keine wav, mp4 etc
+
+Asked which read-only types (PDF recommended; EPUB priced as a new dependency
+and its own reader):
+
+> "Bilder (png, jpg, gif, webp, svg)", PDF (Recommended)
+
+Recorded as **ADR-0015**: a read-only viewer for PDF and images (tier D in
+PLAN.md §7.3; `svg` stays editable XML), one new IPC command `read_blob` (23 of
+25) with `base64` as a direct dependency of the desktop crate (no new lockfile
+entry), the tree lists only the types of §7.3, and the New Note dialog shows
+the ADR-0014 extension rule. EPUB was not selected and is not built.
 
 ### Open
 

@@ -86,3 +86,29 @@ describe("useTabs and the board pane", () => {
     expect(useUi.getState().boardVisible).toBe(false);
   });
 });
+
+describe("useTabs and the viewer", () => {
+  beforeEach(() => {
+    useTabs.setState({ tabs: [], active: null, closed: [], history: [], historyIndex: -1 });
+    useEditorSave.setState({
+      open: vi.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
+    });
+    useVault.setState({ reveal: vi.fn().mockResolvedValue(undefined) });
+  });
+
+  // A PDF has no text buffer (ADR-0015): reading it as a note was a wasted
+  // read and a "not UTF-8" banner. The viewer reads the file itself.
+  it("opens a PDF as a tab without a text buffer", async () => {
+    await useTabs.getState().open("papers/a.pdf");
+
+    expect(useTabs.getState().tabs).toEqual(["papers/a.pdf"]);
+    expect(useTabs.getState().active).toBe("papers/a.pdf");
+    expect(useEditorSave.getState().open).not.toHaveBeenCalled();
+  });
+
+  it("still reads a note into the buffer", async () => {
+    await useTabs.getState().open("a.md");
+    expect(useEditorSave.getState().open).toHaveBeenCalledWith("a.md");
+  });
+});

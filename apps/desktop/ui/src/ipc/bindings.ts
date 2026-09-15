@@ -26,6 +26,13 @@ export const commands = {
 	listNotes: () => typedError<string[], IpcError>(__TAURI_INVOKE("list_notes")),
 	readFile: (path: string) => typedError<FileDto, IpcError>(__TAURI_INVOKE("read_file", { path })),
 	/**
+	 *  Read a file the viewer shows as it is — a PDF or an image (ADR-0015).
+	 *  Same explicit-open rule as `read_file`: a cloud-only file is downloaded
+	 *  here on purpose. Anything above [`HUGE_FILE_BYTES`] is refused rather
+	 *  than sent through the IPC as one string.
+	 */
+	readBlob: (path: string) => typedError<BlobDto, IpcError>(__TAURI_INVOKE("read_blob", { path })),
+	/**
 	 *  Save. `expected` is the precondition captured when the buffer was loaded or
 	 *  last written; a mismatch is a `conflict` and the target is left untouched,
 	 *  so the UI can write the buffer to a conflict copy (§5.3 step 3).
@@ -142,6 +149,19 @@ export type BacklinksDto = {
 	notes: BacklinkDto[],
 	/**  See [`TagListDto::indexed`]. */
 	indexed: boolean,
+};
+
+/**
+ *  A file the viewer shows as it is (PDF, image — ADR-0015). Base64 because
+ *  the typed IPC has no raw-bytes return; the viewer turns it into a `blob:`
+ *  URL and never keeps it. Capped at [`HUGE_FILE_BYTES`].
+ */
+export type BlobDto = {
+	path: string,
+	/**  Bytes, base64 (standard alphabet, padded). */
+	base64: string,
+	/**  Byte count as a decimal string (see `EntryDto`). */
+	size: string,
 };
 
 /**  A board with its cards, in one read. Tombstoned cards are not sent. */

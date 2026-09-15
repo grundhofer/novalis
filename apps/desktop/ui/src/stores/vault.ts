@@ -9,6 +9,7 @@ import {
   type TreeSortDto,
   type VaultDto,
 } from "../ipc/client";
+import { isSupported } from "../lib/fileTypes";
 import { ancestorsOf, compareNs, folderOf } from "../lib/paths";
 
 /**
@@ -142,10 +143,11 @@ export interface TreeRow {
  * One folder's entries in the order the tree draws them: folders first in
  * their stored (name) order, then the files by `sort`. Only the files follow
  * the sort (ADR-0012); a folder has no modification time worth ordering by.
+ * A file of a type the app does not open is not drawn at all (ADR-0015).
  */
 function orderEntries(entries: EntryDto[], sort: TreeSortDto): EntryDto[] {
   const folders = entries.filter((e) => e.dir);
-  const files = entries.filter((e) => !e.dir);
+  const files = entries.filter((e) => !e.dir && isSupported(e.path));
   if (sort === "modified") {
     files.sort((a, b) => compareNs(b.mtimeNs, a.mtimeNs) || a.name.localeCompare(b.name));
   }

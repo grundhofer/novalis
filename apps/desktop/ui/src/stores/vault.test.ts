@@ -105,6 +105,15 @@ describe("treeRows", () => {
 
   // The board's directory is also an entry of `boards/`; with that folder
   // expanded it used to be drawn there as well, under its directory name.
+  // A `.wav` next to the notes is not the app's business (ADR-0015): it used
+  // to be listed, and opening it read the whole file into a read-only tab.
+  it("draws only the file types the app opens", () => {
+    const mixed = {
+      "": [entry("song.wav"), entry("a.md"), entry("scan.pdf"), entry("photo.jpg"), entry("clip.mp4")],
+    };
+    expect(paths(treeRows(mixed, {}, "name", []))).toEqual(["a.md", "scan.pdf", "photo.jpg"]);
+  });
+
   it("skips a board directory met while walking, so a board is drawn once", () => {
     const withBoards = {
       "": [entry("boards", { dir: true }), entry("a.md")],

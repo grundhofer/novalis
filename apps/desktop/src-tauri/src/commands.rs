@@ -1,4 +1,4 @@
-//! The whole IPC surface: 22 commands (PLAN.md §2.3 rule 8 caps it at 25).
+//! The whole IPC surface: 23 commands (PLAN.md §2.3 rule 8 caps it at 25).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -341,6 +341,34 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> IpcResult<Fi
         // downloaded here on purpose (§4.5 "downloaded on open").
         let content = fs::read_file(&abs)?;
         Ok(FileDto::new(rel, content))
+    })
+    .await
+}
+
+/// Read a file the viewer shows as it is — a PDF or an image (ADR-0015).
+/// Same explicit-open rule as `read_file`: a cloud-only file is downloaded
+/// here on purpose. Anything above [`HUGE_FILE_BYTES`] is refused rather
+/// than sent through the IPC as one string.
+#[tauri::command]
+#[specta::specta]
+pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<BlobDto> {
+    use base64::Engine;
+    let root = state.require_vault()?;
+    blocking(move || {
+        let rel = normalize_rel(&path)?;
+        let abs = vault_rel(&root, &rel)?;
+        let size = fs::stat(&abs)?.size;
+        if size > HUGE_FILE_BYTES {
+            return Err(IpcError::bad_request(format!(
+                "{rel} is {size} bytes; the viewer stops at {HUGE_FILE_BYTES}"
+            )));
+        }
+        let (bytes, pre) = fs::read_bytes(&abs)?;
+        Ok(BlobDto {
+            path: rel,
+            base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+            size: pre.size.to_string(),
+        })
     })
     .await
 }

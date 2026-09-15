@@ -771,6 +771,14 @@ button {
   border-color: var(--ds-color-accent-default);
 }
 
+.dialog-hint {
+  margin: var(--ds-space-3) 0 0;
+  font-size: var(--ds-font-size-ui-sm);
+  line-height: var(--ds-line-height-ui);
+  color: var(--ds-color-fg-subtle);
+  overflow-wrap: anywhere;
+}
+
 /* The multi-line form of the one dialog (card description, ADR-0013). */
 .dialog-textarea {
   height: auto;

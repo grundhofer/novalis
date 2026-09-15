@@ -98,6 +98,9 @@ export default function Prompt() {
             }}
           />
         )}
+        {!confirm && request.hint && (
+          <p className="dialog-hint">{t(request.hint.key, request.hint.values ?? {})}</p>
+        )}
         <div className="dialog-actions">
           <button className="btn ghost" type="button" onClick={close}>
             {t("app.cancel")}

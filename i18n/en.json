@@ -261,6 +261,7 @@
   "tree.footConflicts_other": "{{count}} conflict copies",
   "tree.newFolderHere": "New Folder Here",
   "tree.newNoteHere": "New Note Here",
+  "tree.newNoteHint": "Without an extension the file becomes .md. Kept as typed: {{extensions}}",
   "tree.openInNewTab": "Open in New Tab",
   "tree.renamePlaceholder": "New name",
   "tree.sortByModified": "Sort by date modified, newest first",

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { viewKind } from "../lib/fileTypes";
 import { useEditorSave } from "./editorSave";
 import { report, useUi } from "./ui";
 import { useVault } from "./vault";
@@ -8,7 +9,9 @@ import { useVault } from "./vault";
  * Open tabs, the back/forward history and the reopen-closed stack.
  *
  * A tab is just a path: the buffer and its save state live in `editorSave`.
- * Closing flushes the buffer first and never blocks (D19).
+ * Closing flushes the buffer first and never blocks (D19). A viewer tab (PDF,
+ * image — ADR-0015) has no buffer: the viewer reads the file itself, and
+ * `editorSave` ignores a path it never opened.
  */
 
 const MAX_CLOSED = 20;
@@ -45,7 +48,7 @@ export const useTabs = create<TabsState>((set, get) => ({
   restore: (tabs, active) => set({ tabs, active, history: active ? [active] : [], historyIndex: active ? 0 : -1 }),
 
   open: async (path, options) => {
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
     if (options?.background) return;
     await get().activate(path);
@@ -124,7 +127,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     const path = history[historyIndex - 1];
     if (!path) return;
     set({ historyIndex: historyIndex - 1 });
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
     useUi.getState().hideBoard();
   },
@@ -135,7 +138,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     const path = history[historyIndex + 1];
     if (!path) return;
     set({ historyIndex: historyIndex + 1 });
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
     useUi.getState().hideBoard();
   },
