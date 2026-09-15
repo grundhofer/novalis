@@ -68,7 +68,7 @@ Each of these is a **feature** under the minimalism gate. If one is wanted later
 5. **Watcher batches.** FSEvents backend (never kqueue, which opens a descriptor per file and hydrates cloud-only files), 100 ms debounce, rename stitching, one batch event `{added, removed, modified, renamed}` per window; the UI patches its in-memory tree, never refetches. *(Old app: one event per file, each triggering a full tree walk plus two more IPC calls.)*
 6. **No global lock.** Filesystem operations hold no state beyond the vault path; the cache has one writer actor with its own connection. *(Old app: one `Mutex<Engine>` holding the SQLite connection across file IO; one slow OneDrive hydration froze every command.)*
 7. **Never read a cloud-only file eagerly.** Detect `SF_DATALESS` in `st_flags` (fallback: `size > 0 && blocks == 0`). Scanner, search and cache tasks run under an RAII guard that sets `setiopolicy_np(IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES, IOPOL_SCOPE_THREAD, OFF)` on entry and restores the default on drop (the policy is per OS thread and pooled threads are reused), so an accidental read fails with `EDEADLK` instead of downloading; explicit opens run under the default policy and assert it; show a cloud badge; download only on explicit user action with a visible state and timeout. Any operation that must read bodies (relink, migrate, trash) counts cloud-only files first and either materializes them as an explicit action or reports them as skipped. *(Verified on this Mac: stat does not materialize; the policy makes `read()` fail with errno 11 and the file stays dataless.)*
-8. **One IPC per user action; batched boot.** `bootstrap()`, `read_file`, `write_file`, `list_dir`, `rename`, `trash`, `search` (streaming), board operations. Surface stays under 25 commands. *(Old app: 158 commands, ≥12 boot round-trips, `getPreferences` called three times.)*
+8. **One IPC per user action; batched boot.** `bootstrap()`, `read_file`, `write_file`, `list_dir`, `rename`, `trash`, `search` (streaming), board operations. Surface stays under 30 commands (25 until 2026-09-15; raised for the preview's `render_markdown`, ADR-0020). *(Old app: 158 commands, ≥12 boot round-trips, `getPreferences` called three times.)*
 9. **Bundle discipline by CI.** A step parses `dist/index.html` and fails if any preloaded chunk exceeds its budget. *(Old app: a 3.09 MB Mermaid chunk was preloaded at boot despite a lazy `import()` in source.)*
 10. **Kanban is its own data.** The app never parses tokens out of note bodies and never rewrites a note to update a card. *(Old app: column moves rewrote `@status(...)` inside note lines.)*
 11. **Settings are a struct with `deny_unknown_fields`** and a parity test against `docs/SETTINGS.md`. Adding a key fails CI until the doc and an ADR exist. The same parity idea guards the keymap (`docs/KEYMAP.md`) and new top-level lockfile entries (PR body must cite an ADR).
@@ -230,7 +230,7 @@ novalis/
 │                                 # used by the clap layer, by `help --json`, later by `novalis mcp`
 ├─ apps/
 │  └─ desktop/
-│     ├─ src-tauri/               # thin shell: <25 commands, menu from i18n JSON, window state;
+│     ├─ src-tauri/               # thin shell: <30 commands, menu from i18n JSON, window state;
 │     │                           # bundles `novalis` at Contents/MacOS/novalis
 │     └─ ui/                      # React 19 + Vite, CodeMirror 6; imports i18n/*.json, packages/tokens
 ├─ packages/

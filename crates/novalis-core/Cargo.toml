@@ -22,6 +22,9 @@ trash = "5.2.7"
 # ULID without `std`: the random half comes from /dev/urandom via std, so no
 # `rand` stack is pulled in.
 ulid = { version = "3.0.0", default-features = false }
+# ADR-0020: the read-only preview renders notes to HTML here, not in the
+# WebView; `html` only — no CLI, no SIMD feature.
+pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 unicode-normalization = "0.1.25"
 
 [dev-dependencies]

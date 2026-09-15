@@ -480,6 +480,9 @@ pub enum SearchEventDto {
 pub struct BoardRefDto {
     pub slug: String,
     pub name: String,
+    /// The board's place among the boards (ADR-0019); `None` until dragged.
+    /// The list arrives in display order either way.
+    pub order: Option<String>,
 }
 
 impl From<&BoardRef> for BoardRefDto {
@@ -487,6 +490,7 @@ impl From<&BoardRef> for BoardRefDto {
         BoardRefDto {
             slug: r.slug.clone(),
             name: r.name.clone(),
+            order: r.order.clone(),
         }
     }
 }
@@ -637,6 +641,12 @@ pub enum CardOpDto {
     },
     Remove {
         id: String,
+    },
+    /// To another board's first column, last, same id (ADR-0019); the source
+    /// keeps a tombstone.
+    MoveToBoard {
+        id: String,
+        board: String,
     },
 }
 

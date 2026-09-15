@@ -131,7 +131,8 @@ export const useBoard = create<BoardState>((set, get) => ({
     // A batch from the previous vault can resolve after Open Vault… replaced
     // the list; its answer is about a vault that is no longer open.
     if (useVault.getState().vault?.root !== root) return;
-    set({ boards: [...boards].sort((a, b) => a.name.localeCompare(b.name)) });
+    // The shell lists boards in display order (keyed ones first, ADR-0019).
+    set({ boards });
   },
 
   apply: async (op) => {
@@ -146,10 +147,12 @@ export const useBoard = create<BoardState>((set, get) => ({
   createBoard: async (slug, name) => {
     const ref = await unwrap(commands.boardCreate(slug, name));
     // The watcher may have listed it already (`refreshList`); once is enough.
+    // A new board has no key, so it belongs after the keyed ones, by name —
+    // which is where `board_list` would put it (ADR-0019).
     set((s) => ({
       boards: s.boards.some((b) => b.slug === ref.slug)
         ? s.boards
-        : [...s.boards, ref].sort((a, b) => a.name.localeCompare(b.name)),
+        : [...s.boards.filter((b) => b.order !== null), ...[...s.boards.filter((b) => b.order === null), ref].sort((a, b) => a.name.localeCompare(b.name))],
     }));
     await get().load(ref.slug);
   },
@@ -157,13 +160,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   setColumns: async (columns) => {
     const slug = get().slug;
     if (!slug) return;
-    set({ board: await unwrap(commands.boardWrite(slug, null, columns)) });
+    set({ board: await unwrap(commands.boardWrite(slug, null, columns, null)) });
   },
 
   renameBoard: async (name) => {
     const slug = get().slug;
     if (!slug) return;
-    const board = await unwrap(commands.boardWrite(slug, name, null));
+    const board = await unwrap(commands.boardWrite(slug, name, null, null));
     set((s) => ({
       board,
       boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)),

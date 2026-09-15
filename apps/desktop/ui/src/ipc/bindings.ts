@@ -39,6 +39,12 @@ export const commands = {
 	 */
 	writeBlob: (folder: string, name: string, base64: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("write_blob", { folder, name, base64 })),
 	/**
+	 *  The read-only preview of a note (ADR-0020): the text the editor holds,
+	 *  frontmatter and all, as an HTML fragment the preview pane inserts as it
+	 *  is (raw HTML in the note comes back as text — `notes::render`).
+	 */
+	renderMarkdown: (text: string) => typedError<string, IpcError>(__TAURI_INVOKE("render_markdown", { text })),
+	/**
 	 *  Save. `expected` is the precondition captured when the buffer was loaded or
 	 *  last written; a mismatch is a `conflict` and the target is left untouched,
 	 *  so the UI can write the buffer to a conflict copy (§5.3 step 3).
@@ -113,7 +119,7 @@ export const commands = {
 	 *  (§8.5). Columns go through `set_columns`, which re-reads and replays on a
 	 *  conflict, so two devices reordering columns never lose one.
 	 */
-	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns })),
+	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
 	 *  field change, which is why a conflicting board never raises a banner
@@ -215,6 +221,11 @@ export type BoardDto = {
 export type BoardRefDto = {
 	slug: string,
 	name: string,
+	/**
+	 *  The board's place among the boards (ADR-0019); `None` until dragged.
+	 *  The list arrives in display order either way.
+	 */
+	order: string | null,
 };
 
 export type BootstrapDto = {
@@ -264,7 +275,12 @@ export type CardDto = {
  */
 export type CardOpDto = { kind: "add"; title: string; column: string | null; notes: string[]; position: PositionDto } | { kind: "retitle"; id: string; title: string } | 
 /**  The empty string clears the description. */
-{ kind: "setDescription"; id: string; description: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string };
+{ kind: "setDescription"; id: string; description: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string } | 
+/**
+ *  To another board's first column, last, same id (ADR-0019); the source
+ *  keeps a tombstone.
+ */
+{ kind: "moveToBoard"; id: string; board: string };
 
 export type ColumnDto = {
 	id: string,

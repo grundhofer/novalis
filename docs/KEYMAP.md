@@ -44,7 +44,7 @@ sidebar tree), `board` (focus in the board pane).
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | Apple standard; the macOS Full Screen item |
 | `Cmd+,` | ⌘, | `unbound` | global | No preferences window (ADR-0004) |
-| `Cmd+E` | ⌘E | `unbound` | global | Reserved for the v1.1 read-only preview (PLAN.md §4.4) |
+| `Cmd+E` | ⌘E | `note.togglePreview` | global | The read-only preview of the open note (PLAN.md §4.4, ADR-0020); the button at the tab strip's end does the same |
 | `Cmd+P` | ⌘P | `quickOpen.open` | global | §4.5: quick-open, no Print |
 | `Shift+Cmd+P` | ⇧⌘P | `palette.open` | global | Sublime |
 | `Ctrl+G` | ⌃G | `editor.gotoLine` | editor | Sublime |

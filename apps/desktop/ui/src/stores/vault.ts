@@ -199,7 +199,8 @@ export function treeRows(
     }
   };
   walk("", 0);
-  for (const board of [...boards].sort((a, b) => a.name.localeCompare(b.name))) {
+  // In the list's own order: the shell keys dragged boards first (ADR-0019).
+  for (const board of boards) {
     rows.push({ entry: boardEntry(board), depth: 0, expanded: false });
   }
   return rows;

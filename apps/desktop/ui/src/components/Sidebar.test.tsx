@@ -160,7 +160,7 @@ describe("Sidebar", () => {
 
   it("draws a board as a root row that opens it", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
-    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas" }], load });
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }], load });
     render(<Sidebar />);
 
     const row = screen.getByText("Atlas").closest("[role=treeitem]");
@@ -176,7 +176,7 @@ describe("Sidebar", () => {
   // The board directory is also an entry of the `boards` folder. Expanded,
   // that folder used to draw the board a second time, in place.
   it("draws a board once when its directory is listed under an expanded boards folder", () => {
-    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas" }] });
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
     useVault.setState({
       children: {
         "": [entry("boards", true), entry("a.md", false)],
@@ -240,7 +240,7 @@ describe("Sidebar", () => {
     });
 
     it("neither drags a board row nor takes a drop on it", () => {
-      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas" }] });
+      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
       render(<Sidebar />);
       const dataTransfer = dragStore();
 

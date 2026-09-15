@@ -42,6 +42,11 @@ pub struct Board {
     pub name: String,
     pub columns: Vec<Column>,
     pub updated: String,
+    /// Where the board sits among the vault's boards (ADR-0019): a
+    /// fractional-index key like a card's, absent until the user drags one.
+    /// Boards without one come after those with, by name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<String>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -83,6 +88,18 @@ impl Card {
 pub struct BoardRef {
     pub slug: String,
     pub name: String,
+    pub order: Option<String>,
+}
+
+/// The list's order: keyed boards first by key, then the rest by name; the
+/// slug breaks a tie, so two devices that chose the same key agree.
+fn compare_refs(a: &BoardRef, b: &BoardRef) -> std::cmp::Ordering {
+    match (&a.order, &b.order) {
+        (Some(x), Some(y)) => x.cmp(y).then_with(|| a.slug.cmp(&b.slug)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.name.cmp(&b.name).then_with(|| a.slug.cmp(&b.slug)),
+    }
 }
 
 /// `board.json` with its read-time precondition and raw bytes.
@@ -223,7 +240,8 @@ pub fn is_board_dir(dir: &Path) -> bool {
         .is_some()
 }
 
-/// Every folder under `boards/` with a valid `board.json`, sorted by slug.
+/// Every folder under `boards/` with a valid `board.json`, in the order the
+/// tree shows them (see [`compare_refs`]).
 pub fn list_boards(vault: &Path) -> CoreResult<Vec<BoardRef>> {
     let dir = vault.join(BOARDS_DIR);
     let entries = match list_dir(&dir) {
@@ -242,11 +260,52 @@ pub fn list_boards(vault: &Path) -> CoreResult<Vec<BoardRef>> {
                 out.push(BoardRef {
                     slug: e.name.clone(),
                     name: board.name,
+                    order: board.order,
                 });
             }
         }
     }
+    out.sort_by(compare_refs);
     Ok(out)
+}
+
+/// Put a board `position` among the vault's boards (ADR-0019): its key is
+/// computed between its new neighbours' keys and written to `board.json`
+/// under the read-time precondition, replayed once on a conflict. A board
+/// without a key that becomes a neighbour is given none — the key is chosen
+/// against the keyed boards only, and the unkeyed ones stay after them.
+pub fn move_board(vault: &Path, slug: &str, position: &Position) -> CoreResult<Board> {
+    let keyed: Vec<BoardRef> = list_boards(vault)?
+        .into_iter()
+        .filter(|b| b.order.is_some() && b.slug != slug)
+        .collect();
+    let bad = |e: order::OrderError| CoreError::parse(None, e.0);
+    fn key(b: &BoardRef) -> Option<&str> {
+        b.order.as_deref()
+    }
+    let order = match position {
+        Position::First => order::key_between(None, keyed.first().and_then(key)).map_err(bad)?,
+        Position::Last => order::key_between(keyed.last().and_then(key), None).map_err(bad)?,
+        Position::After(after) => {
+            let Some(i) = keyed.iter().position(|b| &b.slug == after) else {
+                return Err(CoreError::NotFound {
+                    path: board_rel(after, "board.json#order"),
+                });
+            };
+            order::key_between(key(&keyed[i]), keyed.get(i + 1).and_then(key)).map_err(bad)?
+        }
+    };
+    for attempt in 0..2 {
+        let doc = read_board(vault, slug)?;
+        let mut board = doc.board.clone();
+        board.order = Some(order.clone());
+        match write_board(vault, slug, &board, &doc.precondition) {
+            Ok(_) => return Ok(board),
+            Err(CoreError::Conflict { .. }) if attempt == 0 => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(CoreError::internal("move_board: replay exhausted"))
 }
 
 /// Read `board.json`.
@@ -274,6 +333,7 @@ pub fn create_board(
         name: name.to_string(),
         columns,
         updated: now_rfc3339_ms(),
+        order: None,
         extra: BTreeMap::new(),
     };
     std::fs::create_dir_all(dir.join("cards")).map_err(|e| CoreError::from_io(&dir, e))?;
@@ -585,6 +645,36 @@ pub fn update_card(
 /// Tombstone a card (`deleted` timestamp).
 pub fn remove_card(vault: &Path, slug: &str, id: &str) -> CoreResult<Card> {
     update_card(vault, slug, id, &CardChange::Delete, None)
+}
+
+/// Move a card to another board (ADR-0019): the same id, title, notes and
+/// description land last in the target's first column as a new file
+/// (`RENAME_EXCL`, so a copy already there is an error, not a clobber), and
+/// the source is tombstoned like a deletion — the sync-safe way to make a
+/// file vanish (ADR-0006). `created` is kept, `updated` is now.
+pub fn move_card_to_board(vault: &Path, from: &str, id: &str, to: &str) -> CoreResult<Card> {
+    if from == to {
+        return Ok(read_card(vault, from, id)?.card);
+    }
+    let doc = read_card(vault, from, id)?;
+    let target = read_board(vault, to)?.board;
+    let column = target
+        .columns
+        .first()
+        .map(|c| c.id.clone())
+        .ok_or_else(|| CoreError::NotFound {
+            path: board_rel(to, "board.json#columns"),
+        })?;
+    let cards = list_cards(vault, to)?;
+    let mut card = doc.card;
+    card.order = order_for(&cards, &column, &Position::Last, None)?;
+    card.column = column;
+    card.deleted = None;
+    card.updated = now_rfc3339_ms();
+    create_atomic(&card_path(vault, to, id)?, &to_json_bytes(&card)?)?;
+    remove_card(vault, from, id)?;
+    purge_tombstones(vault, to, &cards)?;
+    Ok(card)
 }
 
 /// Drop tombstones older than 30 days. Called on every write of a board's
@@ -940,7 +1030,8 @@ mod tests {
             list_boards(t.path()).unwrap(),
             vec![BoardRef {
                 slug: "atlas".into(),
-                name: "Atlas".into()
+                name: "Atlas".into(),
+                order: None,
             }]
         );
         assert!(matches!(
@@ -1509,5 +1600,82 @@ mod tests {
         assert!(is_ulid(&a));
         assert!(b > a);
         assert!(!is_ulid("not-a-ulid"));
+    }
+
+    /// ADR-0019: a dragged board gets a key between its neighbours; boards
+    /// without a key follow, by name, and the list order is stable.
+    #[test]
+    fn boards_order_by_key_then_name_and_move_board_keys_the_dragged_one() {
+        let t = vault();
+        let v = t.path();
+        for slug in ["harbor", "zeta", "beacon"] {
+            create_board(v, slug, slug, vec![]).unwrap();
+        }
+        let names = |v: &Path| -> Vec<String> {
+            list_boards(v)
+                .unwrap()
+                .into_iter()
+                .map(|b| b.slug)
+                .collect()
+        };
+        assert_eq!(names(v), ["atlas", "beacon", "harbor", "zeta"]);
+
+        let moved = move_board(v, "zeta", &Position::First).unwrap();
+        assert!(moved.order.is_some());
+        assert_eq!(names(v), ["zeta", "atlas", "beacon", "harbor"]);
+        let bytes = std::fs::read_to_string(v.join("boards/zeta/board.json")).unwrap();
+        assert!(bytes.contains("\"order\""));
+        assert!(!std::fs::read_to_string(v.join("boards/atlas/board.json"))
+            .unwrap()
+            .contains("\"order\""));
+
+        move_board(v, "harbor", &Position::After("zeta".into())).unwrap();
+        assert_eq!(names(v), ["zeta", "harbor", "atlas", "beacon"]);
+        move_board(v, "atlas", &Position::Last).unwrap();
+        assert_eq!(names(v), ["zeta", "harbor", "atlas", "beacon"]);
+        assert!(matches!(
+            move_board(v, "beacon", &Position::After("nope".into())),
+            Err(CoreError::NotFound { .. })
+        ));
+    }
+
+    /// ADR-0019: the card keeps its id and text, lands last in the target's
+    /// first column, and leaves a tombstone behind.
+    #[test]
+    fn move_card_to_board_keeps_the_id_and_tombstones_the_source() {
+        let t = vault();
+        let v = t.path();
+        create_board(
+            v,
+            "harbor",
+            "Harbor",
+            vec![Column {
+                id: "inbox".into(),
+                name: "Inbox".into(),
+            }],
+        )
+        .unwrap();
+        let a = add(v, "A", Some("doing"), Position::Last);
+        let moved = move_card_to_board(v, "atlas", &a.id, "harbor").unwrap();
+        assert_eq!(moved.id, a.id);
+        assert_eq!(moved.title, "A");
+        assert_eq!(moved.column, "inbox");
+        assert_eq!(moved.created, a.created);
+        assert!(moved.deleted.is_none());
+        assert!(read_card(v, "atlas", &a.id).unwrap().card.is_deleted());
+        assert_eq!(read_card(v, "harbor", &a.id).unwrap().card.column, "inbox");
+        assert!(list_cards(v, "atlas")
+            .unwrap()
+            .iter()
+            .all(|c| c.card.id != a.id || c.card.is_deleted()));
+        // A second move of the same id into a board that has it is refused.
+        assert!(matches!(
+            move_card_to_board(v, "atlas", &a.id, "harbor"),
+            Err(CoreError::AlreadyExists { .. })
+        ));
+        assert!(matches!(
+            move_card_to_board(v, "harbor", &a.id, "nope"),
+            Err(CoreError::NotFound { .. })
+        ));
     }
 }

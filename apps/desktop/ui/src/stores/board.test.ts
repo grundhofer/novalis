@@ -127,9 +127,9 @@ describe("useBoard.load", () => {
   it("drops the board, the slug and the notices when a vault is opened", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce(doc({ resolvedConflicts: 1 }));
     await useBoard.getState().load("plan");
-    useBoard.getState().setBoards([{ slug: "plan", name: "Plan" }]);
+    useBoard.getState().setBoards([{ slug: "plan", name: "Plan", order: null }]);
     const state = useBoard.getState();
-    expect(state.boards).toEqual([{ slug: "plan", name: "Plan" }]);
+    expect(state.boards).toEqual([{ slug: "plan", name: "Plan", order: null }]);
     expect(state.board).toBeNull();
     expect(state.slug).toBeNull();
     expect(state.notices).toEqual({});
@@ -138,25 +138,25 @@ describe("useBoard.load", () => {
 
 describe("useBoard.refreshList", () => {
   beforeEach(() => {
-    useBoard.setState({ boards: [{ slug: "old", name: "Old" }] });
+    useBoard.setState({ boards: [{ slug: "old", name: "Old", order: null }] });
     vi.mocked(commands.boardList).mockClear();
   });
 
   // A board created by the CLI or arriving by sync used to show in the tree
   // and the palette only after the vault was reopened: the list came with
   // `bootstrap()` and nothing re-read it. The watcher batch does now.
-  it("re-reads the list from the shell, sorted by name", async () => {
+  it("re-reads the list from the shell, in the shell's order", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce([
-      { slug: "zeta", name: "Zeta" },
-      { slug: "alpha", name: "Alpha" },
+      { slug: "zeta", name: "Zeta", order: "a0" },
+      { slug: "alpha", name: "Alpha", order: null },
     ]);
 
     await useBoard.getState().refreshList();
 
     expect(commands.boardList).toHaveBeenCalledTimes(1);
     expect(useBoard.getState().boards).toEqual([
-      { slug: "alpha", name: "Alpha" },
-      { slug: "zeta", name: "Zeta" },
+      { slug: "zeta", name: "Zeta", order: "a0" },
+      { slug: "alpha", name: "Alpha", order: null },
     ]);
   });
 
@@ -168,10 +168,10 @@ describe("useBoard.refreshList", () => {
     vi.mocked(unwrap).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
     const pending = useBoard.getState().refreshList();
     useVault.setState({ vault: { root: "/b", name: "b", kind: "local", boards: [] } as never });
-    useBoard.getState().setBoards([{ slug: "b1", name: "B1" }]);
-    answer([{ slug: "a1", name: "A1" }]);
+    useBoard.getState().setBoards([{ slug: "b1", name: "B1", order: null }]);
+    answer([{ slug: "a1", name: "A1", order: null }]);
     await pending;
-    expect(useBoard.getState().boards).toEqual([{ slug: "b1", name: "B1" }]);
+    expect(useBoard.getState().boards).toEqual([{ slug: "b1", name: "B1", order: null }]);
   });
 });
 
@@ -179,10 +179,10 @@ describe("useBoard.createBoard", () => {
   // `board_create` is not an own write: the watcher can list the new board
   // through `refreshList` before the create call returns.
   it("does not list a board twice when the watcher was first", async () => {
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan" }] });
-    vi.mocked(unwrap).mockResolvedValueOnce({ slug: "plan", name: "Plan" });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] });
+    vi.mocked(unwrap).mockResolvedValueOnce({ slug: "plan", name: "Plan", order: null });
     vi.mocked(unwrap).mockResolvedValueOnce(doc());
     await useBoard.getState().createBoard("plan", "Plan");
-    expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan" }]);
+    expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan", order: null }]);
   });
 });

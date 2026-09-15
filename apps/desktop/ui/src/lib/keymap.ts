@@ -66,6 +66,7 @@ export const KEYMAP: readonly Binding[] = [
   // Markdown and view.
   { chord: "Cmd+K", command: "markdown.link", scope: "editor:markdown" },
   { chord: "Cmd+Enter", command: "markdown.toggleCheckbox", scope: "editor:markdown" },
+  { chord: "Cmd+E", command: "note.togglePreview", scope: "global" },
   { chord: "Cmd+\\", command: "sidebar.toggle", scope: "global" },
   { chord: "Shift+Cmd+B", command: "board.toggle", scope: "global" },
   { chord: "Cmd+=", command: "view.fontLarger", scope: "global" },

@@ -73,6 +73,11 @@ interface UiState {
   activeBoard: string | null;
   /** The tree's file order (ADR-0012); folders ignore it. `state.json` state. */
   treeSort: TreeSortDto;
+  /**
+   * Notes shown as the read-only preview instead of the editor (ADR-0020),
+   * by path. Session state: a restart opens every note in the editor.
+   */
+  previewing: Record<string, true>;
   overlay: Overlay;
   prompt: PromptRequest | null;
   toast: { key: string; values: Record<string, string> } | null;
@@ -88,6 +93,7 @@ interface UiState {
   hideBoard: () => void;
   setActiveBoard: (slug: string | null) => void;
   setTreeSort: (sort: TreeSortDto) => void;
+  togglePreview: (path: string) => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
@@ -137,6 +143,7 @@ export const useUi = create<UiState>((set, get) => ({
   boardVisible: false,
   activeBoard: null,
   treeSort: "name",
+  previewing: {},
   overlay: { kind: "none" },
   prompt: null,
   toast: null,
@@ -164,6 +171,13 @@ export const useUi = create<UiState>((set, get) => ({
   hideBoard: () => set((s) => (s.boardVisible ? { boardVisible: false } : s)),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
   setTreeSort: (treeSort) => set({ treeSort }),
+  togglePreview: (path) =>
+    set((s) => {
+      const previewing = { ...s.previewing };
+      if (previewing[path]) delete previewing[path];
+      else previewing[path] = true;
+      return { previewing };
+    }),
 
   setAppearance: async (appearance) => {
     applyAppearance(appearance);

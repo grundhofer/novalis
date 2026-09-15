@@ -81,23 +81,25 @@ describe("treeRows", () => {
     expect(paths(treeRows(mixed, {}, "modified", []))).toEqual(["Notes", "z.md", "a.md"]);
   });
 
-  it("appends the boards as root rows, by name, drawn from the board list", () => {
+  // In the list's own order: the shell puts dragged (keyed) boards first
+  // and the rest by name (ADR-0019), so the tree does not sort again.
+  it("appends the boards as root rows, in the list's order", () => {
     const rows = treeRows(children, {}, "name", [
-      { slug: "zeta", name: "Zeta" },
-      { slug: "atlas", name: "Atlas" },
+      { slug: "zeta", name: "Zeta", order: "a0" },
+      { slug: "atlas", name: "Atlas", order: null },
     ]);
-    expect(paths(rows)).toEqual(["Notes", "a.md", "b.md", "c.md", "boards/atlas", "boards/zeta"]);
+    expect(paths(rows)).toEqual(["Notes", "a.md", "b.md", "c.md", "boards/zeta", "boards/atlas"]);
     expect(rows.at(-1)).toEqual({
       depth: 0,
       expanded: false,
       entry: {
-        path: "boards/zeta",
-        name: "Zeta",
+        path: "boards/atlas",
+        name: "Atlas",
         dir: true,
         size: "0",
         mtimeNs: "0",
         cloudOnly: false,
-        boardSlug: "zeta",
+        boardSlug: "atlas",
         conflictCopyOf: null,
       },
     });
@@ -119,7 +121,7 @@ describe("treeRows", () => {
       "": [entry("boards", { dir: true }), entry("a.md")],
       boards: [entry("boards/atlas", { dir: true, boardSlug: "atlas" }), entry("boards/readme.md")],
     };
-    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "atlas", name: "Atlas" }]);
+    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "atlas", name: "Atlas", order: null }]);
     expect(paths(rows)).toEqual(["boards", "boards/readme.md", "a.md", "boards/atlas"]);
     expect(rows.filter((row) => row.entry.boardSlug === "atlas")).toHaveLength(1);
     expect(rows.at(-1)?.entry.name).toBe("Atlas");
@@ -134,7 +136,7 @@ describe("treeRows", () => {
       "": [entry("boards", { dir: true })],
       boards: [entry("boards/foo", { dir: true })],
     };
-    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo" }]);
+    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo", order: null }]);
     expect(paths(rows)).toEqual(["boards", "boards/foo"]);
     expect(rows.at(-1)?.entry.boardSlug).toBe("foo");
   });

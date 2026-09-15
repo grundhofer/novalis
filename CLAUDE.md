@@ -16,7 +16,7 @@ Cargo.toml  rust-toolchain.toml  deny.toml  .cargo/audit.toml
 pnpm-workspace.yaml  package.json               # pnpm 11 workspace; scripts delegate to just
 crates/novalis-core/                            # vault fs, atomic save, watcher, cache, search, links, boards; NO UI deps, NO strings
 crates/novalis-cli/                             # `novalis` binary on core; --json; English; src/ops/*.rs one fn per command
-apps/desktop/src-tauri/                         # thin Tauri 2 shell: <25 commands, native menu from i18n JSON
+apps/desktop/src-tauri/                         # thin Tauri 2 shell: <30 commands, native menu from i18n JSON
 apps/desktop/ui/                                # React 19 + Vite + CodeMirror 6
 packages/tokens/                                # tokens.css (--ds-*) for the chosen style
 packages/agent-skill/novalis/                   # SKILL.md for agents driving the CLI

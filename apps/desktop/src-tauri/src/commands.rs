@@ -1,4 +1,4 @@
-//! The whole IPC surface: 24 commands (PLAN.md §2.3 rule 8 caps it at 25).
+//! The whole IPC surface: 25 commands (PLAN.md §2.3 rule 8 caps it at 30).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -371,6 +371,15 @@ pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<Bl
         })
     })
     .await
+}
+
+/// The read-only preview of a note (ADR-0020): the text the editor holds,
+/// frontmatter and all, as an HTML fragment the preview pane inserts as it
+/// is (raw HTML in the note comes back as text — `notes::render`).
+#[tauri::command]
+#[specta::specta]
+pub async fn render_markdown(text: String) -> IpcResult<String> {
+    blocking(move || Ok(novalis_core::notes::render::to_html(&text))).await
 }
 
 /// The image types a pasted or dropped attachment may have (ADR-0017): the
@@ -868,6 +877,7 @@ pub async fn board_create(
         Ok(BoardRefDto {
             slug,
             name: board.name,
+            order: board.order,
         })
     })
     .await
@@ -883,10 +893,16 @@ pub async fn board_write(
     slug: String,
     name: Option<String>,
     columns: Option<Vec<ColumnDto>>,
+    place: Option<PositionDto>,
 ) -> IpcResult<BoardDto> {
     let root = state.require_vault()?;
     blocking(move || {
         let slug = normalize_rel(&slug)?;
+        // Where the board sits among the boards (ADR-0019): the key is
+        // computed here from its neighbours, never sent by the UI.
+        if let Some(place) = place {
+            boards::move_board(&root, &slug, &position(place))?;
+        }
         if let Some(columns) = columns {
             let columns: Vec<Column> = columns
                 .into_iter()
@@ -993,6 +1009,9 @@ pub async fn card_write(
                 None,
             )?,
             CardOpDto::Remove { id } => boards::remove_card(&root, &slug, &id)?,
+            CardOpDto::MoveToBoard { id, board } => {
+                boards::move_card_to_board(&root, &slug, &id, &normalize_rel(&board)?)?
+            }
         };
         Ok(CardDto::from(&card))
     })
