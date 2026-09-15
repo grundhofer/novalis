@@ -1,4 +1,4 @@
-/* The viewer pane (ADR-0015). Loaded with the component, never eagerly. */
+/* The viewer pane (ADR-0015, ADR-0016). Loaded with the component, never eagerly. */
 .viewer {
   display: flex;
   flex: 1;
@@ -8,16 +8,153 @@
   background: var(--ds-color-bg-canvas);
 }
 
-.viewer-frame {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: var(--ds-color-bg-surface);
-}
-
 .viewer-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* ------------------------------------------------------------------- pdf */
+.pdf {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.pdf-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+  height: var(--ds-size-tabstrip);
+  padding: 0 var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-muted);
+}
+
+.btn.ghost.pdf-tool {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 var(--ds-space-2);
+  justify-content: center;
+  border-radius: var(--ds-radius-chip);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-subtle);
+}
+
+.btn.ghost.pdf-tool.wide {
+  padding: 0 var(--ds-space-3);
+}
+
+.btn.ghost.pdf-tool:disabled {
+  opacity: 0.35;
+}
+
+.btn.ghost.pdf-tool.on {
+  border-color: var(--ds-color-accent-line);
+  background: var(--ds-color-accent-fill);
+  color: var(--ds-color-accent-text);
+}
+
+.pdf-page {
+  width: 3.5em;
+  height: 22px;
+  padding: 0 var(--ds-space-2);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-surface);
+  color: var(--ds-color-fg-default);
+  font: inherit;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.pdf-page::-webkit-inner-spin-button,
+.pdf-page::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.pdf-page:focus {
+  border-color: var(--ds-color-accent-default);
+}
+
+.pdf-spacer {
+  flex: 1;
+}
+
+.pdf-zoom {
+  min-width: 4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--ds-space-6);
+}
+
+/* The page: canvas below, text above. pdf.js sizes the text layer from
+   --total-scale-factor and rounds to --scale-round-x/-y. */
+.pdf-sheet {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  position: relative;
+  margin: 0 auto;
+  width: fit-content;
+  border: 1px solid var(--ds-color-border-strong);
+}
+
+.pdf-canvas {
+  display: block;
+  background: var(--ds-color-bg-surface);
+}
+
+/* pdf.js text layer (its own class name, which the library sets up) —
+   the rules its viewer stylesheet has, reduced to selection. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer ::selection {
+  background: var(--ds-color-accent-fill);
 }

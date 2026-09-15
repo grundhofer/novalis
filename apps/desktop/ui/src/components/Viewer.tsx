@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
@@ -9,49 +9,54 @@ import "../styles/viewer.css";
 
 /**
  * The read-only pane for a PDF or an image (ADR-0015). The file comes through
- * `read_blob` as base64 and is shown from a `blob:` URL the WebView renders
- * itself — WebKit's own PDF view, an `<img>` — so nothing is parsed here and
- * nothing is bundled for it. The URL lives exactly as long as the tab shows
- * the file.
+ * `read_blob` as base64. An image is shown from a `blob:` URL that lives as
+ * long as the tab shows the file; a PDF goes to pdf.js (ADR-0016), which is
+ * its own chunk and only ever loads when a PDF is opened.
  */
 
-function toBlobUrl(base64: string, mime: string): string {
+const PdfViewer = lazy(() => import("./PdfViewer"));
+
+function decode(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  return bytes;
 }
+
+type Loaded = { path: string; bytes: Uint8Array<ArrayBuffer>; url: string | null };
 
 export default function Viewer({ path, kind }: { path: string; kind: ViewKind }) {
   const { t } = useTranslation();
   // Keyed by path, so switching tabs shows "loading" rather than the previous
   // file until the new one arrives.
-  const [loaded, setLoaded] = useState<{ path: string; url: string } | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
 
   useEffect(() => {
-    let current: string | null = null;
+    let url: string | null = null;
     let cancelled = false;
     unwrap(commands.readBlob(path))
       .then((blob) => {
         if (cancelled) return;
-        current = toBlobUrl(blob.base64, mimeOf(path));
-        setLoaded({ path, url: current });
+        const bytes = decode(blob.base64);
+        if (kind === "image") url = URL.createObjectURL(new Blob([bytes], { type: mimeOf(path) }));
+        setLoaded({ path, bytes, url });
       })
       .catch(report);
     return () => {
       cancelled = true;
-      if (current) URL.revokeObjectURL(current);
+      if (url) URL.revokeObjectURL(url);
     };
-  }, [path]);
+  }, [path, kind]);
 
-  const url = loaded?.path === path ? loaded.url : null;
-  if (!url) return <div className="pane-loading">{t("editor.loading")}</div>;
+  if (loaded?.path !== path) return <div className="pane-loading">{t("editor.loading")}</div>;
   return (
     <section className="viewer">
       {kind === "pdf" ? (
-        <iframe className="viewer-frame" src={url} title={stemOf(path)} />
+        <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+          <PdfViewer bytes={loaded.bytes} />
+        </Suspense>
       ) : (
-        <img className="viewer-image" src={url} alt={stemOf(path)} />
+        <img className="viewer-image" src={loaded.url ?? undefined} alt={stemOf(path)} />
       )}
     </section>
   );

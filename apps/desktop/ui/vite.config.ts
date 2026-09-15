@@ -14,8 +14,22 @@ import { defineConfig } from "vitest/config";
 // and never counts as eager. What is left (React, i18next, the shell) fits in
 // one chunk, so there is no `manualChunks` here: splitting it further would
 // only add requests.
+// The catalogs live outside this package (`i18n/` at the repo root), and Vite
+// only watches its own root: an edit to `en.json` while `just dev` runs was
+// served from the module cache until the next restart, so a new key showed
+// up as its own name in the running app. Watching the folder makes the edit a
+// reload like any other.
+const watchCatalogs = {
+  name: "novalis:watch-i18n",
+  configureServer(server: { watcher: { add(path: string): void } }) {
+    // No node types in this tsconfig (browser lib only), so the folder is
+    // resolved from the module URL rather than `node:path`.
+    server.watcher.add(decodeURIComponent(new URL("../../../i18n", import.meta.url).pathname));
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), watchCatalogs],
   clearScreen: false,
   server: {
     port: 1420,

@@ -6,3 +6,9 @@ packages:
 # esbuild (via Vite) is the one that needs its postinstall.
 allowBuilds:
   esbuild: true
+
+# pdfjs-dist (ADR-0016) declares @napi-rs/canvas as an optional dependency
+# for Node-side rendering: native binaries for every platform, none of which
+# the WebView needs. Dropped, so the lockfile carries the one package.
+overrides:
+  "pdfjs-dist>@napi-rs/canvas": "-"

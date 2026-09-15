@@ -268,5 +268,13 @@
   "tree.sortByName": "Sort by name",
   "tree.today": "today",
   "tree.todayNote": "Today's Note",
-  "tree.yesterday": "yesterday"
+  "tree.yesterday": "yesterday",
+  "viewer.fitWidth": "Fit width",
+  "viewer.nextPage": "Next page",
+  "viewer.page": "Page",
+  "viewer.pageOf": "of {{count}}",
+  "viewer.previousPage": "Previous page",
+  "viewer.zoom": "{{percent}} %",
+  "viewer.zoomIn": "Zoom in",
+  "viewer.zoomOut": "Zoom out"
 }

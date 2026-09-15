@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0015). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0016). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -219,6 +219,31 @@ PLAN.md §7.3; `svg` stays editable XML), one new IPC command `read_blob` (23 of
 25) with `base64` as a direct dependency of the desktop crate (no new lockfile
 entry), the tree lists only the types of §7.3, and the New Note dialog shows
 the ADR-0014 extension rule. EPUB was not selected and is not built.
+
+Later the same day, of the WebView's PDF view:
+
+> die icons funktionieren nicht alle. welche alternative zur darstellung von
+> pdf hben wir oder können wir auch steuerungsbutton in novalis einbauen?
+> ganze seite, nächste seie etc zoom etc.
+
+> können wir etwas nehmen, das auch cross platform verfügbar ist? was für neue
+> buch dokument formate können wir einfach unterstützen?
+> hast du dich bei der technologie wahl an cross platfform oder maximaler
+> performance orientiert
+
+Asked "PDF-Anzeige: pdf.js mit eigener Novalis-Leiste … oder WebKit-Ansicht
+behalten":
+
+> pdf.js mit eigener Leiste (Recommended)
+
+Recorded as **ADR-0016** (`pdfjs-dist`, the first runtime npm package since
+the scaffold; the app's own page/zoom bar; text selectable). Asked which
+reading formats to plan next, each with its own ADR when built:
+
+> EPUB (Recommended), Markdown-Lesemodus ⌘E (Recommended), DOCX (nur lesen), CBZ
+
+All four are approved and not yet built; the order proposed is EPUB, the
+Markdown preview (already a v1.1 yes, PLAN.md §4.4), DOCX, CBZ.
 
 ### Open
 

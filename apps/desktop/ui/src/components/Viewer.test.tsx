@@ -15,6 +15,10 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
+// pdf.js is its own chunk and its own test; here only the hand-over counts.
+vi.mock("./PdfViewer", () => ({
+  default: ({ bytes }: { bytes: Uint8Array }) => <div data-testid="pdf">{bytes.length}</div>,
+}));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -37,26 +41,25 @@ describe("Viewer", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows a PDF in a frame and frees the URL when it goes", async () => {
+  it("hands a PDF's bytes to pdf.js", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce({ path: "a.pdf", base64: btoa("%PDF-1.4"), size: "8" });
-    const { unmount } = render(<Viewer path="a.pdf" kind="pdf" />);
+    render(<Viewer path="a.pdf" kind="pdf" />);
     expect(screen.getByText("editor.loading")).toBeTruthy();
     await flush();
+    await flush();
 
-    const frame = screen.getByTitle("a") as HTMLIFrameElement;
-    expect(frame.tagName).toBe("IFRAME");
-    expect(frame.src).toContain("blob:0");
-
-    unmount();
-    expect(revoked).toEqual(["blob:0"]);
+    expect((await screen.findByTestId("pdf")).textContent).toBe("8");
+    expect(created).toEqual([]);
   });
 
-  it("shows an image as an image", async () => {
+  it("shows an image from a URL it frees when the tab goes", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce({ path: "p.png", base64: btoa("png"), size: "3" });
-    render(<Viewer path="p.png" kind="image" />);
+    const { unmount } = render(<Viewer path="p.png" kind="image" />);
     await flush();
 
     expect((screen.getByAltText("p") as HTMLImageElement).src).toContain("blob:0");
+    unmount();
+    expect(revoked).toEqual(["blob:0"]);
   });
 
   it("reports a file that cannot be read as a toast", async () => {

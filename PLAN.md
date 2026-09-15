@@ -411,7 +411,7 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 | A (Lezer) | `md markdown` · `txt text` (none) · `json map` · `yaml yml` · `toml` (legacy stream) · `xml svg` · `html htm` · `css` · `js mjs cjs jsx ts mts cts tsx` · `py` · `rs` | `@codemirror/language-data`, lazy |
 | B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
 | C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
-| D (view, ADR-0015) | `pdf png jpg jpeg gif webp` | none; read-only in the viewer pane through the WebView's own PDF view or an `<img>`, no annotation |
+| D (view, ADR-0015/0016) | `pdf png jpg jpeg gif webp` | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
 
 Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
