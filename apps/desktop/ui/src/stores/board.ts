@@ -10,6 +10,7 @@ import {
   type BoardRefDto,
   type CardOpDto,
   type ColumnDto,
+  type PositionDto,
 } from "../ipc/client";
 import { useUi } from "./ui";
 import { useVault } from "./vault";
@@ -24,6 +25,16 @@ import { useVault } from "./vault";
  * a board that changed under us never raises a banner (§5.3 step 5) — we just
  * take the document the write returns.
  */
+
+/**
+ * The drag payload types of ADR-0019, distinct from the `text/plain` a file
+ * row carries: the tree tells a board, a card and a file apart by
+ * `dataTransfer.types`, so a file dropped on a board row and a board dropped
+ * on a folder both do nothing. The pane sets the card type, the tree sets the
+ * board type and reads both; one place names them.
+ */
+export const BOARD_DRAG_TYPE = "application/x-novalis-board";
+export const CARD_DRAG_TYPE = "application/x-novalis-card";
 
 export interface BoardNotice {
   cards: number;
@@ -59,6 +70,17 @@ interface BoardState {
   createBoard: (slug: string, name: string) => Promise<void>;
   setColumns: (columns: ColumnDto[]) => Promise<void>;
   renameBoard: (name: string) => Promise<void>;
+  /**
+   * Put a board among the boards (ADR-0019): after another one, or last. The
+   * key is the shell's to compute, and the document the write returns does
+   * not carry it — the list does, in the shell's order, so it is re-read.
+   */
+  placeBoard: (slug: string, place: PositionDto) => Promise<void>;
+  /**
+   * Move a card of the open board to another board (ADR-0019). The source is
+   * re-read without the card; the target is read when it is opened.
+   */
+  moveCardToBoard: (id: string, board: string) => Promise<void>;
 }
 
 export const useBoard = create<BoardState>((set, get) => ({
@@ -171,5 +193,20 @@ export const useBoard = create<BoardState>((set, get) => ({
       board,
       boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)),
     }));
+  },
+
+  placeBoard: async (slug, place) => {
+    await unwrap(commands.boardWrite(slug, null, null, place));
+    // `refreshList` keeps its vault guard: a place that resolves after Open
+    // Vault… is about a list that is no longer shown.
+    await get().refreshList();
+  },
+
+  moveCardToBoard: async (id, board) => {
+    const from = get().slug;
+    // Dropped on the open board's own row: nowhere to go.
+    if (!from || from === board) return;
+    await unwrap(commands.cardWrite(from, { kind: "moveToBoard", id, board }));
+    await get().load(from);
   },
 }));

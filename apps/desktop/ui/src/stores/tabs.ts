@@ -75,6 +75,8 @@ export const useTabs = create<TabsState>((set, get) => ({
 
   close: async (path) => {
     await useEditorSave.getState().close(path);
+    // A closed note reopens in the editor, not in the preview it was closed in.
+    useUi.getState().endPreview(path);
     set((s) => {
       const index = s.tabs.indexOf(path);
       const tabs = s.tabs.filter((t) => t !== path);

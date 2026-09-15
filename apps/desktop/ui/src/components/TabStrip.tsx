@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
 
-import { stemOf } from "../lib/paths";
+import { dispatchCommand } from "../lib/commands";
+import { isNote, stemOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
-import { report } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 
 /** The tab strip (layout L2, the decided layout — docs/DECISIONS.md §4.6). */
 export default function TabStrip() {
@@ -11,6 +12,7 @@ export default function TabStrip() {
   const tabs = useTabs((s) => s.tabs);
   const active = useTabs((s) => s.active);
   const docs = useEditorSave((s) => s.docs);
+  const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
 
   if (tabs.length === 0) return <div className="tabs tabs-empty" />;
 
@@ -48,7 +50,22 @@ export default function TabStrip() {
           </div>
         );
       })}
-      <div className="tab-spacer" />
+      <div className="tab-spacer">
+        {/* The small button the owner asked for (ADR-0020): the same command
+            as `Cmd+E`. Inside the spacer so the strip's hairline runs under
+            it; only a note has a rendered form, so it is not there for a PDF. */}
+        {active && isNote(active) && (
+          <button
+            className="btn ghost tab-preview"
+            type="button"
+            aria-pressed={previewing}
+            title={t("menu.view.togglePreview")}
+            onClick={() => dispatchCommand("note.togglePreview")}
+          >
+            {t(previewing ? "editor.edit" : "editor.preview")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

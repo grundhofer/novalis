@@ -124,6 +124,12 @@ fn find(ctx: &Ctx, id: &str) -> Result<(String, CardDoc), CliError> {
             Err(e) => return Err(CliError::from_core(e)),
         }
     }
+    // A card the app moved to another board (ADR-0019) leaves a tombstone
+    // behind for up to 30 days: the live copy is the card, the tombstone is
+    // not a second one.
+    if found.len() > 1 && found.iter().filter(|(_, d)| !d.card.is_deleted()).count() == 1 {
+        found.retain(|(_, d)| !d.card.is_deleted());
+    }
     match found.len() {
         1 => Ok(found.remove(0)),
         0 => Err(CliError::from_core(CoreError::NotFound {

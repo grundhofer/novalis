@@ -242,6 +242,22 @@ describe("BoardPane", () => {
     expect(setData).toHaveBeenCalled();
     expect(dataTransfer.effectAllowed).toBe("move");
   });
+
+  // ADR-0019: the same drag can end on a board row in the tree, which reads
+  // the card under its own type; `text/plain` stays, for WebKit and for the
+  // column drop that keys on state.
+  it("carries the card id under both types", () => {
+    render(<BoardPane />);
+    const setData = vi.fn();
+    const dataTransfer = { setData, effectAllowed: "" };
+
+    fireEvent.dragStart(screen.getByText("Write the spec").closest(".card")!, { dataTransfer });
+
+    expect(setData.mock.calls).toEqual([
+      ["text/plain", "c1"],
+      ["application/x-novalis-card", "c1"],
+    ]);
+  });
   // Both of these used to happen in silence: §8.4 resolution never ran because
   // nothing called it, and a card file the reader could not use was dropped
   // without a word, so the card was simply absent with no reason given.

@@ -7,7 +7,7 @@ import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { CREATABLE_EXTENSIONS } from "./fileTypes";
-import { fileNameOf, folderOf, joinRel } from "./paths";
+import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 
 /**
  * One dispatcher for every command id in `docs/KEYMAP.md`, plus the menu-only
@@ -224,6 +224,12 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
+  "note.togglePreview": () => {
+    // Only a note has a rendered form (ADR-0020); a PDF or an image is
+    // already the viewer, and a `.txt` has nothing to render.
+    const active = useTabs.getState().active;
+    if (active && isNote(active)) useUi.getState().togglePreview(active);
+  },
   "view.fontLarger": () => useUi.getState().changeFontSize(1),
   "view.fontSmaller": () => useUi.getState().changeFontSize(-1),
   "view.fontReset": () => useUi.getState().changeFontSize("reset"),
@@ -290,6 +296,7 @@ export const PALETTE_COMMANDS: readonly {
   { id: "tree.trash", labelKey: "menu.file.moveToTrash" },
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
+  { id: "note.togglePreview", labelKey: "menu.view.togglePreview" },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },

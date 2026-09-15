@@ -29,6 +29,7 @@ const Palette = lazy(() => import("./components/Palette"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
 const Viewer = lazy(() => import("./components/Viewer"));
+const Preview = lazy(() => import("./components/Preview"));
 
 /** `state.json` is written at most this often while the user moves things. */
 const STATE_SAVE_MS = 400;
@@ -75,6 +76,7 @@ export default function App() {
   const active = useTabs((s) => s.active);
   const doc = useEditorSave((s) => (active ? s.docs[active] : undefined));
   const view = active ? viewKind(active) : null;
+  const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
   const sidebarVisible = useUi((s) => s.sidebarVisible);
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
@@ -307,6 +309,10 @@ export default function App() {
           ) : active && view ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Viewer path={active} kind={view} />
+            </Suspense>
+          ) : active && doc && previewing && isNote(active) ? (
+            <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+              <Preview path={active} onFollowLink={followLink} />
             </Suspense>
           ) : active && doc ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>

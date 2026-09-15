@@ -95,6 +95,8 @@ sidebar tree), `board` (focus in the board pane).
 | Click on a card | Open the linked note in a tab (D21) | board |
 | Click on a board item in the tree | Show the board pane | tree |
 | Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
+| Drag a board row after another board row or onto the tree's empty space | Reorder the boards (writes `order` to `board.json`, ADR-0019) | tree |
+| Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
 | `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
 
 ## Not listed

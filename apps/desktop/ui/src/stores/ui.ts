@@ -94,6 +94,7 @@ interface UiState {
   setActiveBoard: (slug: string | null) => void;
   setTreeSort: (sort: TreeSortDto) => void;
   togglePreview: (path: string) => void;
+  endPreview: (path: string) => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
@@ -176,6 +177,13 @@ export const useUi = create<UiState>((set, get) => ({
       const previewing = { ...s.previewing };
       if (previewing[path]) delete previewing[path];
       else previewing[path] = true;
+      return { previewing };
+    }),
+  endPreview: (path) =>
+    set((s) => {
+      if (!s.previewing[path]) return s;
+      const previewing = { ...s.previewing };
+      delete previewing[path];
       return { previewing };
     }),
 

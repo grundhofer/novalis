@@ -9,7 +9,13 @@ import { useVault } from "./vault";
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
 // runs (ADR-0011).
 vi.mock("../ipc/client", () => ({
-  commands: { boardRead: vi.fn(), boardList: vi.fn(), boardCreate: vi.fn() },
+  commands: {
+    boardRead: vi.fn(),
+    boardList: vi.fn(),
+    boardCreate: vi.fn(),
+    boardWrite: vi.fn(),
+    cardWrite: vi.fn(),
+  },
   unwrap: vi.fn(),
   NovalisError: class extends Error {
     ipc: { code: string };
@@ -184,5 +190,93 @@ describe("useBoard.createBoard", () => {
     vi.mocked(unwrap).mockResolvedValueOnce(doc());
     await useBoard.getState().createBoard("plan", "Plan");
     expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan", order: null }]);
+  });
+});
+
+// ADR-0019: the tree names the place, the shell computes the key and lists
+// the boards in their order. The store never sorts the list itself.
+describe("useBoard.placeBoard", () => {
+  beforeEach(() => {
+    useBoard.setState({
+      boards: [
+        { slug: "atlas", name: "Atlas", order: null },
+        { slug: "zeta", name: "Zeta", order: null },
+      ],
+    });
+    vi.mocked(commands.boardWrite).mockClear();
+    vi.mocked(commands.boardList).mockClear();
+  });
+
+  it("writes the place and re-reads the list in the shell's order", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "atlas", name: "Atlas" }));
+    vi.mocked(unwrap).mockResolvedValueOnce([
+      { slug: "zeta", name: "Zeta", order: "a0" },
+      { slug: "atlas", name: "Atlas", order: "a1" },
+    ]);
+
+    await useBoard.getState().placeBoard("atlas", { kind: "after", id: "zeta" });
+
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "after", id: "zeta" });
+    expect(commands.boardList).toHaveBeenCalledTimes(1);
+    expect(useBoard.getState().boards).toEqual([
+      { slug: "zeta", name: "Zeta", order: "a0" },
+      { slug: "atlas", name: "Atlas", order: "a1" },
+    ]);
+  });
+
+  it("places last the same way", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "atlas", name: "Atlas" }));
+    vi.mocked(unwrap).mockResolvedValueOnce([]);
+
+    await useBoard.getState().placeBoard("atlas", { kind: "last" });
+
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "last" });
+    expect(commands.boardList).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the list alone when the write fails", async () => {
+    vi.mocked(unwrap).mockRejectedValueOnce(new Error("io"));
+
+    await expect(useBoard.getState().placeBoard("atlas", { kind: "last" })).rejects.toThrow("io");
+
+    expect(commands.boardList).not.toHaveBeenCalled();
+    expect(useBoard.getState().boards.map((b) => b.slug)).toEqual(["atlas", "zeta"]);
+  });
+});
+
+// ADR-0019: the card goes to the other board's first column, last; the open
+// board is re-read without it. The target is read when it is opened.
+describe("useBoard.moveCardToBoard", () => {
+  beforeEach(() => {
+    useBoard.setState({ slug: "plan", board: doc(), busy: false });
+    vi.mocked(commands.cardWrite).mockClear();
+    vi.mocked(commands.boardRead).mockClear();
+  });
+
+  it("writes the move on the open board and re-reads it", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce({ id: "c1" });
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ cards: [] }));
+
+    await useBoard.getState().moveCardToBoard("c1", "atlas");
+
+    expect(commands.cardWrite).toHaveBeenCalledWith("plan", { kind: "moveToBoard", id: "c1", board: "atlas" });
+    expect(commands.boardRead).toHaveBeenCalledWith("plan");
+    expect(useBoard.getState().board?.slug).toBe("plan");
+  });
+
+  it("does nothing when the card is dropped on the open board's own row", async () => {
+    await useBoard.getState().moveCardToBoard("c1", "plan");
+
+    expect(commands.cardWrite).not.toHaveBeenCalled();
+    expect(commands.boardRead).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no board is open", async () => {
+    useBoard.setState({ slug: null, board: null });
+
+    await useBoard.getState().moveCardToBoard("c1", "atlas");
+
+    expect(commands.cardWrite).not.toHaveBeenCalled();
+    expect(commands.boardRead).not.toHaveBeenCalled();
   });
 });

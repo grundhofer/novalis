@@ -6,7 +6,7 @@ import { formatDay } from "../i18n";
 import { dispatchCommand, moveEntry } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { nsToMs } from "../lib/paths";
-import { useBoard } from "../stores/board";
+import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
@@ -28,9 +28,28 @@ import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
  * own space below the rows is the vault root. The payload is the path in
  * `text/plain` — WebKit abandons a drag whose data store is empty when
  * dragstart returns, so the drop would never fire (see BoardPane).
+ *
+ * A board row drags too (ADR-0019), under its own type, and takes two kinds
+ * of drop: another board, placed after it, and a card of the open board
+ * (from BoardPane), moved to it. A board dropped on the tree's space goes
+ * last. Which kind a drag is comes from `dataTransfer.types`: the data
+ * itself is unreadable until the drop, and the types are what keeps a file
+ * off a board row and a board off a folder.
  */
 
 const ROW_HEIGHT = 28;
+
+type DragKind = "file" | "board" | "card";
+
+/** What a drag carries, by the types it declares. */
+function dragKind(dataTransfer: DataTransfer): DragKind | null {
+  const { types } = dataTransfer;
+  // A card carries `text/plain` as well (BoardPane), so its own type decides first.
+  if (types.includes(CARD_DRAG_TYPE)) return "card";
+  if (types.includes(BOARD_DRAG_TYPE)) return "board";
+  if (types.includes("text/plain")) return "file";
+  return null;
+}
 
 /** True over the tree's own space, not over a row: there the root is the target. */
 function overTreeSpace(event: DragEvent<HTMLDivElement>): boolean {
@@ -47,7 +66,7 @@ function tooltip(label: string, command: string): string {
 export default function Sidebar() {
   const { t } = useTranslation();
   const scroller = useRef<HTMLDivElement | null>(null);
-  /** The folder row a drag is over, for the `drop` highlight. */
+  /** The folder or board row a drag is over, for the `drop` highlight. */
   const [overPath, setOverPath] = useState<string | null>(null);
   const vault = useVault((s) => s.vault);
   const children = useVault((s) => s.children);
@@ -90,6 +109,25 @@ export default function Sidebar() {
     const path = event.dataTransfer.getData("text/plain");
     setOverPath(null);
     void moveEntry(path, toFolder).catch(report);
+  };
+
+  /** A board dropped on board row `after`, or on the tree's space (`null`): last. */
+  const dropBoard = (event: DragEvent<HTMLDivElement>, after: string | null) => {
+    const slug = event.dataTransfer.getData(BOARD_DRAG_TYPE);
+    setOverPath(null);
+    // On its own row: already there.
+    if (!slug || slug === after) return;
+    void useBoard
+      .getState()
+      .placeBoard(slug, after ? { kind: "after", id: after } : { kind: "last" })
+      .catch(report);
+  };
+
+  const dropCard = (event: DragEvent<HTMLDivElement>, board: string) => {
+    const id = event.dataTransfer.getData(CARD_DRAG_TYPE);
+    setOverPath(null);
+    if (!id) return;
+    void useBoard.getState().moveCardToBoard(id, board).catch(report);
   };
 
   if (!vault) return <nav className="sidebar" />;
@@ -163,14 +201,20 @@ export default function Sidebar() {
         className="tree"
         ref={scroller}
         onDragOver={(event) => {
-          // A row that is not a folder lets the event through; refusing it
-          // here keeps a file row from reading as a target.
+          // A row that is not a target lets the event through; refusing it
+          // here keeps a file row from reading as a target. A card has no
+          // place in the tree's space either.
           if (!overTreeSpace(event)) return;
+          const kind = dragKind(event.dataTransfer);
+          if (kind !== "file" && kind !== "board") return;
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
         }}
         onDrop={(event) => {
-          if (overTreeSpace(event)) dropInto(event, "");
+          if (!overTreeSpace(event)) return;
+          const kind = dragKind(event.dataTransfer);
+          if (kind === "file") dropInto(event, "");
+          else if (kind === "board") dropBoard(event, null);
         }}
       >
         <div className="tree-inner" style={{ height: `${virtualizer.getTotalSize()}px` }}>
@@ -179,8 +223,11 @@ export default function Sidebar() {
             if (!row) return null;
             const { entry } = row;
             const active = entry.path === activeTab || entry.path === selected;
-            const draggable = !entry.dir && !entry.boardSlug;
-            const dropTarget = entry.dir && !entry.boardSlug;
+            const isBoard = !!entry.boardSlug;
+            const draggable = !entry.dir || isBoard;
+            // A folder takes a file; a board takes a board or a card.
+            const accepts: DragKind[] = isBoard ? ["board", "card"] : entry.dir ? ["file"] : [];
+            const dropTarget = accepts.length > 0;
             const classes = ["tree-row"];
             if (entry.dir) classes.push("folder");
             else classes.push("file");
@@ -208,7 +255,8 @@ export default function Sidebar() {
                 onDragStart={
                   draggable
                     ? (event) => {
-                        event.dataTransfer.setData("text/plain", entry.path);
+                        if (entry.boardSlug) event.dataTransfer.setData(BOARD_DRAG_TYPE, entry.boardSlug);
+                        else event.dataTransfer.setData("text/plain", entry.path);
                         event.dataTransfer.effectAllowed = "move";
                       }
                     : undefined
@@ -217,6 +265,8 @@ export default function Sidebar() {
                 onDragOver={
                   dropTarget
                     ? (event) => {
+                        const kind = dragKind(event.dataTransfer);
+                        if (!kind || !accepts.includes(kind)) return;
                         event.preventDefault();
                         event.stopPropagation();
                         event.dataTransfer.dropEffect = "move";
@@ -238,8 +288,12 @@ export default function Sidebar() {
                 onDrop={
                   dropTarget
                     ? (event) => {
+                        const kind = dragKind(event.dataTransfer);
+                        if (!kind || !accepts.includes(kind)) return;
                         event.stopPropagation();
-                        dropInto(event, entry.path);
+                        if (kind === "file") dropInto(event, entry.path);
+                        else if (kind === "board") dropBoard(event, entry.boardSlug);
+                        else if (entry.boardSlug) dropCard(event, entry.boardSlug);
                       }
                     : undefined
                 }

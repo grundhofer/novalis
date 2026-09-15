@@ -107,6 +107,14 @@ describe("useTabs and the viewer", () => {
     expect(useEditorSave.getState().open).not.toHaveBeenCalled();
   });
 
+  it("ends a note's preview when its tab closes", async () => {
+    useEditorSave.setState({ close: vi.fn().mockResolvedValue(undefined) });
+    useTabs.setState({ tabs: ["a.md"], active: "a.md" });
+    useUi.getState().togglePreview("a.md");
+    await useTabs.getState().close("a.md");
+    expect(useUi.getState().previewing["a.md"]).toBeUndefined();
+  });
+
   it("still reads a note into the buffer", async () => {
     await useTabs.getState().open("a.md");
     expect(useEditorSave.getState().open).toHaveBeenCalledWith("a.md");

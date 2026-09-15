@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
 import { stemOf } from "../lib/paths";
-import { useBoard } from "../stores/board";
+import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/board.css";
@@ -312,9 +312,13 @@ export default function BoardPane() {
                     onDragStart={(event) => {
                       // WebKit abandons a drag whose data store is still empty
                       // when dragstart returns, so the drop never fires. The
-                      // payload is unused — `drag` carries the state — but it
-                      // has to be there.
+                      // payload is unused here — `drag` carries the state —
+                      // but it has to be there. The card's own type is what
+                      // a board row in the tree reads (ADR-0019); it is not
+                      // `text/plain`, so a folder row does not take the card
+                      // for a file.
                       event.dataTransfer.setData("text/plain", card.id);
+                      event.dataTransfer.setData(CARD_DRAG_TYPE, card.id);
                       event.dataTransfer.effectAllowed = "move";
                       setDrag({ cardId: card.id, from: column.id });
                     }}

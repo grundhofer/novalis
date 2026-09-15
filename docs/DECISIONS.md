@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0018). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0020). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -34,7 +34,7 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Tags as search filter / palette | yes, v1 |
 | Backlinks list (incl. cards linking here) | yes, v1 |
 | `[[` and `#` autocompletion | yes, v1 |
-| Read-only rendered preview (`Cmd-E`) | yes, v1.1 |
+| Read-only rendered preview (`Cmd-E`) | yes, v1.1 — built 2026-09-15 (ADR-0020) |
 | Hide-syntax live preview | no |
 | Split view / board + note split | no (D21) |
 | Folding, focus/typewriter, minimap, vim | no |
@@ -306,6 +306,58 @@ read-only preview only (itself a v1.1 yes, PLAN.md §4.4, not yet built) and
 gets its own ADR when built, as a lazy chunk loaded only for a note with a
 `mermaid` fence. PLAN.md §2.2 and §7.2 carry the clause; ADR-0016's list of
 approved-for-later formats notes it.
+
+Later on 2026-09-15, with the tree drag (ADR-0018) and the attachments
+(ADR-0017) in hand, the owner wrote:
+
+> also man sollte auch boards per drag and drop bewegen.
+
+> der screenshot wird als zeile hinzugefügt, ist aber nicht sichtbar
+
+> wir sollten zwischen editier und view mode für .md umschalten können mit
+> einem kleinen button
+
+Asked "Boards per Drag & Drop — was genau soll bewegt werden?" (several
+answers allowed):
+
+> Reihenfolge der Boards im Baum, Karten zwischen Boards ziehen, Board in
+> einen Ordner verschieben
+
+The third answer would take boards out of `boards/`, where ADR-0006, the
+CLI, `doctor` and the tree find them, and a board folder move is the
+directory-aware relink ADR-0018 left open. Asked "Boards an beliebigen Orten
+im Vault (statt nur unter boards/)? …" with that cost named:
+
+> Nein, Boards bleiben unter boards/ (Recommended)
+
+The third option is withdrawn. Recorded as **ADR-0019** (amending ADR-0006
+and ADR-0018): `board.json` gains an optional `order`, a fractional-index
+key written only for a dragged board, boards without one following by name;
+the core's `move_board` and the shell's `board_write` `place` compute the
+key in Rust; a card dragged from the open board onto a board row moves
+there with the same id, last in the target's first column, the source card
+tombstoned as ADR-0006 deletes. The CLI reads the order and does not write
+it yet; PLAN.md §8.2 shows the key.
+
+Asked "Bilder im Editor sichtbar machen?":
+
+> Erst im Lesemodus ⌘E
+
+Asked "IPC-Obergrenze: PLAN §2.3 Regel 8 sagt „unter 25 Befehle", die
+Vorschau bräuchte den 25. Wie weiter?":
+
+> Grenze auf 30 anheben (Recommended)
+
+Recorded as **ADR-0020** (amending ADR-0008 and PLAN.md §2.3 rule 8): the
+v1.1 read-only preview is built — `Cmd+E` bound to `note.togglePreview`, a
+"View"/"Edit" button at the tab strip's end, per tab, session state only;
+rendered in Rust by `pulldown-cmark 0.13` (three lockfile entries) through
+`render_markdown`, the 25th command under a cap of 30; attachments shown
+through `read_blob`, internal links followed, external links not opened;
+Mermaid 12 draws `mermaid` fences as a lazy chunk (the ADR the Mermaid
+answer above was waiting for; it names the package count). The
+"Read-only rendered preview" row above and PLAN.md §4.4 and §7.2 are changed
+accordingly; CLAUDE.md and `lib.rs` say 30.
 
 ### Open
 

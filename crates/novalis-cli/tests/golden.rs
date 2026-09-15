@@ -465,6 +465,28 @@ fn board_and_card_drive_a_real_board() {
         assert_eq!(code, 3, "{err}");
         assert_eq!(err["error"]["code"], "not_found");
     }
+
+    // ADR-0019: a card the app moved to another board leaves a tombstone on
+    // the source for 30 days. The live copy is the card; the tombstone is
+    // not a second one.
+    std::fs::create_dir_all(vault.join("boards/harbor/cards")).expect("the second board");
+    std::fs::write(
+        vault.join("boards/harbor/board.json"),
+        r#"{"columns":[{"id":"inbox","name":"Inbox"}],"format":1,"name":"Harbor","updated":"2026-09-05T08:41:12.345Z"}
+"#,
+    )
+    .expect("board.json");
+    let tombstoned = std::fs::read_to_string(vault.join(format!("boards/atlas/cards/{id}.json")))
+        .expect("the tombstone");
+    let live = tombstoned
+        .replace("\"deleted\"", "\"was_deleted\"")
+        .replace("\"column\": \"todo\"", "\"column\": \"inbox\"")
+        .replace("\"column\": \"doing\"", "\"column\": \"inbox\"");
+    std::fs::write(vault.join(format!("boards/harbor/cards/{id}.json")), live).expect("live copy");
+    let (retitled, code) = run(&["card", "set", &id, "--title", "moved"]);
+    assert_eq!(code, 0, "{retitled}");
+    assert_eq!(retitled["card"]["board"], "harbor");
+    assert_eq!(retitled["card"]["title"], "moved");
 }
 
 /// The two rules that have no output to compare: `--no-index` is refused on a

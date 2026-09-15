@@ -57,7 +57,7 @@ Research found facts that differ from the brief or the old docs. The plan uses t
 
 AI features, voice, PDF editing, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
 
-Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped. "PDF" became "PDF editing" on 2026-09-15 (ADR-0015): a PDF or image in the vault opens read-only in a viewer; annotation and export stay out. "Mermaid" stays dropped from the editor and is rendered in the ⌘E preview only, when that ships (owner yes 2026-09-15, ADR when built).
+Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped. "PDF" became "PDF editing" on 2026-09-15 (ADR-0015): a PDF or image in the vault opens read-only in a viewer; annotation and export stay out. "Mermaid" stays dropped from the editor and is rendered in the ⌘E preview only (owner yes 2026-09-15, ADR-0020).
 
 ### 2.3 Architecture rules (each backed by a measured failure of the old app)
 
@@ -144,7 +144,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Tags as search filter / palette (frontmatter `tags:` and inline `#tags`; no tree panel) | editor-scope | **yes, v1** | Every old vault already carries tags; core of "organizing" |
 | Backlinks list for the open note (shows "cards linking here" too) | editor-scope, kanban | **yes, v1** | Data is free from the cache |
 | `[[` and `#` autocompletion | editor-scope | yes, v1 | Writing ergonomics; cheap with the cache |
-| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, v1.1 | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
+| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
 | Hide-syntax live preview mode (Obsidian style) | stack | no | Most expensive editor feature; conflicts with multi-cursor |
 | Split view / board + note split (two panes) | editor-scope, design | no (D21) | Adds a pane-focus model; L5 mockup shows what it would be |
 | Folding, typewriter/focus mode, minimap, vim | editor-scope | no | Modes with own state |
@@ -395,12 +395,12 @@ Decision sequence: family → style → layout → accent/fonts (§4.6).
 | MUST | Instant open (Rust reads, string to CM6, grammar lazy) · tabs · command palette `Cmd-Shift-P` · quick-open `Cmd-P` (fuzzy, `nucleo`-class matcher) · goto line `Ctrl-G` · find/replace `Cmd-F` / `Cmd-Alt-F` (regex, case, word, replace-all) · vault search `Cmd-Shift-F` with results panel · multi-cursor (`Cmd-D`, `Cmd-Shift-L`, `Alt-click`, `Ctrl-Shift-↑/↓`) · syntax highlighting · bracket matching · soft wrap per type · undo/redo · autosave · large-file fallback · external-change banner | none |
 | Baseline (§4.3, listed for you) | Line numbers per type · indentation guides (code) · auto-pair (Markdown subset) · word/char count · heading jump via palette · indentation detection · clickable checkboxes · `Cmd-B`/`Cmd-I` | none |
 | Needs yes (§4.4) | Spellcheck (macOS native; see spike) · `[[`/`#` completion · backlinks list · tags filter | spellcheck only |
-| LATER (needs yes) | Read-only preview `Cmd-E` · split view · folding · focus/typewriter · multi-file replace (image paste: yes since 2026-09-15, ADR-0017) | |
+| LATER (needs yes) | Split view · folding · focus/typewriter · multi-file replace (image paste: yes since 2026-09-15, ADR-0017; read-only preview `Cmd-E`: yes since 2026-09-15, ADR-0020) | |
 | NO | Minimap, vim, LSP, terminal, git, plugins, AI, themes gallery, toolbar, slash menu, trim-on-save, encoding conversion | |
 
 ### 7.2 Markdown flavour and link resolution
 
-CommonMark 0.31.2 + GFM tables, task lists, strikethrough, autolinks + YAML frontmatter + `[[wikilinks]]` + inline `#tags`. Not in v1: callouts, highlights, comments, block ids, embeds, math, Mermaid (rendered in the ⌘E preview only, when that ships — owner yes 2026-09-15, ADR when built), footnotes. Parser: `@lezer/markdown` GFM bundle + two small inline parsers (wikilink, tag); Rust side `pulldown-cmark 0.13` with `ENABLE_WIKILINKS` for link extraction and the later preview.
+CommonMark 0.31.2 + GFM tables, task lists, strikethrough, autolinks + YAML frontmatter + `[[wikilinks]]` + inline `#tags`. Not in v1: callouts, highlights, comments, block ids, embeds, math, Mermaid (not in the editor; the ⌘E preview renders `mermaid` fences — owner yes 2026-09-15, ADR-0020), footnotes. Parser: `@lezer/markdown` GFM bundle + two small inline parsers (wikilink, tag); Rust side `pulldown-cmark 0.13` with `ENABLE_WIKILINKS` for link extraction and the later preview.
 
 Resolution of `[[X]]`: X is matched case-insensitively against file stems (after NFC); on a unique match that is the note; on duplicate stems (`index.md` and `reading/index.md` in the demo vault) `[[folder/stem]]` disambiguates and `doctor` reports the duplicates; `[[X#heading]]` and `[[X|label]]` strip their suffixes; a stem containing `#` or `|` cannot be a link target and `doctor` reports it. Markdown links `[text](relative/path.md)` resolve relative to the note (percent-decoded). The CLI exposes `linkTarget` (the shortest unambiguous wikilink text) on every note it lists so agents never guess.
 
@@ -446,8 +446,11 @@ Board folders appear in the file tree as one "board" item (the treatment the old
 ```json
 { "format": 1, "name": "Atlas",
   "columns": [ { "id": "todo", "name": "To Do" }, { "id": "doing", "name": "Doing" }, { "id": "done", "name": "Done" } ],
+  "order": "a0",
   "updated": "2026-09-05T08:41:12.345Z" }
 ```
+
+`order` is optional (ADR-0019): a fractional-index key of the §8.3 kind, written only when the user drags the board in the tree; boards with a key come first, by key, then the rest by name, and the slug breaks ties.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 ```json
@@ -639,7 +642,7 @@ Exit (week 9): daily-driveable on your own vault in OneDrive; smoke test green; 
 
 ### Phase 5 — After v1 (each needs a yes)
 
-Read-only preview (`Cmd-E`); board + note split; MCP server; hide-syntax live preview mode; Mode 2 sync (OneDrive first, §5.7); universal binary; Windows/Linux builds. (Image paste landed early with a hard-coded attachments folder, ADR-0017.)
+Board + note split; MCP server; hide-syntax live preview mode; Mode 2 sync (OneDrive first, §5.7); universal binary; Windows/Linux builds. (Image paste landed early with a hard-coded attachments folder, ADR-0017; the read-only preview `Cmd-E` landed early too, ADR-0020.)
 
 ### First two weeks, day by day
 

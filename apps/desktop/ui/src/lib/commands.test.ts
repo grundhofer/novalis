@@ -262,3 +262,34 @@ describe("moveEntry", () => {
     expect(stores.reload.mock.calls).toEqual([["Notes"], [""]]);
   });
 });
+
+// ADR-0020: `Cmd+E`, the menu item and the tab-strip button all arrive here.
+// The preview is a per-note flag in the UI store; only a note has one.
+describe("note.togglePreview", () => {
+  beforeEach(() => {
+    stubStores();
+    useUi.setState({ previewing: {} });
+  });
+
+  it("toggles the preview of the active note on and off", () => {
+    useTabs.setState({ active: "Notes/a.md" });
+
+    dispatchCommand("note.togglePreview");
+    expect(useUi.getState().previewing).toEqual({ "Notes/a.md": true });
+
+    dispatchCommand("note.togglePreview");
+    expect(useUi.getState().previewing).toEqual({});
+  });
+
+  it("does nothing for a tab that is not a note", () => {
+    useTabs.setState({ active: "a.pdf" });
+
+    dispatchCommand("note.togglePreview");
+    expect(useUi.getState().previewing).toEqual({});
+  });
+
+  it("does nothing with no tab", () => {
+    dispatchCommand("note.togglePreview");
+    expect(useUi.getState().previewing).toEqual({});
+  });
+});

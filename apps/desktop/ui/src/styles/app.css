@@ -587,6 +587,13 @@ button {
   border-bottom: 1px solid var(--ds-color-border-strong);
 }
 
+/* The preview toggle (ADR-0020), floated in the spacer at row height. */
+.btn.ghost.tab-preview {
+  float: right;
+  height: 22px;
+  margin: 7px var(--ds-space-4) 0 0;
+}
+
 /* ---------------------------------------------------------------- editor */
 .editor {
   flex: 1;

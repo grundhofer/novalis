@@ -239,7 +239,12 @@ and `card rm` take no board argument.
   an empty one is the same as none. Under `--dry-run` nothing is written, so
   the answer carries no `id` and no `order`.
 - `card mv <id> [--column C] [--after ID | --first | --last]` → `{card}`.
-  At least one of the four is required.
+  At least one of the four is required. It moves within the board: a move
+  to another board is app-only for now (ADR-0019; the app keeps the id, puts
+  the card last in the target's first column and tombstones the source). For
+  up to 30 days after such a move the id is on two boards, one of them a
+  tombstone; `card mv`, `card set` and `card rm` take the live one, and
+  `card ls` shows the card once.
 - `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]…`
   → `{card}`. The changes are written one file at a time, in the order title,
   description, removals, additions. `--description` replaces the whole text;
@@ -350,8 +355,15 @@ plain files but still produces conflict copies.
 ```json
 { "format": 1, "name": "Atlas",
   "columns": [ { "id": "todo", "name": "To Do" }, { "id": "doing", "name": "Doing" }, { "id": "done", "name": "Done" } ],
+  "order": "a0",
   "updated": "2026-09-05T08:41:12.345Z" }
 ```
+
+`order` is optional (ADR-0019): a fractional-index key like a card's, present
+only once the user has dragged the board in the app. Boards with a key sort
+first, by key, then the rest by name; `board ls` lists them in that order and
+carries no `order` field. The CLI does not write the key; `board columns
+--set` keeps it.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 

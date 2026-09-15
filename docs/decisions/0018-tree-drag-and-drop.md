@@ -5,7 +5,9 @@ Date: 2026-09-15
 ## Status
 
 Accepted. Files only: folders are drop targets, not yet draggable (see
-Consequences).
+Consequences). Board rows: amended by ADR-0019 (2026-09-15) — they drag
+among themselves and take a card from the board pane; they still take no
+file drop.
 
 ## Context
 
