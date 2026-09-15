@@ -33,6 +33,12 @@ export const commands = {
 	 */
 	readBlob: (path: string) => typedError<BlobDto, IpcError>(__TAURI_INVOKE("read_blob", { path })),
 	/**
+	 *  Write an image the user pasted or dropped into a note (ADR-0017), under
+	 *  `folder/name`, never over an existing file (`RENAME_EXCL`), parents
+	 *  created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
+	 */
+	writeBlob: (folder: string, name: string, base64: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("write_blob", { folder, name, base64 })),
+	/**
 	 *  Save. `expected` is the precondition captured when the buffer was loaded or
 	 *  last written; a mismatch is a `conflict` and the target is left untouched,
 	 *  so the UI can write the buffer to a conflict copy (§5.3 step 3).

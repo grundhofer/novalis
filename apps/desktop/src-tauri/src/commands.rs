@@ -1,4 +1,4 @@
-//! The whole IPC surface: 23 commands (PLAN.md §2.3 rule 8 caps it at 25).
+//! The whole IPC surface: 24 commands (PLAN.md §2.3 rule 8 caps it at 25).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -369,6 +369,50 @@ pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<Bl
             base64: base64::engine::general_purpose::STANDARD.encode(bytes),
             size: pre.size.to_string(),
         })
+    })
+    .await
+}
+
+/// The image types a pasted or dropped attachment may have (ADR-0017): the
+/// tier-D image types of PLAN.md §7.3, lower-case.
+const ATTACHMENT_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
+
+/// Write an image the user pasted or dropped into a note (ADR-0017), under
+/// `folder/name`, never over an existing file (`RENAME_EXCL`), parents
+/// created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
+#[tauri::command]
+#[specta::specta]
+pub async fn write_blob(
+    state: State<'_, AppState>,
+    folder: String,
+    name: String,
+    base64: String,
+) -> IpcResult<EntryDto> {
+    use base64::Engine;
+    let root = state.require_vault()?;
+    blocking(move || {
+        let name = nfc(name.trim());
+        let ext = name
+            .rfind('.')
+            .filter(|&i| i > 0)
+            .map(|i| name[i + 1..].to_ascii_lowercase())
+            .unwrap_or_default();
+        if !ATTACHMENT_EXTENSIONS.contains(&ext.as_str()) {
+            return Err(IpcError::bad_request(format!("{name}: not an image type")));
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64)
+            .map_err(|e| IpcError::bad_request(format!("{name}: {e}")))?;
+        if bytes.len() as u64 > HUGE_FILE_BYTES {
+            return Err(IpcError::bad_request(format!(
+                "{name} is {} bytes; attachments stop at {HUGE_FILE_BYTES}",
+                bytes.len()
+            )));
+        }
+        let rel = normalize_rel(&join_rel(&folder, &name))?;
+        let abs = creatable_file_rel(&root, &rel)?;
+        fs::create_atomic(&abs, &bytes)?;
+        Ok(EntryDto::from_stat(rel, &fs::stat(&abs)?, None))
     })
     .await
 }
