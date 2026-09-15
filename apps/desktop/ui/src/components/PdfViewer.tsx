@@ -78,8 +78,11 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
         await render.promise;
         if (cancelled) return;
         text.replaceChildren();
+        // The stream, not `getTextContent()`: that one iterates the stream
+        // with `for await`, which this WebView's ReadableStream does not
+        // support, and the text layer reads a stream with `getReader()`.
         await new pdfjs.TextLayer({
-          textContentSource: await current.getTextContent(),
+          textContentSource: current.streamTextContent(),
           container: text,
           viewport,
         }).render();

@@ -27,7 +27,8 @@ vi.mock("pdfjs-dist", () => {
       rendered.push({ page: number, scale: viewport.scale });
       return { promise: Promise.resolve(), cancel: vi.fn() };
     },
-    getTextContent: () => Promise.resolve({ items: [] }),
+    // A stream stand-in: the layer is mocked too, so only the hand-over counts.
+    streamTextContent: () => ({ getReader: () => ({ read: () => Promise.resolve({ done: true }) }) }),
   });
   return {
     GlobalWorkerOptions: { workerSrc: "" },
@@ -36,7 +37,12 @@ vi.mock("pdfjs-dist", () => {
       destroy: () => Promise.resolve(),
     }),
     TextLayer: class {
-      constructor({ viewport }: { viewport: { scale: number } }) {
+      constructor({ viewport, textContentSource }: { viewport: { scale: number }; textContentSource: unknown }) {
+        // The source must be the stream: `getTextContent()` iterates it with
+        // `for await`, which WebKit's ReadableStream lacks.
+        if (typeof (textContentSource as { getReader?: unknown }).getReader !== "function") {
+          throw new Error("text layer needs a stream");
+        }
         textLayers.push(viewport.scale);
       }
       render() {
