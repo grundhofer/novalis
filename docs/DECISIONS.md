@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0016). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0018). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -38,7 +38,7 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Hide-syntax live preview | no |
 | Split view / board + note split | no (D21) |
 | Folding, focus/typewriter, minimap, vim | no |
-| Image paste/drop | no (later) |
+| Image paste/drop | yes, hard-coded `attachments/` next to the note, no setting (ADR-0017, 2026-09-15) |
 | Version history | no |
 | Multi-vault / recent vaults | no |
 | E-paper mode | no |
@@ -258,6 +258,54 @@ dialog's extension list ("das hier alphabetisch ordnen? sind die
 vollständig?"): sorted now; it is complete for the §7.3 text types — the
 extensionless tier-C names and the tier-D viewer types are not typed
 extensions, and a PDF or image cannot be created empty.
+
+Still on the branch, the owner asked three things at once:
+
+> kónnen wir auch diagramme etc. darstellen wie von mermaid oder sowas wie
+> puml? was sollten wir noch unterstützen?
+
+> ich möchte die dateien, genau wie die boards per drag and drop verschieben
+> können.
+
+> ist es außerdem möglich screenshots bzw. bilddateien in diesen abzulegen?
+> am besten per command v etc
+
+Asked "Bilder/Screenshots in Notizen: welcher Umfang?", with the policy fixed
+in the question (a folder `attachments/` next to the note, the file named
+after the note and the time, a `![](...)` link, a 24th IPC command, an ADR):
+
+> ⌘V aus der Zwischenablage (Recommended), Bilddateien aus dem Finder auf die
+> Notiz ziehen
+
+Recorded as **ADR-0017** (attachments: ⌘V and drop write the image to
+`attachments/` next to the note, named `<stem>-YYYYMMDD-HHMMSS.<ext>`, and
+insert `![](attachments/…)`; one new IPC command `write_blob`, 24 of 25, that
+never overwrites; the §7.3 image types only; hard-coded, no fifth setting).
+The "Image paste/drop" row above is changed accordingly, as is PLAN.md §4.4.
+
+Asked "Dateien und Ordner im Baum per Drag & Drop verschieben (Ziel:
+Ordnerzeile oder Wurzel; Links werden umgeschrieben wie bei Umbenennen)?":
+
+> Ja (Recommended)
+
+Recorded as **ADR-0018** (a file row dropped onto a folder row or the tree's
+empty space is the existing `rename`, wikilinks and card references rewritten
+as File ▸ Rename does; folders are drop targets but not yet draggable, since a
+directory move needs a directory-aware relink the core does not have; board
+rows are neither; "manual tree order" stays dropped). Both gestures are in the
+`docs/KEYMAP.md` mouse-gesture table.
+
+Asked "Diagramme und mehr im Lesemodus ⌘E (der Lesemodus selbst ist genehmigt
+und kommt zuerst; jede Zeile hier ist eine eigene Abhängigkeit mit ADR)":
+
+> Mermaid (Recommended)
+
+KaTeX was not selected; PlantUML had been explained as needing Java or a
+server, which the privacy rule forbids. Mermaid is approved for the ⌘E
+read-only preview only (itself a v1.1 yes, PLAN.md §4.4, not yet built) and
+gets its own ADR when built, as a lazy chunk loaded only for a note with a
+`mermaid` fence. PLAN.md §2.2 and §7.2 carry the clause; ADR-0016's list of
+approved-for-later formats notes it.
 
 ### Open
 

@@ -9,7 +9,7 @@ import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { dispatchCommand } from "./commands";
+import { dispatchCommand, moveEntry } from "./commands";
 
 // The dispatcher reaches the shell through `../ipc/client`; a lib test has no
 // Tauri to talk to, so the boundary is mocked and only the dispatcher's own
@@ -26,7 +26,13 @@ vi.mock("../ipc/client", () => {
     }
   }
   return {
-    commands: { createNote: vi.fn(), createFolder: vi.fn(), listDir: vi.fn(), listNotes: vi.fn() },
+    commands: {
+      createNote: vi.fn(),
+      createFolder: vi.fn(),
+      listDir: vi.fn(),
+      listNotes: vi.fn(),
+      rename: vi.fn(),
+    },
     unwrap: vi.fn(),
     NovalisError,
     errorKey: (error: unknown) => (error instanceof NovalisError ? `errors.${error.code}` : "errors.internal"),
@@ -198,5 +204,61 @@ describe("settings.open", () => {
     useUi.setState({ overlay: { kind: "none" } });
     dispatchCommand("settings.open");
     expect(useUi.getState().overlay).toEqual({ kind: "settings" });
+  });
+});
+
+// ADR-0018: a file row dropped on a folder row. The move is the dialog's
+// rename with the name kept, so the same store bookkeeping has to follow it.
+describe("moveEntry", () => {
+  let stores: ReturnType<typeof stubStores>;
+
+  beforeEach(() => {
+    stores = stubStores();
+    useVault.setState({
+      children: {
+        "": [entry("Archive", true), entry("Notes", true)],
+        Notes: [entry("Notes/sub", true), entry("Notes/a.md", false)],
+      },
+    });
+    vi.mocked(unwrap).mockResolvedValue(undefined);
+  });
+
+  it("renames into the target folder, relists both folders and refreshes the notes", async () => {
+    await moveEntry("Notes/a.md", "Archive");
+
+    expect(commands.rename).toHaveBeenCalledWith("Notes/a.md", "Archive/a.md");
+    expect(stores.reload.mock.calls).toEqual([["Notes"], ["Archive"]]);
+    expect(stores.refresh).toHaveBeenCalled();
+  });
+
+  it("does nothing when the file is dropped on the folder it is in", async () => {
+    await moveEntry("Notes/a.md", "Notes");
+
+    expect(commands.rename).not.toHaveBeenCalled();
+    expect(stores.reload).not.toHaveBeenCalled();
+  });
+
+  // The core relinks the notes pointing at a moved note, not the links inside
+  // a moved folder's notes nor the cards under it: a folder stays put.
+  it("does not move a folder", async () => {
+    await moveEntry("Notes/sub", "Archive");
+
+    expect(commands.rename).not.toHaveBeenCalled();
+  });
+
+  it("re-keys a tab open on the moved file", async () => {
+    useTabs.setState({ tabs: ["Notes/a.md"], active: "Notes/a.md" });
+
+    await moveEntry("Notes/a.md", "Archive");
+
+    expect(useTabs.getState().tabs).toEqual(["Archive/a.md"]);
+    expect(useTabs.getState().active).toBe("Archive/a.md");
+  });
+
+  it("moves into the vault root", async () => {
+    await moveEntry("Notes/a.md", "");
+
+    expect(commands.rename).toHaveBeenCalledWith("Notes/a.md", "a.md");
+    expect(stores.reload.mock.calls).toEqual([["Notes"], [""]]);
   });
 });

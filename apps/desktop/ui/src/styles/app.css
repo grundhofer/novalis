@@ -369,6 +369,10 @@ button {
   font-weight: var(--ds-font-weight-strong);
 }
 
+.tree-row.drop {
+  background: var(--ds-color-accent-fill);
+}
+
 .tree-row.folder {
   font-weight: var(--ds-font-weight-medium);
 }

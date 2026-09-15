@@ -11,8 +11,9 @@ import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand } from "./lib/commands";
-import { viewKind } from "./lib/fileTypes";
+import { isSupported, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
+import { resolveDestination } from "./lib/links";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
@@ -241,6 +242,13 @@ export default function App() {
   }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard, treeSort]);
 
   const followLink = useCallback((target: string) => {
+    // A Markdown destination is a path relative to the note (PLAN.md §7.2):
+    // a `.md` opens in the editor, an image or PDF in the viewer (ADR-0017).
+    const destination = resolveDestination(useTabs.getState().active, target);
+    if (destination && isSupported(destination)) {
+      void useTabs.getState().open(destination).catch(report);
+      return;
+    }
     const clean = target
       .replace(/^\[\[/, "")
       .replace(/\]\]$/, "")

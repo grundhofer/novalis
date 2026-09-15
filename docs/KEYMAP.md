@@ -94,6 +94,8 @@ sidebar tree), `board` (focus in the board pane).
 | Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown |
 | Click on a card | Open the linked note in a tab (D21) | board |
 | Click on a board item in the tree | Show the board pane | tree |
+| Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
+| `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
 
 ## Not listed
 

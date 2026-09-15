@@ -31,6 +31,7 @@ import {
 } from "@codemirror/view";
 
 import { extensionOf } from "../lib/paths";
+import { attachments } from "./attachments";
 import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { Tag, WikiLink } from "./markdownExt";
 
@@ -189,6 +190,8 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
           return true;
         },
       }),
+      // Pasted and dropped images become files next to the note (ADR-0017).
+      attachments(path),
     );
   }
 

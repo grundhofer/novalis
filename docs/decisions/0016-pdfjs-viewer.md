@@ -61,3 +61,4 @@ owns. Asked with that framing and the cost named:
   lesen), CBZ"): an EPUB reader on a Rust `zip` crate, the v1.1 read-only
   Markdown preview on `pulldown-cmark`, DOCX through `mammoth`, CBZ once
   `zip` is there.
+- Also approved 2026-09-15: Mermaid in the ⌘E preview (see ADR-0017/0018's day record in docs/DECISIONS.md).

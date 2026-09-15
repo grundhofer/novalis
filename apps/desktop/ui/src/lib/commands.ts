@@ -86,23 +86,45 @@ async function todayNote(): Promise<void> {
   await useTabs.getState().open(path);
 }
 
+/**
+ * The one rename behind the dialog and the tree's drag and drop: the buffer
+ * is saved first so the shell moves what the user sees, then the docs and
+ * tabs are re-keyed and every folder whose listing changed is relisted.
+ */
+async function renameTo(from: string, target: string): Promise<void> {
+  if (target === from) return;
+  await useEditorSave.getState().save(from);
+  await unwrap(commands.rename(from, target));
+  useEditorSave.getState().rename(from, target);
+  useTabs.getState().rename(from, target);
+  const vault = useVault.getState();
+  const fromFolder = folderOf(from);
+  const toFolder = folderOf(target);
+  await vault.reload(fromFolder);
+  if (toFolder !== fromFolder) await vault.reload(toFolder);
+  await useNotes.getState().refresh();
+}
+
 async function renamePath(path: string): Promise<void> {
   useUi.getState().ask({
     titleKey: "menu.file.rename",
     placeholderKey: "tree.renamePlaceholder",
     initial: fileNameOf(path),
-    submit: async (name) => {
-      const folder = folderOf(path);
-      const target = joinRel(folder, name);
-      if (target === path) return;
-      await useEditorSave.getState().save(path);
-      await unwrap(commands.rename(path, target));
-      useEditorSave.getState().rename(path, target);
-      useTabs.getState().rename(path, target);
-      await useVault.getState().reload(folder);
-      await useNotes.getState().refresh();
-    },
+    submit: (name) => renameTo(path, joinRel(folderOf(path), name)),
   });
+}
+
+/**
+ * Move a file into `toFolder`, keeping its name (ADR-0018). Files only: the
+ * core relinks the notes that point at a moved note, but not the relative
+ * links inside a moved folder's notes nor the cards' `notes[]` under it, so a
+ * folder — or anything the tree does not list — stays where it is.
+ */
+export async function moveEntry(from: string, toFolder: string): Promise<void> {
+  if (folderOf(from) === toFolder) return;
+  const entry = useVault.getState().children[folderOf(from)]?.find((e) => e.path === from);
+  if (!entry || entry.dir) return;
+  await renameTo(from, joinRel(toFolder, fileNameOf(from)));
 }
 
 async function trashPath(path: string): Promise<void> {

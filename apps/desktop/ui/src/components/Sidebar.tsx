@@ -1,9 +1,9 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDay } from "../i18n";
-import { dispatchCommand } from "../lib/commands";
+import { dispatchCommand, moveEntry } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { nsToMs } from "../lib/paths";
 import { useBoard } from "../stores/board";
@@ -23,9 +23,20 @@ import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
  * board) and the legend doubles as the sort switch; both go through
  * `dispatchCommand` and the stores, so a click here and the menu item do the
  * same thing.
+ *
+ * A file row drags and a folder row takes the drop (ADR-0018); the tree's
+ * own space below the rows is the vault root. The payload is the path in
+ * `text/plain` — WebKit abandons a drag whose data store is empty when
+ * dragstart returns, so the drop would never fire (see BoardPane).
  */
 
 const ROW_HEIGHT = 28;
+
+/** True over the tree's own space, not over a row: there the root is the target. */
+function overTreeSpace(event: DragEvent<HTMLDivElement>): boolean {
+  const target = event.target as Element;
+  return target === event.currentTarget || target.classList.contains("tree-inner");
+}
 
 /** The tooltip of a head control: its label and the chord the menu shows. */
 function tooltip(label: string, command: string): string {
@@ -36,6 +47,8 @@ function tooltip(label: string, command: string): string {
 export default function Sidebar() {
   const { t } = useTranslation();
   const scroller = useRef<HTMLDivElement | null>(null);
+  /** The folder row a drag is over, for the `drop` highlight. */
+  const [overPath, setOverPath] = useState<string | null>(null);
   const vault = useVault((s) => s.vault);
   const children = useVault((s) => s.children);
   const expanded = useVault((s) => s.expanded);
@@ -71,6 +84,12 @@ export default function Sidebar() {
       return;
     }
     void useTabs.getState().open(entry.path).catch(report);
+  };
+
+  const dropInto = (event: DragEvent<HTMLDivElement>, toFolder: string) => {
+    const path = event.dataTransfer.getData("text/plain");
+    setOverPath(null);
+    void moveEntry(path, toFolder).catch(report);
   };
 
   if (!vault) return <nav className="sidebar" />;
@@ -140,13 +159,28 @@ export default function Sidebar() {
         <span className="name">{t("tree.todayNote")}</span>
       </button>
 
-      <div className="tree" ref={scroller}>
+      <div
+        className="tree"
+        ref={scroller}
+        onDragOver={(event) => {
+          // A row that is not a folder lets the event through; refusing it
+          // here keeps a file row from reading as a target.
+          if (!overTreeSpace(event)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(event) => {
+          if (overTreeSpace(event)) dropInto(event, "");
+        }}
+      >
         <div className="tree-inner" style={{ height: `${virtualizer.getTotalSize()}px` }}>
           {virtualizer.getVirtualItems().map((item) => {
             const row = rows[item.index];
             if (!row) return null;
             const { entry } = row;
             const active = entry.path === activeTab || entry.path === selected;
+            const draggable = !entry.dir && !entry.boardSlug;
+            const dropTarget = entry.dir && !entry.boardSlug;
             const classes = ["tree-row"];
             if (entry.dir) classes.push("folder");
             else classes.push("file");
@@ -154,6 +188,7 @@ export default function Sidebar() {
             if (row.expanded) classes.push("open");
             if (active) classes.push("active");
             if (entry.cloudOnly) classes.push("cloud");
+            if (dropTarget && entry.path === overPath) classes.push("drop");
 
             return (
               <div
@@ -169,6 +204,45 @@ export default function Sidebar() {
                 aria-expanded={entry.dir && !entry.boardSlug ? row.expanded : undefined}
                 tabIndex={-1}
                 onClick={() => openRow(row)}
+                draggable={draggable || undefined}
+                onDragStart={
+                  draggable
+                    ? (event) => {
+                        event.dataTransfer.setData("text/plain", entry.path);
+                        event.dataTransfer.effectAllowed = "move";
+                      }
+                    : undefined
+                }
+                onDragEnd={draggable ? () => setOverPath(null) : undefined}
+                onDragOver={
+                  dropTarget
+                    ? (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.dataTransfer.dropEffect = "move";
+                        if (overPath !== entry.path) setOverPath(entry.path);
+                      }
+                    : undefined
+                }
+                onDragLeave={
+                  dropTarget
+                    ? (event) => {
+                        // Leaving the name span for the row itself is not
+                        // leaving the row; where the browser reports no
+                        // related target the next dragover restores the mark.
+                        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                        setOverPath((current) => (current === entry.path ? null : current));
+                      }
+                    : undefined
+                }
+                onDrop={
+                  dropTarget
+                    ? (event) => {
+                        event.stopPropagation();
+                        dropInto(event, entry.path);
+                      }
+                    : undefined
+                }
               >
                 {active && <span className="active-marker" aria-hidden="true" />}
                 <span className="chev" aria-hidden="true" />
