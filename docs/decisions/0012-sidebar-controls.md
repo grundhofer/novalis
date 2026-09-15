@@ -111,6 +111,12 @@ Kleinste Form, kein zweites Panel." and whose question fixed the file as
   `core:window:allow-start-dragging`, without which every press on the
   custom title bar rejected into the fatal overlay instead of moving the
   window.
-- What this does not add: a settings button, a fifth setting, a preferences
-  window, a template, a "Today view", a configurable journal folder. Each of
-  those is a feature under the minimalism rule and would need its own yes.
+- What this does not add: a fifth setting, a preferences window, a template,
+  a "Today view", a configurable journal folder. Each of those is a feature
+  under the minimalism rule and would need its own yes.
+
+**Amended 2026-09-15** — the owner, testing: "bitte noch settings button icon
+ermöglichen". A button in the sidebar foot opens the command palette on the
+four settings alone (`settings.open`); no window, `Cmd+,` stays unbound. The
+"not selected" above is superseded by that sentence; `docs/DECISIONS.md`
+carries the day's record.

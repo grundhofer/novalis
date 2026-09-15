@@ -135,7 +135,7 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <button className="today-row" type="button" onClick={() => dispatchCommand("file.todayNote")}>
+      <button className="tree-row today-row" type="button" onClick={() => dispatchCommand("file.todayNote")}>
         <span className="chev" aria-hidden="true" />
         <span className="name">{t("tree.todayNote")}</span>
       </button>
@@ -190,6 +190,15 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-foot">
+        <button
+          className="btn ghost sidebar-tool sidebar-settings"
+          type="button"
+          title={t("palette.cmd.settings")}
+          aria-label={t("palette.cmd.settings")}
+          onClick={() => dispatchCommand("settings.open")}
+        >
+          <span className="glyph-gear" aria-hidden="true" />
+        </button>
         {counts.cloudOnly > 0 && (
           <span className="hint">
             <span className="hint-dot" aria-hidden="true" />

@@ -245,6 +245,20 @@ reading formats to plan next, each with its own ADR when built:
 All four are approved and not yet built; the order proposed is EPUB, the
 Markdown preview (already a v1.1 yes, PLAN.md §4.4), DOCX, CBZ.
 
+Still testing, the owner reversed the one option they had left out on
+2026-09-14:
+
+> bitte noch settings button icon ermöglichen
+
+Recorded as an amendment to **ADR-0012**: a button in the sidebar foot (the
+macOS "sliders" glyph, drawn like the other glyphs) opens the command palette
+on the four settings alone (`settings.open`, also a palette entry). Still no
+preferences window and no `Cmd+,` (ADR-0004, ADR-0008). Of the New Note
+dialog's extension list ("das hier alphabetisch ordnen? sind die
+vollständig?"): sorted now; it is complete for the §7.3 text types — the
+extensionless tier-C names and the tier-D viewer types are not typed
+extensions, and a PDF or image cannot be created empty.
+
 ### Open
 
 The Cloudflare bucket ("zusätzlichen sync in ein bucket von cloudflare zum

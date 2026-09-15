@@ -61,6 +61,22 @@ describe("Palette", () => {
     expect(dispatchCommand).toHaveBeenCalledWith("file.todayNote");
   });
 
+  // The sidebar's gear (ADR-0012, amended 2026-09-15): the palette on the
+  // settings alone, nothing else to scroll past, and still no window.
+  it("shows only the settings in settings mode", () => {
+    render(<Palette mode="settings" />);
+    const input = screen.getByPlaceholderText("palette.settingsPlaceholder");
+
+    expect(screen.getByText("palette.cmd.language:settings.language.de")).toBeTruthy();
+    expect(screen.getByText("menu.view.fontLarger")).toBeTruthy();
+    expect(screen.queryByText("menu.file.newNote")).toBeNull();
+    expect(screen.queryByText("tree.todayNote")).toBeNull();
+
+    fireEvent.change(input, { target: { value: "menu.edit.checkSpellingWhileTyping" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(dispatchCommand).toHaveBeenCalledWith("settings.spellcheck");
+  });
+
   it("offers no command in quick-open", () => {
     render(<Palette mode="quickOpen" />);
     const input = screen.getByPlaceholderText("palette.quickOpenPlaceholder");

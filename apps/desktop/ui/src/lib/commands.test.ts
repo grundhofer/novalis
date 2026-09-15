@@ -192,3 +192,11 @@ describe("placement of a new note or folder", () => {
     expect(commands.createFolder).toHaveBeenCalledWith("Notes", "sub");
   });
 });
+
+describe("settings.open", () => {
+  it("opens the palette on the settings", () => {
+    useUi.setState({ overlay: { kind: "none" } });
+    dispatchCommand("settings.open");
+    expect(useUi.getState().overlay).toEqual({ kind: "settings" });
+  });
+});

@@ -27,6 +27,7 @@ export type Overlay =
   | { kind: "none" }
   | { kind: "quickOpen" }
   | { kind: "palette" }
+  | { kind: "settings" }
   | { kind: "search" };
 
 /**

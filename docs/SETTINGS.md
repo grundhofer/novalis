@@ -15,7 +15,8 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
   free-form, disposable, and are never documented here.
 - No preferences window. Each setting has exactly one persisted place where it
   changes (the "Changed via" column); the command palette is a second launcher
-  for the same command ids, not a second place (ADR-0012).
+  for the same command ids, not a second place (ADR-0012), and the sidebar's
+  settings button opens that palette on the four settings alone.
 
 <!-- settings-table:start -->
 | Key | Kind | Type | Values | Default | Changed via | ADR |

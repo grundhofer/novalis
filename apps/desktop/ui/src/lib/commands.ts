@@ -27,7 +27,10 @@ async function newNote(folder: string): Promise<void> {
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
     // What a typed extension does (ADR-0014), and which ones count.
-    hint: { key: "tree.newNoteHint", values: { extensions: CREATABLE_EXTENSIONS.map((e) => `.${e}`).join(" ") } },
+    hint: {
+      key: "tree.newNoteHint",
+      values: { extensions: [...CREATABLE_EXTENSIONS].sort().map((e) => `.${e}`).join(" ") },
+    },
     submit: async (name) => {
       const entry = await unwrap(commands.createNote(folder, name));
       await useVault.getState().reload(folder);
@@ -194,6 +197,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "nav.forward": () => useTabs.getState().forward(),
   "quickOpen.open": () => useUi.getState().setOverlay({ kind: "quickOpen" }),
   "palette.open": () => useUi.getState().setOverlay({ kind: "palette" }),
+  "settings.open": () => useUi.getState().setOverlay({ kind: "settings" }),
   "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
   "board.toggle": () => useUi.getState().toggleBoard(),
@@ -241,16 +245,23 @@ export function dispatchCommand(id: string): void {
 
 /**
  * Command ids the palette offers, in the order it shows them. `valueKey`
- * fills the label's `{{value}}`: the four settings have no window and no
- * button, so the palette is where they are set (PLAN.md §5.3, ADR-0012).
+ * fills the label's `{{value}}`. The entries marked `settings` are the four
+ * settings' values: they have no window, and the settings button (ADR-0012,
+ * amended 2026-09-15) opens the palette on exactly this subset.
  */
-export const PALETTE_COMMANDS: readonly { id: string; labelKey: string; valueKey?: string }[] = [
+export const PALETTE_COMMANDS: readonly {
+  id: string;
+  labelKey: string;
+  valueKey?: string;
+  settings?: true;
+}[] = [
   { id: "quickOpen.open", labelKey: "menu.go.quickOpen" },
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
   { id: "file.todayNote", labelKey: "tree.todayNote" },
   { id: "tree.newFolder", labelKey: "menu.file.newFolder" },
   { id: "board.new", labelKey: "menu.file.newBoard" },
+  { id: "settings.open", labelKey: "palette.cmd.settings" },
   { id: "vault.open", labelKey: "menu.file.openVault" },
   { id: "file.save", labelKey: "menu.file.save" },
   { id: "tree.rename", labelKey: "menu.file.rename" },
@@ -264,14 +275,14 @@ export const PALETTE_COMMANDS: readonly { id: string; labelKey: string; valueKey
   { id: "markdown.italic", labelKey: "menu.edit.italic" },
   { id: "markdown.link", labelKey: "menu.edit.insertLink" },
   { id: "markdown.toggleCheckbox", labelKey: "menu.edit.toggleCheckbox" },
-  { id: "view.fontLarger", labelKey: "menu.view.fontLarger" },
-  { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller" },
-  { id: "view.fontReset", labelKey: "menu.view.fontReset" },
-  { id: "settings.appearance.system", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.system" },
-  { id: "settings.appearance.light", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.light" },
-  { id: "settings.appearance.dark", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.dark" },
-  { id: "settings.language.system", labelKey: "palette.cmd.language", valueKey: "settings.language.system" },
-  { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de" },
-  { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en" },
-  { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping" },
+  { id: "view.fontLarger", labelKey: "menu.view.fontLarger", settings: true },
+  { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller", settings: true },
+  { id: "view.fontReset", labelKey: "menu.view.fontReset", settings: true },
+  { id: "settings.appearance.system", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.system", settings: true },
+  { id: "settings.appearance.light", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.light", settings: true },
+  { id: "settings.appearance.dark", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.dark", settings: true },
+  { id: "settings.language.system", labelKey: "palette.cmd.language", valueKey: "settings.language.system", settings: true },
+  { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de", settings: true },
+  { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en", settings: true },
+  { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping", settings: true },
 ];

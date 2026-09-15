@@ -173,6 +173,12 @@ describe("Sidebar", () => {
     expect(rowNames()).toEqual(["boards", "a.md", "Atlas"]);
   });
 
+  it("dispatches the settings button", () => {
+    render(<Sidebar />);
+    fireEvent.click(screen.getByLabelText("palette.cmd.settings"));
+    expect(dispatchCommand).toHaveBeenCalledWith("settings.open");
+  });
+
   it("dispatches the today row", () => {
     render(<Sidebar />);
 

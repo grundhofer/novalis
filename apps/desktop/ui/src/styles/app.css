@@ -216,10 +216,11 @@ button {
   color: var(--ds-color-accent-text);
 }
 
-/* The folder and board glyphs are borders, like `.chev`: no icon font, no
-   image (PLAN.md §11.5). */
+/* The folder, board and settings glyphs are borders, like `.chev`: no icon
+   font, no image (PLAN.md §11.5). */
 .glyph-folder,
-.glyph-board {
+.glyph-board,
+.glyph-gear {
   position: relative;
   display: block;
   width: 12px;
@@ -313,24 +314,15 @@ button {
   transform: rotate(45deg);
 }
 
-/* The "Today" row sits above the virtualized tree, so it is its own class:
-   a `.tree-row` is absolutely positioned by the virtualizer. */
+/* The "Today" row is a `.tree-row` above the virtualized tree, so it stays in
+   the flow where the virtualizer's rows are absolutely positioned. */
 .today-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
+  position: static;
   flex: 0 0 auto;
-  width: 100%;
   height: var(--ds-size-row);
-  padding: 0 var(--ds-space-5) 0 14px;
+  padding-left: 14px;
   border-bottom: 1px solid var(--ds-color-border-default);
   text-align: left;
-  color: var(--ds-color-fg-default);
-  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
-}
-
-.today-row:hover {
-  background: var(--ds-color-bg-hover);
 }
 
 .today-row .chev::before {
@@ -429,8 +421,7 @@ button {
   transform: none;
 }
 
-.tree-row .name,
-.today-row .name {
+.tree-row .name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -452,6 +443,40 @@ button {
   gap: var(--ds-space-2);
   padding: var(--ds-space-4) var(--ds-space-5) var(--ds-space-4) var(--ds-space-6);
   border-top: 1px solid var(--ds-color-border-default);
+}
+
+/* The settings button (ADR-0012, amended 2026-09-15): the macOS "sliders"
+   glyph, three lines with a knob each, drawn like the other glyphs. It opens
+   the palette on the four settings — still no preferences window. */
+.sidebar-settings {
+  align-self: flex-start;
+}
+
+.glyph-gear::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 12px;
+  height: 0;
+  border-top: 1px solid currentColor;
+  box-shadow:
+    0 4px 0 currentColor,
+    0 8px 0 currentColor;
+}
+
+.glyph-gear::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
+  box-shadow:
+    6px 4px 0 currentColor,
+    -1px 8px 0 currentColor;
 }
 
 .hint {

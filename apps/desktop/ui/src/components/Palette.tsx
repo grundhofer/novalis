@@ -13,11 +13,13 @@ import { report, useUi } from "../stores/ui";
 import "../styles/overlay.css";
 
 /**
- * Quick-open (`Cmd+P`) and the command palette (`Shift+Cmd+P`) are the same
- * component: one list, three sources.
+ * Quick-open (`Cmd+P`), the command palette (`Shift+Cmd+P`) and the settings
+ * list behind the sidebar's gear are the same component: one list, three
+ * sources; the settings mode is the palette on the four settings alone.
  *
  * The palette is "the home of every transient toggle" (PLAN.md §5.3) and it
  * carries the heading jump that replaces the dropped outline panel (§4.3).
+ * There is still no preferences window (ADR-0004).
  */
 
 type Entry =
@@ -37,7 +39,15 @@ function headingsOfActiveDocument(): Entry[] {
   return editorHeadings().map((h) => ({ kind: "heading", line: h.line, text: h.text }));
 }
 
-export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
+export type PaletteMode = "quickOpen" | "palette" | "settings";
+
+const PLACEHOLDER_KEY: Record<PaletteMode, string> = {
+  quickOpen: "palette.quickOpenPlaceholder",
+  palette: "palette.placeholder",
+  settings: "palette.settingsPlaceholder",
+};
+
+export default function Palette({ mode }: { mode: PaletteMode }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
@@ -58,11 +68,14 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
       name: b.name,
     }));
     if (mode === "quickOpen") return [...noteEntries, ...boardEntries];
-    const commandEntries: Entry[] = PALETTE_COMMANDS.map((c) => ({
-      kind: "command",
-      id: c.id,
-      label: c.valueKey ? t(c.labelKey, { value: t(c.valueKey) }) : t(c.labelKey),
-    }));
+    const commandEntries: Entry[] = PALETTE_COMMANDS.filter((c) => mode !== "settings" || c.settings).map(
+      (c) => ({
+        kind: "command",
+        id: c.id,
+        label: c.valueKey ? t(c.labelKey, { value: t(c.valueKey) }) : t(c.labelKey),
+      }),
+    );
+    if (mode === "settings") return commandEntries;
     return [...commandEntries, ...headingsOfActiveDocument(), ...noteEntries, ...boardEntries];
   }, [mode, notes, boards, t]);
 
@@ -120,7 +133,7 @@ export default function Palette({ mode }: { mode: "quickOpen" | "palette" }) {
             className="palette-text"
             ref={input}
             value={query}
-            placeholder={t(mode === "quickOpen" ? "palette.quickOpenPlaceholder" : "palette.placeholder")}
+            placeholder={t(PLACEHOLDER_KEY[mode])}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               event.stopPropagation();

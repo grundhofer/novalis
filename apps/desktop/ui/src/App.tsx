@@ -329,6 +329,11 @@ export default function App() {
           <Palette mode="palette" />
         </Suspense>
       )}
+      {overlay.kind === "settings" && (
+        <Suspense fallback={null}>
+          <Palette mode="settings" />
+        </Suspense>
+      )}
       {overlay.kind === "search" && (
         <Suspense fallback={null}>
           <SearchPanel />
