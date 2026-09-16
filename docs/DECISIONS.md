@@ -455,11 +455,15 @@ Asked "Überschriften-Vervollständigung in Wikilinks: nach `[[Notiz#` die
 Recorded as an extension of the §4.4 "`[[` and `#` autocompletion" yes, for
 the `[[note#heading]]` form PLAN.md §7.2 already defines: `[[#` offers the
 headings of the buffer, `[[note#` those of the named note — read through the
-existing `read_file`, the buffer first when the note is open. Stated here
-because it is a consequence, not asked: `read_file` is the "downloaded on
-open" read of §4.5, so naming a cloud-only note before the `#` downloads it
-as opening it would. No new command, dependency, string or chord; the tag
-completion stays out of a link.
+existing `read_file`, the buffer first when the note is open. `read_file` is the "downloaded on open" read of §4.5, so naming a
+cloud-only note before the `#` downloads it as opening it would; put to the
+owner as "Nur beim Öffnen, nicht beim Tippen" against "So lassen: `[[Name#`
+darf laden":
+
+> So lassen: `[[Name#` darf laden
+
+No new command, dependency, string or chord; the tag completion stays out of
+a link.
 
 ### Open after the sync tests (2026-09-08)
 
