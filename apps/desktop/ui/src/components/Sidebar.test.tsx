@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { dispatchCommand, moveEntry } from "../lib/commands";
+import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
@@ -34,6 +34,7 @@ vi.mock("../ipc/client", () => ({
 vi.mock("../lib/commands", () => ({
   dispatchCommand: vi.fn(),
   moveEntry: vi.fn(async () => undefined),
+  openTreeContextMenu: vi.fn(async () => undefined),
 }));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -398,5 +399,27 @@ describe("Sidebar", () => {
         expect(moveEntry).not.toHaveBeenCalled();
       });
     });
+  });
+
+  // ADR-0021: a right-click on a row asks for the context menu for that row
+  // and does not open or expand it; the browser's own menu stays away.
+  it("asks for the context menu on right-click, naming a board row", () => {
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+    useVault.setState({
+      children: {
+        "": [entry("boards", true), entry("a.md", false)],
+        boards: [{ ...entry("boards/atlas", true), name: "atlas", boardSlug: "atlas" }],
+      },
+      expanded: { boards: true },
+    });
+    render(<Sidebar />);
+
+    const onRow = fireEvent.contextMenu(screen.getByText("a.md"));
+    expect(onRow).toBe(false);
+    expect(openTreeContextMenu).toHaveBeenLastCalledWith("a.md", false);
+
+    fireEvent.contextMenu(screen.getByText("Atlas"));
+    expect(openTreeContextMenu).toHaveBeenLastCalledWith("boards/atlas", true);
+    expect(useTabs.getState().open).not.toHaveBeenCalled();
   });
 });

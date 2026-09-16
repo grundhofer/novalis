@@ -1,4 +1,4 @@
-//! The whole IPC surface: 25 commands (PLAN.md §2.3 rule 8 caps it at 30).
+//! The whole IPC surface: 27 commands (PLAN.md §2.3 rule 8 caps it at 30).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -660,6 +660,66 @@ pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
         Ok(())
     })
     .await
+}
+
+/// Show `path` in the Finder, selected in its folder (ADR-0021): `open -R`,
+/// the system's own opener, no plugin and nothing leaves the machine. The
+/// path is checked against the vault like every other; macOS only, as the
+/// app is (PLAN.md §4.5) — the Linux build answers with an error.
+#[tauri::command]
+#[specta::specta]
+pub async fn reveal(state: State<'_, AppState>, path: String) -> IpcResult<()> {
+    let root = state.require_vault()?;
+    blocking(move || {
+        let rel = normalize_rel(&path)?;
+        let abs = vault_rel(&root, &rel)?;
+        #[cfg(target_os = "macos")]
+        {
+            let status = std::process::Command::new("/usr/bin/open")
+                .arg("-R")
+                .arg(&abs)
+                .status()
+                .map_err(|e| CoreError::from_io(&abs, e))?;
+            if !status.success() {
+                return Err(CoreError::internal(format!("open -R exited with {status}")).into());
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = abs;
+            Err(CoreError::internal("reveal is macOS only").into())
+        }
+    })
+    .await
+}
+
+/// The tree's context menu (ADR-0021), popped at the pointer. Its entries
+/// are File menu items with the File menu's ids, so a click arrives in the
+/// UI as the same `MenuAction` a menu-bar click does and runs the same
+/// command against the row the UI selected before asking. A board row gets
+/// "Show in Finder" only: its rename and delete live in the board pane.
+#[tauri::command]
+#[specta::specta]
+pub async fn tree_context_menu(
+    app: AppHandle,
+    window: tauri::Window,
+    state: State<'_, AppState>,
+    board: bool,
+) -> IpcResult<()> {
+    let settings = state.settings();
+    let catalog = Catalog::load(resolve_locale(settings.language));
+    // AppKit wants menus built and shown on the main thread, as `refresh_menu`
+    // does for the menu bar.
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        if let Ok(menu) = menu::tree_context(&handle, &catalog, board) {
+            use tauri::menu::ContextMenu;
+            let _ = menu.popup(window);
+        }
+    })
+    .map_err(|e| CoreError::internal(e.to_string()))?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------- 5. search

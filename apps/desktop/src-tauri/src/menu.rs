@@ -43,6 +43,7 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.file.save",
     "menu.file.rename",
     "menu.file.moveToTrash",
+    "menu.file.revealInFinder",
     "menu.file.closeTab",
     "menu.file.reopenClosedTab",
     "menu.edit.title",
@@ -191,6 +192,12 @@ pub fn build(
             app,
             "tree.trash",
             cat.t("menu.file.moveToTrash"),
+            "",
+        )?)
+        .item(&item(
+            app,
+            "tree.reveal",
+            cat.t("menu.file.revealInFinder"),
             "",
         )?)
         .separator()
@@ -498,6 +505,37 @@ pub fn build(
     MenuBuilder::new(app)
         .items(&[&app_menu, &file, &edit, &view, &go, &window])
         .build()
+}
+
+/// The tree's context menu (ADR-0021): the File menu's own items, with the
+/// File menu's ids, for the row the UI has selected. A board row has its
+/// rename and delete in the board pane, so it gets "Show in Finder" alone.
+pub fn tree_context(app: &AppHandle, cat: &Catalog, board: bool) -> tauri::Result<Menu<Wry>> {
+    let mut menu = MenuBuilder::new(app).item(&item(
+        app,
+        "tree.reveal",
+        cat.t("menu.file.revealInFinder"),
+        "",
+    )?);
+    if !board {
+        menu = menu
+            .item(&item(app, "tree.rename", cat.t("menu.file.rename"), "")?)
+            .item(&item(
+                app,
+                "tree.trash",
+                cat.t("menu.file.moveToTrash"),
+                "",
+            )?)
+            .separator()
+            .item(&item(app, "file.newNote", cat.t("menu.file.newNote"), "")?)
+            .item(&item(
+                app,
+                "tree.newFolder",
+                cat.t("menu.file.newFolder"),
+                "",
+            )?);
+    }
+    menu.build()
 }
 
 /// Rebuild and install the menu for the current settings.

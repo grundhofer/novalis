@@ -3,7 +3,7 @@ import { useMemo, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDay } from "../i18n";
-import { dispatchCommand, moveEntry } from "../lib/commands";
+import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { nsToMs } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
@@ -251,6 +251,10 @@ export default function Sidebar() {
                 aria-expanded={entry.dir && !entry.boardSlug ? row.expanded : undefined}
                 tabIndex={-1}
                 onClick={() => openRow(row)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  void openTreeContextMenu(entry.path, !!entry.boardSlug).catch(report);
+                }}
                 draggable={draggable || undefined}
                 onDragStart={
                   draggable

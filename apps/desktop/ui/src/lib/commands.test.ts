@@ -9,7 +9,7 @@ import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { dispatchCommand, moveEntry } from "./commands";
+import { dispatchCommand, moveEntry, openTreeContextMenu } from "./commands";
 
 // The dispatcher reaches the shell through `../ipc/client`; a lib test has no
 // Tauri to talk to, so the boundary is mocked and only the dispatcher's own
@@ -32,6 +32,8 @@ vi.mock("../ipc/client", () => {
       listDir: vi.fn(),
       listNotes: vi.fn(),
       rename: vi.fn(),
+      reveal: vi.fn(),
+      treeContextMenu: vi.fn(),
     },
     unwrap: vi.fn(),
     NovalisError,
@@ -291,5 +293,42 @@ describe("note.togglePreview", () => {
   it("does nothing with no tab", () => {
     dispatchCommand("note.togglePreview");
     expect(useUi.getState().previewing).toEqual({});
+  });
+});
+
+// ADR-0021: the context menu is the shell's native popup over File menu ids;
+// the UI's part is to select the row first, so the ids act on it.
+describe("tree context menu and reveal", () => {
+  beforeEach(() => {
+    stubStores();
+    vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
+    vi.mocked(commands.treeContextMenu).mockClear();
+    vi.mocked(commands.reveal).mockClear();
+  });
+
+  it("selects the row, then asks the shell for the menu — a board row for its short form", async () => {
+    await openTreeContextMenu("Notes/a.md", false);
+    expect(useVault.getState().selected).toBe("Notes/a.md");
+    expect(commands.treeContextMenu).toHaveBeenLastCalledWith(false);
+
+    await openTreeContextMenu("boards/atlas", true);
+    expect(useVault.getState().selected).toBe("boards/atlas");
+    expect(commands.treeContextMenu).toHaveBeenLastCalledWith(true);
+  });
+
+  it("reveals the selected row, else the active tab, else nothing", async () => {
+    useVault.setState({ selected: "Notes" });
+    useTabs.setState({ active: "Notes/a.md" });
+    await dispatchCommand("tree.reveal");
+    expect(commands.reveal).toHaveBeenLastCalledWith("Notes");
+
+    useVault.setState({ selected: null });
+    await dispatchCommand("tree.reveal");
+    expect(commands.reveal).toHaveBeenLastCalledWith("Notes/a.md");
+
+    useTabs.setState({ active: null });
+    vi.mocked(commands.reveal).mockClear();
+    await dispatchCommand("tree.reveal");
+    expect(commands.reveal).not.toHaveBeenCalled();
   });
 });
