@@ -13,7 +13,7 @@ import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/clie
 import { dispatchCommand } from "./lib/commands";
 import { isSupported, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
-import { resolveDestination } from "./lib/links";
+import { resolveDestination, resolveWikiTarget } from "./lib/links";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
@@ -260,11 +260,7 @@ export default function App() {
       .split("|")[0]!
       .split("#")[0]!
       .trim();
-    const paths = useNotes.getState().paths;
-    const wanted = clean.toLowerCase().replace(/\.md$/, "");
-    const hit =
-      paths.find((path) => path.toLowerCase().replace(/\.md$/, "") === wanted) ??
-      paths.find((path) => path.toLowerCase().replace(/\.md$/, "").endsWith(`/${wanted}`));
+    const hit = resolveWikiTarget(clean, useNotes.getState().paths);
     if (hit) void useTabs.getState().open(hit).catch(report);
   }, []);
 

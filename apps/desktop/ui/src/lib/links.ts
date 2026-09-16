@@ -31,3 +31,21 @@ export function resolveDestination(active: string | null, raw: string): string |
   }
   return segments.length > 0 ? segments.join("/") : null;
 }
+
+/**
+ * The note a `[[wikilink]]` target names, among `paths` (PLAN.md §7.2): by
+ * stem, case-insensitive, `folder/stem` when the stem alone is ambiguous —
+ * the whole path wins over a stem at the end of a longer one. `target` is
+ * the text between the brackets with any `|label` and `#heading` already
+ * taken off. `null` when no note matches.
+ */
+export function resolveWikiTarget(target: string, paths: readonly string[]): string | null {
+  const wanted = target.trim().toLowerCase().replace(/\.md$/, "");
+  if (!wanted) return null;
+  const stemOf = (path: string) => path.toLowerCase().replace(/\.md$/, "");
+  return (
+    paths.find((path) => stemOf(path) === wanted) ??
+    paths.find((path) => stemOf(path).endsWith(`/${wanted}`)) ??
+    null
+  );
+}

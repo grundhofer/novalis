@@ -415,6 +415,54 @@ every other editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D` …), not
 replayed there. No new dependency, string key, command id or chord;
 `docs/KEYMAP.md` "Not listed" says which chords the preview answers.
 
+Trying the backlinks pane (above, "Backlinks placement") on a note linked
+from one other note several times, the owner wrote:
+
+> wenn ich viele rückverweise in eine notiz packe, taucht diese öfters in
+> Notiz a zum beispiel auf, aber springt immer zur gleichen stelle. entweder
+> wir springen einfach so in die notiz an den anfang über den backlink, dann
+> braucht es nur einen backling pro zielnotiz oder wir springen genau an die
+> stelle des backlinks, dann müssen wir die backlinks bzw. beschreibung
+> unterscheidbar machen
+
+Asked "Rückverweise: ein Eintrag pro Notiz oder ein Eintrag pro Stelle?", with
+a line number and a per-note entry as the alternatives:
+
+> Pro Stelle, Sprung zur Zeile
+
+So every link stays its own entry, shown with the text of its line (the
+vault search's snippet, from one guarded read of the source note; the path
+only when the note cannot be read), and a click opens the note at that line.
+Two things found on the way and fixed as defects, not decisions: the jump
+into a note shown in the preview ("das stört mich") lands on the block whose
+source span holds the line, lit for a moment since the preview has no
+cursor; and the line is settled against the text on screen, because the
+cache follows the file only after the autosave pause and a moved link
+otherwise went to where it had been. Asked whether the entries should also
+show the line number:
+
+> ne, die zeilen nicht
+
+Then, of the `[[` completion already built:
+
+> können wir überschriften autovervollständigen sobald # eingegeben wurde?
+
+Asked "Überschriften-Vervollständigung in Wikilinks: nach `[[Notiz#` die
+Überschriften dieser Notiz anbieten, nach `[[#` die der aktuellen?":
+
+> Ja, beide Formen
+
+Recorded as an extension of the §4.4 "`[[` and `#` autocompletion" yes, for
+the `[[note#heading]]` form PLAN.md §7.2 already defines: `[[#` offers the
+headings of the buffer, `[[note#` those of the named note — read through the
+existing `read_file`, the buffer first when the note is open. Stated here
+because it is a consequence, not asked: `read_file` is the "downloaded on
+open" read of §4.5, so naming a cloud-only note before the `#` downloads it
+as opening it would. No new command, dependency, string or chord; the tag
+completion stays out of a link.
+
+### Open after the sync tests (2026-09-08)
+
 ### The four items open after the sync tests (2026-09-08), as of 2026-09-16
 
 Measuring Drive with a second device (the owner's phone) had surfaced four

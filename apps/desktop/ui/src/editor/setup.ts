@@ -30,9 +30,11 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 
+import { resolveWikiTarget } from "../lib/links";
 import { extensionOf } from "../lib/paths";
 import { attachments } from "./attachments";
 import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
+import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -51,6 +53,8 @@ export interface EditorHooks {
   onSave: () => void;
   /** Every note in the vault, for `[[` completion. */
   notePaths: () => string[];
+  /** A note's text, for `[[note#` completion; `null` when it cannot be read. */
+  noteText: (path: string) => Promise<string | null>;
   readOnly: boolean;
   plainMode: boolean;
   spellcheck: boolean;
@@ -88,21 +92,49 @@ async function languageFor(path: string): Promise<Extension | null> {
   return support;
 }
 
-/** `[[` completion from the vault's note list; `#` from tags in this buffer. */
+/**
+ * `[[` completion from the vault's note list, `[[note#` from that note's
+ * headings (this note's for `[[#`); `#` outside a link from tags in this
+ * buffer.
+ */
 function completions(hooks: EditorHooks) {
   const wiki = (context: CompletionContext): CompletionResult | null => {
-    const match = context.matchBefore(/\[\[[^[\]]*/);
+    // Up to a `#` or `|`: past either, the note is named and the heading
+    // source or nothing takes over.
+    const match = context.matchBefore(/\[\[[^[\]#|]*/);
     if (!match) return null;
     const options = hooks.notePaths().map((path) => ({
       label: path.replace(/\.md$/, ""),
       type: "text",
     }));
-    return { from: match.from + 2, options, validFor: /^[^[\]]*$/ };
+    return { from: match.from + 2, options, validFor: /^[^[\]#|]*$/ };
+  };
+
+  const heading = async (context: CompletionContext): Promise<CompletionResult | null> => {
+    const line = context.state.doc.lineAt(context.pos);
+    const link = parseHeadingLink(line.text.slice(0, context.pos - line.from));
+    if (!link) return null;
+    let text: string | null;
+    if (link.target.trim() === "") {
+      text = context.state.doc.toString();
+    } else {
+      const path = resolveWikiTarget(link.target, hooks.notePaths());
+      text = path ? await hooks.noteText(path) : null;
+    }
+    if (text === null) return null;
+    return {
+      from: line.from + link.from,
+      options: headingsOf(text).map((name) => ({ label: name, type: "text" })),
+      validFor: /^[^[\]#|]*$/,
+    };
   };
 
   const tag = (context: CompletionContext): CompletionResult | null => {
     const match = context.matchBefore(/#[\p{L}\p{N}_/-]*/u);
     if (!match || match.from === match.to) return null;
+    // Inside `[[note#…` the `#` starts a heading, not a tag.
+    const line = context.state.doc.lineAt(context.pos);
+    if (parseHeadingLink(line.text.slice(0, context.pos - line.from))) return null;
     const seen = new Set<string>();
     for (const found of context.state.doc.toString().matchAll(/(?:^|\s)#([\p{L}\p{N}_/-]+)/gu)) {
       if (found[1]) seen.add(found[1]);
@@ -114,7 +146,7 @@ function completions(hooks: EditorHooks) {
     };
   };
 
-  return autocompletion({ override: [wiki, tag], icons: false });
+  return autocompletion({ override: [wiki, heading, tag], icons: false });
 }
 
 export async function buildExtensions(path: string, hooks: EditorHooks): Promise<Extension[]> {
