@@ -316,8 +316,10 @@ button {
 }
 
 /* The "Today" row is a `.tree-row` above the virtualized tree, so it stays in
-   the flow where the virtualizer's rows are absolutely positioned. */
-.today-row {
+   the flow where the virtualizer's rows are absolutely positioned. Both
+   classes in the selector: `.tree-row` is declared later and would win the
+   position back — which put the row at the window's top-left corner. */
+.tree-row.today-row {
   position: static;
   flex: 0 0 auto;
   height: var(--ds-size-row);

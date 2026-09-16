@@ -14,7 +14,15 @@ export default function TabStrip() {
   const docs = useEditorSave((s) => s.docs);
   const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
 
-  if (tabs.length === 0) return <div className="tabs tabs-empty" />;
+  // Inside the bar even when empty: on its own in the column, the strip's
+  // `flex: 1` (meant for the row) grew it to half the pane's height.
+  if (tabs.length === 0) {
+    return (
+      <div className="tabbar">
+        <div className="tabs tabs-empty" />
+      </div>
+    );
+  }
 
   return (
     <div className="tabbar">

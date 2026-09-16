@@ -46,7 +46,11 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
         setDoc(loaded);
         setPage(1);
       })
-      .catch(report);
+      .catch((error: unknown) => {
+        // Destroying the task rejects its promise ("Loading aborted"): that
+        // is the tab closing while the file was still parsing, not a failure.
+        if (!cancelled) report(error);
+      });
     return () => {
       cancelled = true;
       task.destroy().catch(report);
