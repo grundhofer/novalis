@@ -247,3 +247,13 @@ mark.preview-hit.current {
   background: var(--ds-color-accent-fill);
   outline: 1px solid var(--ds-color-accent-line);
 }
+
+/* The block a jump (a backlink's) landed on, lit for a moment: the preview
+   has no cursor to show the place. */
+.preview [data-pos] {
+  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
+}
+
+.preview [data-pos].preview-target {
+  background-color: var(--ds-color-editor-match);
+}

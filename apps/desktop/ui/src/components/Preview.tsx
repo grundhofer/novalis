@@ -13,8 +13,9 @@ import type { Mermaid } from "mermaid";
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
+import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
-import { parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
+import { blockForLine, parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
 import { report, useUi } from "../stores/ui";
 import "../styles/preview.css";
@@ -40,6 +41,8 @@ import "../styles/preview.css";
 
 /** A text change re-renders after this pause: a sync burst is one render. */
 const RENDER_DEBOUNCE_MS = 150;
+/** How long the block a jump landed on stays lit. */
+const TARGET_LIT_MS = 1200;
 
 /** `https:`, `mailto:` and the like — the test `lib/links.ts` uses. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -159,6 +162,27 @@ function showHit(hits: Hits, index: number, count: HTMLElement | null, t: Transl
         : "";
 }
 
+/**
+ * Scroll the block a source line starts in to the middle of the pane — the
+ * preview's answer to the editor's `goToLine`, block-exact rather than
+ * line-exact, since a rendered block has no lines. Nothing to do when the
+ * line is past the text or the fragment has no tagged block.
+ */
+function showLine(host: HTMLElement, text: string, line: number): void {
+  const blocks = [...host.querySelectorAll<HTMLElement>("[data-pos]")];
+  const spans = blocks.map((block) => parseBlockSpan(block.getAttribute("data-pos")) ?? { start: 0, end: 0 });
+  const index = blockForLine(spans, text, line);
+  const block = index === null ? undefined : blocks[index];
+  if (!block) return;
+  // jsdom has no layout, and no `scrollIntoView` (ADR-0011).
+  if (typeof block.scrollIntoView === "function") block.scrollIntoView({ block: "center" });
+  // The preview has no cursor to show where the jump landed, so the block
+  // is lit for a moment; a jump while one is still lit moves the light.
+  for (const lit of host.querySelectorAll(".preview-target")) lit.classList.remove("preview-target");
+  block.classList.add("preview-target");
+  setTimeout(() => block.classList.remove("preview-target"), TARGET_LIT_MS);
+}
+
 /** The block a selection end lies in: the innermost element with a source span. */
 function blockOf(node: Node | null): Element | null {
   const element = node instanceof Element ? node : node?.parentElement;
@@ -232,6 +256,13 @@ export default function Preview({
     // The effect owns this subtree: React never renders children into it, so
     // every run starts from the fragment as the core wrote it.
     host.innerHTML = rendered.html;
+    // A line parked for this note (a backlink's, say) is shown now that
+    // there is a fragment to scroll; the editor would have taken it instead.
+    const target = takeDeferredLine();
+    if (target) {
+      const source = useEditorSave.getState().docs[rendered.path]?.text ?? "";
+      showLine(host, source, resolveLine(source, target));
+    }
 
     // A relative `src` is a vault path the webview cannot reach; the bytes
     // come through `read_blob` like the viewer's. Until they arrive the alt
@@ -367,6 +398,11 @@ export default function Preview({
         // one would only look like it survived.
         selection.removeAllRanges();
         return true;
+      },
+      goToLine: (line) => {
+        const host = body.current;
+        const source = useEditorSave.getState().docs[pathRef.current]?.text;
+        if (host && source !== undefined) showLine(host, source, line);
       },
     });
     return () => setPreviewBridge(null);

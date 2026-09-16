@@ -259,6 +259,26 @@ Modules and their old-code ancestry (lift = copy with tests and adapt; new = wri
 |---|---|---|
 | `vault::path` | `vault_rel` / `vault_note_rel` guards (reject `..`, absolute, hidden, non-`.md` for note API); symlink-aware; **every path NFC-normalized at ingress** (readdir, watcher, IPC, CLI args, card JSON, link targets) | lift `vault/fs.rs` + fix symlink blindness (old audit finding 497) |
 | `vault::fs` | `list_dir` (readdir + lstat only, never canonicalize), `read_file` → `{text, mtime, size, hash}` (UTF-8 only; other encodings flagged read-only), `write_atomic` with parent fsync and precondition check, `rename` via `renamex_np(RENAME_EXCL)` with case-only and normalization-only (same-inode) two-step handling, `trash` | lift + extend |
+> **Measured 2026-09-08 — conflict copies are not guaranteed.** With Google
+> Drive, a server-side edit and an offline local edit to the same file were
+> reconciled by Drive **silently discarding the server version and creating no
+> conflict copy at all** (full evidence chain in
+> `docs/spikes/2026-09-07-spike-d-google-drive.md`). The overwritten version is
+> retained in Drive's own history, so it is overwritten rather than destroyed,
+> but nothing appears on disk for the app to find.
+>
+> Every sentence below that says a vendor conflict copy "will" appear is
+> therefore **provider-dependent and unverified for Drive**: §0's summary line,
+> §2.1, D6, D17, §5.2, §5.3's cloud hints, §5.6 items and §8.4. OneDrive's
+> behaviour is still only assumed — that row of the checklist needs the same
+> two-client run and has not had one.
+>
+> Two consequences the code has to own rather than the plan: the app cannot
+> detect this class of loss at all (the save precondition compares local bytes
+> to remembered local bytes, and a silent server-side overwrite produces no
+> FSEvent), and `boards::resolve_card_conflicts` / `resolve_board_conflicts`
+> are today called by nothing in either binary.
+
 | `vault::cloud` | `SF_DATALESS` detection, RAII materialize-off guard, File Provider domain detection via `~/Library/CloudStorage/` prefix or xattr `com.apple.file-provider-domain-id`, plus a "mirrored cloud folder" heuristic for Google Drive Mirror mode (path under the Drive mirror root, ASSUMED detectable, Spike D), conflict-copy detection generalized to `<stem>-<hostname>.<ext>`, `<stem> (n).<ext>`, `<stem> (…conflicted copy…).<ext>` for any extension, requiring differing content; **resolution re-implemented** on `write_atomic` + `trash` + `RENAME_EXCL` (the old resolver hard-deletes and copies with truncation) | new, detection patterns from `conflict/mod.rs` |
 | `vault::watch` | `notify` 8.2 + `notify-debouncer-full` 0.7 (rename stitching), FSEvents backend pinned, 100 ms, one batch per window, ignore dot-files/`*.tmp`/`~*`/`.novalis/`, self-write suppression by (path, size, mtime, hash) | new, ideas from `watcher.rs` |
 | `notes::frontmatter` | Lenient read of `title` and `tags`; **`edit`**: line-level insert/replace/remove of a named key inside the existing YAML block, never re-serializing, strict parse before writing; `title` = frontmatter title → first H1 → stem | lift reader from `vault/frontmatter.rs`, drop writer, add surgical edit |

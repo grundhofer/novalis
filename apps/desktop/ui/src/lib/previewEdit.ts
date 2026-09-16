@@ -54,3 +54,39 @@ export function toggleMarkInSource(
   }
   return `${text.slice(0, from)}${marker}${trimmed}${marker}${text.slice(to)}`;
 }
+
+/** The UTF-16 offset at which 1-based `line` starts, or `null` past the end. */
+export function offsetOfLine(text: string, line: number): number | null {
+  if (line < 1) return null;
+  let offset = 0;
+  for (let n = 1; n < line; n += 1) {
+    const next = text.indexOf("\n", offset);
+    if (next < 0) return null;
+    offset = next + 1;
+  }
+  return offset <= text.length ? offset : null;
+}
+
+/**
+ * Of `spans` (document order), the index of the block to show for a source
+ * line: the innermost block the line starts in; failing that (a blank line,
+ * the frontmatter) the first block after it; failing that the last block.
+ * `null` only when there is no block at all or the line is past the text.
+ */
+export function blockForLine(spans: readonly BlockSpan[], text: string, line: number): number | null {
+  const offset = offsetOfLine(text, line);
+  if (offset === null || spans.length === 0) return null;
+  let best: BlockSpan | null = null;
+  let bestIndex = -1;
+  spans.forEach((span, i) => {
+    if (span.start <= offset && offset < span.end) {
+      if (best === null || span.end - span.start <= best.end - best.start) {
+        best = span;
+        bestIndex = i;
+      }
+    }
+  });
+  if (bestIndex >= 0) return bestIndex;
+  const after = spans.findIndex((span) => span.start >= offset);
+  return after >= 0 ? after : spans.length - 1;
+}

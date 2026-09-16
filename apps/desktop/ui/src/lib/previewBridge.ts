@@ -16,6 +16,8 @@ export interface PreviewBridge {
   findPrevious: () => void;
   /** True when the selection was found in the source and wrapped there. */
   mark: (mark: PreviewMark) => boolean;
+  /** Scroll the block a 1-based source line starts in into view. */
+  goToLine: (line: number) => void;
 }
 
 let bridge: PreviewBridge | null = null;
@@ -26,6 +28,11 @@ export function setPreviewBridge(next: PreviewBridge | null): void {
 
 export function previewMounted(): boolean {
   return bridge !== null;
+}
+
+/** The preview's `goToEditorLine`: a no-op while no preview is on screen. */
+export function goToPreviewLine(line: number): void {
+  bridge?.goToLine(line);
 }
 
 /**

@@ -152,6 +152,8 @@ pub struct UiStateDto {
     /// How the tree orders the files of a folder (ADR-0012). Folders are
     /// always first and by name, whatever this says.
     pub tree_sort: TreeSortDto,
+    #[serde(default)]
+    pub backlinks_visible: bool,
 }
 
 impl Default for UiStateDto {
@@ -164,6 +166,7 @@ impl Default for UiStateDto {
             board_visible: false,
             active_board: None,
             tree_sort: TreeSortDto::Name,
+            backlinks_visible: false,
         }
     }
 }
@@ -380,13 +383,30 @@ pub struct BacklinkDto {
     pub title: String,
     /// The line the link sits on, 1-based.
     pub line: u32,
+    /// That line as the vault search would show it, so two links from the
+    /// same note can be told apart; empty when the note could not be read.
+    pub snippet: String,
+}
+
+/// A card whose `notes[]` references the open note (§4.4: the backlinks list
+/// shows cards linking here, not only notes).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BacklinkCardDto {
+    pub board: String,
+    pub board_name: String,
+    pub id: String,
+    pub title: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BacklinksDto {
     pub notes: Vec<BacklinkDto>,
-    /// See [`TagListDto::indexed`].
+    /// Cards come from the board files, not the cache: a card is not a note
+    /// and is never indexed, so this half works even while `indexed` is false.
+    pub cards: Vec<BacklinkCardDto>,
+    /// See [`TagListDto::indexed`]. Applies to `notes` only.
     pub indexed: bool,
 }
 

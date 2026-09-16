@@ -3,7 +3,8 @@ import mermaid from "mermaid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
-import { previewMounted, runPreviewCommand } from "../lib/previewBridge";
+import { deferLine, takeDeferredLine } from "../lib/editorBridge";
+import { goToPreviewLine, previewMounted, runPreviewCommand } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
 import { useUi } from "../stores/ui";
 import Preview from "./Preview";
@@ -329,5 +330,36 @@ describe("Preview", () => {
     select(container.querySelectorAll("p")[1] as Element, 0, 2);
     expect(runPreviewCommand("markdown.bold")).toBe(false);
     expect(written).not.toHaveBeenCalled();
+  });
+
+  // jsdom has no layout, so `scrollIntoView` is what the test can see; the
+  // preview guards for its absence, and the test provides it.
+  function scrollable() {
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.textContent ?? "");
+    };
+    return scrolled;
+  }
+
+  it("scrolls to the block a source line starts in, lit, on request and for a parked line", async () => {
+    const scrolled = scrollable();
+    // "# A\n\ntwo\n\n- x\n- y\n": lines 1, 3, 5 and 6 start blocks.
+    doc("n.md", "# A\n\ntwo\n\n- x\n- y\n");
+    fragment =
+      '<h1 data-pos="0-3">A</h1><p data-pos="5-8">two</p>' +
+      '<ul data-pos="10-18"><li data-pos="10-13">x</li><li data-pos="14-18">y</li></ul>';
+    deferLine({ line: 6, snippet: "- y" });
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    expect(scrolled).toEqual(["y"]);
+    expect(takeDeferredLine()).toBeNull();
+    expect(container.querySelector(".preview-target")?.textContent).toBe("y");
+
+    goToPreviewLine(3);
+    goToPreviewLine(4); // a blank line: the block after it, the list as a whole
+    goToPreviewLine(40); // past the text: nothing
+    expect(scrolled).toEqual(["y", "two", "xy"]);
   });
 });

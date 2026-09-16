@@ -10,6 +10,7 @@
 //! Results are streamed to the caller's callback as they are found (order is
 //! therefore arbitrary); [`search_collect`] gathers and sorts them.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -17,7 +18,7 @@ use std::sync::Mutex;
 use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 
-use crate::cache::Cache;
+use crate::cache::{Cache, LinkRow};
 use crate::error::{CoreError, CoreResult};
 use crate::vault::cloud::MaterializeOff;
 use crate::vault::fs::read_file;
@@ -121,6 +122,37 @@ fn snippet_of(line: &str, at: usize, want: bool) -> String {
         .collect();
     let prefix = if start_char > 0 { "…" } else { "" };
     format!("{prefix}{}", out.trim())
+}
+
+/// The line each of `rows` sits on, as the snippet the vault search would
+/// show for it: trimmed, at most [`SNIPPET_MAX_CHARS`] characters, centred on
+/// the link's target text. One entry per row, in order. Each source note is
+/// read once, under [`MaterializeOff`], so a cloud-only note is never
+/// downloaded for a decoration; its rows, like those of a note that is gone,
+/// not UTF-8 or shorter than the cached line, come back as an empty string.
+/// Only the guard's own failure is an error: the list the snippets decorate
+/// must not fall over because one source could not be read.
+pub fn link_snippets(root: &Path, rows: &[LinkRow]) -> CoreResult<Vec<String>> {
+    let _guard = MaterializeOff::new()?;
+    let mut texts: HashMap<&str, Option<String>> = HashMap::new();
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let text = texts.entry(row.src.as_str()).or_insert_with(|| {
+                match read_file(&root.join(&row.src)) {
+                    Ok(c) if c.utf8 => Some(c.text),
+                    _ => None,
+                }
+            });
+            let Some(line) = text
+                .as_deref()
+                .and_then(|t| t.lines().nth(row.line.checked_sub(1)?))
+            else {
+                return String::new();
+            };
+            snippet_of(line, line.find(&row.target).unwrap_or(0), true)
+        })
+        .collect())
 }
 
 /// Scan `root` and hand every hit to `on_hit`, which returns `false` to stop.
@@ -473,5 +505,48 @@ mod tests {
                 .all(|w| (&w[0].path, w[0].line) < (&w[1].path, w[1].line)),
             "search_collect returns a deterministic (path, line) order"
         );
+    }
+
+    fn link_row(src: &str, target: &str, line: usize) -> LinkRow {
+        LinkRow {
+            src: src.into(),
+            target: target.into(),
+            form: "wiki".into(),
+            line,
+            resolved: Some("a.md".into()),
+        }
+    }
+
+    #[test]
+    fn link_snippets_give_each_row_its_own_line_and_nothing_for_an_unreadable_one() {
+        let tmp = vault();
+        let long = format!("{} [[a]] tail", "x".repeat(300));
+        write(
+            tmp.path(),
+            "sub/c.md",
+            &format!(
+                "see [[a]] here
+plain
+{long}
+"
+            ),
+        );
+        let rows = [
+            link_row("sub/c.md", "a", 1),
+            link_row("sub/c.md", "a", 3),
+            link_row("sub/c.md", "a", 9),
+            link_row("gone.md", "a", 1),
+        ];
+        let got = link_snippets(tmp.path(), &rows).unwrap();
+        assert_eq!(got[0], "see [[a]] here");
+        assert!(
+            got[1].starts_with('…') && got[1].contains("[[a]] tail"),
+            "{}",
+            got[1]
+        );
+        assert!(got[1].chars().count() <= SNIPPET_MAX_CHARS + 1);
+        assert_eq!(got[2], "", "a line past the end of the note");
+        assert_eq!(got[3], "", "a note that is gone");
+        assert!(crate::vault::cloud::materialize_is_default());
     }
 }

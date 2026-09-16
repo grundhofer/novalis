@@ -3,11 +3,28 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
+import { commands, unwrap } from "../ipc/client";
+import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { useEditorSave } from "../stores/editorSave";
 import { report } from "../stores/ui";
 import { setActiveView } from "./commands";
 import { buildExtensions } from "./setup";
 import { editorTheme, markdownHighlight } from "./theme";
+
+/**
+ * A note's text for `[[note#` completion: the buffer when the note is open
+ * (it is ahead of the file), else one read. A note that cannot be read
+ * completes nothing; the reason is not worth a toast mid-keystroke.
+ */
+async function noteText(path: string): Promise<string | null> {
+  const open = useEditorSave.getState().docs[path]?.text;
+  if (open !== undefined) return open;
+  try {
+    return (await unwrap(commands.readFile(path))).text;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The React shell around CodeMirror. CM6 owns the editor DOM completely
@@ -51,6 +68,7 @@ export default function Editor({
         onFollowLink,
         onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
+        noteText,
         readOnly: doc.readOnly,
         plainMode: doc.plainMode,
         spellcheck,
@@ -65,6 +83,8 @@ export default function Editor({
       });
       setActiveView(view);
       view.focus();
+      const target = takeDeferredLine();
+      if (target) goToEditorLine(resolveLine(view.state.doc.toString(), target));
     })().catch(report);
 
     return () => {

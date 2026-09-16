@@ -150,16 +150,37 @@ export const events = {
 /* Types */
 export type AppearanceDto = "system" | "light" | "dark";
 
+/**
+ *  A card whose `notes[]` references the open note (§4.4: the backlinks list
+ *  shows cards linking here, not only notes).
+ */
+export type BacklinkCardDto = {
+	board: string,
+	boardName: string,
+	id: string,
+	title: string,
+};
+
 export type BacklinkDto = {
 	path: string,
 	title: string,
 	/**  The line the link sits on, 1-based. */
 	line: number,
+	/**
+	 *  That line as the vault search would show it, so two links from the
+	 *  same note can be told apart; empty when the note could not be read.
+	 */
+	snippet: string,
 };
 
 export type BacklinksDto = {
 	notes: BacklinkDto[],
-	/**  See [`TagListDto::indexed`]. */
+	/**
+	 *  Cards come from the board files, not the cache: a card is not a note
+	 *  and is never indexed, so this half works even while `indexed` is false.
+	 */
+	cards: BacklinkCardDto[],
+	/**  See [`TagListDto::indexed`]. Applies to `notes` only. */
 	indexed: boolean,
 };
 
@@ -497,6 +518,7 @@ export type UiStateDto = {
 	 *  always first and by name, whatever this says.
 	 */
 	treeSort?: TreeSortDto,
+	backlinksVisible?: boolean,
 };
 
 export type VaultDto = {
