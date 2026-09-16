@@ -99,3 +99,32 @@ day's other controls exhausted the 20 KB eager-CSS budget of PLAN.md §11.3
 even after the duplicated tool rules were merged; the owner raised it to
 24 KB ("Budget auf 24 kB anheben (Recommended)"), `docs/BUDGET.json` and
 §11.3 say so.
+
+**Amended 2026-09-16 (chords)** — the same day the owner wrote: "die
+shortcuts sollten auch im view mode funktionieren, nicht nur im edit mode."
+Asked "Welche Shortcuts sollen in der Vorschau (Ansehen-Modus) wirken?":
+"Suchen ⌘F / ⌘G / ⇧⌘G (Recommended), es sollte auch möglich sein im vorschau
+modeus mit command b zum beispiel etwas fett zu markieren". (A formatting
+toolbar, asked about in the same breath, was declined — PLAN.md §2.2 and
+§7.1 keep it out, the palette lists the four formatting chords;
+`docs/DECISIONS.md`.) So the preview answers five of the editor's chords,
+routed by `lib/commands.ts` through `lib/previewBridge.ts` while a preview is
+mounted. `Cmd+F` opens a find bar over the rendered text — the editor's own
+find strings (`editor.find.*`), the matches marked, `Cmd+G` / `Shift+Cmd+G`
+moving between them, `Escape` closing it; its rules are in the lazy
+`preview.css`, not the eager sheet. `Cmd+B` and `Cmd+I` take the selected
+rendered text and find it in the source of its block: the renderer now tags
+paragraphs, headings and list items with the block's source span
+(`data-pos="start-end"`, UTF-16 units of the whole note text, frontmatter
+included), and `lib/previewEdit.ts` (`toggleMarkInSource`) toggles `**` or
+`_` around the one occurrence of the selection in that span — in the buffer
+(`editorSave.setText`), so the preview re-renders from it and the autosave
+writes it. When the selection cannot be placed — across blocks, split by
+markup, more than one occurrence, or empty — the tab switches to the editor
+instead of guessing; every other editor chord (`Cmd+K`, `Cmd+Enter`,
+`Ctrl+G`, `Cmd+D`, …) switches to the editor too, so the chord lands where
+it applies, and is not replayed there. Nothing is typed into the preview,
+and a mark lands only where the selected text occurs exactly once in the
+block's source, so a disagreement between the two parsers still costs a
+look, never bytes. No new dependency, string key, command id or chord;
+`docs/KEYMAP.md` "Not listed" says which chords the preview answers.

@@ -3,6 +3,7 @@ import mermaid from "mermaid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
+import { previewMounted, runPreviewCommand } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
 import { useUi } from "../stores/ui";
 import Preview from "./Preview";
@@ -39,11 +40,33 @@ function doc(path: string, text: string) {
   useEditorSave.setState({ docs: { [path]: { path, text } as never } });
 }
 
+/** The `<mark>`s in document order, the current one flagged. */
+function hits(container: HTMLElement) {
+  return [...container.querySelectorAll("mark.preview-hit")].map((mark) => ({
+    text: mark.textContent,
+    current: mark.classList.contains("current"),
+  }));
+}
+
+/** A selection over `[from, to)` of the first text node in `element`. */
+function select(element: Element, from: number, to: number): Selection {
+  const range = document.createRange();
+  range.setStart(element.firstChild as Text, from);
+  range.setEnd(element.firstChild as Text, to);
+  const selection = window.getSelection() as Selection;
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return selection;
+}
+
 describe("Preview", () => {
   // jsdom has no object URLs; the preview only needs them to exist.
   const created: string[] = [];
   const revoked: string[] = [];
   let fragment = "";
+  // A mark writes through the store's `setText`; the tests that need it put
+  // a spy there and get the real one back afterwards.
+  const setText = useEditorSave.getState().setText;
 
   beforeEach(() => {
     created.length = 0;
@@ -63,6 +86,8 @@ describe("Preview", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    window.getSelection()?.removeAllRanges();
+    useEditorSave.setState({ setText });
   });
 
   it("shows the fragment the core rendered from the buffer", async () => {
@@ -178,5 +203,131 @@ describe("Preview", () => {
     expect(screen.getByAltText("gone").getAttribute("src")).toBeNull();
     expect(useUi.getState().toast?.key).toBe("errors.internal");
     expect(created).toEqual([]);
+  });
+
+  // ---- the chords (lib/previewBridge; owner, 2026-09-16) -------------------
+  it("answers the editor's chords while mounted, and not after", async () => {
+    doc("n.md", "x");
+    fragment = "<p>x</p>";
+    expect(previewMounted()).toBe(false);
+    const { unmount } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    expect(previewMounted()).toBe(true);
+    await flush();
+    expect(previewMounted()).toBe(true);
+
+    unmount();
+    expect(previewMounted()).toBe(false);
+  });
+
+  it("finds in the rendered text: every hit marked, stepped through, gone on Escape", async () => {
+    doc("n.md", "x");
+    fragment = '<p data-pos="0-9">Hallo Welt</p><p data-pos="10-20">welt ende</p>';
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+    expect(container.querySelector(".preview-find")).toBeNull();
+
+    act(() => void runPreviewCommand("find.open"));
+    const input = screen.getByPlaceholderText("editor.find.placeholder") as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+
+    // Case-insensitive, and the hits are in document order.
+    fireEvent.change(input, { target: { value: "welt" } });
+    expect(hits(container)).toEqual([
+      { text: "Welt", current: true },
+      { text: "welt", current: false },
+    ]);
+    expect(screen.getByText("editor.find.matchCount")).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(hits(container).map((h) => h.current)).toEqual([false, true]);
+    // `Cmd+G` wraps around; `Shift+Enter` goes back.
+    act(() => void runPreviewCommand("find.next"));
+    expect(hits(container).map((h) => h.current)).toEqual([true, false]);
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    expect(hits(container).map((h) => h.current)).toEqual([false, true]);
+    act(() => void runPreviewCommand("find.previous"));
+    expect(hits(container).map((h) => h.current)).toEqual([true, false]);
+
+    // `Cmd+F` over an open bar selects the query, so typing replaces it.
+    input.setSelectionRange(1, 1);
+    act(() => void runPreviewCommand("find.open"));
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 4]);
+
+    fireEvent.change(input, { target: { value: "nothing" } });
+    expect(hits(container)).toEqual([]);
+    expect(screen.getByText("editor.find.noMatches")).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(container.querySelector(".preview-find")).toBeNull();
+    expect(hits(container)).toEqual([]);
+    // The text nodes are whole again, not the pieces the marks split off.
+    expect(container.querySelector("p")?.childNodes.length).toBe(1);
+  });
+
+  it("keeps the hits over a fragment re-rendered from a live edit", async () => {
+    doc("n.md", "Hallo Welt");
+    fragment = '<p data-pos="0-10">Hallo Welt</p>';
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+    act(() => void runPreviewCommand("find.open"));
+    fireEvent.change(screen.getByPlaceholderText("editor.find.placeholder"), { target: { value: "welt" } });
+    expect(hits(container)).toHaveLength(1);
+
+    vi.useFakeTimers();
+    fragment = '<p data-pos="0-15">Welt Hallo Welt</p>';
+    act(() => doc("n.md", "Welt Hallo Welt"));
+    await act(() => vi.advanceTimersByTimeAsync(RENDER_DEBOUNCE_MS));
+    expect(hits(container)).toEqual([
+      { text: "Welt", current: true },
+      { text: "Welt", current: false },
+    ]);
+    expect(screen.getByText("editor.find.matchCount")).toBeTruthy();
+  });
+
+  it("opens the bar from find next when it is closed", async () => {
+    doc("n.md", "x");
+    fragment = "<p>x</p>";
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    act(() => void runPreviewCommand("find.next"));
+    expect(container.querySelector(".preview-find")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByPlaceholderText("editor.find.placeholder"));
+  });
+
+  it("writes a mark around the selection into the source and drops the selection", async () => {
+    const written = vi.fn();
+    useEditorSave.setState({ setText: written });
+    doc("n.md", "Hallo Welt\n");
+    fragment = '<p data-pos="0-11">Hallo Welt</p>';
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    const selection = select(container.querySelector("p[data-pos]") as Element, 6, 10);
+    expect(selection.toString()).toBe("Welt");
+    expect(runPreviewCommand("markdown.bold")).toBe(true);
+    expect(written).toHaveBeenCalledWith("n.md", "Hallo **Welt**\n");
+    expect(window.getSelection()?.isCollapsed).toBe(true);
+
+    select(container.querySelector("p[data-pos]") as Element, 6, 10);
+    expect(runPreviewCommand("markdown.italic")).toBe(true);
+    expect(written).toHaveBeenLastCalledWith("n.md", "Hallo _Welt_\n");
+  });
+
+  // Nothing selected, or a selection the source cannot place: the registry
+  // hands the chord to the editor, so the answer is `false` and no write.
+  it("declines a collapsed selection and one outside a block", async () => {
+    const written = vi.fn();
+    useEditorSave.setState({ setText: written });
+    doc("n.md", "Hallo Welt\n");
+    fragment = '<p data-pos="0-11">Hallo Welt</p><p>no span</p>';
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    window.getSelection()?.removeAllRanges();
+    expect(runPreviewCommand("markdown.bold")).toBe(false);
+    select(container.querySelectorAll("p")[1] as Element, 0, 2);
+    expect(runPreviewCommand("markdown.bold")).toBe(false);
+    expect(written).not.toHaveBeenCalled();
   });
 });

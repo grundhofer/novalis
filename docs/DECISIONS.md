@@ -371,6 +371,50 @@ story for a third writer next to Mode 1, and a web or mobile client that does
 not exist. It is not opened now. If the owner wants it, it is a v2 question of
 the size of Mode 2 (§5.7) and gets its own ADR before any code.
 
+## Answered 2026-09-16
+
+Testing the preview (ADR-0020) with many notes open, the owner wrote:
+
+> der vorschau/bearbeiten button kann je nach breite ausgeblendet werden, wenn
+> viele notizen offen sind. der sollte immer sichtbar sein und ein icon, keinen
+> text haben, weil weniger infos.
+
+Recorded as the first amendment to **ADR-0020**: the toggle is an eye glyph in
+a fixed cell beside the scrolling tab strip; the ADR names the eager-CSS budget
+raised on the way. Then:
+
+> macht es sinn, die gängisten markdown formatierungsoptionen für md files oben
+> in der leiste einzublenden?
+
+Answered with a recommendation against: a formatting toolbar is on the PLAN.md
+§2.2 list of what novalis is not and in §7.1's "NO" row, and the palette
+(`Shift+Cmd+P`) already lists the four formatting chords (bold, italic, link,
+checkbox). The owner:
+
+> ok, hast recht.
+
+Recorded as a confirmed no; no ADR, nothing changes. Then:
+
+> die shortcuts sollten auch im view mode funktionieren, nicht nur im edit mode
+
+Asked "Welche Shortcuts sollen in der Vorschau (Ansehen-Modus) wirken?"
+(several answers allowed):
+
+> Suchen ⌘F / ⌘G / ⇧⌘G (Recommended), es sollte auch möglich sein im vorschau
+> modeus mit command b zum beispiel etwas fett zu markieren
+
+Recorded as the second amendment to **ADR-0020** ("chords"): in the preview,
+`Cmd+F` opens a find bar over the rendered text (`Cmd+G` / `Shift+Cmd+G` move
+between the marked matches, `Escape` closes it); `Cmd+B` and `Cmd+I` take the
+selected rendered text, find it in the source of its block — the renderer tags
+paragraphs, headings and list items with their source span — and toggle `**`
+/ `_` around it in the buffer, which the preview re-renders and the autosave
+writes. A selection that cannot be placed (across blocks, split by markup,
+ambiguous, empty) switches the tab to the editor instead of guessing, as does
+every other editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D` …), not
+replayed there. No new dependency, string key, command id or chord;
+`docs/KEYMAP.md` "Not listed" says which chords the preview answers.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

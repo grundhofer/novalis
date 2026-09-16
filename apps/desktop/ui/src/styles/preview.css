@@ -194,3 +194,56 @@
   max-width: 100%;
   height: auto;
 }
+
+/* ------------------------------------------------------------------ find */
+/* `Cmd+F` over the rendered note: a bar above the scrolling pane, its
+   buttons the `.btn.ghost.tool` glyphs of the tab strip, its field the
+   dialog's at row height. The hits are marked like the editor's
+   (editor/theme.ts): every match in the match colour, the current one in
+   the accent. */
+.preview-find {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  flex: 0 0 auto;
+  padding: var(--ds-space-3) var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-bg-surface);
+  font-size: var(--ds-font-size-ui-sm);
+}
+
+/* As wide as the sidebar, never the whole pane; a narrow pane shrinks it. */
+.preview-find-input {
+  flex: 0 1 var(--ds-size-sidebar);
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-surface);
+  color: var(--ds-color-fg-default);
+  font: inherit;
+  outline: none;
+}
+
+.preview-find-input:focus {
+  border-color: var(--ds-color-accent-default);
+}
+
+.preview-find-count {
+  flex: 0 0 auto;
+  font-family: var(--ds-font-mono);
+  letter-spacing: var(--ds-letter-spacing-mono);
+  color: var(--ds-color-fg-subtle);
+  white-space: nowrap;
+}
+
+mark.preview-hit {
+  background: var(--ds-color-editor-match);
+  color: inherit;
+}
+
+mark.preview-hit.current {
+  background: var(--ds-color-accent-fill);
+  outline: 1px solid var(--ds-color-accent-line);
+}

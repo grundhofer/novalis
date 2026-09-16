@@ -1,10 +1,20 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import type { Mermaid } from "mermaid";
 
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
+import { setPreviewBridge } from "../lib/previewBridge";
+import { parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
 import { report, useUi } from "../stores/ui";
 import "../styles/preview.css";
@@ -20,6 +30,12 @@ import "../styles/preview.css";
  * stands); a link goes through the app's `followLink` like a `Cmd`-click in
  * the editor; a ```mermaid fence becomes a diagram (owner yes 2026-09-15).
  * mermaid is its own chunk, fetched on the first diagram and never before.
+ *
+ * The editor's chords work here too (owner, 2026-09-16): `Cmd+F` opens a
+ * find bar over the rendered text, `Cmd+B` and `Cmd+I` put a mark around the
+ * selection into the source (`lib/previewEdit`), and the pane re-renders
+ * from the buffer like after any edit. Both reach the pane through
+ * `lib/previewBridge`, registered while the pane is mounted.
  */
 
 /** A text change re-renders after this pause: a sync burst is one render. */
@@ -68,6 +84,87 @@ async function mermaidFor(theme: "dark" | "default"): Promise<Mermaid> {
 
 type Rendered = { path: string; html: string };
 
+// ---- find -------------------------------------------------------------------
+// The hits are DOM, not state: they are `<mark>`s inside the fragment the
+// layout effect owns, and they have to be made again every time that
+// fragment is written. So the count is written the same way — read off the
+// marks after each pass, into a span React leaves alone — rather than through
+// state an effect would have to set.
+
+/** The marks in the fragment and which of them is current. */
+interface Hits {
+  marks: HTMLElement[];
+  current: number;
+  /** The query the marks were made for. */
+  query: string;
+}
+
+/** What the count needs of `t`; the rest of `useTranslation` stays out. */
+type Translate = (key: string, values?: Record<string, unknown>) => string;
+
+/** Every occurrence of `query` in the fragment's text wrapped in a `<mark>`. */
+function markHits(host: HTMLElement, query: string): HTMLElement[] {
+  if (!query) return [];
+  // A substring, not a pattern: the editor's find is one too until the user
+  // asks for regex, and the preview has no such switch.
+  const pattern = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  // Collected first: splitting a node while walking would visit its
+  // remainder again.
+  const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    // A `<mark>` is HTML; inside a diagram's SVG it would show nothing.
+    if (!node.parentElement?.closest(".preview-diagram")) nodes.push(node as Text);
+  }
+  const marks: HTMLElement[] = [];
+  for (const node of nodes) {
+    let rest = node;
+    for (let match = pattern.exec(rest.data); match; match = pattern.exec(rest.data)) {
+      const hit = rest.splitText(match.index);
+      rest = hit.splitText(match[0].length);
+      const mark = document.createElement("mark");
+      mark.className = "preview-hit";
+      hit.replaceWith(mark);
+      mark.append(hit);
+      marks.push(mark);
+    }
+  }
+  return marks;
+}
+
+/** The fragment as it was before `markHits`, its text nodes rejoined. */
+function unwrapHits(host: HTMLElement): void {
+  for (const mark of host.querySelectorAll("mark.preview-hit")) mark.replaceWith(...mark.childNodes);
+  // Rejoined, so the next pass sees "Welt" and not "We" beside "lt".
+  host.normalize();
+}
+
+/** Make hit `index` the current one — clamped, scrolled to — and say where we are. */
+function showHit(hits: Hits, index: number, count: HTMLElement | null, t: Translate): void {
+  const n = hits.marks.length;
+  hits.marks[hits.current]?.classList.remove("current");
+  hits.current = n === 0 ? 0 : Math.max(0, Math.min(index, n - 1));
+  const mark = hits.marks[hits.current];
+  if (mark) {
+    mark.classList.add("current");
+    // jsdom has no layout, and no `scrollIntoView` (ADR-0011).
+    if (typeof mark.scrollIntoView === "function") mark.scrollIntoView({ block: "center" });
+  }
+  if (!count) return;
+  count.textContent =
+    n > 0
+      ? t("editor.find.matchCount", { current: hits.current + 1, count: n })
+      : hits.query
+        ? t("editor.find.noMatches")
+        : "";
+}
+
+/** The block a selection end lies in: the innermost element with a source span. */
+function blockOf(node: Node | null): Element | null {
+  const element = node instanceof Element ? node : node?.parentElement;
+  return element?.closest("[data-pos]") ?? null;
+}
+
 export default function Preview({
   path,
   onFollowLink,
@@ -83,6 +180,18 @@ export default function Preview({
   /** Which note has a fragment on screen — the first one renders at once. */
   const shown = useRef<string | null>(null);
   const body = useRef<HTMLDivElement>(null);
+
+  const [findOpen, setFindOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const count = useRef<HTMLSpanElement>(null);
+  const hits = useRef<Hits>({ marks: [], current: 0, query: "" });
+  /** The bridge is registered once; it reads the note it acts on from here. */
+  const pathRef = useRef(path);
+
+  useEffect(() => {
+    pathRef.current = path;
+  }, [path]);
 
   // ---- the fragment --------------------------------------------------------
   useEffect(() => {
@@ -172,6 +281,97 @@ export default function Preview({
     };
   }, [rendered]);
 
+  // ---- the hits ------------------------------------------------------------
+  // After the fragment effect, so the marks go into the fragment just
+  // written; the cleanup takes them out again before the next one lands and
+  // when the bar closes.
+  useLayoutEffect(() => {
+    const host = body.current;
+    if (!findOpen || !host || !rendered) return undefined;
+    const state = hits.current;
+    // A new query starts at its first hit; the same query over a re-rendered
+    // fragment (a live edit) keeps its place.
+    const current = state.query === query ? state.current : 0;
+    state.marks = markHits(host, query);
+    state.query = query;
+    showHit(state, current, count.current, t);
+    return () => {
+      unwrapHits(host);
+      state.marks = [];
+    };
+  }, [findOpen, query, rendered, t]);
+
+  // The bar takes the chord: its text selected, so typing replaces the last
+  // query, as in the editor's panel.
+  useLayoutEffect(() => {
+    if (!findOpen) return;
+    input.current?.focus();
+    input.current?.select();
+  }, [findOpen]);
+
+  const step = useCallback(
+    (delta: number) => {
+      // `Cmd+G` with the bar closed opens it, as in the editor.
+      if (!input.current) {
+        setFindOpen(true);
+        return;
+      }
+      const state = hits.current;
+      const n = state.marks.length;
+      if (n > 0) showHit(state, (state.current + delta + n) % n, count.current, t);
+    },
+    [t],
+  );
+
+  const onFindKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      step(event.shiftKey ? -1 : 1);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setFindOpen(false);
+    }
+  };
+
+  // ---- the chords (lib/previewBridge) -------------------------------------
+  // Registered once per `step`; everything else the handlers need is read
+  // through refs at the keystroke, never from the render that registered them.
+  useEffect(() => {
+    setPreviewBridge({
+      find: () => {
+        if (input.current) {
+          input.current.focus();
+          input.current.select();
+        } else {
+          setFindOpen(true);
+        }
+      },
+      findNext: () => step(1),
+      findPrevious: () => step(-1),
+      mark: (kind) => {
+        // One block, both ends in it, something between them — or the editor
+        // is the honest answer (`lib/previewEdit`).
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return false;
+        const block = blockOf(selection.anchorNode);
+        if (!block || block !== blockOf(selection.focusNode) || !body.current?.contains(block)) return false;
+        const span = parseBlockSpan(block.getAttribute("data-pos"));
+        if (!span) return false;
+        const notePath = pathRef.current;
+        const source = useEditorSave.getState().docs[notePath]?.text;
+        if (source === undefined) return false;
+        const next = toggleMarkInSource(source, span, selection.toString(), kind === "bold" ? "**" : "_");
+        if (next === null) return false;
+        useEditorSave.getState().setText(notePath, next);
+        // The fragment is about to be written anew; a selection into the old
+        // one would only look like it survived.
+        selection.removeAllRanges();
+        return true;
+      },
+    });
+    return () => setPreviewBridge(null);
+  }, [step]);
+
   // ---- links ---------------------------------------------------------------
   const onClick = (event: MouseEvent<HTMLDivElement>) => {
     const anchor = (event.target as Element | null)?.closest("a[href]");
@@ -201,8 +401,50 @@ export default function Preview({
 
   if (rendered?.path !== path) return <div className="pane-loading">{t("editor.loading")}</div>;
   return (
-    <section className="preview">
-      <div className="preview-body" ref={body} onClick={onClick} />
-    </section>
+    <>
+      {findOpen && (
+        <div className="preview-find" role="search">
+          <input
+            className="preview-find-input"
+            ref={input}
+            value={query}
+            placeholder={t("editor.find.placeholder")}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onFindKey}
+          />
+          <span className="preview-find-count" ref={count} />
+          <button
+            className="btn ghost tool"
+            type="button"
+            title={t("editor.find.previous")}
+            aria-label={t("editor.find.previous")}
+            onClick={() => step(-1)}
+          >
+            ‹
+          </button>
+          <button
+            className="btn ghost tool"
+            type="button"
+            title={t("editor.find.next")}
+            aria-label={t("editor.find.next")}
+            onClick={() => step(1)}
+          >
+            ›
+          </button>
+          <button
+            className="btn ghost tool"
+            type="button"
+            title={t("editor.find.close")}
+            aria-label={t("editor.find.close")}
+            onClick={() => setFindOpen(false)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <section className="preview">
+        <div className="preview-body" ref={body} onClick={onClick} />
+      </section>
+    </>
   );
 }

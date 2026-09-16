@@ -61,24 +61,25 @@ pub fn to_html(text: &str) -> String {
     // Byte offsets into `text` → UTF-16 units. Blocks come in order and the
     // note is small, so a running count is cheap enough.
     let units = |byte: usize| text[..byte].encode_utf16().count();
-    let events = Parser::new_ext(body, options)
-        .into_offset_iter()
-        .map(|(event, range)| match event {
-            Event::Html(raw) | Event::InlineHtml(raw) => Event::Text(raw),
-            Event::Start(ref tag) => match opening(tag) {
-                Some(name) => Event::Html(CowStr::from(format!(
-                    "<{name} data-pos=\"{}-{}\">",
-                    units(base + range.start),
-                    units(base + range.end)
-                ))),
-                None => event,
-            },
-            Event::End(ref tag) => match closing(tag) {
-                Some(name) => Event::Html(CowStr::from(format!("</{name}>\n"))),
-                None => event,
-            },
-            other => other,
-        });
+    let events =
+        Parser::new_ext(body, options)
+            .into_offset_iter()
+            .map(|(event, range)| match event {
+                Event::Html(raw) | Event::InlineHtml(raw) => Event::Text(raw),
+                Event::Start(ref tag) => match opening(tag) {
+                    Some(name) => Event::Html(CowStr::from(format!(
+                        "<{name} data-pos=\"{}-{}\">",
+                        units(base + range.start),
+                        units(base + range.end)
+                    ))),
+                    None => event,
+                },
+                Event::End(ref tag) => match closing(tag) {
+                    Some(name) => Event::Html(CowStr::from(format!("</{name}>\n"))),
+                    None => event,
+                },
+                other => other,
+            });
     let mut out = String::with_capacity(body.len() * 2);
     html::push_html(&mut out, events);
     out

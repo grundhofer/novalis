@@ -118,3 +118,14 @@ sidebar tree), `board` (focus in the board pane).
   only risk swallowing them.
 - Keys inside the find bar, the palette and dialogs (`Enter`, `Escape`, arrows)
   are the components' own defaults, not app bindings.
+- In the read-only preview (`Cmd+E`, ADR-0020 amended 2026-09-16) there is no
+  editor on screen, so the `editor`-scoped chords are routed to the rendered
+  note instead: `Cmd+F` opens a find bar over the rendered text, `Cmd+G` and
+  `Shift+Cmd+G` move between its matches, `Escape` closes it; `Cmd+B` and
+  `Cmd+I` toggle `**` / `_` around the selected text in the note's source, in
+  the block it was rendered from. When that selection cannot be placed (it
+  spans blocks, markup splits it, it occurs more than once in the block, or it
+  is empty) the tab switches to the editor rather than guessing; every other
+  editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D`, …) switches to the
+  editor too, so the chord lands where it applies — it is not replayed there.
+  The table above is unchanged: same ids, same scopes.
