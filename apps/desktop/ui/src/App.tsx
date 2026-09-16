@@ -30,6 +30,7 @@ const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
 const Viewer = lazy(() => import("./components/Viewer"));
 const Preview = lazy(() => import("./components/Preview"));
+const Backlinks = lazy(() => import("./components/Backlinks"));
 
 /** `state.json` is written at most this often while the user moves things. */
 const STATE_SAVE_MS = 400;
@@ -80,6 +81,7 @@ export default function App() {
   const sidebarVisible = useUi((s) => s.sidebarVisible);
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
+  const backlinksVisible = useUi((s) => s.backlinksVisible);
   const overlay = useUi((s) => s.overlay);
   const spellcheck = useUi((s) => s.settings?.spellcheck ?? true);
 
@@ -233,6 +235,7 @@ export default function App() {
           sidebarVisible,
           sidebarWidth,
           boardVisible,
+          backlinksVisible,
           activeBoard,
           treeSort,
         }),
@@ -241,7 +244,7 @@ export default function App() {
       });
     }, STATE_SAVE_MS);
     return () => clearTimeout(timer);
-  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard, treeSort]);
+  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, backlinksVisible, activeBoard, treeSort]);
 
   const followLink = useCallback((target: string) => {
     // A Markdown destination is a path relative to the note (PLAN.md §7.2):
@@ -328,6 +331,13 @@ export default function App() {
             <div className="empty-state">
               <p className="empty-body">{t("editor.emptyState", { chord: glyphsOf("Cmd+P") })}</p>
             </div>
+          )}
+          {/* Under the editor, never beside the board: the board owns the whole
+              pane, and a backlinks list about a note is meaningless there. */}
+          {backlinksVisible && !boardVisible && active && (
+            <Suspense fallback={null}>
+              <Backlinks />
+            </Suspense>
           )}
         </main>
       </div>

@@ -223,6 +223,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "settings.open": () => useUi.getState().setOverlay({ kind: "settings" }),
   "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
+  "backlinks.toggle": () => useUi.getState().toggleBacklinks(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "note.togglePreview": () => {
@@ -291,13 +292,18 @@ export function dispatchCommand(id: string): void {
  * fills the label's `{{value}}`. The entries marked `settings` are the four
  * settings' values: they have no window, and the settings button (ADR-0012,
  * amended 2026-09-15) opens the palette on exactly this subset.
+ *
+ * A function, not a constant, because one entry names its own state: the
+ * catalog gives backlinks a `showBacklinks`/`hideBacklinks` pair rather than
+ * the single "Toggle" label the sidebar and board use.
  */
-export const PALETTE_COMMANDS: readonly {
+export function paletteCommands(): readonly {
   id: string;
   labelKey: string;
   valueKey?: string;
   settings?: true;
-}[] = [
+}[] {
+  return [
   { id: "quickOpen.open", labelKey: "menu.go.quickOpen" },
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
@@ -312,6 +318,12 @@ export const PALETTE_COMMANDS: readonly {
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
   { id: "note.togglePreview", labelKey: "menu.view.togglePreview" },
+  {
+    id: "backlinks.toggle",
+    labelKey: useUi.getState().backlinksVisible
+      ? "palette.cmd.hideBacklinks"
+      : "palette.cmd.showBacklinks",
+  },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },
@@ -329,4 +341,5 @@ export const PALETTE_COMMANDS: readonly {
   { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de", settings: true },
   { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en", settings: true },
   { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping", settings: true },
-];
+  ];
+}

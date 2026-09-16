@@ -70,6 +70,7 @@ interface UiState {
   sidebarVisible: boolean;
   sidebarWidth: number;
   boardVisible: boolean;
+  backlinksVisible: boolean;
   activeBoard: string | null;
   /** The tree's file order (ADR-0012); folders ignore it. `state.json` state. */
   treeSort: TreeSortDto;
@@ -91,6 +92,7 @@ interface UiState {
   toggleBoard: () => void;
   /** Hide the board pane so the editor shows; a no-op when it is hidden. */
   hideBoard: () => void;
+  toggleBacklinks: () => void;
   setActiveBoard: (slug: string | null) => void;
   setTreeSort: (sort: TreeSortDto) => void;
   togglePreview: (path: string) => void;
@@ -142,6 +144,7 @@ export const useUi = create<UiState>((set, get) => ({
   sidebarVisible: true,
   sidebarWidth: 256,
   boardVisible: false,
+  backlinksVisible: false,
   activeBoard: null,
   treeSort: "name",
   previewing: {},
@@ -158,6 +161,7 @@ export const useUi = create<UiState>((set, get) => ({
       sidebarVisible: state.sidebarVisible ?? true,
       sidebarWidth: state.sidebarWidth ?? 256,
       boardVisible: state.boardVisible ?? false,
+      backlinksVisible: state.backlinksVisible ?? false,
       activeBoard: state.activeBoard ?? null,
       treeSort: state.treeSort ?? "name",
     });
@@ -170,6 +174,7 @@ export const useUi = create<UiState>((set, get) => ({
   setSidebarWidth: (width) => set({ sidebarWidth: Math.round(width) }),
   toggleBoard: () => set((s) => ({ boardVisible: !s.boardVisible })),
   hideBoard: () => set((s) => (s.boardVisible ? { boardVisible: false } : s)),
+  toggleBacklinks: () => set((s) => ({ backlinksVisible: !s.backlinksVisible })),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
   setTreeSort: (treeSort) => set({ treeSort }),
   togglePreview: (path) =>
