@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, events, unwrap, type BacklinksDto } from "../ipc/client";
-import { deferLine, goToEditorLine } from "../lib/editorBridge";
+import { deferLine, goToEditorLine, resolveLine, type LineTarget } from "../lib/editorBridge";
 import { goToPreviewLine, previewMounted } from "../lib/previewBridge";
+import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
@@ -24,15 +25,17 @@ import "../styles/backlinks.css";
  * Open `path` with the link's line in view. The note that is already open
  * keeps its pane, so the jump is immediate — in the preview when that is
  * what shows it; any other note gets its pane built after the tab switch,
- * so the line waits in the bridge for it.
+ * so the target waits in the bridge for it. Either way the line is settled
+ * against the text the pane shows, not the one the cache indexed.
  */
-function openAt(path: string, line: number): void {
+function openAt(path: string, target: LineTarget): void {
   if (useTabs.getState().active === path) {
+    const line = resolveLine(useEditorSave.getState().docs[path]?.text ?? "", target);
     if (previewMounted()) goToPreviewLine(line);
     else goToEditorLine(line);
     return;
   }
-  deferLine(line);
+  deferLine(target);
   void useTabs
     .getState()
     .open(path)
@@ -94,7 +97,7 @@ export default function Backlinks() {
             className="backlink"
             type="button"
             key={`${note.path}:${note.line}`}
-            onClick={() => openAt(note.path, note.line)}
+            onClick={() => openAt(note.path, { line: note.line, snippet: note.snippet })}
           >
             <span className="backlink-glyph" aria-hidden="true" />
             <span className="backlink-name">{note.title}</span>

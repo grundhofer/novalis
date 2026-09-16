@@ -342,19 +342,20 @@ describe("Preview", () => {
     return scrolled;
   }
 
-  it("scrolls to the block a source line starts in, on request and for a parked line", async () => {
+  it("scrolls to the block a source line starts in, lit, on request and for a parked line", async () => {
     const scrolled = scrollable();
     // "# A\n\ntwo\n\n- x\n- y\n": lines 1, 3, 5 and 6 start blocks.
     doc("n.md", "# A\n\ntwo\n\n- x\n- y\n");
     fragment =
       '<h1 data-pos="0-3">A</h1><p data-pos="5-8">two</p>' +
       '<ul data-pos="10-18"><li data-pos="10-13">x</li><li data-pos="14-18">y</li></ul>';
-    deferLine(6);
-    render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    deferLine({ line: 6, snippet: "- y" });
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
     await flush();
 
     expect(scrolled).toEqual(["y"]);
     expect(takeDeferredLine()).toBeNull();
+    expect(container.querySelector(".preview-target")?.textContent).toBe("y");
 
     goToPreviewLine(3);
     goToPreviewLine(4); // a blank line: the block after it, the list as a whole

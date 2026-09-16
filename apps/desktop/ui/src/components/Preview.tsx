@@ -13,7 +13,7 @@ import type { Mermaid } from "mermaid";
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
-import { takeDeferredLine } from "../lib/editorBridge";
+import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
 import { blockForLine, parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
@@ -41,6 +41,8 @@ import "../styles/preview.css";
 
 /** A text change re-renders after this pause: a sync burst is one render. */
 const RENDER_DEBOUNCE_MS = 150;
+/** How long the block a jump landed on stays lit. */
+const TARGET_LIT_MS = 1200;
 
 /** `https:`, `mailto:` and the like — the test `lib/links.ts` uses. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -171,8 +173,14 @@ function showLine(host: HTMLElement, text: string, line: number): void {
   const spans = blocks.map((block) => parseBlockSpan(block.getAttribute("data-pos")) ?? { start: 0, end: 0 });
   const index = blockForLine(spans, text, line);
   const block = index === null ? undefined : blocks[index];
+  if (!block) return;
   // jsdom has no layout, and no `scrollIntoView` (ADR-0011).
-  if (block && typeof block.scrollIntoView === "function") block.scrollIntoView({ block: "center" });
+  if (typeof block.scrollIntoView === "function") block.scrollIntoView({ block: "center" });
+  // The preview has no cursor to show where the jump landed, so the block
+  // is lit for a moment; a jump while one is still lit moves the light.
+  for (const lit of host.querySelectorAll(".preview-target")) lit.classList.remove("preview-target");
+  block.classList.add("preview-target");
+  setTimeout(() => block.classList.remove("preview-target"), TARGET_LIT_MS);
 }
 
 /** The block a selection end lies in: the innermost element with a source span. */
@@ -250,8 +258,11 @@ export default function Preview({
     host.innerHTML = rendered.html;
     // A line parked for this note (a backlink's, say) is shown now that
     // there is a fragment to scroll; the editor would have taken it instead.
-    const line = takeDeferredLine();
-    if (line !== null) showLine(host, useEditorSave.getState().docs[rendered.path]?.text ?? "", line);
+    const target = takeDeferredLine();
+    if (target) {
+      const source = useEditorSave.getState().docs[rendered.path]?.text ?? "";
+      showLine(host, source, resolveLine(source, target));
+    }
 
     // A relative `src` is a vault path the webview cannot reach; the bytes
     // come through `read_blob` like the viewer's. Until they arrive the alt

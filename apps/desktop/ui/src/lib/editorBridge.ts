@@ -46,20 +46,58 @@ export function goToEditorLine(line: number): void {
 }
 
 /**
- * A line to show once the note's pane exists. After a tab switch the editor
- * builds its view, and the preview fetches its fragment, asynchronously; a
- * caller that opens a note and wants a line in it parks the line here, and
+ * Where a jump into a note should land: the line the cache knew, and the
+ * text of that line as the cache saw it. The cache follows the file, the
+ * file follows the buffer after the autosave pause, so by the time of a
+ * click the link may sit on another line; the pane that shows the note
+ * settles the line against its own text with `resolveLine`.
+ */
+export interface LineTarget {
+  /** 1-based, as indexed. */
+  line: number;
+  /** The indexed line, trimmed, possibly cut to a window around the link. */
+  snippet: string;
+}
+
+/**
+ * The line in `text` that `target` means now: the indexed line when its
+ * text still matches, else the matching line nearest to it, else the indexed
+ * line as it was. A snippet the search cut down starts with `…`; the rest
+ * of it is still a substring of the line it came from.
+ */
+export function resolveLine(text: string, target: LineTarget): number {
+  const want = target.snippet.replace(/^…/, "");
+  if (!want) return target.line;
+  const lines = text.split("\n");
+  const matches = (n: number) => (lines[n - 1] ?? "").includes(want);
+  if (matches(target.line)) return target.line;
+  let best = target.line;
+  let distance = Infinity;
+  for (let n = 1; n <= lines.length; n += 1) {
+    const d = Math.abs(n - target.line);
+    if (d < distance && matches(n)) {
+      best = n;
+      distance = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * A target parked for the note's pane. After a tab switch the editor builds
+ * its view, and the preview fetches its fragment, asynchronously; a caller
+ * that opens a note and wants a line in it parks the target here, and
  * whichever of the two shows the note takes it right after it has something
  * to scroll. One slot, last writer wins.
  */
-let deferredLine: number | null = null;
+let deferred: LineTarget | null = null;
 
-export function deferLine(line: number | null): void {
-  deferredLine = line;
+export function deferLine(target: LineTarget | null): void {
+  deferred = target;
 }
 
-export function takeDeferredLine(): number | null {
-  const line = deferredLine;
-  deferredLine = null;
-  return line;
+export function takeDeferredLine(): LineTarget | null {
+  const target = deferred;
+  deferred = null;
+  return target;
 }

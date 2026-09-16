@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
 import { deferLine, goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
+import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import Backlinks from "./Backlinks";
 
@@ -35,6 +36,7 @@ const answer = (value: unknown) => {
 describe("Backlinks", () => {
   beforeEach(() => {
     useTabs.setState({ active: "Atlas Overview.md", tabs: ["Atlas Overview.md"] });
+    useEditorSave.setState({ docs: {} });
     deferLine(null);
     vi.mocked(goToEditorLine).mockClear();
   });
@@ -165,8 +167,29 @@ describe("Backlinks", () => {
     await flush();
 
     expect(open).toHaveBeenCalledWith("b.md");
-    expect(takeDeferredLine()).toBe(31);
+    expect(takeDeferredLine()).toEqual({ line: 31, snippet: "budget for [[A]]" });
     expect(goToEditorLine).not.toHaveBeenCalled();
+  });
+
+  // The cache indexes the file after the autosave pause; the buffer may have
+  // moved the link meanwhile. The jump follows the line's text, not its number.
+  it("settles the line against the buffer when the link has moved", async () => {
+    useEditorSave.setState({
+      docs: {
+        "Atlas Overview.md": { path: "Atlas Overview.md", text: "new first line\n\n[[Atlas Overview]] itself\n" } as never,
+      },
+    });
+    answer({
+      notes: [{ path: "Atlas Overview.md", title: "Atlas Overview", line: 1, snippet: "[[Atlas Overview]] itself" }],
+      cards: [],
+      indexed: true,
+    });
+    render(<Backlinks />);
+    await flush();
+
+    fireEvent.click(screen.getByText("[[Atlas Overview]] itself"));
+
+    expect(goToEditorLine).toHaveBeenCalledWith(3);
   });
 
   it("jumps at once when the link sits in the note that is already open", async () => {
