@@ -571,7 +571,7 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Window visible (first paint) after launch | ≤ 300 ms, **provisional**: measured so far is 166–231 ms to the `setup()` callback with a hidden window; Spike C measures first paint with `--exit-after-first-frame` and re-sets this row |
 | Tree interactive, 10k-note vault, warm disk | ≤ 500 ms, independent of the cache |
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
-| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 20 KB; fonts ≤ 250 KB |
+| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
 | Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string) |
 | Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on |

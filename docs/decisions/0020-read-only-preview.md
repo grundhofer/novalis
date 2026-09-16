@@ -89,3 +89,13 @@ Java or a server, which the privacy rule forbids):
   `style-src 'unsafe-inline'` already allows for the app's own styles.
 - Approved for later, each with its own ADR when built (ADR-0016): EPUB,
   DOCX, CBZ.
+
+**Amended 2026-09-16** — the owner, testing: "der vorschau/bearbeiten button
+kann je nach breite ausgeblendet werden, wenn viele notizen offen sind. der
+sollte immer sichtbar sein und ein icon, keinen text haben, weil weniger
+infos." The toggle is a glyph (an eye) in a fixed cell beside the scrolling
+tab strip, pressed while previewing, its state in the tooltip. That and the
+day's other controls exhausted the 20 KB eager-CSS budget of PLAN.md §11.3
+even after the duplicated tool rules were merged; the owner raised it to
+24 KB ("Budget auf 24 kB anheben (Recommended)"), `docs/BUDGET.json` and
+§11.3 say so.

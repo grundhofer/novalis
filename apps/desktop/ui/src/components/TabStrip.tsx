@@ -17,6 +17,7 @@ export default function TabStrip() {
   if (tabs.length === 0) return <div className="tabs tabs-empty" />;
 
   return (
+    <div className="tabbar">
     <div className="tabs" role="tablist">
       {tabs.map((path) => {
         const doc = docs[path];
@@ -50,22 +51,24 @@ export default function TabStrip() {
           </div>
         );
       })}
-      <div className="tab-spacer">
-        {/* The small button the owner asked for (ADR-0020): the same command
-            as `Cmd+E`. Inside the spacer so the strip's hairline runs under
-            it; only a note has a rendered form, so it is not there for a PDF. */}
-        {active && isNote(active) && (
-          <button
-            className="btn ghost tab-preview"
-            type="button"
-            aria-pressed={previewing}
-            title={t("menu.view.togglePreview")}
-            onClick={() => dispatchCommand("note.togglePreview")}
-          >
-            {t(previewing ? "editor.edit" : "editor.preview")}
-          </button>
-        )}
-      </div>
+      <div className="tab-spacer" />
+    </div>
+    {/* The small button the owner asked for (ADR-0020): the same command as
+        `Cmd+E`. Outside the scrolling strip, so a row of many tabs never
+        pushes it out of sight; a glyph with the state in its tooltip, not a
+        word. Only a note has a rendered form, so it is not there for a PDF. */}
+    {active && isNote(active) && (
+      <button
+        className={previewing ? "btn ghost tool tab-preview on" : "btn ghost tool tab-preview"}
+        type="button"
+        aria-pressed={previewing}
+        title={t(previewing ? "editor.edit" : "editor.preview")}
+        aria-label={t(previewing ? "editor.edit" : "editor.preview")}
+        onClick={() => dispatchCommand("note.togglePreview")}
+      >
+        <span className="glyph-eye" aria-hidden="true" />
+      </button>
+    )}
     </div>
   );
 }

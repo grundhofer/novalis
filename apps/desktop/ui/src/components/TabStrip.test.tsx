@@ -66,14 +66,17 @@ describe("TabStrip", () => {
     });
   });
 
-  // ADR-0020: the small button at the strip's end is `Cmd+E` for the mouse.
+  // ADR-0020: the small button beside the strip is `Cmd+E` for the mouse —
+  // a glyph whose state is the tooltip, outside the scrolling row so a row
+  // of many tabs never pushes it out of sight (owner, 2026-09-16).
   describe("the preview button", () => {
     it("offers the preview of an active note and dispatches the toggle", () => {
       render(<TabStrip />);
 
-      const button = screen.getByTitle("menu.view.togglePreview");
-      expect(button.textContent).toBe("editor.preview");
+      const button = screen.getByLabelText("editor.preview");
+      expect(button.textContent).toBe("");
       expect(button.getAttribute("aria-pressed")).toBe("false");
+      expect(button.closest(".tabs")).toBeNull();
 
       fireEvent.click(button);
       expect(dispatchCommand).toHaveBeenCalledWith("note.togglePreview");
@@ -83,16 +86,17 @@ describe("TabStrip", () => {
       useUi.setState({ previewing: { "a.md": true } });
       render(<TabStrip />);
 
-      const button = screen.getByTitle("menu.view.togglePreview");
-      expect(button.textContent).toBe("editor.edit");
+      const button = screen.getByLabelText("editor.edit");
       expect(button.getAttribute("aria-pressed")).toBe("true");
+      expect(button.className).toContain("on");
     });
 
     it("is not there for a tab that is not a note", () => {
       useTabs.setState({ tabs: ["a.md", "x.pdf"], active: "x.pdf" });
       render(<TabStrip />);
 
-      expect(screen.queryByTitle("menu.view.togglePreview")).toBeNull();
+      expect(screen.queryByLabelText("editor.preview")).toBeNull();
+      expect(screen.queryByLabelText("editor.edit")).toBeNull();
     });
   });
 });

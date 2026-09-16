@@ -141,7 +141,7 @@ export default function Sidebar() {
           <span className="vault-name">{vault.name}</span>
           <span className="sidebar-tools">
             <button
-              className="btn ghost sidebar-tool"
+              className="btn ghost tool"
               type="button"
               title={tooltip(t("menu.file.newNote"), "file.newNote")}
               aria-label={t("menu.file.newNote")}
@@ -150,7 +150,7 @@ export default function Sidebar() {
               +
             </button>
             <button
-              className="btn ghost sidebar-tool"
+              className="btn ghost tool"
               type="button"
               title={tooltip(t("menu.file.newFolder"), "tree.newFolder")}
               aria-label={t("menu.file.newFolder")}
@@ -159,7 +159,7 @@ export default function Sidebar() {
               <span className="glyph-folder" aria-hidden="true" />
             </button>
             <button
-              className={boardVisible ? "btn ghost sidebar-tool on" : "btn ghost sidebar-tool"}
+              className={boardVisible ? "btn ghost tool on" : "btn ghost tool"}
               type="button"
               title={tooltip(boardLabel, "board.toggle")}
               aria-label={boardLabel}
@@ -319,7 +319,7 @@ export default function Sidebar() {
 
       <div className="sidebar-foot">
         <button
-          className="btn ghost sidebar-tool sidebar-settings"
+          className="btn ghost tool sidebar-settings"
           type="button"
           title={t("palette.cmd.settings")}
           aria-label={t("palette.cmd.settings")}

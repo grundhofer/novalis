@@ -193,10 +193,11 @@ button {
   flex: 0 0 auto;
 }
 
-/* The three head controls (ADR-0012): `.btn.ghost` at row height. The
+/* The small glyph controls (ADR-0012, ADR-0020): `.btn.ghost` at row
+   height, in the sidebar head and foot and beside the tab strip. The
    selectors carry the whole class list because the button section further
-   down would otherwise take the colour back. */
-.btn.ghost.sidebar-tool {
+   down would otherwise take the colour back; `on` is the pressed state. */
+.btn.ghost.tool {
   height: 22px;
   min-width: 22px;
   padding: 0 var(--ds-space-2);
@@ -206,11 +207,11 @@ button {
   color: var(--ds-color-fg-subtle);
 }
 
-.btn.ghost.sidebar-tool:focus-visible {
+.btn.ghost.tool:focus-visible {
   outline: 2px solid var(--ds-color-accent-default);
 }
 
-.btn.ghost.sidebar-tool.on {
+.btn.ghost.tool.on {
   border-color: var(--ds-color-accent-line);
   background: var(--ds-color-accent-fill);
   color: var(--ds-color-accent-text);
@@ -502,9 +503,17 @@ button {
 }
 
 /* ------------------------------------------------------------------ tabs */
-.tabs {
+.tabbar {
   display: flex;
   flex: 0 0 auto;
+  height: var(--ds-size-tabstrip);
+  background: var(--ds-color-bg-surface);
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
   height: var(--ds-size-tabstrip);
   background: var(--ds-color-bg-surface);
   overflow-x: auto;
@@ -587,11 +596,43 @@ button {
   border-bottom: 1px solid var(--ds-color-border-strong);
 }
 
-/* The preview toggle (ADR-0020), floated in the spacer at row height. */
-.btn.ghost.tab-preview {
-  float: right;
-  height: 22px;
-  margin: 7px var(--ds-space-4) 0 0;
+/* The preview toggle (ADR-0020): a fixed cell beside the scrolling strip,
+   so a row of many tabs never pushes it out of sight. */
+.tab-preview {
+  flex: 0 0 auto;
+  margin: 7px var(--ds-space-4) 0 var(--ds-space-3);
+}
+
+.tabbar::after {
+  content: "";
+  flex: 0 0 var(--ds-space-2);
+  border-bottom: 1px solid var(--ds-color-border-strong);
+}
+
+.glyph-eye {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 10px;
+}
+
+.glyph-eye::before {
+  content: "";
+  position: absolute;
+  inset: 1px 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.glyph-eye::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
 }
 
 /* ---------------------------------------------------------------- editor */
