@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBlockSpan, toggleMarkInSource } from "./previewEdit";
+import { blockForLine, offsetOfLine, parseBlockSpan, toggleMarkInSource } from "./previewEdit";
 
 describe("parseBlockSpan", () => {
   it("reads the renderer's attribute and refuses anything else", () => {
@@ -40,5 +40,45 @@ describe("toggleMarkInSource", () => {
     expect(toggleMarkInSource("aa aa", { start: 0, end: 5 }, "aa", "**")).toBeNull();
     expect(toggleMarkInSource(text, paragraph, "   ", "**")).toBeNull();
     expect(toggleMarkInSource(text, { start: 0, end: 999 }, "One", "**")).toBeNull();
+  });
+});
+
+describe("offsetOfLine", () => {
+  it("counts UTF-16 units up to the line's start", () => {
+    const text = "ab\n😀c\n\nlast";
+    expect(offsetOfLine(text, 1)).toBe(0);
+    expect(offsetOfLine(text, 2)).toBe(3);
+    expect(offsetOfLine(text, 3)).toBe(7);
+    expect(offsetOfLine(text, 4)).toBe(8);
+    expect(offsetOfLine(text, 5)).toBeNull();
+    expect(offsetOfLine(text, 0)).toBeNull();
+  });
+});
+
+describe("blockForLine", () => {
+  // "---\nx: 1\n---\n" (13) then a heading, a blank line, a list of two items.
+  const text = "---\nx: 1\n---\n# Head\n\n- one\n- two\n";
+  const spans = [
+    { start: 13, end: 20 }, // # Head
+    { start: 21, end: 33 }, // the list
+    { start: 21, end: 26 }, //   - one
+    { start: 27, end: 33 }, //   - two
+  ];
+
+  it("picks the innermost block the line starts in", () => {
+    expect(blockForLine(spans, text, 4)).toBe(0);
+    expect(blockForLine(spans, text, 6)).toBe(2);
+    expect(blockForLine(spans, text, 7)).toBe(3);
+  });
+
+  it("falls forward from a line no block covers, and back from the end", () => {
+    expect(blockForLine(spans, text, 1)).toBe(0);
+    expect(blockForLine(spans, text, 5)).toBe(1);
+    expect(blockForLine(spans, text, 8)).toBe(3);
+  });
+
+  it("has nothing to show without blocks or past the text", () => {
+    expect(blockForLine([], text, 4)).toBeNull();
+    expect(blockForLine(spans, text, 40)).toBeNull();
   });
 });

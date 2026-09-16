@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
-import { deferEditorLine, goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
+import { deferLine, goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
 import { useTabs } from "../stores/tabs";
 import Backlinks from "./Backlinks";
 
@@ -35,7 +35,7 @@ const answer = (value: unknown) => {
 describe("Backlinks", () => {
   beforeEach(() => {
     useTabs.setState({ active: "Atlas Overview.md", tabs: ["Atlas Overview.md"] });
-    deferEditorLine(null);
+    deferLine(null);
     vi.mocked(goToEditorLine).mockClear();
   });
 

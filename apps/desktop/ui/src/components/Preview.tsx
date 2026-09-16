@@ -13,8 +13,9 @@ import type { Mermaid } from "mermaid";
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
+import { takeDeferredLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
-import { parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
+import { blockForLine, parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
 import { report, useUi } from "../stores/ui";
 import "../styles/preview.css";
@@ -159,6 +160,21 @@ function showHit(hits: Hits, index: number, count: HTMLElement | null, t: Transl
         : "";
 }
 
+/**
+ * Scroll the block a source line starts in to the middle of the pane — the
+ * preview's answer to the editor's `goToLine`, block-exact rather than
+ * line-exact, since a rendered block has no lines. Nothing to do when the
+ * line is past the text or the fragment has no tagged block.
+ */
+function showLine(host: HTMLElement, text: string, line: number): void {
+  const blocks = [...host.querySelectorAll<HTMLElement>("[data-pos]")];
+  const spans = blocks.map((block) => parseBlockSpan(block.getAttribute("data-pos")) ?? { start: 0, end: 0 });
+  const index = blockForLine(spans, text, line);
+  const block = index === null ? undefined : blocks[index];
+  // jsdom has no layout, and no `scrollIntoView` (ADR-0011).
+  if (block && typeof block.scrollIntoView === "function") block.scrollIntoView({ block: "center" });
+}
+
 /** The block a selection end lies in: the innermost element with a source span. */
 function blockOf(node: Node | null): Element | null {
   const element = node instanceof Element ? node : node?.parentElement;
@@ -232,6 +248,10 @@ export default function Preview({
     // The effect owns this subtree: React never renders children into it, so
     // every run starts from the fragment as the core wrote it.
     host.innerHTML = rendered.html;
+    // A line parked for this note (a backlink's, say) is shown now that
+    // there is a fragment to scroll; the editor would have taken it instead.
+    const line = takeDeferredLine();
+    if (line !== null) showLine(host, useEditorSave.getState().docs[rendered.path]?.text ?? "", line);
 
     // A relative `src` is a vault path the webview cannot reach; the bytes
     // come through `read_blob` like the viewer's. Until they arrive the alt
@@ -367,6 +387,11 @@ export default function Preview({
         // one would only look like it survived.
         selection.removeAllRanges();
         return true;
+      },
+      goToLine: (line) => {
+        const host = body.current;
+        const source = useEditorSave.getState().docs[pathRef.current]?.text;
+        if (host && source !== undefined) showLine(host, source, line);
       },
     });
     return () => setPreviewBridge(null);

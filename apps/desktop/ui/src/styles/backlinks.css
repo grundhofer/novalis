@@ -89,12 +89,15 @@
   white-space: nowrap;
 }
 
+/* The line the link sits on, right after the name: it is what tells two
+   links from one note apart, so it reads with the name, not at the far edge
+   of a wide pane. */
 .backlink-meta {
   flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: right;
+  text-align: left;
   font-family: var(--ds-font-mono);
   font-size: var(--ds-font-size-mono-sm);
   color: var(--ds-color-fg-subtle);

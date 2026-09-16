@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, events, unwrap, type BacklinksDto } from "../ipc/client";
-import { deferEditorLine, goToEditorLine } from "../lib/editorBridge";
+import { deferLine, goToEditorLine } from "../lib/editorBridge";
+import { goToPreviewLine, previewMounted } from "../lib/previewBridge";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
@@ -21,20 +22,22 @@ import "../styles/backlinks.css";
  */
 /**
  * Open `path` with the link's line in view. The note that is already open
- * keeps its view, so the jump is immediate; any other note gets its view
- * built after the tab switch, so the line waits in the bridge for it.
+ * keeps its pane, so the jump is immediate — in the preview when that is
+ * what shows it; any other note gets its pane built after the tab switch,
+ * so the line waits in the bridge for it.
  */
 function openAt(path: string, line: number): void {
   if (useTabs.getState().active === path) {
-    goToEditorLine(line);
+    if (previewMounted()) goToPreviewLine(line);
+    else goToEditorLine(line);
     return;
   }
-  deferEditorLine(line);
+  deferLine(line);
   void useTabs
     .getState()
     .open(path)
     .catch((e: unknown) => {
-      deferEditorLine(null);
+      deferLine(null);
       report(e);
     });
 }

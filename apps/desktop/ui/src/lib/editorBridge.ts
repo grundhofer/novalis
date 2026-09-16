@@ -46,14 +46,15 @@ export function goToEditorLine(line: number): void {
 }
 
 /**
- * A line to show once the next editor view exists. `goToEditorLine` needs a
- * view, and after a tab switch the editor builds its view asynchronously, so a
- * caller that opens a note and wants a line in it parks the line here; the
- * editor takes it right after `setActiveView`. One slot, last writer wins.
+ * A line to show once the note's pane exists. After a tab switch the editor
+ * builds its view, and the preview fetches its fragment, asynchronously; a
+ * caller that opens a note and wants a line in it parks the line here, and
+ * whichever of the two shows the note takes it right after it has something
+ * to scroll. One slot, last writer wins.
  */
 let deferredLine: number | null = null;
 
-export function deferEditorLine(line: number | null): void {
+export function deferLine(line: number | null): void {
   deferredLine = line;
 }
 
