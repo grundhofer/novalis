@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
+import { deferEditorLine, goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
 import { useTabs } from "../stores/tabs";
 import Backlinks from "./Backlinks";
 
@@ -12,6 +13,11 @@ vi.mock("react-i18next", () => ({
     t: (key: string, vars?: { count?: number }) =>
       vars?.count === undefined ? key : `${key}=${vars.count}`,
   }),
+}));
+
+vi.mock("../lib/editorBridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/editorBridge")>()),
+  goToEditorLine: vi.fn(),
 }));
 
 vi.mock("../ipc/client", () => ({
@@ -29,6 +35,8 @@ const answer = (value: unknown) => {
 describe("Backlinks", () => {
   beforeEach(() => {
     useTabs.setState({ active: "Atlas Overview.md", tabs: ["Atlas Overview.md"] });
+    deferEditorLine(null);
+    vi.mocked(goToEditorLine).mockClear();
   });
 
   it("shows nothing at all when no note is open", () => {
@@ -39,7 +47,7 @@ describe("Backlinks", () => {
 
   it("lists the notes that link here", async () => {
     answer({
-      notes: [{ path: "projects/Spec.md", title: "Spec", line: 12 }],
+      notes: [{ path: "projects/Spec.md", title: "Spec", line: 12, snippet: "" }],
       cards: [],
       indexed: true,
     });
@@ -68,8 +76,8 @@ describe("Backlinks", () => {
   it("counts notes and cards separately", async () => {
     answer({
       notes: [
-        { path: "a.md", title: "A", line: 1 },
-        { path: "b.md", title: "B", line: 2 },
+        { path: "a.md", title: "A", line: 1, snippet: "" },
+        { path: "b.md", title: "B", line: 2, snippet: "" },
       ],
       cards: [{ board: "plan", boardName: "Plan", id: "c1", title: "C" }],
       indexed: true,
@@ -101,7 +109,7 @@ describe("Backlinks", () => {
   // must not be shown against the new one.
   it("does not show one note's backlinks against another", async () => {
     answer({
-      notes: [{ path: "old.md", title: "Old result", line: 1 }],
+      notes: [{ path: "old.md", title: "Old result", line: 1, snippet: "" }],
       cards: [],
       indexed: true,
     });
@@ -117,5 +125,65 @@ describe("Backlinks", () => {
 
     expect(screen.queryByText("Old result")).toBeNull();
     expect(screen.getByText("editor.backlinks.empty")).toBeTruthy();
+  });
+
+  // Two links from one note are two entries; the line's text tells them
+  // apart. The path is the fallback for a note whose text could not be read.
+  it("tells two links from the same note apart by their line", async () => {
+    answer({
+      notes: [
+        { path: "b.md", title: "B", line: 4, snippet: "see [[A]] for the plan" },
+        { path: "b.md", title: "B", line: 31, snippet: "budget for [[A]]" },
+        { path: "c.md", title: "C", line: 2, snippet: "" },
+      ],
+      cards: [],
+      indexed: true,
+    });
+    render(<Backlinks />);
+    await flush();
+
+    expect(screen.getAllByText("B")).toHaveLength(2);
+    expect(screen.getByText("see [[A]] for the plan")).toBeTruthy();
+    expect(screen.getByText("budget for [[A]]")).toBeTruthy();
+    expect(screen.getByText("c.md")).toBeTruthy();
+  });
+
+  // The clicked entry's note gets its view after the tab switch, so the line
+  // waits in the bridge; the editor takes it once the view exists.
+  it("opens the note and leaves the line for the editor to jump to", async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open });
+    answer({
+      notes: [{ path: "b.md", title: "B", line: 31, snippet: "budget for [[A]]" }],
+      cards: [],
+      indexed: true,
+    });
+    render(<Backlinks />);
+    await flush();
+
+    fireEvent.click(screen.getByText("budget for [[A]]"));
+    await flush();
+
+    expect(open).toHaveBeenCalledWith("b.md");
+    expect(takeDeferredLine()).toBe(31);
+    expect(goToEditorLine).not.toHaveBeenCalled();
+  });
+
+  it("jumps at once when the link sits in the note that is already open", async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open });
+    answer({
+      notes: [{ path: "Atlas Overview.md", title: "Atlas Overview", line: 7, snippet: "[[Atlas Overview]] itself" }],
+      cards: [],
+      indexed: true,
+    });
+    render(<Backlinks />);
+    await flush();
+
+    fireEvent.click(screen.getByText("[[Atlas Overview]] itself"));
+
+    expect(goToEditorLine).toHaveBeenCalledWith(7);
+    expect(open).not.toHaveBeenCalled();
+    expect(takeDeferredLine()).toBeNull();
   });
 });

@@ -166,6 +166,11 @@ export type BacklinkDto = {
 	title: string,
 	/**  The line the link sits on, 1-based. */
 	line: number,
+	/**
+	 *  That line as the vault search would show it, so two links from the
+	 *  same note can be told apart; empty when the note could not be read.
+	 */
+	snippet: string,
 };
 
 export type BacklinksDto = {

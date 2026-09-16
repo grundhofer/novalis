@@ -3,6 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
+import { goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
 import { useEditorSave } from "../stores/editorSave";
 import { report } from "../stores/ui";
 import { setActiveView } from "./commands";
@@ -65,6 +66,8 @@ export default function Editor({
       });
       setActiveView(view);
       view.focus();
+      const line = takeDeferredLine();
+      if (line !== null) goToEditorLine(line);
     })().catch(report);
 
     return () => {

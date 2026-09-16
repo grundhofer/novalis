@@ -44,3 +44,21 @@ export function editorHeadings(): EditorHeading[] {
 export function goToEditorLine(line: number): void {
   bridge?.goToLine(line);
 }
+
+/**
+ * A line to show once the next editor view exists. `goToEditorLine` needs a
+ * view, and after a tab switch the editor builds its view asynchronously, so a
+ * caller that opens a note and wants a line in it parks the line here; the
+ * editor takes it right after `setActiveView`. One slot, last writer wins.
+ */
+let deferredLine: number | null = null;
+
+export function deferEditorLine(line: number | null): void {
+  deferredLine = line;
+}
+
+export function takeDeferredLine(): number | null {
+  const line = deferredLine;
+  deferredLine = null;
+  return line;
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, events, unwrap, type BacklinksDto } from "../ipc/client";
+import { deferEditorLine, goToEditorLine } from "../lib/editorBridge";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
@@ -18,6 +19,26 @@ import "../styles/backlinks.css";
  * The catalog decided this shape before the code existed: a title, an empty
  * line naming both kinds, and separate counts.
  */
+/**
+ * Open `path` with the link's line in view. The note that is already open
+ * keeps its view, so the jump is immediate; any other note gets its view
+ * built after the tab switch, so the line waits in the bridge for it.
+ */
+function openAt(path: string, line: number): void {
+  if (useTabs.getState().active === path) {
+    goToEditorLine(line);
+    return;
+  }
+  deferEditorLine(line);
+  void useTabs
+    .getState()
+    .open(path)
+    .catch((e: unknown) => {
+      deferEditorLine(null);
+      report(e);
+    });
+}
+
 export default function Backlinks() {
   const { t } = useTranslation();
   const active = useTabs((s) => s.active);
@@ -70,11 +91,11 @@ export default function Backlinks() {
             className="backlink"
             type="button"
             key={`${note.path}:${note.line}`}
-            onClick={() => void useTabs.getState().open(note.path).catch(report)}
+            onClick={() => openAt(note.path, note.line)}
           >
             <span className="backlink-glyph" aria-hidden="true" />
             <span className="backlink-name">{note.title}</span>
-            <span className="backlink-meta">{note.path}</span>
+            <span className="backlink-meta">{note.snippet || note.path}</span>
           </button>
         ))}
 

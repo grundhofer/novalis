@@ -779,14 +779,17 @@ pub async fn backlinks(state: State<'_, AppState>, path: String) -> IpcResult<Ba
                 indexed: false,
             });
         };
+        let rows = cache.backlinks(&rel)?;
+        let snippets = search::link_snippets(&root, &rows)?;
         Ok(BacklinksDto {
-            notes: cache
-                .backlinks(&rel)?
+            notes: rows
                 .into_iter()
-                .map(|row| BacklinkDto {
+                .zip(snippets)
+                .map(|(row, snippet)| BacklinkDto {
                     title: stem_of(&row.src).to_string(),
                     line: row.line as u32,
                     path: row.src,
+                    snippet,
                 })
                 .collect(),
             cards,

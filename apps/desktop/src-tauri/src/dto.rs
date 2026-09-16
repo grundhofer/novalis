@@ -383,6 +383,9 @@ pub struct BacklinkDto {
     pub title: String,
     /// The line the link sits on, 1-based.
     pub line: u32,
+    /// That line as the vault search would show it, so two links from the
+    /// same note can be told apart; empty when the note could not be read.
+    pub snippet: String,
 }
 
 /// A card whose `notes[]` references the open note (§4.4: the backlinks list
