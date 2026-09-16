@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-05 · **Decider:** Sebastian Grundhöfer
 
+**Amended by:** ADR-0012 (2026-09-14) — the four settings also appear in the command palette; "exactly one place where it is changed" becomes one persisted place, with the palette as a second launcher for the same command ids.
+
 ## Context
 
 The old app carried a 763-line preferences model and 34 feature flags; the brief for the rewrite says "ask before adding any setting or feature". PLAN.md §4.1 proposed exactly four persisted settings and listed everything else as hard-coded defaults (§4.2) or transient palette commands. A `Settings` struct with `deny_unknown_fields` and a parity test against `docs/SETTINGS.md` makes the allow-list enforceable in CI rather than by review. Window geometry, open tabs and the sidebar width are state, not settings, and live in a free-form `state.json`.

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-09-05 · **Decider:** Sebastian Grundhöfer
 
+**Amended by:** ADR-0020 (2026-09-15) — `Cmd-E` is bound to `note.togglePreview` (global): the read-only preview it was reserved for shipped; the `docs/KEYMAP.md` row changed from `unbound`, the View menu label is in both catalogs.
+
 ## Context
 
 The old app shipped configurable keybindings, which the rewrite drops (PLAN.md §2.2). A Sublime-like editor needs a fixed, predictable set of chords, and the Apple standard bindings must stay untouched. Three chords needed an explicit decision because conventions disagree: `Cmd-P` (Print vs quick-open), `Cmd-K` (command palette vs link) and the sidebar/board toggles. A keymap that lives only in code drifts; a documented table with a parity test does not.

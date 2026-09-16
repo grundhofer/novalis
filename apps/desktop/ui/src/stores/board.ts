@@ -10,8 +10,10 @@ import {
   type BoardRefDto,
   type CardOpDto,
   type ColumnDto,
+  type PositionDto,
 } from "../ipc/client";
 import { useUi } from "./ui";
+import { useVault } from "./vault";
 
 /**
  * The Kanban pane (PLAN.md §8).
@@ -23,6 +25,16 @@ import { useUi } from "./ui";
  * a board that changed under us never raises a banner (§5.3 step 5) — we just
  * take the document the write returns.
  */
+
+/**
+ * The drag payload types of ADR-0019, distinct from the `text/plain` a file
+ * row carries: the tree tells a board, a card and a file apart by
+ * `dataTransfer.types`, so a file dropped on a board row and a board dropped
+ * on a folder both do nothing. The pane sets the card type, the tree sets the
+ * board type and reads both; one place names them.
+ */
+export const BOARD_DRAG_TYPE = "application/x-novalis-board";
+export const CARD_DRAG_TYPE = "application/x-novalis-card";
 
 export interface BoardNotice {
   cards: number;
@@ -48,10 +60,27 @@ interface BoardState {
   load: (slug: string) => Promise<void>;
   dismissNotice: (slug: string) => void;
   refresh: () => Promise<void>;
+  /**
+   * Re-read the list of boards. `setBoards` is what the vault open brings;
+   * this is for a board that appeared or went since — `novalis board create`
+   * from the CLI, or a sync client — which the watcher reports.
+   */
+  refreshList: () => Promise<void>;
   apply: (op: CardOpDto) => Promise<void>;
   createBoard: (slug: string, name: string) => Promise<void>;
   setColumns: (columns: ColumnDto[]) => Promise<void>;
   renameBoard: (name: string) => Promise<void>;
+  /**
+   * Put a board among the boards (ADR-0019): after another one, or last. The
+   * key is the shell's to compute, and the document the write returns does
+   * not carry it — the list does, in the shell's order, so it is re-read.
+   */
+  placeBoard: (slug: string, place: PositionDto) => Promise<void>;
+  /**
+   * Move a card of the open board to another board (ADR-0019). The source is
+   * re-read without the card; the target is read when it is opened.
+   */
+  moveCardToBoard: (id: string, board: string) => Promise<void>;
 }
 
 export const useBoard = create<BoardState>((set, get) => ({
@@ -94,9 +123,12 @@ export const useBoard = create<BoardState>((set, get) => ({
       // was, the pane kept showing the previous board while every write went
       // to this slug, and at boot the missing board was saved back to
       // `state.json` and failed again at every start. The UI's `activeBoard`
-      // follows, because the callers set it before they call this.
+      // follows, because the callers set it before they call this — but only
+      // the slug: a board the watcher re-reads while the editor is showing
+      // (`hideBoard`, stores/tabs.ts) must not come back over the note.
       set({ slug: previous });
-      useUi.getState().setActiveBoard(previous);
+      if (previous === null) useUi.getState().setActiveBoard(null);
+      else useUi.setState({ activeBoard: previous });
       throw error;
     } finally {
       set({ busy: false });
@@ -115,6 +147,16 @@ export const useBoard = create<BoardState>((set, get) => ({
     if (slug) await get().load(slug);
   },
 
+  refreshList: async () => {
+    const root = useVault.getState().vault?.root;
+    const boards = await unwrap(commands.boardList());
+    // A batch from the previous vault can resolve after Open Vault… replaced
+    // the list; its answer is about a vault that is no longer open.
+    if (useVault.getState().vault?.root !== root) return;
+    // The shell lists boards in display order (keyed ones first, ADR-0019).
+    set({ boards });
+  },
+
   apply: async (op) => {
     const slug = get().slug;
     if (!slug) return;
@@ -126,23 +168,45 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   createBoard: async (slug, name) => {
     const ref = await unwrap(commands.boardCreate(slug, name));
-    set((s) => ({ boards: [...s.boards, ref].sort((a, b) => a.name.localeCompare(b.name)) }));
+    // The watcher may have listed it already (`refreshList`); once is enough.
+    // A new board has no key, so it belongs after the keyed ones, by name —
+    // which is where `board_list` would put it (ADR-0019).
+    set((s) => ({
+      boards: s.boards.some((b) => b.slug === ref.slug)
+        ? s.boards
+        : [...s.boards.filter((b) => b.order !== null), ...[...s.boards.filter((b) => b.order === null), ref].sort((a, b) => a.name.localeCompare(b.name))],
+    }));
     await get().load(ref.slug);
   },
 
   setColumns: async (columns) => {
     const slug = get().slug;
     if (!slug) return;
-    set({ board: await unwrap(commands.boardWrite(slug, null, columns)) });
+    set({ board: await unwrap(commands.boardWrite(slug, null, columns, null)) });
   },
 
   renameBoard: async (name) => {
     const slug = get().slug;
     if (!slug) return;
-    const board = await unwrap(commands.boardWrite(slug, name, null));
+    const board = await unwrap(commands.boardWrite(slug, name, null, null));
     set((s) => ({
       board,
       boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)),
     }));
+  },
+
+  placeBoard: async (slug, place) => {
+    await unwrap(commands.boardWrite(slug, null, null, place));
+    // `refreshList` keeps its vault guard: a place that resolves after Open
+    // Vault… is about a list that is no longer shown.
+    await get().refreshList();
+  },
+
+  moveCardToBoard: async (id, board) => {
+    const from = get().slug;
+    // Dropped on the open board's own row: nowhere to go.
+    if (!from || from === board) return;
+    await unwrap(commands.cardWrite(from, { kind: "moveToBoard", id, board }));
+    await get().load(from);
   },
 }));

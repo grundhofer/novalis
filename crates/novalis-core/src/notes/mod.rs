@@ -4,3 +4,4 @@
 pub mod frontmatter;
 pub mod links;
 pub mod relink;
+pub mod render;

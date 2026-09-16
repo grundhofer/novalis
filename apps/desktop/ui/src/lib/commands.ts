@@ -1,11 +1,13 @@
 import { isEditorCommand, runEditorCommand } from "./editorBridge";
-import { commands, unwrap } from "../ipc/client";
+import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
+import { commands, NovalisError, unwrap } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useNotes } from "../stores/notes";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
+import { CREATABLE_EXTENSIONS } from "./fileTypes";
 import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 
 /**
@@ -25,6 +27,11 @@ async function newNote(folder: string): Promise<void> {
     titleKey: "menu.file.newNote",
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
+    // What a typed extension does (ADR-0014), and which ones count.
+    hint: {
+      key: "tree.newNoteHint",
+      values: { extensions: [...CREATABLE_EXTENSIONS].sort().map((e) => `.${e}`).join(" ") },
+    },
     submit: async (name) => {
       const entry = await unwrap(commands.createNote(folder, name));
       await useVault.getState().reload(folder);
@@ -46,23 +53,79 @@ async function newFolder(folder: string): Promise<void> {
   });
 }
 
+/**
+ * Hard-coded like the PLAN.md §4.2 defaults (ADR-0012): the demo vault and
+ * the mockups use this folder and `YYYY-MM-DD.md` names.
+ */
+const JOURNAL_FOLDER = "journal";
+
+/**
+ * Today as `YYYY-MM-DD` in local time, never `toISOString()`: that is UTC,
+ * and a note written at 23:30 belongs to that day.
+ */
+function localIsoDay(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+async function todayNote(): Promise<void> {
+  const stem = localIsoDay();
+  const path = joinRel(JOURNAL_FOLDER, `${stem}.md`);
+  try {
+    await unwrap(commands.createNote(JOURNAL_FOLDER, stem));
+    // `create_atomic` made the folder along with the first note, and the root
+    // listing does not know it yet.
+    const vault = useVault.getState();
+    if (!vault.children[""]?.some((e) => e.path === JOURNAL_FOLDER)) await vault.reload("");
+    await vault.reload(JOURNAL_FOLDER);
+    await useNotes.getState().refresh();
+  } catch (error) {
+    // `create_atomic` is mkdir -p plus RENAME_EXCL, so `already_exists` is
+    // exact — the note is there — and there is no pre-check to race with.
+    if (!(error instanceof NovalisError && error.code === "already_exists")) throw error;
+  }
+  await useTabs.getState().open(path);
+}
+
+/**
+ * The one rename behind the dialog and the tree's drag and drop: the buffer
+ * is saved first so the shell moves what the user sees, then the docs and
+ * tabs are re-keyed and every folder whose listing changed is relisted.
+ */
+async function renameTo(from: string, target: string): Promise<void> {
+  if (target === from) return;
+  await useEditorSave.getState().save(from);
+  await unwrap(commands.rename(from, target));
+  useEditorSave.getState().rename(from, target);
+  useTabs.getState().rename(from, target);
+  const vault = useVault.getState();
+  const fromFolder = folderOf(from);
+  const toFolder = folderOf(target);
+  await vault.reload(fromFolder);
+  if (toFolder !== fromFolder) await vault.reload(toFolder);
+  await useNotes.getState().refresh();
+}
+
 async function renamePath(path: string): Promise<void> {
   useUi.getState().ask({
     titleKey: "menu.file.rename",
     placeholderKey: "tree.renamePlaceholder",
     initial: fileNameOf(path),
-    submit: async (name) => {
-      const folder = folderOf(path);
-      const target = joinRel(folder, name);
-      if (target === path) return;
-      await useEditorSave.getState().save(path);
-      await unwrap(commands.rename(path, target));
-      useEditorSave.getState().rename(path, target);
-      useTabs.getState().rename(path, target);
-      await useVault.getState().reload(folder);
-      await useNotes.getState().refresh();
-    },
+    submit: (name) => renameTo(path, joinRel(folderOf(path), name)),
   });
+}
+
+/**
+ * Move a file into `toFolder`, keeping its name (ADR-0018). Files only: the
+ * core relinks the notes that point at a moved note, but not the relative
+ * links inside a moved folder's notes nor the cards' `notes[]` under it, so a
+ * folder — or anything the tree does not list — stays where it is.
+ */
+export async function moveEntry(from: string, toFolder: string): Promise<void> {
+  if (folderOf(from) === toFolder) return;
+  const entry = useVault.getState().children[folderOf(from)]?.find((e) => e.path === from);
+  if (!entry || entry.dir) return;
+  await renameTo(from, joinRel(toFolder, fileNameOf(from)));
 }
 
 async function trashPath(path: string): Promise<void> {
@@ -123,12 +186,31 @@ function targetPath(): string | null {
   return useVault.getState().selected ?? useTabs.getState().active;
 }
 
+/**
+ * Where a new note or folder goes: inside the selected folder, beside the
+ * selected file, in the vault root when nothing is selected — the same rule
+ * for both commands, as in Finder. `Cmd+N` used to create beside a selected
+ * folder while `Shift+Cmd+N` created inside it, and the latter told a `.wav`
+ * from a folder by its extension, so it tried to create under the file.
+ *
+ * A board item counts as a file, and so does an entry the tree has not
+ * loaded (the active tab of a folder nobody expanded): only a listed folder
+ * is created into.
+ */
+function targetFolder(): string {
+  const path = targetPath();
+  if (!path) return "";
+  const entry = useVault.getState().children[folderOf(path)]?.find((e) => e.path === path);
+  return entry?.dir && !entry.boardSlug ? path : folderOf(path);
+}
+
 const REGISTRY: Record<string, () => CommandResult> = {
   "file.save": () => {
     const active = useTabs.getState().active;
     if (active) return useEditorSave.getState().save(active);
   },
-  "file.newNote": () => newNote(folderOf(targetPath() ?? "")),
+  "file.newNote": () => newNote(targetFolder()),
+  "file.todayNote": () => todayNote(),
   "vault.open": () => openVault(),
   "tab.close": () => useTabs.getState().closeActive(),
   "tab.reopenClosed": () => useTabs.getState().reopenClosed(),
@@ -138,19 +220,21 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "nav.forward": () => useTabs.getState().forward(),
   "quickOpen.open": () => useUi.getState().setOverlay({ kind: "quickOpen" }),
   "palette.open": () => useUi.getState().setOverlay({ kind: "palette" }),
+  "settings.open": () => useUi.getState().setOverlay({ kind: "settings" }),
   "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
+  "note.togglePreview": () => {
+    // Only a note has a rendered form (ADR-0020); a PDF or an image is
+    // already the viewer, and a `.txt` has nothing to render.
+    const active = useTabs.getState().active;
+    if (active && isNote(active)) useUi.getState().togglePreview(active);
+  },
   "view.fontLarger": () => useUi.getState().changeFontSize(1),
   "view.fontSmaller": () => useUi.getState().changeFontSize(-1),
   "view.fontReset": () => useUi.getState().changeFontSize("reset"),
-  "tree.newFolder": () => {
-    // Next to the tree selection when it is a folder, otherwise beside the
-    // selected file, otherwise in the vault root (docs/KEYMAP.md "Not listed").
-    const path = targetPath();
-    return newFolder(path && !isNote(path) ? path : folderOf(path ?? ""));
-  },
+  "tree.newFolder": () => newFolder(targetFolder()),
   "tree.rename": () => {
     const path = targetPath();
     if (path) return renamePath(path);
@@ -185,22 +269,49 @@ export function dispatchCommand(id: string): void {
     }
     return;
   }
+  // A previewed note has no editor on screen (ADR-0020): find and the two
+  // marks act on the rendered text; a mark that cannot be placed, and every
+  // other editor chord (link, checkbox, go to line …), returns to the editor
+  // so the chord lands where it applies. The command itself is not replayed
+  // there — the editor mounts asynchronously, and the user is now looking at
+  // the right place to press it again.
+  if (previewMounted()) {
+    if (runPreviewCommand(id)) return;
+    if (isPreviewCommand(id) || isEditorCommand(id)) {
+      const active = useTabs.getState().active;
+      if (active) useUi.getState().endPreview(active);
+      return;
+    }
+  }
   if (isEditorCommand(id)) runEditorCommand(id);
 }
 
-/** Command ids the palette offers, in the order it shows them. */
-export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
+/**
+ * Command ids the palette offers, in the order it shows them. `valueKey`
+ * fills the label's `{{value}}`. The entries marked `settings` are the four
+ * settings' values: they have no window, and the settings button (ADR-0012,
+ * amended 2026-09-15) opens the palette on exactly this subset.
+ */
+export const PALETTE_COMMANDS: readonly {
+  id: string;
+  labelKey: string;
+  valueKey?: string;
+  settings?: true;
+}[] = [
   { id: "quickOpen.open", labelKey: "menu.go.quickOpen" },
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
+  { id: "file.todayNote", labelKey: "tree.todayNote" },
   { id: "tree.newFolder", labelKey: "menu.file.newFolder" },
   { id: "board.new", labelKey: "menu.file.newBoard" },
+  { id: "settings.open", labelKey: "palette.cmd.settings" },
   { id: "vault.open", labelKey: "menu.file.openVault" },
   { id: "file.save", labelKey: "menu.file.save" },
   { id: "tree.rename", labelKey: "menu.file.rename" },
   { id: "tree.trash", labelKey: "menu.file.moveToTrash" },
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
+  { id: "note.togglePreview", labelKey: "menu.view.togglePreview" },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },
@@ -208,7 +319,14 @@ export const PALETTE_COMMANDS: readonly { id: string; labelKey: string }[] = [
   { id: "markdown.italic", labelKey: "menu.edit.italic" },
   { id: "markdown.link", labelKey: "menu.edit.insertLink" },
   { id: "markdown.toggleCheckbox", labelKey: "menu.edit.toggleCheckbox" },
-  { id: "view.fontLarger", labelKey: "menu.view.fontLarger" },
-  { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller" },
-  { id: "view.fontReset", labelKey: "menu.view.fontReset" },
+  { id: "view.fontLarger", labelKey: "menu.view.fontLarger", settings: true },
+  { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller", settings: true },
+  { id: "view.fontReset", labelKey: "menu.view.fontReset", settings: true },
+  { id: "settings.appearance.system", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.system", settings: true },
+  { id: "settings.appearance.light", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.light", settings: true },
+  { id: "settings.appearance.dark", labelKey: "palette.cmd.appearance", valueKey: "settings.appearance.dark", settings: true },
+  { id: "settings.language.system", labelKey: "palette.cmd.language", valueKey: "settings.language.system", settings: true },
+  { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de", settings: true },
+  { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en", settings: true },
+  { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping", settings: true },
 ];

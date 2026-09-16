@@ -1,0 +1,249 @@
+/* The read-only preview (ADR-0020). Loaded with the Preview chunk, never with
+   the shell: index.html's stylesheet is at the 20 kB budget (PLAN.md §11.3).
+   Tokens only, like every other stylesheet here. The type mirrors the editor
+   (editor/theme.ts): the same measure, size, line height and heading scale,
+   so `Cmd+E` changes the rendering, not the page. */
+
+/* --------------------------------------------------------------- preview */
+.preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--ds-space-7) var(--ds-space-9) 40vh;
+  background: var(--ds-color-bg-canvas);
+}
+
+.preview-body {
+  max-width: var(--ds-measure-editor);
+  margin: 0 auto;
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-font-size-editor);
+  line-height: var(--ds-line-height-editor);
+  color: var(--ds-color-fg-default);
+  overflow-wrap: break-word;
+}
+
+.preview-body > :first-child {
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------------------ text */
+.preview-body h1,
+.preview-body h2,
+.preview-body h3,
+.preview-body h4,
+.preview-body h5,
+.preview-body h6 {
+  margin: 1.4em 0 0.5em;
+  font-weight: var(--ds-font-weight-strong);
+  line-height: 1.25;
+  color: var(--ds-color-syntax-heading);
+}
+
+.preview-body h1 {
+  font-size: 1.55em;
+  letter-spacing: var(--ds-letter-spacing-title);
+}
+
+.preview-body h2 {
+  font-size: 1.24em;
+  letter-spacing: -0.02em;
+}
+
+.preview-body h3 {
+  font-size: 1.1em;
+}
+
+.preview-body h4,
+.preview-body h5,
+.preview-body h6 {
+  font-size: 1em;
+}
+
+.preview-body p,
+.preview-body ul,
+.preview-body ol,
+.preview-body pre,
+.preview-body table,
+.preview-body blockquote,
+.preview-body .preview-diagram {
+  margin: 0 0 0.9em;
+}
+
+.preview-body ul,
+.preview-body ol {
+  padding-left: 1.6em;
+}
+
+.preview-body li > ul,
+.preview-body li > ol,
+.preview-body li > p {
+  margin-bottom: 0;
+}
+
+.preview-body a {
+  color: var(--ds-color-syntax-link);
+  text-decoration: none;
+}
+
+.preview-body a:hover {
+  text-decoration: underline;
+}
+
+.preview-body strong {
+  font-weight: 600;
+}
+
+.preview-body blockquote {
+  padding-left: var(--ds-space-5);
+  border-left: 2px solid var(--ds-color-fg-subtle);
+  color: var(--ds-color-syntax-quote);
+}
+
+.preview-body hr {
+  height: 0;
+  margin: 1.4em 0;
+  border: 0;
+  border-top: 1px solid var(--ds-color-border-default);
+}
+
+/* Task lists: the core writes the boxes `disabled`; the preview is read-only. */
+.preview-body input[type="checkbox"] {
+  margin: 0 0.4em 0 0;
+  vertical-align: -0.08em;
+  accent-color: var(--ds-color-accent-default);
+}
+
+.preview-body sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.preview-body .footnote-definition {
+  display: flex;
+  gap: var(--ds-space-3);
+  font-size: 0.9em;
+  color: var(--ds-color-fg-muted);
+}
+
+.preview-body .footnote-definition p {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ code */
+.preview-body code {
+  padding: 0 0.28em;
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-raised);
+  font-family: var(--ds-font-mono);
+  font-size: 0.9em;
+  letter-spacing: var(--ds-letter-spacing-mono);
+  color: var(--ds-color-syntax-code);
+}
+
+.preview-body pre {
+  padding: var(--ds-space-5) var(--ds-space-6);
+  border: 1px solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-bg-raised);
+  overflow-x: auto;
+}
+
+.preview-body pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 0.86em;
+  color: var(--ds-color-fg-default);
+}
+
+/* ----------------------------------------------------------------- table */
+.preview-body table {
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+
+.preview-body th,
+.preview-body td {
+  padding: var(--ds-space-2) var(--ds-space-5);
+  border: 1px solid var(--ds-color-border-default);
+  text-align: left;
+  vertical-align: top;
+}
+
+.preview-body th {
+  font-weight: var(--ds-font-weight-strong);
+  background: var(--ds-color-bg-raised);
+}
+
+/* ---------------------------------------------------------------- images */
+.preview-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--ds-radius-chip);
+}
+
+/* A mermaid diagram: centred, and a wide one scrolls rather than the page. */
+.preview-diagram {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+
+.preview-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ------------------------------------------------------------------ find */
+/* `Cmd+F` over the rendered note: a bar above the scrolling pane, its
+   buttons the `.btn.ghost.tool` glyphs of the tab strip, its field the
+   dialog's at row height. The hits are marked like the editor's
+   (editor/theme.ts): every match in the match colour, the current one in
+   the accent. */
+.preview-find {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  flex: 0 0 auto;
+  padding: var(--ds-space-3) var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+  background: var(--ds-color-bg-surface);
+  font-size: var(--ds-font-size-ui-sm);
+}
+
+/* As wide as the sidebar, never the whole pane; a narrow pane shrinks it. */
+.preview-find-input {
+  flex: 0 1 var(--ds-size-sidebar);
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--ds-space-4);
+  border: 1px solid var(--ds-color-border-control);
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-color-bg-surface);
+  color: var(--ds-color-fg-default);
+  font: inherit;
+  outline: none;
+}
+
+.preview-find-input:focus {
+  border-color: var(--ds-color-accent-default);
+}
+
+.preview-find-count {
+  flex: 0 0 auto;
+  font-family: var(--ds-font-mono);
+  letter-spacing: var(--ds-letter-spacing-mono);
+  color: var(--ds-color-fg-subtle);
+  white-space: nowrap;
+}
+
+mark.preview-hit {
+  background: var(--ds-color-editor-match);
+  color: inherit;
+}
+
+mark.preview-hit.current {
+  background: var(--ds-color-accent-fill);
+  outline: 1px solid var(--ds-color-accent-line);
+}

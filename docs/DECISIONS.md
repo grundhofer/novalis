@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row becomes an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5). Until then this file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0020). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -34,16 +34,16 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Tags as search filter / palette | yes, v1 |
 | Backlinks list (incl. cards linking here) | yes, v1 |
 | `[[` and `#` autocompletion | yes, v1 |
-| Read-only rendered preview (`Cmd-E`) | yes, v1.1 |
+| Read-only rendered preview (`Cmd-E`) | yes, v1.1 — built 2026-09-15 (ADR-0020) |
 | Hide-syntax live preview | no |
 | Split view / board + note split | no (D21) |
 | Folding, focus/typewriter, minimap, vim | no |
-| Image paste/drop | no (later) |
+| Image paste/drop | yes, hard-coded `attachments/` next to the note, no setting (ADR-0017, 2026-09-15) |
 | Version history | no |
 | Multi-vault / recent vaults | no |
 | E-paper mode | no |
 | Flat 2.0 control mockup row | yes |
-| Kanban extra card fields | no |
+| Kanban extra card fields | no, except description (ADR-0013, 2026-09-14) |
 | Kanban soft-delete tombstones | yes |
 | Several boards per vault | yes |
 | CLI `relink` public | yes |
@@ -143,6 +143,277 @@ is undefined for several cards; the example sentence in §8.4 says the same now:
 
 Recorded in `docs/SYNC-REALITY.md` and PLAN.md §8.4. No ADR: no new
 dependency, setting, menu item or shortcut.
+
+## Answered 2026-09-14
+
+The owner opened the app on 2026-09-14 and wrote:
+
+> aktuell kann ich keine neuen markdown files oder andere unterstützte formate
+> erstellen. diese funktion sollte bestehen. es sollte links auch eine sektion
+> gebeb um schnelle tägliche notizen anzuzeigen.
+> Den kanban mode sehe ich auch nicht.
+> es sollte ein icon um die settings zu öffnen.
+> außerdem benötigen wir ein sortiericon für die notizen, die ordner immer
+> alphabetisch anzeigen.
+> ich möchte auf dem kanban mode auch die karte etwas befüllen können.
+> bitte lass uns eine einfache aber gute verbesserung links in der steuerung
+> vornehmen ohne probleme zu verursachen.
+> in den settings denke ich darüber nach ob wir nicht auch einen zusätzlichen
+> sync in ein bucket von cloudflare zum cross device sync anbieten sollten. als
+> alternative zu den anderen. das würde eine mobile und eine webapp ermöglichen.
+
+Four questions were put to them the same day, each with the smallest form
+recommended. Asked "Welche Steuerelemente sollen in die Sidebar?" (several
+answers allowed):
+
+> Neue Notiz / Neuer Ordner (Recommended), Board-Knopf (Recommended),
+> Sortierung über die Spaltenköpfe (Recommended)
+
+The fourth option, "Einstellungen-Knopf", was not selected. Its description had
+said the four settings reach the palette (`Shift+Cmd+P`) either way, so they
+gain palette entries and no button; no preferences window, `Cmd+,` stays
+unbound. Asked "Tagesnotizen: welche Form?", with the file fixed as
+`journal/JJJJ-MM-TT.md`, created empty, no template:
+
+> Eine Zeile Heute oben im Baum (Recommended)
+
+Asked "Karteninhalt auf dem Board":
+
+> Feld description (Recommended)
+
+Asked "Andere Dateiformate anlegen":
+
+> Dialog Neue Notiz erkennt §7.3-Endungen (Recommended)
+
+Recorded as **ADR-0012** (sidebar controls: the New Note / New Folder / board
+buttons, the legend as the sort control with `treeSort` as state, the Today's
+Note row and palette command, the settings in the palette), **ADR-0013** (the
+optional card `description`, amending ADR-0006) and **ADR-0014** (the New Note
+dialog keeps a typed §7.3 extension). The "Kanban extra card fields" row above
+is changed accordingly; PLAN.md §2.2, §4.2, §4.4, §5.3, §7.3, §8.2 and §9.2,
+`docs/SETTINGS.md` and `docs/KEYMAP.md` prose carry the details. Three things
+fixed on the way — board folders drawn as root-level tree rows with their
+display name as the L2/L4 frames show, opening a note hiding the board pane,
+the title-bar drag permission — are recorded in ADR-0012 as fidelity and
+defects, not decisions.
+
+## Answered 2026-09-15
+
+Testing the sidebar branch, the owner wrote:
+
+> wir sollten hier unterstützte dateitypen anzeigen
+
+> macht es sinn beim lesen der dateien pdf zu unterstützen? bitte einfach
+> möchlich machen. gerne auch epub etc. alles was sinnvoll zum lesen ist.
+
+> bitte in der seitenleiste ganz links nur unterstützte dateitypen anzeigen
+> lassen. keine wav, mp4 etc
+
+Asked which read-only types (PDF recommended; EPUB priced as a new dependency
+and its own reader):
+
+> "Bilder (png, jpg, gif, webp, svg)", PDF (Recommended)
+
+Recorded as **ADR-0015**: a read-only viewer for PDF and images (tier D in
+PLAN.md §7.3; `svg` stays editable XML), one new IPC command `read_blob` (23 of
+25) with `base64` as a direct dependency of the desktop crate (no new lockfile
+entry), the tree lists only the types of §7.3, and the New Note dialog shows
+the ADR-0014 extension rule. EPUB was not selected and is not built.
+
+Later the same day, of the WebView's PDF view:
+
+> die icons funktionieren nicht alle. welche alternative zur darstellung von
+> pdf hben wir oder können wir auch steuerungsbutton in novalis einbauen?
+> ganze seite, nächste seie etc zoom etc.
+
+> können wir etwas nehmen, das auch cross platform verfügbar ist? was für neue
+> buch dokument formate können wir einfach unterstützen?
+> hast du dich bei der technologie wahl an cross platfform oder maximaler
+> performance orientiert
+
+Asked "PDF-Anzeige: pdf.js mit eigener Novalis-Leiste … oder WebKit-Ansicht
+behalten":
+
+> pdf.js mit eigener Leiste (Recommended)
+
+Recorded as **ADR-0016** (`pdfjs-dist`, the first runtime npm package since
+the scaffold; the app's own page/zoom bar; text selectable). Asked which
+reading formats to plan next, each with its own ADR when built:
+
+> EPUB (Recommended), Markdown-Lesemodus ⌘E (Recommended), DOCX (nur lesen), CBZ
+
+All four are approved and not yet built; the order proposed is EPUB, the
+Markdown preview (already a v1.1 yes, PLAN.md §4.4), DOCX, CBZ.
+
+Still testing, the owner reversed the one option they had left out on
+2026-09-14:
+
+> bitte noch settings button icon ermöglichen
+
+Recorded as an amendment to **ADR-0012**: a button in the sidebar foot (the
+macOS "sliders" glyph, drawn like the other glyphs) opens the command palette
+on the four settings alone (`settings.open`, also a palette entry). Still no
+preferences window and no `Cmd+,` (ADR-0004, ADR-0008). Of the New Note
+dialog's extension list ("das hier alphabetisch ordnen? sind die
+vollständig?"): sorted now; it is complete for the §7.3 text types — the
+extensionless tier-C names and the tier-D viewer types are not typed
+extensions, and a PDF or image cannot be created empty.
+
+Still on the branch, the owner asked three things at once:
+
+> kónnen wir auch diagramme etc. darstellen wie von mermaid oder sowas wie
+> puml? was sollten wir noch unterstützen?
+
+> ich möchte die dateien, genau wie die boards per drag and drop verschieben
+> können.
+
+> ist es außerdem möglich screenshots bzw. bilddateien in diesen abzulegen?
+> am besten per command v etc
+
+Asked "Bilder/Screenshots in Notizen: welcher Umfang?", with the policy fixed
+in the question (a folder `attachments/` next to the note, the file named
+after the note and the time, a `![](...)` link, a 24th IPC command, an ADR):
+
+> ⌘V aus der Zwischenablage (Recommended), Bilddateien aus dem Finder auf die
+> Notiz ziehen
+
+Recorded as **ADR-0017** (attachments: ⌘V and drop write the image to
+`attachments/` next to the note, named `<stem>-YYYYMMDD-HHMMSS.<ext>`, and
+insert `![](attachments/…)`; one new IPC command `write_blob`, 24 of 25, that
+never overwrites; the §7.3 image types only; hard-coded, no fifth setting).
+The "Image paste/drop" row above is changed accordingly, as is PLAN.md §4.4.
+
+Asked "Dateien und Ordner im Baum per Drag & Drop verschieben (Ziel:
+Ordnerzeile oder Wurzel; Links werden umgeschrieben wie bei Umbenennen)?":
+
+> Ja (Recommended)
+
+Recorded as **ADR-0018** (a file row dropped onto a folder row or the tree's
+empty space is the existing `rename`, wikilinks and card references rewritten
+as File ▸ Rename does; folders are drop targets but not yet draggable, since a
+directory move needs a directory-aware relink the core does not have; board
+rows are neither; "manual tree order" stays dropped). Both gestures are in the
+`docs/KEYMAP.md` mouse-gesture table.
+
+Asked "Diagramme und mehr im Lesemodus ⌘E (der Lesemodus selbst ist genehmigt
+und kommt zuerst; jede Zeile hier ist eine eigene Abhängigkeit mit ADR)":
+
+> Mermaid (Recommended)
+
+KaTeX was not selected; PlantUML had been explained as needing Java or a
+server, which the privacy rule forbids. Mermaid is approved for the ⌘E
+read-only preview only (itself a v1.1 yes, PLAN.md §4.4, not yet built) and
+gets its own ADR when built, as a lazy chunk loaded only for a note with a
+`mermaid` fence. PLAN.md §2.2 and §7.2 carry the clause; ADR-0016's list of
+approved-for-later formats notes it.
+
+Later on 2026-09-15, with the tree drag (ADR-0018) and the attachments
+(ADR-0017) in hand, the owner wrote:
+
+> also man sollte auch boards per drag and drop bewegen.
+
+> der screenshot wird als zeile hinzugefügt, ist aber nicht sichtbar
+
+> wir sollten zwischen editier und view mode für .md umschalten können mit
+> einem kleinen button
+
+Asked "Boards per Drag & Drop — was genau soll bewegt werden?" (several
+answers allowed):
+
+> Reihenfolge der Boards im Baum, Karten zwischen Boards ziehen, Board in
+> einen Ordner verschieben
+
+The third answer would take boards out of `boards/`, where ADR-0006, the
+CLI, `doctor` and the tree find them, and a board folder move is the
+directory-aware relink ADR-0018 left open. Asked "Boards an beliebigen Orten
+im Vault (statt nur unter boards/)? …" with that cost named:
+
+> Nein, Boards bleiben unter boards/ (Recommended)
+
+The third option is withdrawn. Recorded as **ADR-0019** (amending ADR-0006
+and ADR-0018): `board.json` gains an optional `order`, a fractional-index
+key written only for a dragged board, boards without one following by name;
+the core's `move_board` and the shell's `board_write` `place` compute the
+key in Rust; a card dragged from the open board onto a board row moves
+there with the same id, last in the target's first column, the source card
+tombstoned as ADR-0006 deletes. The CLI reads the order and does not write
+it yet; PLAN.md §8.2 shows the key.
+
+Asked "Bilder im Editor sichtbar machen?":
+
+> Erst im Lesemodus ⌘E
+
+Asked "IPC-Obergrenze: PLAN §2.3 Regel 8 sagt „unter 25 Befehle", die
+Vorschau bräuchte den 25. Wie weiter?":
+
+> Grenze auf 30 anheben (Recommended)
+
+Recorded as **ADR-0020** (amending ADR-0008 and PLAN.md §2.3 rule 8): the
+v1.1 read-only preview is built — `Cmd+E` bound to `note.togglePreview`, a
+"View"/"Edit" button at the tab strip's end, per tab, session state only;
+rendered in Rust by `pulldown-cmark 0.13` (three lockfile entries) through
+`render_markdown`, the 25th command under a cap of 30; attachments shown
+through `read_blob`, internal links followed, external links not opened;
+Mermaid 12 draws `mermaid` fences as a lazy chunk (the ADR the Mermaid
+answer above was waiting for; it names the package count). The
+"Read-only rendered preview" row above and PLAN.md §4.4 and §7.2 are changed
+accordingly; CLAUDE.md and `lib.rs` say 30.
+
+### Open
+
+The Cloudflare bucket ("zusätzlichen sync in ein bucket von cloudflare zum
+cross device sync … das würde eine mobile und eine webapp ermöglichen") was
+answered with an assessment only, no decision: it would be the first outbound
+connection of the app, whose row in the `docs/PRIVACY.md` table exists only
+once an ADR puts it there, and whose HTTP client the lockfile check refuses
+without one; it needs an account, credentials or a token in the app, a conflict
+story for a third writer next to Mode 1, and a web or mobile client that does
+not exist. It is not opened now. If the owner wants it, it is a v2 question of
+the size of Mode 2 (§5.7) and gets its own ADR before any code.
+
+## Answered 2026-09-16
+
+Testing the preview (ADR-0020) with many notes open, the owner wrote:
+
+> der vorschau/bearbeiten button kann je nach breite ausgeblendet werden, wenn
+> viele notizen offen sind. der sollte immer sichtbar sein und ein icon, keinen
+> text haben, weil weniger infos.
+
+Recorded as the first amendment to **ADR-0020**: the toggle is an eye glyph in
+a fixed cell beside the scrolling tab strip; the ADR names the eager-CSS budget
+raised on the way. Then:
+
+> macht es sinn, die gängisten markdown formatierungsoptionen für md files oben
+> in der leiste einzublenden?
+
+Answered with a recommendation against: a formatting toolbar is on the PLAN.md
+§2.2 list of what novalis is not and in §7.1's "NO" row, and the palette
+(`Shift+Cmd+P`) already lists the four formatting chords (bold, italic, link,
+checkbox). The owner:
+
+> ok, hast recht.
+
+Recorded as a confirmed no; no ADR, nothing changes. Then:
+
+> die shortcuts sollten auch im view mode funktionieren, nicht nur im edit mode
+
+Asked "Welche Shortcuts sollen in der Vorschau (Ansehen-Modus) wirken?"
+(several answers allowed):
+
+> Suchen ⌘F / ⌘G / ⇧⌘G (Recommended), es sollte auch möglich sein im vorschau
+> modeus mit command b zum beispiel etwas fett zu markieren
+
+Recorded as the second amendment to **ADR-0020** ("chords"): in the preview,
+`Cmd+F` opens a find bar over the rendered text (`Cmd+G` / `Shift+Cmd+G` move
+between the marked matches, `Escape` closes it); `Cmd+B` and `Cmd+I` take the
+selected rendered text, find it in the source of its block — the renderer tags
+paragraphs, headings and list items with their source span — and toggle `**`
+/ `_` around it in the buffer, which the preview re-renders and the autosave
+writes. A selection that cannot be placed (across blocks, split by markup,
+ambiguous, empty) switches the tab to the editor instead of guessing, as does
+every other editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D` …), not
+replayed there. No new dependency, string key, command id or chord;
+`docs/KEYMAP.md` "Not listed" says which chords the preview answers.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

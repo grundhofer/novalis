@@ -8,8 +8,13 @@ export default function Prompt() {
   const { t } = useTranslation();
   const request = useUi((s) => s.prompt);
   const [value, setValue] = useState(request?.initial ?? "");
-  const input = useRef<HTMLInputElement | null>(null);
+  const input = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const accept = useRef<HTMLButtonElement | null>(null);
+  // One ref for either field. An object ref is typed for one element, so the
+  // union is attached by hand; `select()` is on both.
+  const attach = (element: HTMLInputElement | HTMLTextAreaElement | null) => {
+    input.current = element;
+  };
 
   // A new question resets the field during render rather than in an effect.
   const [lastRequest, setLastRequest] = useState(request);
@@ -41,7 +46,9 @@ export default function Prompt() {
     // vault, a sync collision. Without this catch the dialog just closed and
     // nothing happened, silently.
     if (confirm) void Promise.resolve(request.submit("")).catch(report);
-    else if (trimmed) void Promise.resolve(request.submit(trimmed)).catch(report);
+    // An emptied textarea is an answer — it is how a description is cleared —
+    // where an empty line is a slip.
+    else if (trimmed || request.multiline) void Promise.resolve(request.submit(trimmed)).catch(report);
   };
 
   return (
@@ -62,10 +69,25 @@ export default function Prompt() {
         <h2 className="dialog-title">{t(request.titleKey)}</h2>
         {confirm ? (
           <p className="dialog-body">{t(confirm.bodyKey, confirm.values ?? {})}</p>
+        ) : request.multiline ? (
+          <textarea
+            className="dialog-input dialog-textarea"
+            ref={attach}
+            rows={6}
+            value={value}
+            placeholder={request.placeholderKey ? t(request.placeholderKey) : undefined}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter is a line break here; the chord is what submits.
+              if (event.key === "Enter" && event.metaKey) submit();
+              if (event.key === "Escape") close();
+              event.stopPropagation();
+            }}
+          />
         ) : (
           <input
             className="dialog-input"
-            ref={input}
+            ref={attach}
             value={value}
             placeholder={request.placeholderKey ? t(request.placeholderKey) : undefined}
             onChange={(event) => setValue(event.target.value)}
@@ -75,6 +97,9 @@ export default function Prompt() {
               event.stopPropagation();
             }}
           />
+        )}
+        {!confirm && request.hint && (
+          <p className="dialog-hint">{t(request.hint.key, request.hint.values ?? {})}</p>
         )}
         <div className="dialog-actions">
           <button className="btn ghost" type="button" onClick={close}>

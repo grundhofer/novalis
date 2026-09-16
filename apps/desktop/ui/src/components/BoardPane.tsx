@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
 import { stemOf } from "../lib/paths";
-import { useBoard } from "../stores/board";
+import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/board.css";
@@ -53,14 +53,14 @@ export default function BoardPane() {
 
   /**
    * D21 chose "the card opens the note in a tab" over a split view. The board
-   * fills the same pane as the editor, so opening the note without closing the
-   * board leaves it invisible — which is the outcome D21 was avoiding.
+   * fills the same pane as the editor, so the note has to be shown in its
+   * place — but that is `tabs.activate`'s job for every foreground open, not
+   * this click's, so it needs nothing beyond `open()`.
    */
   const openCardNote = (card: CardDto) => {
     const note = card.notes[0];
     if (!note) return;
     void useTabs.getState().open(note).catch(report);
-    if (useUi.getState().boardVisible) useUi.getState().toggleBoard();
   };
 
   const renameCard = (card: CardDto) => {
@@ -71,6 +71,21 @@ export default function BoardPane() {
       submit: async (title) => {
         if (title === card.title) return;
         await useBoard.getState().apply({ kind: "retitle", id: card.id, title });
+      },
+    });
+  };
+
+  // The same dialog as the rename, grown to a textarea (ADR-0013). An emptied
+  // field is the way to clear the text, so it is submitted like any other.
+  const editDescription = (card: CardDto) => {
+    useUi.getState().ask({
+      titleKey: "board.editDescription",
+      placeholderKey: "board.cardDescriptionPlaceholder",
+      initial: card.description ?? "",
+      multiline: true,
+      submit: async (description) => {
+        if (description === (card.description ?? "")) return;
+        await useBoard.getState().apply({ kind: "setDescription", id: card.id, description });
       },
     });
   };
@@ -297,9 +312,13 @@ export default function BoardPane() {
                     onDragStart={(event) => {
                       // WebKit abandons a drag whose data store is still empty
                       // when dragstart returns, so the drop never fires. The
-                      // payload is unused — `drag` carries the state — but it
-                      // has to be there.
+                      // payload is unused here — `drag` carries the state —
+                      // but it has to be there. The card's own type is what
+                      // a board row in the tree reads (ADR-0019); it is not
+                      // `text/plain`, so a folder row does not take the card
+                      // for a file.
                       event.dataTransfer.setData("text/plain", card.id);
+                      event.dataTransfer.setData(CARD_DRAG_TYPE, card.id);
                       event.dataTransfer.effectAllowed = "move";
                       setDrag({ cardId: card.id, from: column.id });
                     }}
@@ -316,6 +335,9 @@ export default function BoardPane() {
                     onClick={() => openCardNote(card)}
                   >
                     <span className="card-title">{card.title}</span>
+                    {/* Plain text on the card: rendering the Markdown would be
+                        a dependency, and its own ADR. */}
+                    {card.description && <p className="card-body">{card.description}</p>}
 
                     {/* draggable=false: without it a press on a control
                         starts the card drag instead of clicking. */}
@@ -331,6 +353,21 @@ export default function BoardPane() {
                         }}
                       >
                         {t("menu.file.rename")}
+                      </button>
+                      {/* A glyph, not the label: the row wraps into a second
+                          line under a fourth word-length button, and it keeps
+                          that height while hidden, so every card would grow. */}
+                      <button
+                        className="btn ghost card-action"
+                        type="button"
+                        title={t("board.editDescription")}
+                        aria-label={t("board.editDescription")}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          editDescription(card);
+                        }}
+                      >
+                        &#8801;
                       </button>
                       <button
                         className="btn ghost card-action"

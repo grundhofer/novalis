@@ -375,12 +375,15 @@ fn board_and_card_drive_a_real_board() {
         "Ship it",
         "--note",
         "Atlas Overview",
+        "--description",
+        "First the *why*.",
     ]);
     assert_eq!(code, 0, "{added}");
     let id = added["card"]["id"].as_str().expect("a card id").to_string();
     assert_eq!(id.len(), 26, "a ULID");
     assert_eq!(added["card"]["column"], "todo", "the first column");
     assert_eq!(added["card"]["notes"][0], "projects/Atlas Overview.md");
+    assert_eq!(added["card"]["description"], "First the *why*.");
     let updated = added["card"]["updated"]
         .as_str()
         .expect("updated")
@@ -415,9 +418,17 @@ fn board_and_card_drive_a_real_board() {
     assert_eq!(code, 0, "{moved}");
     assert_eq!(moved["card"]["column"], "doing");
 
+    // The title is its own change: the description rides along untouched.
     let (retitled, code) = run(&["card", "set", &id, "--title", "Shipped"]);
     assert_eq!(code, 0, "{retitled}");
     assert_eq!(retitled["card"]["title"], "Shipped");
+    assert_eq!(retitled["card"]["description"], "First the *why*.");
+
+    // The empty string clears it, and a cleared description is no key at all.
+    let (cleared, code) = run(&["card", "set", &id, "--description", ""]);
+    assert_eq!(code, 0, "{cleared}");
+    assert!(cleared["card"]["description"].is_null(), "{cleared}");
+    assert_eq!(cleared["card"]["title"], "Shipped");
 
     // A column that goes away leaves its card in `orphanCards`, never lost.
     let (shrunk, code) = run(&[
@@ -454,6 +465,28 @@ fn board_and_card_drive_a_real_board() {
         assert_eq!(code, 3, "{err}");
         assert_eq!(err["error"]["code"], "not_found");
     }
+
+    // ADR-0019: a card the app moved to another board leaves a tombstone on
+    // the source for 30 days. The live copy is the card; the tombstone is
+    // not a second one.
+    std::fs::create_dir_all(vault.join("boards/harbor/cards")).expect("the second board");
+    std::fs::write(
+        vault.join("boards/harbor/board.json"),
+        r#"{"columns":[{"id":"inbox","name":"Inbox"}],"format":1,"name":"Harbor","updated":"2026-09-05T08:41:12.345Z"}
+"#,
+    )
+    .expect("board.json");
+    let tombstoned = std::fs::read_to_string(vault.join(format!("boards/atlas/cards/{id}.json")))
+        .expect("the tombstone");
+    let live = tombstoned
+        .replace("\"deleted\"", "\"was_deleted\"")
+        .replace("\"column\": \"todo\"", "\"column\": \"inbox\"")
+        .replace("\"column\": \"doing\"", "\"column\": \"inbox\"");
+    std::fs::write(vault.join(format!("boards/harbor/cards/{id}.json")), live).expect("live copy");
+    let (retitled, code) = run(&["card", "set", &id, "--title", "moved"]);
+    assert_eq!(code, 0, "{retitled}");
+    assert_eq!(retitled["card"]["board"], "harbor");
+    assert_eq!(retitled["card"]["title"], "moved");
 }
 
 /// The two rules that have no output to compare: `--no-index` is refused on a

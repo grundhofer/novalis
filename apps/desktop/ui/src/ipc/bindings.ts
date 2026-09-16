@@ -26,6 +26,25 @@ export const commands = {
 	listNotes: () => typedError<string[], IpcError>(__TAURI_INVOKE("list_notes")),
 	readFile: (path: string) => typedError<FileDto, IpcError>(__TAURI_INVOKE("read_file", { path })),
 	/**
+	 *  Read a file the viewer shows as it is — a PDF or an image (ADR-0015).
+	 *  Same explicit-open rule as `read_file`: a cloud-only file is downloaded
+	 *  here on purpose. Anything above [`HUGE_FILE_BYTES`] is refused rather
+	 *  than sent through the IPC as one string.
+	 */
+	readBlob: (path: string) => typedError<BlobDto, IpcError>(__TAURI_INVOKE("read_blob", { path })),
+	/**
+	 *  Write an image the user pasted or dropped into a note (ADR-0017), under
+	 *  `folder/name`, never over an existing file (`RENAME_EXCL`), parents
+	 *  created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
+	 */
+	writeBlob: (folder: string, name: string, base64: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("write_blob", { folder, name, base64 })),
+	/**
+	 *  The read-only preview of a note (ADR-0020): the text the editor holds,
+	 *  frontmatter and all, as an HTML fragment the preview pane inserts as it
+	 *  is (raw HTML in the note comes back as text — `notes::render`).
+	 */
+	renderMarkdown: (text: string) => typedError<string, IpcError>(__TAURI_INVOKE("render_markdown", { text })),
+	/**
 	 *  Save. `expected` is the precondition captured when the buffer was loaded or
 	 *  last written; a mismatch is a `conflict` and the target is left untouched,
 	 *  so the UI can write the buffer to a conflict copy (§5.3 step 3).
@@ -41,6 +60,12 @@ export const commands = {
 	 *  (§5.3 step 3).
 	 */
 	writeConflictCopy: (path: string, text: string) => typedError<string, IpcError>(__TAURI_INVOKE("write_conflict_copy", { path, text })),
+	/**
+	 *  Create an empty file in the vault: a note (`.md`) or, when the typed name
+	 *  carries a §7.3 extension, that file type (ADR-0014). Both go through the
+	 *  same guards as `vault_note_rel` minus the `.md` requirement; nothing hidden
+	 *  and nothing outside the vault is ever created.
+	 */
 	createNote: (folder: string, name: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("create_note", { folder, name })),
 	createFolder: (folder: string, name: string) => typedError<EntryDto, IpcError>(__TAURI_INVOKE("create_folder", { folder, name })),
 	/**
@@ -94,7 +119,7 @@ export const commands = {
 	 *  (§8.5). Columns go through `set_columns`, which re-reads and replays on a
 	 *  conflict, so two devices reordering columns never lose one.
 	 */
-	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns })),
+	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
 	 *  field change, which is why a conflicting board never raises a banner
@@ -136,6 +161,19 @@ export type BacklinksDto = {
 	notes: BacklinkDto[],
 	/**  See [`TagListDto::indexed`]. */
 	indexed: boolean,
+};
+
+/**
+ *  A file the viewer shows as it is (PDF, image — ADR-0015). Base64 because
+ *  the typed IPC has no raw-bytes return; the viewer turns it into a `blob:`
+ *  URL and never keeps it. Capped at [`HUGE_FILE_BYTES`].
+ */
+export type BlobDto = {
+	path: string,
+	/**  Bytes, base64 (standard alphabet, padded). */
+	base64: string,
+	/**  Byte count as a decimal string (see `EntryDto`). */
+	size: string,
 };
 
 /**  A board with its cards, in one read. Tombstoned cards are not sent. */
@@ -183,6 +221,11 @@ export type BoardDto = {
 export type BoardRefDto = {
 	slug: string,
 	name: string,
+	/**
+	 *  The board's place among the boards (ADR-0019); `None` until dragged.
+	 *  The list arrives in display order either way.
+	 */
+	order: string | null,
 };
 
 export type BootstrapDto = {
@@ -222,13 +265,22 @@ export type CardDto = {
 	notes: string[],
 	created: string,
 	updated: string,
+	/**  Markdown text under the title (ADR-0013); `None` when the card has none. */
+	description: string | null,
 };
 
 /**
  *  The one write the board pane makes. Field-level and replayable, so a
  *  conflicting board never raises a banner (PLAN.md §5.3 step 5).
  */
-export type CardOpDto = { kind: "add"; title: string; column: string | null; notes: string[]; position: PositionDto } | { kind: "retitle"; id: string; title: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string };
+export type CardOpDto = { kind: "add"; title: string; column: string | null; notes: string[]; position: PositionDto } | { kind: "retitle"; id: string; title: string } | 
+/**  The empty string clears the description. */
+{ kind: "setDescription"; id: string; description: string } | { kind: "move"; id: string; column: string | null; position: PositionDto } | { kind: "linkNote"; id: string; path: string } | { kind: "unlinkNote"; id: string; path: string } | { kind: "remove"; id: string } | 
+/**
+ *  To another board's first column, last, same id (ADR-0019); the source
+ *  keeps a tombstone.
+ */
+{ kind: "moveToBoard"; id: string; board: string };
 
 export type ColumnDto = {
 	id: string,
@@ -423,6 +475,12 @@ export type TagListDto = {
 };
 
 /**
+ *  The two file orders of the tree: by name ascending (PLAN.md §4.2), or by
+ *  modification time, newest first.
+ */
+export type TreeSortDto = "name" | "modified";
+
+/**
  *  Everything that is persisted but is not a setting (PLAN.md §4.1): it lives
  *  in `<app-data>/state.json`, is disposable, and never appears in
  *  `docs/SETTINGS.md`.
@@ -434,6 +492,11 @@ export type UiStateDto = {
 	sidebarWidth?: number,
 	boardVisible?: boolean,
 	activeBoard?: string | null,
+	/**
+	 *  How the tree orders the files of a folder (ADR-0012). Folders are
+	 *  always first and by name, whatever this says.
+	 */
+	treeSort?: TreeSortDto,
 };
 
 export type VaultDto = {

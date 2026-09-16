@@ -1,5 +1,6 @@
 //! `novalis card` — the cards of a vault: list them, add one, move it, change
-//! its title or its note references, tombstone it (PLAN.md §9.2).
+//! its title, its description or its note references, tombstone it (PLAN.md
+//! §9.2).
 //!
 //! Every mutation is one field-level change through `novalis_core::boards`,
 //! which writes one card file under its read-time precondition and replays a
@@ -41,6 +42,9 @@ pub struct CardView {
     pub notes: Vec<String>,
     pub created: String,
     pub updated: String,
+    /// Markdown text under the title; absent when the card has none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// The tombstone stamp, on a card `card rm` has removed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deleted: Option<String>,
@@ -84,6 +88,7 @@ pub fn card_view(slug: &str, card: &Card) -> CardView {
         notes: card.notes.clone(),
         created: card.created.clone(),
         updated: card.updated.clone(),
+        description: card.description.clone(),
         deleted: card.deleted.clone(),
     }
 }
@@ -118,6 +123,12 @@ fn find(ctx: &Ctx, id: &str) -> Result<(String, CardDoc), CliError> {
             Err(e) if e.is_not_found() => continue,
             Err(e) => return Err(CliError::from_core(e)),
         }
+    }
+    // A card the app moved to another board (ADR-0019) leaves a tombstone
+    // behind for up to 30 days: the live copy is the card, the tombstone is
+    // not a second one.
+    if found.len() > 1 && found.iter().filter(|(_, d)| !d.card.is_deleted()).count() == 1 {
+        found.retain(|(_, d)| !d.card.is_deleted());
     }
     match found.len() {
         1 => Ok(found.remove(0)),
@@ -249,6 +260,7 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
         column,
         notes,
         position: position_of(&args.position),
+        description: args.description.clone(),
     };
 
     if ctx.dry_run {
@@ -273,6 +285,7 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
                 notes: new.notes,
                 created: now.clone(),
                 updated: now,
+                description: new.description.filter(|d| !d.is_empty()),
                 deleted: None,
             },
             dry_run: true,
@@ -302,17 +315,24 @@ fn mv(ctx: &Ctx, args: CardMvArgs) -> Result<CardOut, CliError> {
 }
 
 fn set(ctx: &Ctx, args: CardSetArgs) -> Result<CardOut, CliError> {
-    if args.title.is_none() && args.add_note.is_empty() && args.rm_note.is_empty() {
+    if args.title.is_none()
+        && args.description.is_none()
+        && args.add_note.is_empty()
+        && args.rm_note.is_empty()
+    {
         return Err(CliError::usage(
-            "card set needs --title, --add-note or --rm-note",
+            "card set needs --title, --description, --add-note or --rm-note",
         ));
     }
     let (slug, doc) = find(ctx, &args.id)?;
-    // One file per change, in a fixed order: the title, then the references
-    // that go away, then the ones that arrive.
+    // One file per change, in a fixed order: the title, the description, then
+    // the references that go away, then the ones that arrive.
     let mut changes: Vec<CardChange> = Vec::new();
     if let Some(title) = &args.title {
         changes.push(CardChange::Title(title.clone()));
+    }
+    if let Some(d) = &args.description {
+        changes.push(CardChange::Description(d.clone()));
     }
     for n in &args.rm_note {
         changes.push(CardChange::RemoveNote(resolve_stale_note(ctx, n)?));
@@ -430,6 +450,7 @@ mod tests {
             notes: vec![],
             created: "2026-09-05T08:41:12.345Z".into(),
             updated: "2026-09-05T08:41:12.345Z".into(),
+            description: None,
             deleted: None,
             extra: Default::default(),
         };

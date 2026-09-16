@@ -11,7 +11,9 @@ import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand } from "./lib/commands";
+import { isSupported, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
+import { resolveDestination } from "./lib/links";
 import { isNote } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
@@ -26,6 +28,8 @@ const Editor = lazy(() => import("./editor/Editor"));
 const Palette = lazy(() => import("./components/Palette"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
+const Viewer = lazy(() => import("./components/Viewer"));
+const Preview = lazy(() => import("./components/Preview"));
 
 /** `state.json` is written at most this often while the user moves things. */
 const STATE_SAVE_MS = 400;
@@ -35,6 +39,16 @@ const STATE_SAVE_MS = 400;
  * event arriving twice.
  */
 const DEDUPE_MS = 60;
+
+/**
+ * A board's `board.json`, the board folder, or `boards/` itself: what a board
+ * arriving by sync or the CLI touches, and what trashing or renaming the
+ * folder does. The list of boards is otherwise read once, when the vault
+ * opens, so it never learned of them.
+ */
+function touchesBoardList(path: string): boolean {
+  return path === "boards" || /^boards\/[^/]+(\/board\.json)?$/.test(path);
+}
 
 /**
  * What a failed boot shows. Deliberately the raw code and message rather than a
@@ -61,6 +75,8 @@ export default function App() {
   const vault = useVault((s) => s.vault);
   const active = useTabs((s) => s.active);
   const doc = useEditorSave((s) => (active ? s.docs[active] : undefined));
+  const view = active ? viewKind(active) : null;
+  const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
   const sidebarVisible = useUi((s) => s.sidebarVisible);
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
@@ -100,16 +116,20 @@ export default function App() {
       // window is already usable — so it only reports itself.
       if (boot.vault) {
         void useNotes.getState().refresh().catch(report);
+        const { boardVisible: boardWasVisible, activeBoard } = boot.lastOpen;
         for (const path of boot.lastOpen.openTabs ?? []) {
           await useTabs.getState().open(path, { background: true });
         }
         if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
+        // Making the tab current hid the board (stores/tabs.ts); one that was
+        // showing when the app quit comes back over it.
+        if (boardWasVisible && activeBoard) useUi.getState().setActiveBoard(activeBoard);
         // A board that is gone since last time (deleted elsewhere, or a
         // different vault) is a toast, not a red overlay over a working
         // window; `load` itself forgets the board so the next start does
         // not try again.
-        if (boot.lastOpen.activeBoard) {
-          void useBoard.getState().load(boot.lastOpen.activeBoard).catch(report);
+        if (activeBoard) {
+          void useBoard.getState().load(activeBoard).catch(report);
         }
       }
       // Anything thrown before `ready` would otherwise leave an empty window
@@ -141,6 +161,13 @@ export default function App() {
       const board = useBoard.getState().slug;
       if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
         void useBoard.getState().refresh().catch(report);
+      }
+      if (
+        [...batch.added, ...batch.modified].some((e) => touchesBoardList(e.path)) ||
+        batch.removed.some(touchesBoardList) ||
+        batch.renamed.some((r) => touchesBoardList(r.from) || touchesBoardList(r.to))
+      ) {
+        void useBoard.getState().refreshList().catch(report);
       }
     });
     return () => void unlisten.then((stop) => stop()).catch(report);
@@ -193,9 +220,12 @@ export default function App() {
   // ---- persist the disposable half of the state --------------------------
   const tabs = useTabs((s) => s.tabs);
   const activeBoard = useUi((s) => s.activeBoard);
+  const treeSort = useUi((s) => s.treeSort);
   useEffect(() => {
     if (!ready) return undefined;
     const timer = setTimeout(() => {
+      // `state.json` keeps a field only while it is sent: one left out here
+      // is reset at the next launch.
       void unwrap(
         commands.stateSave({
           openTabs: tabs,
@@ -204,15 +234,23 @@ export default function App() {
           sidebarWidth,
           boardVisible,
           activeBoard,
+          treeSort,
         }),
       ).catch(() => {
         // Losing the window layout is not worth a message; the next save wins.
       });
     }, STATE_SAVE_MS);
     return () => clearTimeout(timer);
-  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard]);
+  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, activeBoard, treeSort]);
 
   const followLink = useCallback((target: string) => {
+    // A Markdown destination is a path relative to the note (PLAN.md §7.2):
+    // a `.md` opens in the editor, an image or PDF in the viewer (ADR-0017).
+    const destination = resolveDestination(useTabs.getState().active, target);
+    if (destination && isSupported(destination)) {
+      void useTabs.getState().open(destination).catch(report);
+      return;
+    }
     const clean = target
       .replace(/^\[\[/, "")
       .replace(/\]\]$/, "")
@@ -268,6 +306,14 @@ export default function App() {
                 {t("app.openVault.button")}
               </button>
             </div>
+          ) : active && view ? (
+            <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+              <Viewer path={active} kind={view} />
+            </Suspense>
+          ) : active && doc && previewing && isNote(active) ? (
+            <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+              <Preview path={active} onFollowLink={followLink} />
+            </Suspense>
           ) : active && doc ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Editor
@@ -295,6 +341,11 @@ export default function App() {
       {overlay.kind === "palette" && (
         <Suspense fallback={null}>
           <Palette mode="palette" />
+        </Suspense>
+      )}
+      {overlay.kind === "settings" && (
+        <Suspense fallback={null}>
+          <Palette mode="settings" />
         </Suspense>
       )}
       {overlay.kind === "search" && (

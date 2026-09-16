@@ -1,14 +1,17 @@
 import { create } from "zustand";
 
+import { viewKind } from "../lib/fileTypes";
 import { useEditorSave } from "./editorSave";
-import { report } from "./ui";
+import { report, useUi } from "./ui";
 import { useVault } from "./vault";
 
 /**
  * Open tabs, the back/forward history and the reopen-closed stack.
  *
  * A tab is just a path: the buffer and its save state live in `editorSave`.
- * Closing flushes the buffer first and never blocks (D19).
+ * Closing flushes the buffer first and never blocks (D19). A viewer tab (PDF,
+ * image — ADR-0015) has no buffer: the viewer reads the file itself, and
+ * `editorSave` ignores a path it never opened.
  */
 
 const MAX_CLOSED = 20;
@@ -45,7 +48,7 @@ export const useTabs = create<TabsState>((set, get) => ({
   restore: (tabs, active) => set({ tabs, active, history: active ? [active] : [], historyIndex: active ? 0 : -1 }),
 
   open: async (path, options) => {
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
     if (options?.background) return;
     await get().activate(path);
@@ -62,10 +65,18 @@ export const useTabs = create<TabsState>((set, get) => ({
       const history = [...s.history.slice(0, s.historyIndex + 1), path].slice(-MAX_HISTORY);
       return { active: path, history, historyIndex: history.length - 1 };
     });
+    // The board pane covers the editor while it is visible, so a note made
+    // current from the tree, quick-open, a new note or a tab click stayed
+    // invisible behind it. Making a tab current means showing it (D21); the
+    // board toggle brings the board back. A background open — how boot
+    // restores the last session — makes nothing current and leaves it.
+    useUi.getState().hideBoard();
   },
 
   close: async (path) => {
     await useEditorSave.getState().close(path);
+    // A closed note reopens in the editor, not in the preview it was closed in.
+    useUi.getState().endPreview(path);
     set((s) => {
       const index = s.tabs.indexOf(path);
       const tabs = s.tabs.filter((t) => t !== path);
@@ -118,8 +129,9 @@ export const useTabs = create<TabsState>((set, get) => ({
     const path = history[historyIndex - 1];
     if (!path) return;
     set({ historyIndex: historyIndex - 1 });
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    useUi.getState().hideBoard();
   },
 
   forward: async () => {
@@ -128,8 +140,9 @@ export const useTabs = create<TabsState>((set, get) => ({
     const path = history[historyIndex + 1];
     if (!path) return;
     set({ historyIndex: historyIndex + 1 });
-    await useEditorSave.getState().open(path);
+    if (!viewKind(path)) await useEditorSave.getState().open(path);
     set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    useUi.getState().hideBoard();
   },
 
   rename: (from, to) =>

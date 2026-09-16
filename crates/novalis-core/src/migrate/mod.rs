@@ -640,6 +640,7 @@ mod tests {
                 column: None,
                 notes: vec!["reading/walden.md".into()],
                 position: boards::Position::Last,
+                description: None,
             },
         )
         .unwrap();

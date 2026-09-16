@@ -13,7 +13,7 @@
   "idleRssMb": 200,
   "eagerJsGzipKb": 250,
   "maxEagerChunkGzipKb": 120,
-  "eagerCssKb": 20,
+  "eagerCssKb": 24,
   "fontsKb": 250,
   "bootIpc": 3,
   "ipcPerOpen": 1,

@@ -1,4 +1,4 @@
-//! The whole IPC surface: 22 commands (PLAN.md §2.3 rule 8 caps it at 25).
+//! The whole IPC surface: 25 commands (PLAN.md §2.3 rule 8 caps it at 30).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -25,10 +25,11 @@ use novalis_core::util::{hostname, local_now};
 use novalis_core::vault::cloud::vault_kind;
 use novalis_core::vault::fs::{self, DirEntry, EntryKind, Precondition};
 use novalis_core::vault::path::{
-    is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of, vault_note_rel, vault_rel,
+    file_name_of, is_hidden, is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of,
+    vault_note_rel, vault_rel,
 };
 use novalis_core::vault::walk::walk_notes;
-use novalis_core::CoreError;
+use novalis_core::{CoreError, PathReason};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
@@ -152,10 +153,27 @@ fn attach_vault(app: &AppHandle, state: &AppState, root: PathBuf) -> IpcResult<(
 }
 
 fn read_ui_state(path: &Path) -> UiStateDto {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return UiStateDto::default();
+    };
+    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return UiStateDto::default();
+    };
+    // The file is parsed as a whole and a failure resets all of it — tabs,
+    // sidebar, board — so a `treeSort` this build does not know (a later
+    // build's, or a hand edit) is dropped first and reads as the default.
+    // (`serde(other)` on the enum would do the same, but specta refuses it
+    // on an externally tagged enum, and `deserialize_with` splits the DTO
+    // into two wire types.)
+    if let Some(state) = value.as_object_mut() {
+        let unknown = state
+            .get("treeSort")
+            .is_some_and(|sort| serde_json::from_value::<TreeSortDto>(sort.clone()).is_err());
+        if unknown {
+            state.remove("treeSort");
+        }
+    }
+    serde_json::from_value(value).unwrap_or_default()
 }
 
 /// Rebuild the native menu, but only when something it shows has changed.
@@ -327,6 +345,87 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> IpcResult<Fi
     .await
 }
 
+/// Read a file the viewer shows as it is — a PDF or an image (ADR-0015).
+/// Same explicit-open rule as `read_file`: a cloud-only file is downloaded
+/// here on purpose. Anything above [`HUGE_FILE_BYTES`] is refused rather
+/// than sent through the IPC as one string.
+#[tauri::command]
+#[specta::specta]
+pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<BlobDto> {
+    use base64::Engine;
+    let root = state.require_vault()?;
+    blocking(move || {
+        let rel = normalize_rel(&path)?;
+        let abs = vault_rel(&root, &rel)?;
+        let size = fs::stat(&abs)?.size;
+        if size > HUGE_FILE_BYTES {
+            return Err(IpcError::bad_request(format!(
+                "{rel} is {size} bytes; the viewer stops at {HUGE_FILE_BYTES}"
+            )));
+        }
+        let (bytes, pre) = fs::read_bytes(&abs)?;
+        Ok(BlobDto {
+            path: rel,
+            base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+            size: pre.size.to_string(),
+        })
+    })
+    .await
+}
+
+/// The read-only preview of a note (ADR-0020): the text the editor holds,
+/// frontmatter and all, as an HTML fragment the preview pane inserts as it
+/// is (raw HTML in the note comes back as text — `notes::render`).
+#[tauri::command]
+#[specta::specta]
+pub async fn render_markdown(text: String) -> IpcResult<String> {
+    blocking(move || Ok(novalis_core::notes::render::to_html(&text))).await
+}
+
+/// The image types a pasted or dropped attachment may have (ADR-0017): the
+/// tier-D image types of PLAN.md §7.3, lower-case.
+const ATTACHMENT_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
+
+/// Write an image the user pasted or dropped into a note (ADR-0017), under
+/// `folder/name`, never over an existing file (`RENAME_EXCL`), parents
+/// created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
+#[tauri::command]
+#[specta::specta]
+pub async fn write_blob(
+    state: State<'_, AppState>,
+    folder: String,
+    name: String,
+    base64: String,
+) -> IpcResult<EntryDto> {
+    use base64::Engine;
+    let root = state.require_vault()?;
+    blocking(move || {
+        let name = nfc(name.trim());
+        let ext = name
+            .rfind('.')
+            .filter(|&i| i > 0)
+            .map(|i| name[i + 1..].to_ascii_lowercase())
+            .unwrap_or_default();
+        if !ATTACHMENT_EXTENSIONS.contains(&ext.as_str()) {
+            return Err(IpcError::bad_request(format!("{name}: not an image type")));
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64)
+            .map_err(|e| IpcError::bad_request(format!("{name}: {e}")))?;
+        if bytes.len() as u64 > HUGE_FILE_BYTES {
+            return Err(IpcError::bad_request(format!(
+                "{name} is {} bytes; attachments stop at {HUGE_FILE_BYTES}",
+                bytes.len()
+            )));
+        }
+        let rel = normalize_rel(&join_rel(&folder, &name))?;
+        let abs = creatable_file_rel(&root, &rel)?;
+        fs::create_atomic(&abs, &bytes)?;
+        Ok(EntryDto::from_stat(rel, &fs::stat(&abs)?, None))
+    })
+    .await
+}
+
 /// Save. `expected` is the precondition captured when the buffer was loaded or
 /// last written; a mismatch is a `conflict` and the target is left untouched,
 /// so the UI can write the buffer to a conflict copy (§5.3 step 3).
@@ -376,6 +475,71 @@ pub async fn write_conflict_copy(
     .await
 }
 
+/// The extensions a typed name keeps in `create_note` (ADR-0014): the file
+/// types the editor opens, PLAN.md §7.3 tiers A–C, lower-case. A name with
+/// any other extension, or none, gets `.md`: "v1.2" becomes "v1.2.md".
+const CREATABLE_EXTENSIONS: &[&str] = &[
+    "md",
+    "markdown",
+    "txt",
+    "text",
+    "json",
+    "map",
+    "yaml",
+    "yml",
+    "toml",
+    "xml",
+    "svg",
+    "html",
+    "htm",
+    "css",
+    "js",
+    "mjs",
+    "cjs",
+    "jsx",
+    "ts",
+    "mts",
+    "cts",
+    "tsx",
+    "py",
+    "rs",
+    "sh",
+    "bash",
+    "zsh",
+    "ini",
+    "conf",
+    "cfg",
+    "properties",
+    "env",
+    "swift",
+    "csv",
+    "tsv",
+    "log",
+];
+
+/// The file name a typed name becomes (ADR-0014). An extension from
+/// [`CREATABLE_EXTENSIONS`] is kept as typed, case-insensitively — except
+/// `.md`, which is written lower-case whatever was typed, because the core
+/// recognises a note by exactly `.md` (`is_note_name`) and `Todo.MD` would
+/// otherwise be a file no search, link or cache ever sees.
+fn creatable_name(name: &str) -> String {
+    let ext = match name.rfind('.') {
+        Some(i) if i > 0 => name[i + 1..].to_ascii_lowercase(),
+        _ => String::new(),
+    };
+    if ext == "md" {
+        format!("{}.md", &name[..name.len() - 3])
+    } else if CREATABLE_EXTENSIONS.contains(&ext.as_str()) {
+        name.to_string()
+    } else {
+        format!("{name}.md")
+    }
+}
+
+/// Create an empty file in the vault: a note (`.md`) or, when the typed name
+/// carries a §7.3 extension, that file type (ADR-0014). Both go through the
+/// same guards as `vault_note_rel` minus the `.md` requirement; nothing hidden
+/// and nothing outside the vault is ever created.
 #[tauri::command]
 #[specta::specta]
 pub async fn create_note(
@@ -385,21 +549,36 @@ pub async fn create_note(
 ) -> IpcResult<EntryDto> {
     let root = state.require_vault()?;
     blocking(move || {
-        let name = nfc(name.trim());
-        let name = if is_note_name(&name) {
-            name
-        } else {
-            format!("{name}.md")
-        };
+        let name = creatable_name(&nfc(name.trim()));
         let rel = normalize_rel(&join_rel(&folder, &name))?;
-        let abs = vault_note_rel(&root, &rel)?;
+        let abs = if is_note_name(file_name_of(&rel)) {
+            vault_note_rel(&root, &rel)?
+        } else {
+            creatable_file_rel(&root, &rel)?
+        };
         create_note_file(&abs)?;
         Ok(EntryDto::from_stat(rel, &fs::stat(&abs)?, None))
     })
     .await
 }
 
-/// `RENAME_EXCL` create: an existing note is never clobbered (§2.3 rule 4).
+/// `vault_rel` plus the invariants `vault_note_rel` enforces for notes,
+/// without the `.md` one: non-empty, no hidden component.
+fn creatable_file_rel(root: &Path, rel: &str) -> IpcResult<PathBuf> {
+    let invalid = |reason| CoreError::InvalidPath {
+        path: rel.to_string(),
+        reason,
+    };
+    if rel.is_empty() {
+        return Err(invalid(PathReason::Empty).into());
+    }
+    if rel.split('/').any(is_hidden) {
+        return Err(invalid(PathReason::Hidden).into());
+    }
+    Ok(vault_rel(root, rel)?)
+}
+
+/// `RENAME_EXCL` create: an existing file is never clobbered (§2.3 rule 4).
 fn create_note_file(abs: &Path) -> IpcResult<()> {
     fs::create_atomic(abs, b"")?;
     Ok(())
@@ -698,6 +877,7 @@ pub async fn board_create(
         Ok(BoardRefDto {
             slug,
             name: board.name,
+            order: board.order,
         })
     })
     .await
@@ -713,10 +893,16 @@ pub async fn board_write(
     slug: String,
     name: Option<String>,
     columns: Option<Vec<ColumnDto>>,
+    place: Option<PositionDto>,
 ) -> IpcResult<BoardDto> {
     let root = state.require_vault()?;
     blocking(move || {
         let slug = normalize_rel(&slug)?;
+        // Where the board sits among the boards (ADR-0019): the key is
+        // computed here from its neighbours, never sent by the UI.
+        if let Some(place) = place {
+            boards::move_board(&root, &slug, &position(place))?;
+        }
         if let Some(columns) = columns {
             let columns: Vec<Column> = columns
                 .into_iter()
@@ -781,11 +967,19 @@ pub async fn card_write(
                     column,
                     notes,
                     position: position(pos),
+                    description: None,
                 },
             )?,
             CardOpDto::Retitle { id, title } => {
                 boards::update_card(&root, &slug, &id, &CardChange::Title(title), None)?
             }
+            CardOpDto::SetDescription { id, description } => boards::update_card(
+                &root,
+                &slug,
+                &id,
+                &CardChange::Description(description),
+                None,
+            )?,
             CardOpDto::Move {
                 id,
                 column,
@@ -815,6 +1009,9 @@ pub async fn card_write(
                 None,
             )?,
             CardOpDto::Remove { id } => boards::remove_card(&root, &slug, &id)?,
+            CardOpDto::MoveToBoard { id, board } => {
+                boards::move_card_to_board(&root, &slug, &id, &normalize_rel(&board)?)?
+            }
         };
         Ok(CardDto::from(&card))
     })
@@ -868,4 +1065,61 @@ pub async fn state_save(
         Ok(())
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{creatable_file_rel, creatable_name};
+
+    /// ADR-0014: a §7.3 extension is kept, `.md` is normalised, anything
+    /// else gets `.md` appended.
+    #[test]
+    fn typed_extensions_are_kept_and_md_is_lower_cased() {
+        for (typed, created) in [
+            ("Meine Notiz", "Meine Notiz.md"),
+            ("notes.txt", "notes.txt"),
+            ("Notes.TXT", "Notes.TXT"),
+            ("config.json", "config.json"),
+            ("Todo.MD", "Todo.md"),
+            ("Todo.Md", "Todo.md"),
+            ("v1.2", "v1.2.md"),
+            ("clip.wav", "clip.wav.md"),
+            ("archive.tar.gz", "archive.tar.gz.md"),
+            (".env", ".env.md"),
+            ("a.b/c.txt", "a.b/c.txt"),
+        ] {
+            assert_eq!(creatable_name(typed), created, "typed {typed:?}");
+        }
+    }
+
+    /// The non-note guard refuses what `vault_note_rel` refuses, minus the
+    /// `.md` rule: a hidden component and the empty path.
+    #[test]
+    fn creatable_file_rel_refuses_hidden_and_empty() {
+        let root = std::env::temp_dir();
+        for rel in [".env.txt", "sub/.hidden/notes.txt", ""] {
+            let err = creatable_file_rel(&root, rel).expect_err(rel);
+            assert_eq!(err.code, "invalid_path", "{rel:?}");
+        }
+        assert!(creatable_file_rel(&root, "sub/notes.txt").is_ok());
+    }
+
+    /// One field this build does not understand must not throw away the
+    /// tabs and the board with it.
+    #[test]
+    fn unknown_tree_sort_reads_as_the_default_and_keeps_the_rest() {
+        let dir = std::env::temp_dir().join(format!("novalis-state-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.json");
+        std::fs::write(
+            &path,
+            r#"{"openTabs":["a.md"],"activeTab":"a.md","boardVisible":true,"activeBoard":"atlas","treeSort":"size"}"#,
+        )
+        .unwrap();
+        let state = super::read_ui_state(&path);
+        assert_eq!(state.open_tabs, vec!["a.md".to_string()]);
+        assert_eq!(state.active_board.as_deref(), Some("atlas"));
+        assert_eq!(state.tree_sort, super::TreeSortDto::Name);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

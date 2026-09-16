@@ -120,6 +120,21 @@ impl SettingsPatchDto {
     }
 }
 
+// ---------------------------------------------------------------- blobs
+
+/// A file the viewer shows as it is (PDF, image — ADR-0015). Base64 because
+/// the typed IPC has no raw-bytes return; the viewer turns it into a `blob:`
+/// URL and never keeps it. Capped at [`HUGE_FILE_BYTES`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobDto {
+    pub path: String,
+    /// Bytes, base64 (standard alphabet, padded).
+    pub base64: String,
+    /// Byte count as a decimal string (see `EntryDto`).
+    pub size: String,
+}
+
 // ---------------------------------------------------------------- window state
 
 /// Everything that is persisted but is not a setting (PLAN.md §4.1): it lives
@@ -134,6 +149,9 @@ pub struct UiStateDto {
     pub sidebar_width: u32,
     pub board_visible: bool,
     pub active_board: Option<String>,
+    /// How the tree orders the files of a folder (ADR-0012). Folders are
+    /// always first and by name, whatever this says.
+    pub tree_sort: TreeSortDto,
 }
 
 impl Default for UiStateDto {
@@ -145,8 +163,19 @@ impl Default for UiStateDto {
             sidebar_width: 256,
             board_visible: false,
             active_board: None,
+            tree_sort: TreeSortDto::Name,
         }
     }
+}
+
+/// The two file orders of the tree: by name ascending (PLAN.md §4.2), or by
+/// modification time, newest first.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum TreeSortDto {
+    #[default]
+    Name,
+    Modified,
 }
 
 // ---------------------------------------------------------------- vault + tree
@@ -451,6 +480,9 @@ pub enum SearchEventDto {
 pub struct BoardRefDto {
     pub slug: String,
     pub name: String,
+    /// The board's place among the boards (ADR-0019); `None` until dragged.
+    /// The list arrives in display order either way.
+    pub order: Option<String>,
 }
 
 impl From<&BoardRef> for BoardRefDto {
@@ -458,6 +490,7 @@ impl From<&BoardRef> for BoardRefDto {
         BoardRefDto {
             slug: r.slug.clone(),
             name: r.name.clone(),
+            order: r.order.clone(),
         }
     }
 }
@@ -488,6 +521,8 @@ pub struct CardDto {
     pub notes: Vec<String>,
     pub created: String,
     pub updated: String,
+    /// Markdown text under the title (ADR-0013); `None` when the card has none.
+    pub description: Option<String>,
 }
 
 impl From<&Card> for CardDto {
@@ -500,6 +535,7 @@ impl From<&Card> for CardDto {
             notes: card.notes.clone(),
             created: card.created.clone(),
             updated: card.updated.clone(),
+            description: card.description.clone(),
         }
     }
 }
@@ -585,6 +621,11 @@ pub enum CardOpDto {
         id: String,
         title: String,
     },
+    /// The empty string clears the description.
+    SetDescription {
+        id: String,
+        description: String,
+    },
     Move {
         id: String,
         column: Option<String>,
@@ -600,6 +641,12 @@ pub enum CardOpDto {
     },
     Remove {
         id: String,
+    },
+    /// To another board's first column, last, same id (ADR-0019); the source
+    /// keeps a tombstone.
+    MoveToBoard {
+        id: String,
+        board: String,
     },
 }
 

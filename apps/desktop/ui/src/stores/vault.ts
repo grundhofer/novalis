@@ -1,7 +1,16 @@
 import { create } from "zustand";
 
-import { commands, unwrap, type EntryDto, type FsBatch, type VaultDto } from "../ipc/client";
-import { ancestorsOf, folderOf } from "../lib/paths";
+import {
+  commands,
+  unwrap,
+  type BoardRefDto,
+  type EntryDto,
+  type FsBatch,
+  type TreeSortDto,
+  type VaultDto,
+} from "../ipc/client";
+import { isSupported } from "../lib/fileTypes";
+import { ancestorsOf, compareNs, folderOf } from "../lib/paths";
 
 /**
  * The tree.
@@ -26,6 +35,12 @@ export interface VaultState {
   reveal: (path: string) => Promise<void>;
   reload: (folder: string) => Promise<void>;
   applyBatch: (batch: FsBatch) => void;
+  /**
+   * Patch one entry's size and mtime after an own write. The watcher drops
+   * events for our own writes (§5.3 step 4), so without this the "Modified"
+   * column showed the time a note was opened, not the time it was last saved.
+   */
+  touch: (path: string, stat: { mtimeNs: string; size: string }) => void;
 }
 
 /** Folders first, then name ascending — the same order the shell returns. */
@@ -104,6 +119,17 @@ export const useVault = create<VaultState>((set, get) => ({
       return { children };
     });
   },
+
+  touch: (path, stat) =>
+    set((state) => {
+      const folder = folderOf(path);
+      const list = state.children[folder];
+      const entry = list?.find((e) => e.path === path);
+      // A folder nobody has opened has nothing to patch (see `applyBatch`).
+      if (!list || !entry) return state;
+      const next = list.map((e) => (e === entry ? { ...e, mtimeNs: stat.mtimeNs, size: stat.size } : e));
+      return { children: { ...state.children, [folder]: next } };
+    }),
 }));
 
 /** One flattened, visible row of the tree. */
@@ -113,20 +139,70 @@ export interface TreeRow {
   expanded: boolean;
 }
 
-/** Flatten the loaded, expanded folders into the list the virtualizer draws. */
+/**
+ * One folder's entries in the order the tree draws them: folders first in
+ * their stored (name) order, then the files by `sort`. Only the files follow
+ * the sort (ADR-0012); a folder has no modification time worth ordering by.
+ * A file of a type the app does not open is not drawn at all (ADR-0015).
+ */
+function orderEntries(entries: EntryDto[], sort: TreeSortDto): EntryDto[] {
+  const folders = entries.filter((e) => e.dir);
+  const files = entries.filter((e) => !e.dir && isSupported(e.path));
+  if (sort === "modified") {
+    files.sort((a, b) => compareNs(b.mtimeNs, a.mtimeNs) || a.name.localeCompare(b.name));
+  }
+  return [...folders, ...files];
+}
+
+/**
+ * The row a board is drawn as: a synthetic entry at the root, named after the
+ * board rather than its directory, so the tree does not need `boards/` to be
+ * expanded — or listed at all — to show it.
+ */
+function boardEntry(board: BoardRefDto): EntryDto {
+  return {
+    path: `boards/${board.slug}`,
+    name: board.name,
+    dir: true,
+    size: "0",
+    mtimeNs: "0",
+    cloudOnly: false,
+    boardSlug: board.slug,
+    conflictCopyOf: null,
+  };
+}
+
+/**
+ * Flatten the loaded, expanded folders into the list the virtualizer draws,
+ * then the boards as the last root rows (ADR-0012). A board directory met
+ * inside an expanded `boards` folder is skipped: it is drawn once, at the
+ * root, from the vault's board list.
+ */
 export function treeRows(
   children: Record<string, EntryDto[]>,
   expandedFolders: Record<string, boolean>,
+  sort: TreeSortDto,
+  boards: BoardRefDto[],
 ): TreeRow[] {
   const rows: TreeRow[] = [];
+  // By flag, and by name for a directory listed before its `board.json`
+  // arrived (a sync client writes them in two batches): drawn once either way.
+  const isBoard = (entry: EntryDto) =>
+    !!entry.boardSlug ||
+    (folderOf(entry.path) === "boards" && entry.dir && boards.some((b) => b.slug === entry.name));
   const walk = (folder: string, depth: number) => {
-    for (const entry of children[folder] ?? []) {
-      const expanded = entry.dir && !entry.boardSlug && !!expandedFolders[entry.path];
+    for (const entry of orderEntries(children[folder] ?? [], sort)) {
+      if (isBoard(entry)) continue;
+      const expanded = entry.dir && !!expandedFolders[entry.path];
       rows.push({ entry, depth, expanded });
       if (expanded) walk(entry.path, depth + 1);
     }
   };
   walk("", 0);
+  // In the list's own order: the shell keys dragged boards first (ADR-0019).
+  for (const board of boards) {
+    rows.push({ entry: boardEntry(board), depth: 0, expanded: false });
+  }
   return rows;
 }
 

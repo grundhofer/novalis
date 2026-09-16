@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { unwrap } from "../ipc/client";
 import { useEditorSave } from "./editorSave";
 import { useUi } from "./ui";
+import { useVault } from "./vault";
 
 // The store reaches the shell through `../ipc/client`; a store test has no
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
@@ -127,5 +129,55 @@ describe("useEditorSave.setText", () => {
       key: "errors.internal",
       values: { detail: String(boom) },
     });
+  });
+});
+
+describe("useEditorSave.save", () => {
+  const written = { mtimeNs: "5", size: "7", hash: "h" };
+  const treeEntry = () => useVault.getState().children[""]?.find((e) => e.path === "a.md");
+
+  beforeEach(() => {
+    // The describe above replaces `save` on the store; this one needs the real one.
+    useEditorSave.setState({ docs: {}, save: useEditorSave.getInitialState().save });
+    useVault.getState().setVault({ root: "/v", name: "v", kind: "local", boards: [] }, [
+      {
+        path: "a.md",
+        name: "a.md",
+        dir: false,
+        size: "4",
+        mtimeNs: "1",
+        cloudOnly: false,
+        boardSlug: null,
+        conflictCopyOf: null,
+      },
+    ]);
+    vi.mocked(unwrap).mockReset();
+  });
+
+  // The defect: the shell drops the watcher events of our own writes (§5.3
+  // step 4), so the tree never learned the mtime a save produced and its
+  // "Modified" column showed the time the note was opened.
+  it("tells the tree the size and mtime the write produced", async () => {
+    useEditorSave.setState({ docs: { "a.md": { ...doc("a.md"), text: "body ed", dirty: true } } });
+    vi.mocked(unwrap).mockResolvedValueOnce(written);
+
+    await useEditorSave.getState().save("a.md");
+
+    expect(treeEntry()?.mtimeNs).toBe("5");
+    expect(treeEntry()?.size).toBe("7");
+    expect(useEditorSave.getState().docs["a.md"]?.precondition).toEqual(written);
+  });
+
+  // A conflict copy (§5.3 step 3) is ours alone and not the note's row.
+  it("leaves the tree alone while writing to a conflict copy", async () => {
+    useEditorSave.setState({
+      docs: { "a.md": { ...doc("a.md"), text: "body ed", dirty: true, writePath: "a (conflict).md" } },
+    });
+    vi.mocked(unwrap).mockResolvedValueOnce(written);
+
+    await useEditorSave.getState().save("a.md");
+
+    expect(treeEntry()?.mtimeNs).toBe("1");
+    expect(treeEntry()?.size).toBe("4");
   });
 });

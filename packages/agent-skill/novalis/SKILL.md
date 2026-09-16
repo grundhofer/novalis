@@ -80,8 +80,8 @@ Available now (the core harness):
 | `help --json` | the command tree and the exit-code table |
 | `board ls` · `board show <b>` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
 | `card ls [--board B] [--note N] [--column C]` | which cards reference a note; tombstones are never listed |
-| `card add <b> --title T [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
-| `card mv <id> …` · `card set <id> …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
+| `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
+| `card mv <id> …` · `card set <id> [--title T] [--description TEXT] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
 
 Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
 

@@ -228,21 +228,29 @@ A card id is a ULID and is unique across the vault, so `card mv`, `card set`
 and `card rm` take no board argument.
 
 - `card ls [--board B] [--note <note>] [--column C]` →
-  `{items:[{board,id,title,column,order,notes,created,updated}], truncated,
-  cloudOnlySkipped}`, sorted by `(board, column order, order, id)`.
+  `{items:[{board,id,title,column,order,notes,created,updated,description?}],
+  truncated, cloudOnlySkipped}`, sorted by `(board, column order, order, id)`.
   Tombstones are never listed. `--column` matches the column **id** exactly
   (`card ls` spans boards); `--note` takes a note reference and must resolve.
-- `card add <b> --title T [--column C] [--note <note>]… [--after ID | --first | --last]`
+- `card add <b> --title T [--description TEXT] [--column C] [--note <note>]… [--after ID | --first | --last]`
   → `{card}`. `--column` takes an id, or a name when unambiguous (else exit
   4); default column = first; default position = last. `--note` is repeatable
-  and must resolve. Under `--dry-run` nothing is written, so the answer
-  carries no `id` and no `order`.
+  and must resolve. `--description` is optional Markdown text under the title;
+  an empty one is the same as none. Under `--dry-run` nothing is written, so
+  the answer carries no `id` and no `order`.
 - `card mv <id> [--column C] [--after ID | --first | --last]` → `{card}`.
-  At least one of the four is required.
-- `card set <id> [--title T] [--add-note N]… [--rm-note N]…` → `{card}`. The
-  changes are written one file at a time, in the order title, removals,
-  additions. `--add-note` must resolve; `--rm-note` is kept verbatim when
-  nothing resolves to it, so a reference to a deleted note can be cleaned up.
+  At least one of the four is required. It moves within the board: a move
+  to another board is app-only for now (ADR-0019; the app keeps the id, puts
+  the card last in the target's first column and tombstones the source). For
+  up to 30 days after such a move the id is on two boards, one of them a
+  tombstone; `card mv`, `card set` and `card rm` take the live one, and
+  `card ls` shows the card once.
+- `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]…`
+  → `{card}`. The changes are written one file at a time, in the order title,
+  description, removals, additions. `--description` replaces the whole text;
+  `--description ""` clears it. `--add-note` must resolve; `--rm-note` is kept
+  verbatim when nothing resolves to it, so a reference to a deleted note can
+  be cleaned up.
 - `card rm <id>` → `{card}` with the `deleted` tombstone stamp. The file
   stays until it is 30 days old.
 - `--if-updated <rfc3339>` on `mv`, `set` and `rm` refuses (exit 4) when the
@@ -347,13 +355,21 @@ plain files but still produces conflict copies.
 ```json
 { "format": 1, "name": "Atlas",
   "columns": [ { "id": "todo", "name": "To Do" }, { "id": "doing", "name": "Doing" }, { "id": "done", "name": "Done" } ],
+  "order": "a0",
   "updated": "2026-09-05T08:41:12.345Z" }
 ```
+
+`order` is optional (ADR-0019): a fractional-index key like a card's, present
+only once the user has dragged the board in the app. Boards with a key sort
+first, by key, then the rest by name; `board ls` lists them in that order and
+carries no `order` field. The CLI does not write the key; `board columns
+--set` keeps it.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 
 ```json
 { "id": "01K4G9Z2Q7M3N8RSTV5WXY6ZAB", "title": "Zoom-Stufen für Offline-Bundles festlegen",
+  "description": "Erst das *Warum*, dann die Stufen.",
   "column": "doing", "order": "a0V",
   "notes": [ "projects/Atlas Rendering Spec.md" ],
   "created": "2026-09-01T07:12:03.010Z", "updated": "2026-09-05T08:41:12.345Z" }
@@ -364,6 +380,8 @@ plain files but still produces conflict copies.
 - `order` is a fractional-index string; cards sort by `(order, id)`. Only the
   moved card is ever re-keyed.
 - `notes[]` holds vault-relative note paths; `mv` and `relink` rewrite them.
+- `description` is optional Markdown text under the title. The key is absent
+  when the card has none; `card set --description ""` clears it.
 - An optional `deleted` timestamp is a tombstone (purged after 30 days on the
   next write of that board). Unknown keys round-trip untouched.
 - A card whose `column` is missing from `board.json` is shown in the first

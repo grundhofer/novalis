@@ -168,13 +168,108 @@ button {
   border-bottom: 1px solid var(--ds-color-border-default);
 }
 
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+
 .vault-name {
+  flex: 1;
+  min-width: 0;
   font-size: var(--ds-font-size-ui);
   font-weight: var(--ds-font-weight-strong);
   color: var(--ds-color-fg-default);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+}
+
+/* The small glyph controls (ADR-0012, ADR-0020): `.btn.ghost` at row
+   height, in the sidebar head and foot and beside the tab strip. The
+   selectors carry the whole class list because the button section further
+   down would otherwise take the colour back; `on` is the pressed state. */
+.btn.ghost.tool {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 var(--ds-space-2);
+  justify-content: center;
+  border-radius: var(--ds-radius-chip);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-subtle);
+}
+
+.btn.ghost.tool:focus-visible {
+  outline: 2px solid var(--ds-color-accent-default);
+}
+
+.btn.ghost.tool.on {
+  border-color: var(--ds-color-accent-line);
+  background: var(--ds-color-accent-fill);
+  color: var(--ds-color-accent-text);
+}
+
+/* The folder, board and settings glyphs are borders, like `.chev`: no icon
+   font, no image (PLAN.md §11.5). */
+.glyph-folder,
+.glyph-board,
+.glyph-gear {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 10px;
+}
+
+/* `currentColor`: the glyphs follow the button's text colour, so the pressed
+   board button needs no rule of its own. */
+.glyph-folder::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 12px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+.glyph-folder::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 3px;
+  border: 1px solid currentColor;
+  border-bottom: none;
+  border-radius: 1px 1px 0 0;
+}
+
+.glyph-board::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.glyph-board::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  bottom: 1px;
+  width: 4px;
+  border-left: 1px solid currentColor;
+  border-right: 1px solid currentColor;
 }
 
 .legend {
@@ -186,6 +281,59 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ds-color-fg-subtle);
+}
+
+/* The legend's two labels are the sort switch (ADR-0012). The global button
+   reset gives back font, spacing and colour; `text-transform` it does not. */
+.legend-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  text-transform: inherit;
+}
+
+.legend-sort.on {
+  color: var(--ds-color-fg-muted);
+}
+
+/* The direction mark: the `.chev` square, pointing where the order goes.
+   Name is ascending (up), modified is newest first (down); the legend has
+   exactly these two, in this order. */
+.legend-sort.on::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-bottom: 2px;
+  border-right: 1.5px solid var(--ds-color-fg-subtle);
+  border-bottom: 1.5px solid var(--ds-color-fg-subtle);
+  transform: rotate(-135deg);
+}
+
+.legend-sort:last-child.on::after {
+  margin-top: 2px;
+  margin-bottom: 0;
+  transform: rotate(45deg);
+}
+
+/* The "Today" row is a `.tree-row` above the virtualized tree, so it stays in
+   the flow where the virtualizer's rows are absolutely positioned. Both
+   classes in the selector: `.tree-row` is declared later and would win the
+   position back — which put the row at the window's top-left corner. */
+.tree-row.today-row {
+  position: static;
+  flex: 0 0 auto;
+  height: var(--ds-size-row);
+  padding-left: 14px;
+  border-bottom: 1px solid var(--ds-color-border-default);
+  text-align: left;
+}
+
+.today-row .chev::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--ds-color-accent-default);
+  border-radius: var(--ds-radius-pill);
 }
 
 .tree {
@@ -222,6 +370,10 @@ button {
 .tree-row.active {
   background: var(--ds-color-bg-raised);
   font-weight: var(--ds-font-weight-strong);
+}
+
+.tree-row.drop {
+  background: var(--ds-color-accent-fill);
 }
 
 .tree-row.folder {
@@ -300,6 +452,40 @@ button {
   border-top: 1px solid var(--ds-color-border-default);
 }
 
+/* The settings button (ADR-0012, amended 2026-09-15): the macOS "sliders"
+   glyph, three lines with a knob each, drawn like the other glyphs. It opens
+   the palette on the four settings — still no preferences window. */
+.sidebar-settings {
+  align-self: flex-start;
+}
+
+.glyph-gear::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 12px;
+  height: 0;
+  border-top: 1px solid currentColor;
+  box-shadow:
+    0 4px 0 currentColor,
+    0 8px 0 currentColor;
+}
+
+.glyph-gear::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
+  box-shadow:
+    6px 4px 0 currentColor,
+    -1px 8px 0 currentColor;
+}
+
 .hint {
   display: flex;
   align-items: center;
@@ -319,9 +505,17 @@ button {
 }
 
 /* ------------------------------------------------------------------ tabs */
-.tabs {
+.tabbar {
   display: flex;
   flex: 0 0 auto;
+  height: var(--ds-size-tabstrip);
+  background: var(--ds-color-bg-surface);
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
   height: var(--ds-size-tabstrip);
   background: var(--ds-color-bg-surface);
   overflow-x: auto;
@@ -402,6 +596,45 @@ button {
 .tab-spacer {
   flex: 1;
   border-bottom: 1px solid var(--ds-color-border-strong);
+}
+
+/* The preview toggle (ADR-0020): a fixed cell beside the scrolling strip,
+   so a row of many tabs never pushes it out of sight. */
+.tab-preview {
+  flex: 0 0 auto;
+  margin: 7px var(--ds-space-4) 0 var(--ds-space-3);
+}
+
+.tabbar::after {
+  content: "";
+  flex: 0 0 var(--ds-space-2);
+  border-bottom: 1px solid var(--ds-color-border-strong);
+}
+
+.glyph-eye {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 10px;
+}
+
+.glyph-eye::before {
+  content: "";
+  position: absolute;
+  inset: 1px 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.glyph-eye::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
 }
 
 /* ---------------------------------------------------------------- editor */
@@ -615,6 +848,23 @@ button {
 
 .dialog-input:focus {
   border-color: var(--ds-color-accent-default);
+}
+
+.dialog-hint {
+  margin: var(--ds-space-3) 0 0;
+  font-size: var(--ds-font-size-ui-sm);
+  line-height: var(--ds-line-height-ui);
+  color: var(--ds-color-fg-subtle);
+  overflow-wrap: anywhere;
+}
+
+/* The multi-line form of the one dialog (card description, ADR-0013). */
+.dialog-textarea {
+  height: auto;
+  min-height: calc(var(--ds-size-control) * 4);
+  padding: var(--ds-space-4);
+  line-height: var(--ds-line-height-ui);
+  resize: vertical;
 }
 
 .dialog-actions {

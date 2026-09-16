@@ -6,3 +6,16 @@ packages:
 # esbuild (via Vite) is the one that needs its postinstall.
 allowBuilds:
   esbuild: true
+
+# pdfjs-dist (ADR-0016) declares @napi-rs/canvas as an optional dependency
+# for Node-side rendering: native binaries for every platform, none of which
+# the WebView needs. Dropped, so the lockfile carries the one package.
+overrides:
+  "pdfjs-dist>@napi-rs/canvas": "-"
+
+# chevrotain 11 (via mermaid, ADR-0020) pins lodash-es 4.17.23 exactly, which
+# carries GHSA-r5fr-rjxr-66jc (high) and a prototype-pollution advisory;
+# `pnpm audit --audit-level=high` in ci.yml refuses it. Lifted to the patched
+# line, which the lockfile already holds for another package. Drop this entry
+# once `pnpm why lodash-es` shows no 4.17.x left.
+  "lodash-es@<4.17.24": ">=4.17.24"

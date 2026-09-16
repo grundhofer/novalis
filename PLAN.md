@@ -55,9 +55,9 @@ Research found facts that differ from the brief or the old docs. The plan uses t
 
 ### 2.2 What novalis is not (dropped from the old app, absent from the codebase, not flagged off)
 
-AI features, voice, PDF, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, daily notes, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
+AI features, voice, PDF editing, canvas, calendar, reminders, tasks parsed from note bodies (`@due`, `@status`), Today view, graph view, properties/relations/rollups, block references, transclusion, math, Mermaid, callouts, formatting toolbar, slash menu, outline panel, plugins, templates, version history, git sync, P2P sync, Notion/ENEX import, docx export, configurable keybindings, feature flags, folder colours, manual tree order, alias resolution, non-UTF-8 encodings, Spanish and French.
 
-Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first.
+Each of these is a **feature** under the minimalism gate. If one is wanted later, it gets an ADR with your yes first. "Daily notes" was struck from this list on 2026-09-14 (ADR-0012): one hard-coded `journal/YYYY-MM-DD.md` opened from the sidebar, created empty; "Today view" and "templates" stay dropped. "PDF" became "PDF editing" on 2026-09-15 (ADR-0015): a PDF or image in the vault opens read-only in a viewer; annotation and export stay out. "Mermaid" stays dropped from the editor and is rendered in the ⌘E preview only (owner yes 2026-09-15, ADR-0020).
 
 ### 2.3 Architecture rules (each backed by a measured failure of the old app)
 
@@ -68,7 +68,7 @@ Each of these is a **feature** under the minimalism gate. If one is wanted later
 5. **Watcher batches.** FSEvents backend (never kqueue, which opens a descriptor per file and hydrates cloud-only files), 100 ms debounce, rename stitching, one batch event `{added, removed, modified, renamed}` per window; the UI patches its in-memory tree, never refetches. *(Old app: one event per file, each triggering a full tree walk plus two more IPC calls.)*
 6. **No global lock.** Filesystem operations hold no state beyond the vault path; the cache has one writer actor with its own connection. *(Old app: one `Mutex<Engine>` holding the SQLite connection across file IO; one slow OneDrive hydration froze every command.)*
 7. **Never read a cloud-only file eagerly.** Detect `SF_DATALESS` in `st_flags` (fallback: `size > 0 && blocks == 0`). Scanner, search and cache tasks run under an RAII guard that sets `setiopolicy_np(IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES, IOPOL_SCOPE_THREAD, OFF)` on entry and restores the default on drop (the policy is per OS thread and pooled threads are reused), so an accidental read fails with `EDEADLK` instead of downloading; explicit opens run under the default policy and assert it; show a cloud badge; download only on explicit user action with a visible state and timeout. Any operation that must read bodies (relink, migrate, trash) counts cloud-only files first and either materializes them as an explicit action or reports them as skipped. *(Verified on this Mac: stat does not materialize; the policy makes `read()` fail with errno 11 and the file stays dataless.)*
-8. **One IPC per user action; batched boot.** `bootstrap()`, `read_file`, `write_file`, `list_dir`, `rename`, `trash`, `search` (streaming), board operations. Surface stays under 25 commands. *(Old app: 158 commands, ≥12 boot round-trips, `getPreferences` called three times.)*
+8. **One IPC per user action; batched boot.** `bootstrap()`, `read_file`, `write_file`, `list_dir`, `rename`, `trash`, `search` (streaming), board operations. Surface stays under 30 commands (25 until 2026-09-15; raised for the preview's `render_markdown`, ADR-0020). *(Old app: 158 commands, ≥12 boot round-trips, `getPreferences` called three times.)*
 9. **Bundle discipline by CI.** A step parses `dist/index.html` and fails if any preloaded chunk exceeds its budget. *(Old app: a 3.09 MB Mermaid chunk was preloaded at boot despite a lazy `import()` in source.)*
 10. **Kanban is its own data.** The app never parses tokens out of note bodies and never rewrites a note to update a card. *(Old app: column moves rewrote `@status(...)` inside note lines.)*
 11. **Settings are a struct with `deny_unknown_fields`** and a parity test against `docs/SETTINGS.md`. Adding a key fails CI until the doc and an ADR exist. The same parity idea guards the keymap (`docs/KEYMAP.md`) and new top-level lockfile entries (PR body must cite an ADR).
@@ -131,7 +131,7 @@ No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question. State that i
 
 ### 4.2 Hard-coded defaults that would otherwise be settings (confirm or change the value)
 
-Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders-first, name ascending · editor measure 66–72 ch · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
+Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
 
 ### 4.3 Sublime/GFM baseline that the plan treats as part of "text editor" and "Markdown", listed so you see it before code exists
 
@@ -144,16 +144,16 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Tags as search filter / palette (frontmatter `tags:` and inline `#tags`; no tree panel) | editor-scope | **yes, v1** | Every old vault already carries tags; core of "organizing" |
 | Backlinks list for the open note (shows "cards linking here" too) | editor-scope, kanban | **yes, v1** | Data is free from the cache |
 | `[[` and `#` autocompletion | editor-scope | yes, v1 | Writing ergonomics; cheap with the cache |
-| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, v1.1 | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
+| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
 | Hide-syntax live preview mode (Obsidian style) | stack | no | Most expensive editor feature; conflicts with multi-cursor |
 | Split view / board + note split (two panes) | editor-scope, design | no (D21) | Adds a pane-focus model; L5 mockup shows what it would be |
 | Folding, typewriter/focus mode, minimap, vim | editor-scope | no | Modes with own state |
-| Image paste/drop into notes | editor-scope | no (later) | Needs an attachments-folder policy = a setting |
+| Image paste/drop into notes | editor-scope | yes (ADR-0017): ⌘V and drop, hard-coded attachments/ next to the note, no setting | The attachments-folder policy is hard-coded like the §4.2 defaults, not a setting |
 | Version history (app-data snapshots) | old-codebase | no | Drive/OneDrive keep versions |
 | Multi-vault / recent vaults list | monorepo | no | Single vault + "Open Vault…" |
 | E-paper focus/print mode | design | no | A mode = a feature |
 | Flat 2.0 "control" mockup row | design | yes (an afternoon) | Shows what the framework default looks like |
-| Kanban: card description (Markdown), due date, tags, colour, WIP limits, swimlanes, done semantics | kanban | no (description first if anything) | Each is a schema addition |
+| Kanban: card description (Markdown), due date, tags, colour, WIP limits, swimlanes, done semantics | kanban | yes: description only (ADR-0013); the rest no | Each is a schema addition |
 | Kanban: soft-delete tombstones (`deleted` timestamp, purged on next write after 30 days) | kanban | **yes** | Without it a card edited on one device and deleted on another is resurrected by the sync client |
 | Kanban: several boards per vault | kanban | yes (zero cost) | The layout supports it; a board switcher appears only if >1 board exists |
 | CLI `relink <from> <to>` as a public command | cli | **yes** | The one primitive merges, dedupes and link repair need; `mv` uses it internally anyway |
@@ -230,7 +230,7 @@ novalis/
 │                                 # used by the clap layer, by `help --json`, later by `novalis mcp`
 ├─ apps/
 │  └─ desktop/
-│     ├─ src-tauri/               # thin shell: <25 commands, menu from i18n JSON, window state;
+│     ├─ src-tauri/               # thin shell: <30 commands, menu from i18n JSON, window state;
 │     │                           # bundles `novalis` at Contents/MacOS/novalis
 │     └─ ui/                      # React 19 + Vite, CodeMirror 6; imports i18n/*.json, packages/tokens
 ├─ packages/
@@ -284,7 +284,7 @@ Dependency budget: D26.
      - buffer dirty → banner *„Auf der Festplatte geändert"* / "Changed on disk" with **Neu laden / Meine behalten / Als Konfliktkopie speichern**; if the disk diff is exactly a link rewrite from a rename, re-apply it to the buffer instead of raising the banner.
   3. On save (autosave tick or `Cmd-S`): stat target; if `(mtime, size)` differ from captured and the disk hash differs from last-known → **the buffer is written immediately and atomically to `<name> (conflict <host> <YYYY-MM-DD HHMM>).md` in the same folder and keeps autosaving there** until the banner is resolved: *Neu laden* trashes the copy; *Meine behalten* renames it over the target (the user chose, so no precondition; in a non-cloud vault the disk version is first written to a conflict copy because there is no vendor history); *Als Konfliktkopie speichern* keeps both. `Cmd-W` and `Cmd-Q` never block and never lose text.
   4. Watcher events matching a recorded own write are dropped.
-  5. Board and card writes carry the `(mtime, size, hash)` captured when that JSON was last read; on mismatch the store re-reads, re-applies the single field change (column / order / title / notes) and writes again; card edits are field-level and replayable, so no banner.
+  5. Board and card writes carry the `(mtime, size, hash)` captured when that JSON was last read; on mismatch the store re-reads, re-applies the single field change (column / order / title / description / notes) and writes again; card edits are field-level and replayable, so no banner.
   6. CLI `edit --if-match <sha256>` maps to step 3 (refuse with exit 4 instead of writing a copy); `mv`/`relink` write each affected file under its scan-time precondition and report `conflicts`.
 - **Cloud hints:** one-line, dismissable, in the status bar: vault is in a cloud folder · N notes cloud-only · N conflict copies found (click → list with Keep original / Keep copy / Keep both, resolution per §5.2 `vault::cloud`).
 
@@ -395,12 +395,12 @@ Decision sequence: family → style → layout → accent/fonts (§4.6).
 | MUST | Instant open (Rust reads, string to CM6, grammar lazy) · tabs · command palette `Cmd-Shift-P` · quick-open `Cmd-P` (fuzzy, `nucleo`-class matcher) · goto line `Ctrl-G` · find/replace `Cmd-F` / `Cmd-Alt-F` (regex, case, word, replace-all) · vault search `Cmd-Shift-F` with results panel · multi-cursor (`Cmd-D`, `Cmd-Shift-L`, `Alt-click`, `Ctrl-Shift-↑/↓`) · syntax highlighting · bracket matching · soft wrap per type · undo/redo · autosave · large-file fallback · external-change banner | none |
 | Baseline (§4.3, listed for you) | Line numbers per type · indentation guides (code) · auto-pair (Markdown subset) · word/char count · heading jump via palette · indentation detection · clickable checkboxes · `Cmd-B`/`Cmd-I` | none |
 | Needs yes (§4.4) | Spellcheck (macOS native; see spike) · `[[`/`#` completion · backlinks list · tags filter | spellcheck only |
-| LATER (needs yes) | Read-only preview `Cmd-E` · split view · folding · focus/typewriter · image paste · multi-file replace | |
+| LATER (needs yes) | Split view · folding · focus/typewriter · multi-file replace (image paste: yes since 2026-09-15, ADR-0017; read-only preview `Cmd-E`: yes since 2026-09-15, ADR-0020) | |
 | NO | Minimap, vim, LSP, terminal, git, plugins, AI, themes gallery, toolbar, slash menu, trim-on-save, encoding conversion | |
 
 ### 7.2 Markdown flavour and link resolution
 
-CommonMark 0.31.2 + GFM tables, task lists, strikethrough, autolinks + YAML frontmatter + `[[wikilinks]]` + inline `#tags`. Not in v1: callouts, highlights, comments, block ids, embeds, math, Mermaid, footnotes. Parser: `@lezer/markdown` GFM bundle + two small inline parsers (wikilink, tag); Rust side `pulldown-cmark 0.13` with `ENABLE_WIKILINKS` for link extraction and the later preview.
+CommonMark 0.31.2 + GFM tables, task lists, strikethrough, autolinks + YAML frontmatter + `[[wikilinks]]` + inline `#tags`. Not in v1: callouts, highlights, comments, block ids, embeds, math, Mermaid (not in the editor; the ⌘E preview renders `mermaid` fences — owner yes 2026-09-15, ADR-0020), footnotes. Parser: `@lezer/markdown` GFM bundle + two small inline parsers (wikilink, tag); Rust side `pulldown-cmark 0.13` with `ENABLE_WIKILINKS` for link extraction and the later preview.
 
 Resolution of `[[X]]`: X is matched case-insensitively against file stems (after NFC); on a unique match that is the note; on duplicate stems (`index.md` and `reading/index.md` in the demo vault) `[[folder/stem]]` disambiguates and `doctor` reports the duplicates; `[[X#heading]]` and `[[X|label]]` strip their suffixes; a stem containing `#` or `|` cannot be a link target and `doctor` reports it. Markdown links `[text](relative/path.md)` resolve relative to the note (percent-decoded). The CLI exposes `linkTarget` (the shortest unambiguous wikilink text) on every note it lists so agents never guess.
 
@@ -411,8 +411,9 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 | A (Lezer) | `md markdown` · `txt text` (none) · `json map` · `yaml yml` · `toml` (legacy stream) · `xml svg` · `html htm` · `css` · `js mjs cjs jsx ts mts cts tsx` · `py` · `rs` | `@codemirror/language-data`, lazy |
 | B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
 | C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
+| D (view, ADR-0015/0016) | `pdf png jpg jpeg gif webp` | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
 
-Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner.
+Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
@@ -445,18 +446,22 @@ Board folders appear in the file tree as one "board" item (the treatment the old
 ```json
 { "format": 1, "name": "Atlas",
   "columns": [ { "id": "todo", "name": "To Do" }, { "id": "doing", "name": "Doing" }, { "id": "done", "name": "Done" } ],
+  "order": "a0",
   "updated": "2026-09-05T08:41:12.345Z" }
 ```
+
+`order` is optional (ADR-0019): a fractional-index key of the §8.3 kind, written only when the user drags the board in the tree; boards with a key come first, by key, then the rest by name, and the slug breaks ties.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 ```json
 { "id": "01K4G9Z2Q7M3N8RSTV5WXY6ZAB", "title": "Zoom-Stufen für Offline-Bundles festlegen",
   "column": "doing", "order": "a0V",
+  "description": "Für die Offline-Bundles die Stufen 8–14 prüfen; 15+ nur online.",
   "notes": [ "projects/Atlas Rendering Spec.md" ],
   "created": "2026-09-01T07:12:03.010Z", "updated": "2026-09-05T08:41:12.345Z" }
 ```
 
-Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
+Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), `description` (Markdown by convention, ADR-0013) omitted when empty, titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
 
 ### 8.3 Identity and ordering
 
@@ -499,9 +504,9 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `tags` | `--limit` | `{items:[{tag,count}]}` | cache |
 | `relink <from> <to>` | `--force`, `--materialize` | `{rewritten:[{path,count}],cardsUpdated,conflicts,cloudOnlySkipped}` | `<from>` is a **literal link target string** (wikilink text or Markdown path, case-insensitive, percent-decoded, not required to resolve); `<to>` must resolve; rewrites `[[from]]`, `[[from\|l]]`, `[[from#h]]`, `[text](from)` and card `notes[]` |
 | `board ls` / `board show <b>` / `board columns <b> --set <json>` | | boards, columns, cards | boards store |
-| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated}]}` | answers "which cards link to X" |
-| `card add <b> --title T [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
-| `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
+| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated,description?}]}` | answers "which cards link to X" |
+| `card add <b> --title T [--description D] [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
+| `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
 | `index --rebuild` / `--status` | | `{cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |
 | `sync status` | | `{vaultKind:"fileProvider"\|"mirrored"\|"local",cloudOnly:[path],conflictCopies:[path]}` | Mode 1 read-only |
 | `doctor` | | `{ok,checks:[{id,status,detail}]}` | vault marker, cache opens, app/CLI version skew, frontmatter parse failures, unresolved links, duplicate stems, unlinkable stems (`#`/`\|`), notes under board folders, conflict copies, cloud-only notes with unindexed links, legacy `@due/@status` count |
@@ -566,7 +571,7 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Window visible (first paint) after launch | ≤ 300 ms, **provisional**: measured so far is 166–231 ms to the `setup()` callback with a hidden window; Spike C measures first paint with `--exit-after-first-frame` and re-sets this row |
 | Tree interactive, 10k-note vault, warm disk | ≤ 500 ms, independent of the cache |
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
-| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 20 KB; fonts ≤ 250 KB |
+| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
 | Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string) |
 | Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on |
@@ -637,7 +642,7 @@ Exit (week 9): daily-driveable on your own vault in OneDrive; smoke test green; 
 
 ### Phase 5 — After v1 (each needs a yes)
 
-Read-only preview (`Cmd-E`); board + note split; MCP server; hide-syntax live preview mode; Mode 2 sync (OneDrive first, §5.7); universal binary; Windows/Linux builds; image paste with an attachments policy.
+Board + note split; MCP server; hide-syntax live preview mode; Mode 2 sync (OneDrive first, §5.7); universal binary; Windows/Linux builds. (Image paste landed early with a hard-coded attachments folder, ADR-0017; the read-only preview `Cmd-E` landed early too, ADR-0020.)
 
 ### First two weeks, day by day
 

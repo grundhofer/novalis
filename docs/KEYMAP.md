@@ -44,7 +44,7 @@ sidebar tree), `board` (focus in the board pane).
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | Apple standard; the macOS Full Screen item |
 | `Cmd+,` | ⌘, | `unbound` | global | No preferences window (ADR-0004) |
-| `Cmd+E` | ⌘E | `unbound` | global | Reserved for the v1.1 read-only preview (PLAN.md §4.4) |
+| `Cmd+E` | ⌘E | `note.togglePreview` | global | The read-only preview of the open note (PLAN.md §4.4, ADR-0020); the button at the tab strip's end does the same |
 | `Cmd+P` | ⌘P | `quickOpen.open` | global | §4.5: quick-open, no Print |
 | `Shift+Cmd+P` | ⇧⌘P | `palette.open` | global | Sublime |
 | `Ctrl+G` | ⌃G | `editor.gotoLine` | editor | Sublime |
@@ -94,15 +94,21 @@ sidebar tree), `board` (focus in the board pane).
 | Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown |
 | Click on a card | Open the linked note in a tab (D21) | board |
 | Click on a board item in the tree | Show the board pane | tree |
+| Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
+| Drag a board row after another board row or onto the tree's empty space | Reorder the boards (writes `order` to `board.json`, ADR-0019) | tree |
+| Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
+| `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
 
 ## Not listed
 
 - PLAN.md §7.4 groups `Shift+Cmd+N` (new folder) under "Tree" together with
   `Enter` and `Cmd+Delete`. Here its scope is `global`, because it is backed by
-  the File ▸ New Folder menu item and menu items fire regardless of focus; the
-  folder is created next to the tree selection, or in the vault root when
-  nothing is selected. `Enter` and `Cmd+Delete` stay `tree`-scoped: both collide
-  with editor defaults (newline, delete-to-line-start).
+  the File ▸ New Folder menu item and menu items fire regardless of focus. It
+  and `Cmd+N` place the new folder or file the same way: inside a selected
+  folder, beside a selected file, or in the vault root when nothing is
+  selected (ADR-0012; the sidebar buttons fire the same two command ids).
+  `Enter` and `Cmd+Delete` stay `tree`-scoped: both collide with editor
+  defaults (newline, delete-to-line-start).
 - System-provided edit keys (`Cmd+A/C/V/X`, `Cmd+H`, `Cmd+M`, arrows, word and
   line movement, `Escape`) come from macOS and WKWebView and are neither bound
   nor overridden by the app; the parity test ignores them. `Cmd+Q` and
@@ -112,3 +118,14 @@ sidebar tree), `board` (focus in the board pane).
   only risk swallowing them.
 - Keys inside the find bar, the palette and dialogs (`Enter`, `Escape`, arrows)
   are the components' own defaults, not app bindings.
+- In the read-only preview (`Cmd+E`, ADR-0020 amended 2026-09-16) there is no
+  editor on screen, so the `editor`-scoped chords are routed to the rendered
+  note instead: `Cmd+F` opens a find bar over the rendered text, `Cmd+G` and
+  `Shift+Cmd+G` move between its matches, `Escape` closes it; `Cmd+B` and
+  `Cmd+I` toggle `**` / `_` around the selected text in the note's source, in
+  the block it was rendered from. When that selection cannot be placed (it
+  spans blocks, markup splits it, it occurs more than once in the block, or it
+  is empty) the tab switches to the editor rather than guessing; every other
+  editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D`, …) switches to the
+  editor too, so the chord lands where it applies — it is not replayed there.
+  The table above is unchanged: same ids, same scopes.
