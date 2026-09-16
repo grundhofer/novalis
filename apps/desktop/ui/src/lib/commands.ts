@@ -1,4 +1,5 @@
 import { isEditorCommand, runEditorCommand } from "./editorBridge";
+import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
 import { commands, NovalisError, unwrap } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
@@ -267,6 +268,20 @@ export function dispatchCommand(id: string): void {
       report(error);
     }
     return;
+  }
+  // A previewed note has no editor on screen (ADR-0020): find and the two
+  // marks act on the rendered text; a mark that cannot be placed, and every
+  // other editor chord (link, checkbox, go to line …), returns to the editor
+  // so the chord lands where it applies. The command itself is not replayed
+  // there — the editor mounts asynchronously, and the user is now looking at
+  // the right place to press it again.
+  if (previewMounted()) {
+    if (runPreviewCommand(id)) return;
+    if (isPreviewCommand(id) || isEditorCommand(id)) {
+      const active = useTabs.getState().active;
+      if (active) useUi.getState().endPreview(active);
+      return;
+    }
   }
   if (isEditorCommand(id)) runEditorCommand(id);
 }
