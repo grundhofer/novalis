@@ -85,7 +85,7 @@ bump version: && _versions
     const path = require("node:path");
     const version = "{{version}}";
     if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-      console.error(`bump: "${version}" is not a SemVer version (example: 2.0.0-alpha.1)`);
+      console.error(`bump: "${version}" is not a SemVer version (example: 1.0.0-alpha.1)`);
       process.exit(2);
     }
     const root = "{{root}}";

@@ -1,8 +1,8 @@
 name: Release
 
 # Cut a release by pushing an annotated tag, e.g.:
-#   git tag -a v2.0.0-alpha.1 -m "v2.0.0-alpha.1"
-#   git push origin v2.0.0-alpha.1
+#   git tag -a v1.0.0-alpha.1 -m "v1.0.0-alpha.1"
+#   git push origin v1.0.0-alpha.1
 #
 # Builds the Apple Silicon DMG and the CLI tarball and attaches them to a
 # *draft* GitHub release. Review the draft, then publish it by hand.

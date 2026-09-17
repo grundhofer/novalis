@@ -1,6 +1,6 @@
 {
   "name": "novalis",
-  "version": "2.0.0-alpha.1",
+  "version": "1.0.0-alpha.1",
   "private": true,
   "description": "Markdown notes, a Sublime-like text editor and a small Kanban board for macOS",
   "license": "AGPL-3.0-only",
