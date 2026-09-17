@@ -154,6 +154,10 @@ pub struct UiStateDto {
     pub tree_sort: TreeSortDto,
     #[serde(default)]
     pub backlinks_visible: bool,
+    /// The one-time cloud hint of PLAN.md §5.6 step 1 has been shown and
+    /// dismissed; state, not a setting (ADR-0004).
+    #[serde(default)]
+    pub cloud_hint_shown: bool,
 }
 
 impl Default for UiStateDto {
@@ -167,6 +171,7 @@ impl Default for UiStateDto {
             active_board: None,
             tree_sort: TreeSortDto::Name,
             backlinks_visible: false,
+            cloud_hint_shown: false,
         }
     }
 }

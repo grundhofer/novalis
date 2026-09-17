@@ -71,6 +71,8 @@ interface UiState {
   sidebarWidth: number;
   boardVisible: boolean;
   backlinksVisible: boolean;
+  /** PLAN.md §5.6 step 1: the cloud hint is shown once, then never again. */
+  cloudHintShown: boolean;
   activeBoard: string | null;
   /** The tree's file order (ADR-0012); folders ignore it. `state.json` state. */
   treeSort: TreeSortDto;
@@ -93,6 +95,7 @@ interface UiState {
   /** Hide the board pane so the editor shows; a no-op when it is hidden. */
   hideBoard: () => void;
   toggleBacklinks: () => void;
+  dismissCloudHint: () => void;
   setActiveBoard: (slug: string | null) => void;
   setTreeSort: (sort: TreeSortDto) => void;
   togglePreview: (path: string) => void;
@@ -145,6 +148,7 @@ export const useUi = create<UiState>((set, get) => ({
   sidebarWidth: 256,
   boardVisible: false,
   backlinksVisible: false,
+  cloudHintShown: false,
   activeBoard: null,
   treeSort: "name",
   previewing: {},
@@ -162,6 +166,7 @@ export const useUi = create<UiState>((set, get) => ({
       sidebarWidth: state.sidebarWidth ?? 256,
       boardVisible: state.boardVisible ?? false,
       backlinksVisible: state.backlinksVisible ?? false,
+      cloudHintShown: state.cloudHintShown ?? false,
       activeBoard: state.activeBoard ?? null,
       treeSort: state.treeSort ?? "name",
     });
@@ -175,6 +180,7 @@ export const useUi = create<UiState>((set, get) => ({
   toggleBoard: () => set((s) => ({ boardVisible: !s.boardVisible })),
   hideBoard: () => set((s) => (s.boardVisible ? { boardVisible: false } : s)),
   toggleBacklinks: () => set((s) => ({ backlinksVisible: !s.backlinksVisible })),
+  dismissCloudHint: () => set({ cloudHintShown: true }),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
   setTreeSort: (treeSort) => set({ treeSort }),
   togglePreview: (path) =>

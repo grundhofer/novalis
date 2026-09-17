@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 
 import Banner from "./components/Banner";
+import CloudHint from "./components/CloudHint";
 import Prompt from "./components/Prompt";
 import Sidebar from "./components/Sidebar";
 import StatusBar from "./components/StatusBar";
@@ -82,6 +83,7 @@ export default function App() {
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
   const backlinksVisible = useUi((s) => s.backlinksVisible);
+  const cloudHintShown = useUi((s) => s.cloudHintShown);
   const overlay = useUi((s) => s.overlay);
   const spellcheck = useUi((s) => s.settings?.spellcheck ?? true);
 
@@ -236,6 +238,7 @@ export default function App() {
           sidebarWidth,
           boardVisible,
           backlinksVisible,
+          cloudHintShown,
           activeBoard,
           treeSort,
         }),
@@ -244,7 +247,18 @@ export default function App() {
       });
     }, STATE_SAVE_MS);
     return () => clearTimeout(timer);
-  }, [ready, tabs, active, sidebarVisible, sidebarWidth, boardVisible, backlinksVisible, activeBoard, treeSort]);
+  }, [
+    ready,
+    tabs,
+    active,
+    sidebarVisible,
+    sidebarWidth,
+    boardVisible,
+    backlinksVisible,
+    cloudHintShown,
+    activeBoard,
+    treeSort,
+  ]);
 
   const followLink = useCallback((target: string) => {
     // A Markdown destination is a path relative to the note (PLAN.md §7.2):
@@ -292,6 +306,7 @@ export default function App() {
         )}
         <main className="main">
           <TabStrip />
+          <CloudHint />
           <Banner />
           {boardVisible ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
