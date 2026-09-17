@@ -655,7 +655,16 @@ pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
     blocking(move || {
         let rel = normalize_rel(&path)?;
         let abs = vault_rel(&root, &rel)?;
-        fs::trash(&abs)?;
+        // Checklist B9, 2026-09-17: a dataless note on Drive left the vault
+        // once although the core refuses one. Until that run is explained the
+        // dev build says what it saw and what it did, on stderr, where
+        // `cargo tauri dev` shows it. Not in a release build.
+        #[cfg(debug_assertions)]
+        let seen = fs::stat(&abs).map(|st| st.cloud_only);
+        let outcome = fs::trash(&abs);
+        #[cfg(debug_assertions)]
+        eprintln!("trash {rel}: cloud_only={seen:?} -> {outcome:?}");
+        outcome?;
         own.lock().unwrap_or_else(|e| e.into_inner()).forget(&rel);
         Ok(())
     })
