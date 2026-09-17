@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// Guards the four version stamps (PLAN.md §11.4). VERSION is the source;
+// Guards the version stamps (PLAN.md §11.4). VERSION is the source;
 // `just bump` propagates it. This script only reads.
 //   VERSION
 //   Cargo.toml                             -> [workspace.package] version
 //   package.json                           -> version
 //   apps/desktop/src-tauri/tauri.conf.json -> version
-// Prints all four and exits 1 on any mismatch or missing file. No dependencies.
+//   apps/desktop/ui/package.json           -> version  (private workspace package)
+//   packages/tokens/package.json           -> version  (private workspace package)
+// Prints them all and exits 1 on any mismatch or missing file. No dependencies.
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -27,6 +29,8 @@ const stamps = [
     file: "apps/desktop/src-tauri/tauri.conf.json",
     extract: (text) => JSON.parse(text).version ?? null,
   },
+  { file: "apps/desktop/ui/package.json", extract: (text) => JSON.parse(text).version ?? null },
+  { file: "packages/tokens/package.json", extract: (text) => JSON.parse(text).version ?? null },
 ];
 
 const rows = stamps.map(({ file, label, extract }) => {

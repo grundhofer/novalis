@@ -39,7 +39,7 @@ scripts/                                        # check-versions.mjs bundle-budg
 | `just test-cli` | CLI golden tests; `UPDATE_GOLDEN=1 just test-cli` regenerates them |
 | `just perf` | The core §11.3 budgets on a generated 10k-note vault; what `perf.yml` runs on `main` and tags |
 | `just app` | Release app bundle for this Mac |
-| `just bump X.Y.Z` | Writes the version to all four stamps |
+| `just bump X.Y.Z` | Writes the version to all six stamps (VERSION, Cargo.toml, three package.json, tauri.conf.json) |
 
 Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missing, add it to the `justfile` **and** to `ci.yml`. "Done" means `just check` is green, with nothing skipped; if a test is skipped, ignored or red, say so.
 
