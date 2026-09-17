@@ -206,7 +206,12 @@ export function treeRows(
   return rows;
 }
 
-/** Counts for the sidebar foot and the status bar's cloud hints. */
+/**
+ * Counts for the sidebar foot and the status bar's cloud hints. Over the
+ * files the tree draws, and no others: a `.gdoc` stub Drive leaves beside a
+ * note is dataless too, and a count that included it said "3 nur online"
+ * over a tree with nothing cloud-only in it (checklist B8, 2026-09-17).
+ */
 export function cloudCounts(children: Record<string, EntryDto[]>): {
   cloudOnly: number;
   conflicts: number;
@@ -215,6 +220,7 @@ export function cloudCounts(children: Record<string, EntryDto[]>): {
   let conflicts = 0;
   for (const list of Object.values(children)) {
     for (const entry of list) {
+      if (entry.dir || !isSupported(entry.path)) continue;
       if (entry.cloudOnly) cloudOnly += 1;
       // `conflictCopyOf` is decided by novalis_core, which owns the four
       // naming patterns. This used to be a regex here that never matched the

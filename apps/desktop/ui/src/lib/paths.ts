@@ -68,3 +68,17 @@ export function compareNs(a: string, b: string): number {
   if (a.length !== b.length) return a.length - b.length;
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+/**
+ * The sync provider a File Provider vault lives in, for the status bar's
+ * „Vault in {{provider}}": the domain folder under `~/Library/CloudStorage`,
+ * which macOS names `<Provider>-<account or label>` — `OneDrive-Persönlich`,
+ * `GoogleDrive-name@example.com`. The part before the first `-`, spaced where
+ * the vendor glues its brand together. `null` for any other path.
+ */
+export function providerOf(absolutePath: string): string | null {
+  const match = /\/Library\/CloudStorage\/([^/]+)/.exec(absolutePath);
+  if (!match) return null;
+  const domain = match[1]!.split("-")[0]!;
+  return domain === "GoogleDrive" ? "Google Drive" : domain;
+}
