@@ -534,6 +534,11 @@ export type UiStateDto = {
 	 */
 	treeSort?: TreeSortDto,
 	backlinksVisible?: boolean,
+	/**
+	 *  The one-time cloud hint of PLAN.md §5.6 step 1 has been shown and
+	 *  dismissed; state, not a setting (ADR-0004).
+	 */
+	cloudHintShown?: boolean,
 };
 
 export type VaultDto = {

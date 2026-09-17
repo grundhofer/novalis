@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EntryDto } from "../ipc/client";
-import { treeRows, useVault } from "./vault";
+import { cloudCounts, treeRows, useVault } from "./vault";
 
 // The store reaches the shell through `../ipc/client`; a store test has no
 // Tauri to talk to, so the boundary is mocked and only the store's own logic
@@ -139,6 +139,23 @@ describe("treeRows", () => {
     const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo", order: null }]);
     expect(paths(rows)).toEqual(["boards", "boards/foo"]);
     expect(rows.at(-1)?.entry.boardSlug).toBe("foo");
+  });
+});
+
+describe("cloudCounts", () => {
+  // Drive leaves dataless `.gdoc` stubs beside a note its web UI "edited";
+  // the tree hides them (ADR-0015), so the count must not see them either.
+  it("counts only the files the tree draws", () => {
+    const counts = cloudCounts({
+      "": [
+        entry("a.md", { cloudOnly: true }),
+        entry("index.md.gdoc", { cloudOnly: true }),
+        entry("b.md", { conflictCopyOf: "a.md" }),
+        entry("sub", { dir: true, cloudOnly: true }),
+      ],
+      sub: [entry("sub/c.md", { cloudOnly: true }), entry("sub/x.gsheet", { cloudOnly: true })],
+    });
+    expect(counts).toEqual({ cloudOnly: 2, conflicts: 1 });
   });
 });
 

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { providerOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { cloudCounts, useVault } from "../stores/vault";
@@ -37,7 +38,7 @@ export default function StatusBar() {
       {vault?.kind === "fileProvider" && (
         <span className="status-item sync">
           <span className="status-dot" aria-hidden="true" />
-          {t("status.cloud.fileProvider", { provider: vault.name })}
+          {t("status.cloud.fileProvider", { provider: providerOf(vault.root) ?? vault.name })}
         </span>
       )}
       {vault?.kind === "mirrored" && <span className="status-item sync">{t("status.cloud.mirrored")}</span>}
