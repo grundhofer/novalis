@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0020). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0021). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -466,6 +466,28 @@ No new command, dependency, string or chord; the tag completion stays out of
 a link.
 
 ### Open after the sync tests (2026-09-08)
+
+After #113 was merged, the owner wrote:
+
+> ich will noch eine delete funktion für ordner und notizen. außerdem ein
+> open in finder per rechtsklick?
+
+Trash for notes and folders exists (`Cmd+Delete`, File menu, palette); what
+was missing is a way on the row itself. Asked "Kontextmenü (Rechtsklick) auf
+Baumzeilen — welche Einträge?" (several answers allowed):
+
+> Im Finder zeigen, In den Papierkorb legen, Umbenennen, Neue Notiz / Neuer
+> Ordner hier
+
+Asked where "Im Finder zeigen" should also be reachable:
+
+> Auch Ablage-Menü und Palette
+
+Recorded as **ADR-0021**: a native context menu on tree rows, built by the
+shell from the catalog with the File menu's own ids (a board row gets "Show
+in Finder" only — its rename and delete are the board pane's); `tree.reveal`
+runs `open -R`, sits in the File menu and the palette, has no chord; two IPC
+commands (`reveal`, `tree_context_menu`, 27 of 30); one new string.
 
 ### The four items open after the sync tests (2026-09-08), as of 2026-09-16
 

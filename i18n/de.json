@@ -168,6 +168,7 @@
   "menu.file.openVault": "Vault öffnen…",
   "menu.file.rename": "Umbenennen",
   "menu.file.reopenClosedTab": "Geschlossenen Tab wieder öffnen",
+  "menu.file.revealInFinder": "Im Finder zeigen",
   "menu.file.save": "Sichern",
   "menu.file.title": "Ablage",
   "menu.go.back": "Zurück",

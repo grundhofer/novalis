@@ -83,6 +83,21 @@ export const commands = {
 	 */
 	trash: (path: string) => typedError<null, IpcError>(__TAURI_INVOKE("trash", { path })),
 	/**
+	 *  Show `path` in the Finder, selected in its folder (ADR-0021): `open -R`,
+	 *  the system's own opener, no plugin and nothing leaves the machine. The
+	 *  path is checked against the vault like every other; macOS only, as the
+	 *  app is (PLAN.md §4.5) — the Linux build answers with an error.
+	 */
+	reveal: (path: string) => typedError<null, IpcError>(__TAURI_INVOKE("reveal", { path })),
+	/**
+	 *  The tree's context menu (ADR-0021), popped at the pointer. Its entries
+	 *  are File menu items with the File menu's ids, so a click arrives in the
+	 *  UI as the same `MenuAction` a menu-bar click does and runs the same
+	 *  command against the row the UI selected before asking. A board row gets
+	 *  "Show in Finder" only: its rename and delete live in the board pane.
+	 */
+	treeContextMenu: (board: boolean) => typedError<null, IpcError>(__TAURI_INVOKE("tree_context_menu", { board })),
+	/**
 	 *  Vault-wide search, streamed over a channel. A newer search supersedes an
 	 *  older one: the running scan sees the generation change and stops, so there
 	 *  is no cancel command and no way to leak a worker.

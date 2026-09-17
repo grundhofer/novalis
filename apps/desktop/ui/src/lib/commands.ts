@@ -182,6 +182,16 @@ async function newBoard(): Promise<void> {
 }
 
 /** The selection a tree command acts on: the tree row, else the active tab. */
+/**
+ * The tree's context menu (ADR-0021): the row is selected first, so the
+ * entries — File menu ids the shell pops as a native menu — act on it the
+ * way `Cmd+Delete` or Enter would. A board row gets "Show in Finder" only.
+ */
+export function openTreeContextMenu(path: string, board: boolean): Promise<void> {
+  useVault.getState().select(path);
+  return unwrap(commands.treeContextMenu(board)).then(() => undefined);
+}
+
 function targetPath(): string | null {
   return useVault.getState().selected ?? useTabs.getState().active;
 }
@@ -243,6 +253,10 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "tree.trash": () => {
     const path = targetPath();
     if (path) return trashPath(path);
+  },
+  "tree.reveal": () => {
+    const path = targetPath();
+    if (path) return unwrap(commands.reveal(path)).then(() => undefined);
   },
   "settings.appearance.system": () => useUi.getState().setAppearance("system"),
   "settings.appearance.light": () => useUi.getState().setAppearance("light"),
@@ -315,6 +329,7 @@ export function paletteCommands(): readonly {
   { id: "file.save", labelKey: "menu.file.save" },
   { id: "tree.rename", labelKey: "menu.file.rename" },
   { id: "tree.trash", labelKey: "menu.file.moveToTrash" },
+  { id: "tree.reveal", labelKey: "menu.file.revealInFinder" },
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
   { id: "note.togglePreview", labelKey: "menu.view.togglePreview" },
