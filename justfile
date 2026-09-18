@@ -85,7 +85,7 @@ bump version: && _versions
     const path = require("node:path");
     const version = "{{version}}";
     if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-      console.error(`bump: "${version}" is not a SemVer version (example: 2.0.0-alpha.1)`);
+      console.error(`bump: "${version}" is not a SemVer version (example: 1.0.0-alpha.1)`);
       process.exit(2);
     }
     const root = "{{root}}";
@@ -111,6 +111,10 @@ bump version: && _versions
     });
     stamp("package.json", jsonVersion("package.json"));
     stamp("apps/desktop/src-tauri/tauri.conf.json", jsonVersion("tauri.conf.json"));
+    // The two workspace packages are private and ship in no artefact, but a
+    // stale number there reads as a second version of the app (2026-09-18).
+    stamp("apps/desktop/ui/package.json", jsonVersion("apps/desktop/ui/package.json"));
+    stamp("packages/tokens/package.json", jsonVersion("packages/tokens/package.json"));
 
 # Vendor designSprache's generated tokens.css into packages/tokens/ (not available yet, see PLAN.md §5.9).
 tokens-sync slug="" commit="":

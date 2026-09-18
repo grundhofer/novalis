@@ -69,7 +69,7 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Trash method in the app | `NsFileManager` (no prompt) |
 | Minimum macOS | 14 |
 | Architecture | arm64 only |
-| First version tag | `v2.0.0-alpha.1` |
+| First version tag | `v1.0.0-alpha.1` (changed 2026-09-18, below) |
 | License | AGPL-3.0-only + COMMERCIAL-LICENSE, ADR-0001 verbatim |
 | Wikilink migration | rename files to frontmatter title with automatic relink; dry-run first |
 | `@status` cards from old notes | leave as text |
@@ -502,6 +502,38 @@ state of today, not of the day they were found.
 | **Two conflict detectors that disagree** — `stores/vault.ts` re-implemented the core's filename patterns, narrower | Settled: the UI counts `conflictCopyOf` as the core decides it; there is one detector. |
 | **The resolve panel does not exist** — §5.3 promises keep-original / keep-copy / keep-both, the five `status.conflicts.*` keys are referenced by no code, only a count shows | **Still open.** `docs/SYNC-REALITY.md` says so. Either build it or drop the promise from the plan. |
 | **Board conflict resolution is unreachable** — `resolve_card_conflicts` and `resolve_board_conflicts` were called by nothing | Settled: both run on the first `board_read` of a board after the vault was opened (PR #107, #111; "Erstes Lesen pro Board" above). |
+
+## Answered 2026-09-18
+
+Asked for a release on 2026-09-17, the owner had chosen to run the File
+Provider checklist first; one evening of it later:
+
+> ich denke wir lassen die checkllste jetzt sein. da wir das alte novalis
+> ersetzen, können wir auch die alten releases alle abräumen?
+> Eigentlich müssten wir eine 1.0.0 releasen oder?
+
+Three questions, each with the recorded rule and its reasoning stated first.
+"Release ohne fertige Checkliste — Gate 1 für dieses Pre-Release aussetzen?":
+
+> Ja, aussetzen
+
+"Alte Releases (v0.1.0, v0.2.0, v0.2.1-rc2) löschen?" — recommended was
+releases only, tags kept as the record of which source shipped in which
+binary:
+
+> Alles löschen, auch Tags
+
+"Welche Version bekommt das erste Release der Neufassung?" — recommended was
+the planned `v2.0.0-alpha.1`; `1.0.0` without a suffix was advised against
+because PLAN.md §9 freezes the CLI contract "after 1.0":
+
+> v1.0.0-alpha.1
+
+Recorded in `docs/RELEASING.md` (gate 1 waived for pre-releases, condition:
+the notes name the unrun rows; the old releases and tags deleted, source on
+`legacy` / `legacy-final`) and PLAN.md §4.5 and §11.4. The `-alpha` suffix
+carries the meaning the checklist gate carried: not yet verified on every
+sync path, contract not yet frozen. No ADR: nothing is added to the product.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

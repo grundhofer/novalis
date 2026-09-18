@@ -5,7 +5,7 @@ a Sublime-like text editor for the everyday file types and a small Kanban board
 whose data lives **outside** the notes. Your vault is a plain folder; put it in
 your OneDrive or Google Drive folder and it syncs between devices. macOS first.
 
-> **Status: early rewrite (`v2.0.0-alpha.0`).** This branch replaces the previous
+> **Status: early rewrite (`v1.0.0-alpha.1`).** This branch replaces the previous
 > Novalis, which was a notes + tasks + calendar app with AI, voice, PDF, canvas
 > and plugins. That code lives on the `legacy` branch and in releases up to
 > `v0.2.1-rc2`; it is unsupported. The plan for this rewrite is [PLAN.md](PLAN.md)

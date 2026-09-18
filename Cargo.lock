@@ -2190,7 +2190,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-cli"
-version = "2.0.0-alpha.0"
+version = "1.0.0-alpha.1"
 dependencies = [
  "clap",
  "novalis-core",
@@ -2203,7 +2203,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-core"
-version = "2.0.0-alpha.0"
+version = "1.0.0-alpha.1"
 dependencies = [
  "chrono",
  "libc",
@@ -2222,7 +2222,7 @@ dependencies = [
 
 [[package]]
 name = "novalis-desktop"
-version = "2.0.0-alpha.0"
+version = "1.0.0-alpha.1"
 dependencies = [
  "base64 0.22.1",
  "notify",

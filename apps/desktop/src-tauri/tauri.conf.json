@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "version": "2.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "productName": "novalis",
   "identifier": "io.github.grundhofer.novalis",
   "build": {

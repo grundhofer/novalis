@@ -1,6 +1,6 @@
 {
   "name": "@novalis/tokens",
-  "version": "2.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "private": true,
   "description": "Semantic design tokens (--ds-*) for the chosen style, GENERATED-PENDING (PLAN.md §5.9)",
   "license": "AGPL-3.0-only",

@@ -9,29 +9,44 @@ until this document is revised ship unsigned** (ADR-0010).
 
 - SemVer. Annotated tags `vX.Y.Z`; pre-releases `vX.Y.Z-alpha.N`, `-beta.N`,
   `-rc.N`. A hyphen in the tag ⇒ the draft is flagged as a pre-release.
-- First tag of the rewrite: `v2.0.0-alpha.1`. The old line stays at
-  `v0.2.1-rc2` and the `legacy-final` tag; those releases are relabelled, never
-  deleted (AGPL corresponding-source obligations attach to shipped binaries).
+- First tag of the rewrite: `v1.0.0-alpha.1` (PLAN.md §4.5 had said
+  `v2.0.0-alpha.1`; the owner chose `v1.0.0-alpha.1` on 2026-09-18 — the
+  first non-pre-release `1.0.0` is then the moment PLAN.md §9's "immutable
+  after 1.0" contract freeze applies). The old line's releases `v0.2.0` and
+  `v0.2.1-rc2` and the tags `v0.1.0`, `v0.2.0`, `v0.2.1-rc2` were **deleted on
+  2026-09-18** at the owner's decision ("Alles löschen, auch Tags"); the
+  source of the old app stays reachable through the `legacy` branch and the
+  `legacy-final` tag. Nothing under those versions is offered any more, so
+  no binary is distributed without its corresponding source.
 - One `VERSION` file is the source. `just bump <version>` propagates it to the
-  three stamps (`Cargo.toml` workspace version, `package.json`,
-  `apps/desktop/src-tauri/tauri.conf.json`) and refreshes `Cargo.lock`
-  (`cargo update -w`); `scripts/check-versions.mjs` fails CI when they differ.
+  five stamps (`Cargo.toml` workspace version, `package.json`,
+  `apps/desktop/src-tauri/tauri.conf.json`, and — since 2026-09-18, so no
+  second number of the app is left lying around — the private
+  `apps/desktop/ui/package.json` and `packages/tokens/package.json`) and
+  `Cargo.lock` is refreshed with `cargo update -w`; `scripts/check-versions.mjs`
+  fails CI when any differ.
 - Minimum macOS 14, arm64 only (PLAN.md §4.5).
 
 ## Before tagging
 
 1. `docs/FILE-PROVIDER-CHECKLIST.md` executed on OneDrive and on Google Drive
-   (Stream and Mirror), Outcome table filled in.
+   (Stream and Mirror), Outcome table filled in. **Waived for pre-releases**
+   (`-alpha.N`, `-beta.N`, `-rc.N`) since 2026-09-18 — the owner, asked
+   whether to release with the table partly filled: "ich denke wir lassen die
+   checkliste jetzt sein" and "Ja, aussetzen". The condition of the waiver:
+   the release notes' **Bekannt / Known** section names every row the table
+   still lists as not run. The first non-pre-release tag needs the table
+   filled.
 2. `just check` green locally; `perf.yml` numbers on `main` within
    `docs/BUDGET.json`.
 3. Release notes drafted in German and English (see the template below).
 4. Version bump merged through a PR (`main` is protected):
 
    ```sh
-   git switch -c release/v2.0.0-alpha.1
-   just bump 2.0.0-alpha.1
-   git commit -am 'chore: release v2.0.0-alpha.1'
-   git push -u origin release/v2.0.0-alpha.1
+   git switch -c release/v1.0.0-alpha.1
+   just bump 1.0.0-alpha.1
+   git commit -am 'chore: release v1.0.0-alpha.1'
+   git push -u origin release/v1.0.0-alpha.1
    gh pr create --fill && gh pr merge --merge   # wait for check (macos-latest), check (ubuntu-latest), audit
    ```
 
@@ -39,8 +54,8 @@ until this document is revised ship unsigned** (ADR-0010).
 
 ```sh
 git switch main && git pull --ff-only
-git tag -a v2.0.0-alpha.1 -m 'v2.0.0-alpha.1'
-git push origin v2.0.0-alpha.1
+git tag -a v1.0.0-alpha.1 -m 'v1.0.0-alpha.1'
+git push origin v1.0.0-alpha.1
 ```
 
 `release.yml` then:
@@ -53,7 +68,7 @@ git push origin v2.0.0-alpha.1
 3. runs the signing and notarization steps **only if the secrets exist** (they
    do not this year, see below);
 4. writes `SHA256SUMS`, attaches build-provenance attestations, and creates the
-   draft release `novalis v2.0.0-alpha.1` with the artefacts and the source
+   draft release `novalis v1.0.0-alpha.1` with the artefacts and the source
    archive.
 
 Then open the draft, paste the release notes, check the asset list, and
@@ -96,7 +111,7 @@ Never tell users to disable Gatekeeper globally.
 ## Release-note template (de/en)
 
 ```
-## novalis v2.0.0-alpha.1
+## novalis v1.0.0-alpha.1
 
 ### Neu / New
 - …

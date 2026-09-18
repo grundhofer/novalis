@@ -23,7 +23,7 @@ This document is the plan. Every decision below was checked against the old code
 | Settings | Four proposed: language, appearance, editor font size, spellcheck (+ last vault as state, no preferences window) | Everything else is hard-coded or a transient command. Each of the four still needs your yes. |
 | Design | Four directions from your catalog: **Swiss**, **Editorial-Print**, **Dev-Noir**, **Warm Editorial**; delivered first as static mockups (11 frames) so you choose before code exists | Swiss wins the catalog's own finder in every scenario; the four are mutually compatible; all fonts are SIL OFL. |
 | i18n | `i18n/en.json` + `de.json` as the single source; i18next in the UI, the same JSON read by Rust for native menus; CLI English-only | Two locales with identical plural rules do not justify a second runtime. |
-| Repo | Same GitHub repo; `main` → `legacy` rename first (with a temporary bypass actor, because the ruleset blocks renames), orphan `main` with CI already in it pushed second; first tag `v2.0.0-alpha.1` | Keeps URL, stars, releases and the AGPL source chain. |
+| Repo | Same GitHub repo; `main` → `legacy` rename first (with a temporary bypass actor, because the ruleset blocks renames), orphan `main` with CI already in it pushed second; first tag `v1.0.0-alpha.1` (was `v2.0.0-alpha.1` until 2026-09-18) | Keeps URL, stars, releases and the AGPL source chain. |
 | Minimalism gate | ADR with a quoted owner "yes" for every new setting, feature, dependency, shortcut or network call; enforced by parity tests (settings, keymap, lockfiles) and a PR checklist | The old app's 763-line preferences model and 34 flags are the counter-example. |
 
 Estimated effort to a usable alpha: **10–12 weeks** for one developer working with coding agents (ASSUMED, see §12; re-planned after week 2).
@@ -179,7 +179,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Trash method in the app | **`NsFileManager` (no prompt, no entitlement; "Put Back" not guaranteed on every macOS)** | Finder method (Put Back works; one-time "novalis möchte den Finder steuern" prompt; needs the Apple Events entitlement and usage string) |
 | Minimum macOS | **14 (Sonoma)** | 12.1 is the File Provider floor; 14 gives Safari 17 WebKit for CM6 |
 | Architecture | **arm64 only** (as the old release) | Universal binary: now possible (no ort-sys), doubles CI build time |
-| First version tag | **`v2.0.0-alpha.1`** | `v0.3.0` (suggests continuity), `v1.0.0` |
+| First version tag | **`v1.0.0-alpha.1`** (changed 2026-09-18 from `v2.0.0-alpha.1`; the old 0.x releases and tags were deleted the same day, source stays on `legacy`) | `v0.3.0` (suggests continuity), `v2.0.0-alpha.1` (the 2026-09-05 choice) |
 | License | **AGPL-3.0-only + COMMERCIAL-LICENSE, ADR-0001 copied verbatim** | Re-decide; drop the section-7 plugin exception (harmless to keep) |
 | Wikilink migration for old vaults | **Rename files to their frontmatter title** (Obsidian style) with automatic link rewriting for titles that cannot be filenames; `--dry-run` first | Rewrite links to current filenames (links become slugs like `[[local-first-software]]`) |
 | `@status` cards from old notes | **Leave as text** | One-time import into the default board via `novalis migrate --import-status` |
@@ -605,7 +605,7 @@ Measured with a hidden `--exit-after-first-frame` flag + `hyperfine`, `/usr/bin/
 
 ### 11.4 Release, signing, versioning
 
-SemVer, annotated tags `vX.Y.Z`, `-rc.N` pre-releases (hyphen ⇒ prerelease flag), first tag `v2.0.0-alpha.1`. One `VERSION` file, `just bump` propagates to the three stamps, `check-versions.mjs` guards. Signing: **unsigned for the coming year by owner decision (2026-09-05)**; the DMG is ad-hoc signed by the Tauri bundler, the release notes carry the right-click-open / `xattr -d com.apple.quarantine` instructions as the old releases did. `release.yml` keeps the signing and notarization steps behind the documented secrets (`APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER/KEY/KEY_PATH`, `APPLE_CERTIFICATE/_PASSWORD`, `KEYCHAIN_PASSWORD`) so enabling them later is a secrets change, not a pipeline change. No updater; update path = GitHub Releases, optionally a personal tap `grundhofer/homebrew-novalis` carrying the unsigned cask (the main cask tap rejects un-notarized artefacts and applies notability criteria this repo does not meet, verified). Privacy: `docs/PRIVACY.md` keeps the old promise: no telemetry, no analytics, no crash reporting, no update check; the outbound-connection table is empty in Mode 1.
+SemVer, annotated tags `vX.Y.Z`, `-rc.N` pre-releases (hyphen ⇒ prerelease flag), first tag `v1.0.0-alpha.1` (2026-09-18; was `v2.0.0-alpha.1`). One `VERSION` file, `just bump` propagates to the five stamps (two of them the private workspace packages, since 2026-09-18), `check-versions.mjs` guards. Signing: **unsigned for the coming year by owner decision (2026-09-05)**; the DMG is ad-hoc signed by the Tauri bundler, the release notes carry the right-click-open / `xattr -d com.apple.quarantine` instructions as the old releases did. `release.yml` keeps the signing and notarization steps behind the documented secrets (`APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER/KEY/KEY_PATH`, `APPLE_CERTIFICATE/_PASSWORD`, `KEYCHAIN_PASSWORD`) so enabling them later is a secrets change, not a pipeline change. No updater; update path = GitHub Releases, optionally a personal tap `grundhofer/homebrew-novalis` carrying the unsigned cask (the main cask tap rejects un-notarized artefacts and applies notability criteria this repo does not meet, verified). Privacy: `docs/PRIVACY.md` keeps the old promise: no telemetry, no analytics, no crash reporting, no update check; the outbound-connection table is empty in Mode 1.
 
 ### 11.5 Minimalism gate
 
@@ -658,7 +658,7 @@ Exit (week 9): daily-driveable on your own vault in OneDrive; smoke test green; 
 
 ### Phase 4 — Remaining CLI, hardening, first release (weeks 9–11)
 
-`board`, `card`, `relink`, `meta`, `migrate`, `sync status`, `help --json`, `skill --path` with golden tests and `SKILL.md`; File Provider checklist on both providers and both Drive modes; watcher burst and crash tests; bundle budget CI; perf job; unsigned release path with the right-click-open note; `RELEASING.md`; release notes de/en; `v2.0.0-alpha.1` draft → publish; README banner on `main` pointing legacy users to `legacy`; repo description and topics updated.
+`board`, `card`, `relink`, `meta`, `migrate`, `sync status`, `help --json`, `skill --path` with golden tests and `SKILL.md`; File Provider checklist on both providers and both Drive modes; watcher burst and crash tests; bundle budget CI; perf job; unsigned release path with the right-click-open note; `RELEASING.md`; release notes de/en; `v1.0.0-alpha.1` draft → publish; README banner on `main` pointing legacy users to `legacy`; repo description and topics updated.
 
 ### Phase 5 — After v1 (each needs a yes)
 
