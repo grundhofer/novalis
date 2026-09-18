@@ -78,8 +78,10 @@ Asset checklist on the draft:
 
 - `novalis_<ver>_aarch64.dmg`
 - `novalis-cli-<ver>-arm64.tar.gz`
-- `novalis-<ver>-source.tar.gz` — the git archive plus lockfiles (AGPL section 6
-  corresponding source, PLAN.md §11.6). No `cargo vendor` tarball.
+- `novalis-<ver>-source.tar.gz` — `git archive` of the tag's commit, lockfiles
+  included because they are committed (AGPL section 6 corresponding source,
+  PLAN.md §11.6). No `cargo vendor` tarball. Missing from the first run of
+  v1.0.0-alpha.1 — the workflow had never built it — and added on 2026-09-18.
 - `SHA256SUMS` listing every other asset
 - attestations verify: `gh attestation verify <file> --repo grundhofer/novalis`
   (one file per call)
