@@ -227,6 +227,30 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: gh release upload "${TAG}" "${{ steps.cli.outputs.path }}" --clobber
 
+      # AGPL section 6 corresponding source (PLAN.md §11.6, docs/RELEASING.md
+      # asset checklist): the tag's tree as one archive, lockfiles included
+      # because they are committed. GitHub's automatic "Source code" links are
+      # generated on request, carry no digest in SHA256SUMS and no attestation;
+      # this one does both.
+      - name: Package the source
+        id: source
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          NAME="novalis-${VERSION}-source"
+          # HEAD is the tag's commit for a tag push and for a dispatch on the tag.
+          git archive --format=tar.gz --prefix="${NAME}/" -o "${NAME}.tar.gz" HEAD
+          ls -l "${NAME}.tar.gz"
+          echo "path=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Attach the source archive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "${{ steps.source.outputs.path }}" --clobber
+
       # `artifactPaths` is a JSON array; attest-build-provenance wants one path
       # per line. Reading the JSON from env, not interpolating it into the
       # script, keeps a path containing shell metacharacters from being executed.
@@ -240,12 +264,14 @@ jobs:
         env:
           ARTIFACT_PATHS: ${{ steps.tauri.outputs.artifactPaths }}
           CLI_TARBALL: ${{ steps.cli.outputs.path }}
+          SOURCE_TARBALL: ${{ steps.source.outputs.path }}
         run: |
           set -euo pipefail
           {
             echo 'paths<<SUBJECTS_EOF'
             node -e 'process.stdout.write([...new Set(JSON.parse(process.env.ARTIFACT_PATHS).map(p => p.endsWith(".app") ? p + ".tar.gz" : p))].join("\n") + "\n")'
             echo "${CLI_TARBALL}"
+            echo "${SOURCE_TARBALL}"
             echo 'SUBJECTS_EOF'
           } >> "$GITHUB_OUTPUT"
 
