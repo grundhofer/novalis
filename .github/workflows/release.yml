@@ -62,7 +62,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -87,7 +87,7 @@ jobs:
       # published prebuilt binary (tauri-cli ships binstall metadata) instead of
       # compiling it, which would cost minutes per release.
       - name: Install cargo-binstall
-        uses: taiki-e/install-action@5bf6ce016fd2e72eefc647cbca1e4213f65955b8 # v2.87.5
+        uses: taiki-e/install-action@26e9283f268b880168bdbd2c545dfcd60ec2c6ab # v2.87.13
         with:
           tool: cargo-binstall
 
@@ -227,6 +227,30 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: gh release upload "${TAG}" "${{ steps.cli.outputs.path }}" --clobber
 
+      # AGPL section 6 corresponding source (PLAN.md §11.6, docs/RELEASING.md
+      # asset checklist): the tag's tree as one archive, lockfiles included
+      # because they are committed. GitHub's automatic "Source code" links are
+      # generated on request, carry no digest in SHA256SUMS and no attestation;
+      # this one does both.
+      - name: Package the source
+        id: source
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          NAME="novalis-${VERSION}-source"
+          # HEAD is the tag's commit for a tag push and for a dispatch on the tag.
+          git archive --format=tar.gz --prefix="${NAME}/" -o "${NAME}.tar.gz" HEAD
+          ls -l "${NAME}.tar.gz"
+          echo "path=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Attach the source archive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "${TAG}" "${{ steps.source.outputs.path }}" --clobber
+
       # `artifactPaths` is a JSON array; attest-build-provenance wants one path
       # per line. Reading the JSON from env, not interpolating it into the
       # script, keeps a path containing shell metacharacters from being executed.
@@ -240,12 +264,14 @@ jobs:
         env:
           ARTIFACT_PATHS: ${{ steps.tauri.outputs.artifactPaths }}
           CLI_TARBALL: ${{ steps.cli.outputs.path }}
+          SOURCE_TARBALL: ${{ steps.source.outputs.path }}
         run: |
           set -euo pipefail
           {
             echo 'paths<<SUBJECTS_EOF'
             node -e 'process.stdout.write([...new Set(JSON.parse(process.env.ARTIFACT_PATHS).map(p => p.endsWith(".app") ? p + ".tar.gz" : p))].join("\n") + "\n")'
             echo "${CLI_TARBALL}"
+            echo "${SOURCE_TARBALL}"
             echo 'SUBJECTS_EOF'
           } >> "$GITHUB_OUTPUT"
 
