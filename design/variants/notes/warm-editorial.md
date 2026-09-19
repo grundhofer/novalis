@@ -18,7 +18,7 @@ VERIFICATION: validate_css.py warm-editorial -> 0 problems (all selectors scoped
 
 OBSERVATION LEFT UNCHANGED (out of scope): inside .split-note, `.split-note .line` (line-height 23px) outranks `.line.h1 { line-height: 1 }` and `.line.h2` at equal specificity by source order, so the split headings inherit the 23px line-height; they still render cleanly (measured 35/33px boxes via baseline alignment) so I did not touch them.
 
-WORKING FILES (scratchpad only, not deliverables; the author's css/warm-editorial.css was not modified): /private/tmp/claude-501/-Users-sgrundhoefer-Projects-novalisNeo/fc52f8b3-a73f-47eb-8cc6-a5fa40959508/scratchpad/mockups/test/we-fix/warm-editorial.css (this stylesheet), measure.sh / measure_par.sh (build + measurement harness), shots/*.png, dumps/*.
+WORKING FILES (scratchpad only, not deliverables; the author's css/warm-editorial.css was not modified): /private/tmp/claude-501/-Users-sgrundhoefer-Projects-novalis/fc52f8b3-a73f-47eb-8cc6-a5fa40959508/scratchpad/mockups/test/we-fix/warm-editorial.css (this stylesheet), measure.sh / measure_par.sh (build + measurement harness), shots/*.png, dumps/*.
 
 ## Deviations
 1. Sheet inner padding: main editor 40px 48px 32px - the bottom is below the spec's 40-56px. Reason: the 800px frame budget (titlebar 32 + tabs 34 + sheet chrome + 26-line document + status bar) leaves no room for 40px at the bottom while keeping >=16px of slack under the last line; 32px was the reviewer's suggested compromise and measures 19.1px slack in l2/l3.

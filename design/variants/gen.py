@@ -15,7 +15,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 CATALOG = Path('/Users/sgrundhoefer/Projects/designSprache/styles')
-DESIGN_REPORT = Path('/Users/sgrundhoefer/Projects/novalisNeo/docs/research/2026-09-05-design.md')
+DESIGN_REPORT = Path('/Users/sgrundhoefer/Projects/novalis/docs/research/2026-09-05-design.md')
 
 STYLES = [
     # slug, display name, leading (gets the layout alternates), catalog mode

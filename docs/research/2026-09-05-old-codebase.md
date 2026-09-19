@@ -3,13 +3,13 @@
 TOOLS: Local read-only tools only: Bash (cat/sed/grep/wc/find/stat/gzip, git, gh CLI authenticated against github.com/grundhofer/novalis). WebSearch and WebFetch existed as deferred tools but were NOT used — the task was local archaeology and I did not verify any current library versions, Google/Microsoft OAuth rules, Drive/Graph API constraints, or CodeMirror/tauri-specta release state; every such statement above is marked ASSUMED. No files were modified; the only write was a scratchpad copy of the perf-commit grep.
 
 ## SUMMARY
-The original novalis (/Users/sgrundhoefer/Projects/novalis, 466 commits on main from 2026-05-24 to 2026-08-16, all by the owner plus dependabot, 262 commits carrying Claude-Session trailers) grew from a notes+editor M1 into a 38k-line "beat Obsidian" program: AI (Anthropic/OpenAI/local ONNX embeddings, RAG, entity graph), voice capture with whisper.cpp, iroh P2P E2E sync, git sync via libgit2+vendored OpenSSL, calendar with Google/Outlook OAuth, Notion/ENEX import, docx/HTML export, PDF annotation, canvas, plugins, query engine, block refs, transclusion, mermaid, KaTeX, 34 feature flags, 4 locales. That is exactly why it got heavy: Cargo.lock has 910 crates (46 *-sys crates incl. whisper-rs-sys, ort-sys, libgit2-sys, openssl-src, iroh/quinn), pnpm-lock has 666 packages, the July release binary is 40 MB (18.8 MB dmg), and the current frontend dist eagerly loads 4.7 MB raw / 1.31 MB gzip because the 3.09 MB mermaid chunk and the 670 KB aiStore chunk are modulepreloaded despite the manualChunks intent. The git history contains a dense July-2026 perf campaign whose commit messages are a textbook of what NOT to do in the rewrite: one engine Mutex holding the SQLite connection across file IO (one slow OneDrive hydration froze every command), a full index rebuild on every vault open (540 ms to 5 ms after the mtime scan), ~7 autocommit fsyncs per note during rebuild, TipTap re-rendering the whole shell on every transaction, decoration plugins rescanning the whole document per keystroke (16 ms per keystroke on a 2000-block doc, 191x after the fix), synchronous Tauri commands blocking the main thread (OAuth polling for 180 s, native dialogs deadlocking), watcher echo storms from the app's own writes, and a debounce window where an external change silently discarded typing. The pieces worth lifting nearly verbatim are small and well-tested: oauth.rs (PKCE S256 + loopback listener + refresh-token preservation, 479 lines with unit tests), secrets.rs (keyring, service "app.novalis"), vault/fs.rs (vault_rel/vault_note_rel path guards, write_atomic tmp+fsync+rename, is_cloud_placeholder size>0 && blocks==0, case-only rename handling), conflict/mod.rs (OneDrive/Dropbox conflict-copy regexes + keep original/conflict/both), watcher.rs (notify-debouncer 300 ms, generation counter, self-write suppression), settings.rs (atomic read-modify-write settings.json), engine.rs (poisoned-mutex recovery, CommandError kinds), index/schema.rs (disposable SQLite cache with user_version, WAL, FTS5 unicode61, incremental mtime scan), and the tauri-specta bindings pipeline with its CI drift gate. The docs worth carrying over are docs/decisions/0001-licensing.md (AGPL-3.0-only plus section-7 plugin and app-store exceptions, prospective only, contributor inbound grant in CONTRIBUTING.md, LibXDiff reasoning, trademark follow-up), the README no-telemetry stance with its per-feature outbound-connection table, RELEASING.md (tag -> draft release, release.yml reuses ci.yml via workflow_call as a gate, xa11y UI gate, build-provenance attestations, SHA256SUMS, cargo-vendor source tarball for GPL-2.0 section 3), deny.toml/.cargo/audit.toml/dependabot.yml patterns, and the i18n pipeline (i18next-parser --fail-on-update gate, catalog parity vitest, eslint-plugin-i18next, pseudo-locale). Two design points collide with the new brief and must be decided by the owner: the old Kanban wrote @status(...) annotations back INTO note lines (tasks/index.rs:506-540), whereas the brief demands Kanban content outside notes; and the old editor is a TipTap/ProseMirror WYSIWYG that cannot serve as a Sublime-like editor for arbitrary text file types, while its Markdown round-trip was a recurring data-loss source (table shredding, frontmatter scalar overwrite). Repo state: github.com/grundhofer/novalis is PUBLIC, default branch main = origin/main = a00edc7, protected by ruleset 20518201 (no deletion, no force-push, PR required, 4 required status checks, zero bypass actors), tags v0.1.0/v0.2.0 (MIT) and v0.2.1-rc2 on the remote, releases v0.2.0 (Latest) and v0.2.1-rc2 (pre-release, not draft), 18 remote branches, one unmerged fix branch (fix/oauth-client-id, 1 commit). The safest orphan procedure is: push legacy branch + non-v tag first, push the new tree as a non-default branch, switch the GitHub default branch (the ruleset follows ~DEFAULT_BRANCH), delete/rename, and edit the required-check names — details in the recommendations. I did not use web tools; every claim below is from files read or commands run locally, except items explicitly marked ASSUMED.
+The original novalis (/Users/sgrundhoefer/Projects/novalis-legacy, 466 commits on main from 2026-05-24 to 2026-08-16, all by the owner plus dependabot, 262 commits carrying Claude-Session trailers) grew from a notes+editor M1 into a 38k-line "beat Obsidian" program: AI (Anthropic/OpenAI/local ONNX embeddings, RAG, entity graph), voice capture with whisper.cpp, iroh P2P E2E sync, git sync via libgit2+vendored OpenSSL, calendar with Google/Outlook OAuth, Notion/ENEX import, docx/HTML export, PDF annotation, canvas, plugins, query engine, block refs, transclusion, mermaid, KaTeX, 34 feature flags, 4 locales. That is exactly why it got heavy: Cargo.lock has 910 crates (46 *-sys crates incl. whisper-rs-sys, ort-sys, libgit2-sys, openssl-src, iroh/quinn), pnpm-lock has 666 packages, the July release binary is 40 MB (18.8 MB dmg), and the current frontend dist eagerly loads 4.7 MB raw / 1.31 MB gzip because the 3.09 MB mermaid chunk and the 670 KB aiStore chunk are modulepreloaded despite the manualChunks intent. The git history contains a dense July-2026 perf campaign whose commit messages are a textbook of what NOT to do in the rewrite: one engine Mutex holding the SQLite connection across file IO (one slow OneDrive hydration froze every command), a full index rebuild on every vault open (540 ms to 5 ms after the mtime scan), ~7 autocommit fsyncs per note during rebuild, TipTap re-rendering the whole shell on every transaction, decoration plugins rescanning the whole document per keystroke (16 ms per keystroke on a 2000-block doc, 191x after the fix), synchronous Tauri commands blocking the main thread (OAuth polling for 180 s, native dialogs deadlocking), watcher echo storms from the app's own writes, and a debounce window where an external change silently discarded typing. The pieces worth lifting nearly verbatim are small and well-tested: oauth.rs (PKCE S256 + loopback listener + refresh-token preservation, 479 lines with unit tests), secrets.rs (keyring, service "app.novalis"), vault/fs.rs (vault_rel/vault_note_rel path guards, write_atomic tmp+fsync+rename, is_cloud_placeholder size>0 && blocks==0, case-only rename handling), conflict/mod.rs (OneDrive/Dropbox conflict-copy regexes + keep original/conflict/both), watcher.rs (notify-debouncer 300 ms, generation counter, self-write suppression), settings.rs (atomic read-modify-write settings.json), engine.rs (poisoned-mutex recovery, CommandError kinds), index/schema.rs (disposable SQLite cache with user_version, WAL, FTS5 unicode61, incremental mtime scan), and the tauri-specta bindings pipeline with its CI drift gate. The docs worth carrying over are docs/decisions/0001-licensing.md (AGPL-3.0-only plus section-7 plugin and app-store exceptions, prospective only, contributor inbound grant in CONTRIBUTING.md, LibXDiff reasoning, trademark follow-up), the README no-telemetry stance with its per-feature outbound-connection table, RELEASING.md (tag -> draft release, release.yml reuses ci.yml via workflow_call as a gate, xa11y UI gate, build-provenance attestations, SHA256SUMS, cargo-vendor source tarball for GPL-2.0 section 3), deny.toml/.cargo/audit.toml/dependabot.yml patterns, and the i18n pipeline (i18next-parser --fail-on-update gate, catalog parity vitest, eslint-plugin-i18next, pseudo-locale). Two design points collide with the new brief and must be decided by the owner: the old Kanban wrote @status(...) annotations back INTO note lines (tasks/index.rs:506-540), whereas the brief demands Kanban content outside notes; and the old editor is a TipTap/ProseMirror WYSIWYG that cannot serve as a Sublime-like editor for arbitrary text file types, while its Markdown round-trip was a recurring data-loss source (table shredding, frontmatter scalar overwrite). Repo state: github.com/grundhofer/novalis is PUBLIC, default branch main = origin/main = a00edc7, protected by ruleset 20518201 (no deletion, no force-push, PR required, 4 required status checks, zero bypass actors), tags v0.1.0/v0.2.0 (MIT) and v0.2.1-rc2 on the remote, releases v0.2.0 (Latest) and v0.2.1-rc2 (pre-release, not draft), 18 remote branches, one unmerged fix branch (fix/oauth-client-id, 1 commit). The safest orphan procedure is: push legacy branch + non-v tag first, push the new tree as a non-default branch, switch the GitHub default branch (the ruleset follows ~DEFAULT_BRANCH), delete/rename, and edit the required-check names — details in the recommendations. I did not use web tools; every claim below is from files read or commands run locally, except items explicitly marked ASSUMED.
 
 ## FINDINGS
 
 ### F1. Workspace shape and size of the original novalis  [verified]
 Cargo workspace (resolver 2) with 3 members: crates/novalis-core (28,206 LOC Rust, 22 modules), crates/novalis-extension (stub, 1 file), apps/desktop/src-tauri (11,183 LOC). pnpm workspace: apps/desktop, apps/desktop/frontend (34,396 LOC TS/TSX; 20,430 in 36 components; 5,599 in 15 zustand stores), packages/editor (5,482 LOC, TipTap 3.30), packages/ui (7-line stub exporting a constant). Version 0.2.1, AGPL-3.0-only, rust-version 1.93 pinned (rust-toolchain.toml) because specta 2.0.0-rc.25 uses core::fmt::from_fn. Release profile: panic=abort, codegen-units=1, lto=true, opt-level="s", strip=true. .cargo/config.toml forces MACOSX_DEPLOYMENT_TARGET=10.15 solely for whisper.cpp's std::filesystem.
-_evidence: /Users/sgrundhoefer/Projects/novalis/Cargo.toml, package.json, pnpm-workspace.yaml, rust-toolchain.toml, .cargo/config.toml; wc -l over crates/novalis-core/src, apps/desktop/src-tauri/src, apps/desktop/frontend/src, packages/*/src_
+_evidence: /Users/sgrundhoefer/Projects/novalis-legacy/Cargo.toml, package.json, pnpm-workspace.yaml, rust-toolchain.toml, .cargo/config.toml; wc -l over crates/novalis-core/src, apps/desktop/src-tauri/src, apps/desktop/frontend/src, packages/*/src_
 
 ### F2. Core crate module map with LOC (what exists, what to drop)  [verified]
 index/ 7,978 (blocks 456, entities 1,159, events 320, links 698, properties 740, query 1,583 = AST+parser+SQL compiler, schema 209, search 1,132, vectors 1,606 HNSW); git/ 2,439; vault/ 2,229 (fs 940, frontmatter 482, config 371, canvas 367, stats 61); tasks/ 2,054 (index 1,091, service 710, nldate 223); models/ 1,997 (preferences 763!, note 268, ai 350); ai/ 1,619 (rag, sse, action); sync/ 1,581 (P2P crypto/manifest/protocol/ticket); import/ 1,480 (notion, enex); notes/ 1,424; calendar/ 1,153; review 457; trash 434; pdf 429; export 389 (docx/HTML); versions 382; plugins 363; conflict 360; templates 193; change 117; media 82; tour.rs 459; help_demo.rs 485. For the rewrite's scope (notes + text editor + kanban + cloud-folder sync) only vault/fs, vault/frontmatter, vault/config (simplified), index/schema+search (simplified), change, conflict, trash, notes (simplified), versions (optional) are relevant: roughly 4,500 of 28,206 lines.
@@ -145,7 +145,7 @@ _rejected: Sidecar per note (.md.kanban.json) — scatters state across the tree
 Option A is fully covered by lifted, tested code; option B has zero prior art in the old repo and carries unverified external constraints (Google OAuth app verification for Drive scopes, Microsoft app registration, token lifetimes) that I could not check without web tools.
 _rejected: Building option B first: highest risk, no reusable code beyond the PKCE loopback, and the brief says 'if possible'._
 
-### R6. Safest git procedure for 'replace forever' while preserving history. Preconditions: `cd /Users/sgrundhoefer/Projects/novalis && git fetch --prune origin && git status` (clean; main == origin/main == a00edc7). Decide first whether to merge fix/oauth-client-id (8bb0ae5) into main via PR so legacy carries the last fix. Step 1 preserve: `git branch legacy main && git push origin legacy` and `git tag -a legacy-final -m "Last commit of the original Tauri/React/TipTap novalis before the rewrite" a00edc7 && git push origin legacy-final` (tag name deliberately does NOT match v*.*.* so release.yml does not fire). Optionally add a second ruleset on `legacy` with only deletion + non_fast_forward. Step 2 new history: in /Users/sgrundhoefer/Projects/novalisNeo run `git init -b main`, commit the scaffold, `git remote add origin git@github.com:grundhofer/novalis.git`, `git push -u origin main:rewrite` (a new non-default branch; the ruleset only targets the default branch, so this push is allowed). Step 3 switch default: `gh api -X PATCH repos/grundhofer/novalis -f default_branch=rewrite`; the ruleset follows ~DEFAULT_BRANCH, so protection now covers rewrite and old main becomes unprotected. Step 4 retire old main: `git push origin --delete main` (allowed now), then rename: `gh api -X POST repos/grundhofer/novalis/branches/rewrite/rename -f new_name=main` (GitHub rename retargets open PRs and keeps it as default). Locally: `git branch -m main` if needed, `git fetch --prune`, `git branch -u origin/main`. Step 5 ruleset: edit ruleset 20518201 so required_status_checks name the NEW CI job names (or temporarily remove that rule) — otherwise the first PR into the new main can never merge. Step 6 workflows: the old cron in ci.yml and dependabot.yml stop automatically because schedules read only the default branch; close the 4 open dependabot PRs and the stale PRs; release.yml only runs if the tag's tree contains it, so the orphan tree is safe until a new release.yml is added. Step 7 leave tags v0.1.0/v0.2.0/v0.2.1-rc2 and both releases untouched (assets and the MIT grant reference them); optionally edit the v0.2.0 release notes to point at `legacy`. Step 8 cleanup: delete stale remote branches (deps/tiptap-3, fix/*, test/*, spike/*, investigate/*, release/v0.2.1-rc1, chore/release-hygiene) only AFTER legacy-final is pushed, since all are contained in or superseded by main; delete local worktree-agent-*, pr20*, tier4-wave1; keep planC-capture only if the quick-capture UI is wanted. Step 9 hygiene in the new repo: no Claude-Session trailers, .claude/ and docs/plans/ scratch in .gitignore, copy docs/decisions/ as tracked ADRs.
+### R6. Safest git procedure for 'replace forever' while preserving history. Preconditions: `cd /Users/sgrundhoefer/Projects/novalis-legacy && git fetch --prune origin && git status` (clean; main == origin/main == a00edc7). Decide first whether to merge fix/oauth-client-id (8bb0ae5) into main via PR so legacy carries the last fix. Step 1 preserve: `git branch legacy main && git push origin legacy` and `git tag -a legacy-final -m "Last commit of the original Tauri/React/TipTap novalis before the rewrite" a00edc7 && git push origin legacy-final` (tag name deliberately does NOT match v*.*.* so release.yml does not fire). Optionally add a second ruleset on `legacy` with only deletion + non_fast_forward. Step 2 new history: in /Users/sgrundhoefer/Projects/novalis run `git init -b main`, commit the scaffold, `git remote add origin git@github.com:grundhofer/novalis.git`, `git push -u origin main:rewrite` (a new non-default branch; the ruleset only targets the default branch, so this push is allowed). Step 3 switch default: `gh api -X PATCH repos/grundhofer/novalis -f default_branch=rewrite`; the ruleset follows ~DEFAULT_BRANCH, so protection now covers rewrite and old main becomes unprotected. Step 4 retire old main: `git push origin --delete main` (allowed now), then rename: `gh api -X POST repos/grundhofer/novalis/branches/rewrite/rename -f new_name=main` (GitHub rename retargets open PRs and keeps it as default). Locally: `git branch -m main` if needed, `git fetch --prune`, `git branch -u origin/main`. Step 5 ruleset: edit ruleset 20518201 so required_status_checks name the NEW CI job names (or temporarily remove that rule) — otherwise the first PR into the new main can never merge. Step 6 workflows: the old cron in ci.yml and dependabot.yml stop automatically because schedules read only the default branch; close the 4 open dependabot PRs and the stale PRs; release.yml only runs if the tag's tree contains it, so the orphan tree is safe until a new release.yml is added. Step 7 leave tags v0.1.0/v0.2.0/v0.2.1-rc2 and both releases untouched (assets and the MIT grant reference them); optionally edit the v0.2.0 release notes to point at `legacy`. Step 8 cleanup: delete stale remote branches (deps/tiptap-3, fix/*, test/*, spike/*, investigate/*, release/v0.2.1-rc1, chore/release-hygiene) only AFTER legacy-final is pushed, since all are contained in or superseded by main; delete local worktree-agent-*, pr20*, tier4-wave1; keep planC-capture only if the quick-capture UI is wanted. Step 9 hygiene in the new repo: no Claude-Session trailers, .claude/ and docs/plans/ scratch in .gitignore, copy docs/decisions/ as tracked ADRs.
 Ruleset 20518201 has no bypass actors and forbids non-fast-forward and deletion on the default branch, so a direct `push --force` to main is rejected; moving the default branch first is the only path that never disables protection, and pushing legacy + a non-release tag first makes every later step reversible.
 _rejected: (a) `git switch --orphan` inside the old checkout then force-push to main: blocked by the ruleset unless it is edited or a bypass actor is added — workable but leaves a window with no protection. (b) A brand-new repository: loses the public URL, stars, the two published releases and the MIT/AGPL provenance chain that ADR 0001 relies on. (c) Deleting old tags/releases: irrevocable loss of the MIT-era artifacts and the attestations._
 
@@ -176,80 +176,80 @@ _rejected: Monaco: heavier than the brief's 'minimal' allows (ASSUMED, not measu
 - Commit-message policy for the new repo (the old one carries claude.ai session trailers in 262 of 466 commits).
 
 ## SOURCES
-- /Users/sgrundhoefer/Projects/novalis/Cargo.toml
-- /Users/sgrundhoefer/Projects/novalis/Cargo.lock
-- /Users/sgrundhoefer/Projects/novalis/package.json
-- /Users/sgrundhoefer/Projects/novalis/pnpm-workspace.yaml
-- /Users/sgrundhoefer/Projects/novalis/pnpm-lock.yaml
-- /Users/sgrundhoefer/Projects/novalis/rust-toolchain.toml
-- /Users/sgrundhoefer/Projects/novalis/.cargo/config.toml
-- /Users/sgrundhoefer/Projects/novalis/.cargo/audit.toml
-- /Users/sgrundhoefer/Projects/novalis/deny.toml
-- /Users/sgrundhoefer/Projects/novalis/.gitignore
-- /Users/sgrundhoefer/Projects/novalis/README.md
-- /Users/sgrundhoefer/Projects/novalis/RELEASING.md
-- /Users/sgrundhoefer/Projects/novalis/COMMERCIAL-LICENSE.md
-- /Users/sgrundhoefer/Projects/novalis/THIRD-PARTY-NOTICES.md
-- /Users/sgrundhoefer/Projects/novalis/MOBILE.md
-- /Users/sgrundhoefer/Projects/novalis/docs/decisions/0001-licensing.md
-- /Users/sgrundhoefer/Projects/novalis/docs/plans/PUBLIC_RELEASE_ROADMAP.md (untracked)
-- /Users/sgrundhoefer/Projects/novalis/docs/plans/AUDIT_FINDINGS.md (untracked)
-- /Users/sgrundhoefer/Projects/novalis/docs/plans/DEPENDENCY-BACKLOG.md (untracked)
-- /Users/sgrundhoefer/Projects/novalis/docs/plans/GIT_SYNC_SPIKE.md (untracked)
-- /Users/sgrundhoefer/Projects/novalis/docs/plans/TIER1_PLAN.md .. TIER4_PLAN.md (untracked)
-- /Users/sgrundhoefer/Projects/novalis/.github/workflows/ci.yml
-- /Users/sgrundhoefer/Projects/novalis/.github/workflows/release.yml
-- /Users/sgrundhoefer/Projects/novalis/.github/workflows/e2e.yml
-- /Users/sgrundhoefer/Projects/novalis/.github/dependabot.yml
-- /Users/sgrundhoefer/Projects/novalis/e2e/README.md
-- /Users/sgrundhoefer/Projects/novalis/e2e/package.json
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/Cargo.toml
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/lib.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/vault/fs.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/vault/frontmatter.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/vault/config.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/conflict/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/change/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/trash/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/versions/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/notes/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/index/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/index/schema.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/index/search.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/models/note.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/models/preferences.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/models/task.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/tasks/mod.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/tasks/index.rs
-- /Users/sgrundhoefer/Projects/novalis/crates/novalis-core/src/tasks/service.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/Cargo.toml
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/tauri.conf.json
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/capabilities/default.json
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/lib.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/main.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/commands.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/engine.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/oauth.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/secrets.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/settings.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/watcher.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/bg.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/src/autocommit.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/src-tauri/examples/gen_bindings.rs
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/package.json
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/package.json
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/vite.config.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/lib/i18n.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/locales/README.md
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/ipc/api.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/ipc/bindings.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/stores/vaultStore.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/src/stores/settingsStore.ts
-- /Users/sgrundhoefer/Projects/novalis/apps/desktop/frontend/dist/index.html and dist/assets (built 2026-09-04)
-- /Users/sgrundhoefer/Projects/novalis/packages/editor/package.json
-- /Users/sgrundhoefer/Projects/novalis/packages/ui/package.json
-- /Users/sgrundhoefer/Projects/novalis/packages/ui/src/index.ts
-- /Users/sgrundhoefer/Projects/novalis/target/release/novalis-desktop and target/release/bundle/dmg/Novalis_0.2.0_aarch64.dmg (built 2026-07-13)
+- /Users/sgrundhoefer/Projects/novalis-legacy/Cargo.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/Cargo.lock
+- /Users/sgrundhoefer/Projects/novalis-legacy/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/pnpm-workspace.yaml
+- /Users/sgrundhoefer/Projects/novalis-legacy/pnpm-lock.yaml
+- /Users/sgrundhoefer/Projects/novalis-legacy/rust-toolchain.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.cargo/config.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.cargo/audit.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/deny.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.gitignore
+- /Users/sgrundhoefer/Projects/novalis-legacy/README.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/RELEASING.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/COMMERCIAL-LICENSE.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/THIRD-PARTY-NOTICES.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/MOBILE.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/decisions/0001-licensing.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/plans/PUBLIC_RELEASE_ROADMAP.md (untracked)
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/plans/AUDIT_FINDINGS.md (untracked)
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/plans/DEPENDENCY-BACKLOG.md (untracked)
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/plans/GIT_SYNC_SPIKE.md (untracked)
+- /Users/sgrundhoefer/Projects/novalis-legacy/docs/plans/TIER1_PLAN.md .. TIER4_PLAN.md (untracked)
+- /Users/sgrundhoefer/Projects/novalis-legacy/.github/workflows/ci.yml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.github/workflows/release.yml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.github/workflows/e2e.yml
+- /Users/sgrundhoefer/Projects/novalis-legacy/.github/dependabot.yml
+- /Users/sgrundhoefer/Projects/novalis-legacy/e2e/README.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/e2e/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/Cargo.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/lib.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/vault/fs.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/vault/frontmatter.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/vault/config.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/conflict/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/change/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/trash/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/versions/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/notes/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/index/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/index/schema.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/index/search.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/models/note.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/models/preferences.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/models/task.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/tasks/mod.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/tasks/index.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/crates/novalis-core/src/tasks/service.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/Cargo.toml
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/tauri.conf.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/capabilities/default.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/lib.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/main.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/commands.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/engine.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/oauth.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/secrets.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/settings.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/watcher.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/bg.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/src/autocommit.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/src-tauri/examples/gen_bindings.rs
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/vite.config.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/lib/i18n.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/locales/README.md
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/ipc/api.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/ipc/bindings.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/stores/vaultStore.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/src/stores/settingsStore.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/apps/desktop/frontend/dist/index.html and dist/assets (built 2026-09-04)
+- /Users/sgrundhoefer/Projects/novalis-legacy/packages/editor/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/packages/ui/package.json
+- /Users/sgrundhoefer/Projects/novalis-legacy/packages/ui/src/index.ts
+- /Users/sgrundhoefer/Projects/novalis-legacy/target/release/novalis-desktop and target/release/bundle/dmg/Novalis_0.2.0_aarch64.dmg (built 2026-07-13)
 - git log --oneline --all -i --grep=perf --grep=slow --grep=lag --grep=freeze --grep=hang --grep=jank --grep=startup (148 lines, saved to scratchpad/perf-commits.txt)
 - git show --stat d701aee 8cab4c5 e3d73f3 e9ff345 db96d61 004c8a5 d7d7406 a8b21ce 0689877 9ecb05d 0c5c3fd 70aeb81 fcfb2d9 cde9da7 0485215 0b696fc 2d9fb96 d1ef53a
 - gh repo view grundhofer/novalis --json ...; gh api repos/grundhofer/novalis/rulesets and /rulesets/20518201; gh release list --json

@@ -27,8 +27,8 @@
 set -euo pipefail
 
 REPO=grundhofer/novalis
-NEO=/Users/sgrundhoefer/Projects/novalisNeo
-OLD=/Users/sgrundhoefer/Projects/novalis
+NEO=/Users/sgrundhoefer/Projects/novalis
+OLD=/Users/sgrundhoefer/Projects/novalis-legacy
 WORK=$(mktemp -d /tmp/novalis-cutover.XXXXXX)
 RULESET_MAIN=20518201
 OLD_MAIN_SHA=a00edc75a12b789952272b70e2b27f3df51230b7

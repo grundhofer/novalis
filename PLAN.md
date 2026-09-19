@@ -741,7 +741,7 @@ gh api -X POST repos/grundhofer/novalis/rulesets --input legacy-ruleset.json
 # 3. empty branch (local main renamed first), scaffold WITH ci.yml, push as the new main (non-default now: allowed)
 git fetch --prune origin && git branch -m main legacy && git branch -u origin/legacy
 git switch --orphan main && git clean -fdx
-# … copy the scaffold from /Users/sgrundhoefer/Projects/novalisNeo (CLAUDE.md justfile README.md LICENSE docs/ .github/ …) …
+# … copy the scaffold from /Users/sgrundhoefer/Projects/novalis (CLAUDE.md justfile README.md LICENSE docs/ .github/ …) …
 git add -A && git commit -m 'chore: start the novalis rewrite on an empty tree'
 git push -u origin main
 #    wait for the ci.yml run on main to be green: jobs "check (macos-latest)", "check (ubuntu-latest)", "audit"
@@ -762,12 +762,12 @@ git push origin --delete release/v0.2.1-rc1 spike/e2e-xa11y test/math-rendering 
   fix/notion-asset-lookup fix/release-macos-arm64 fix/save-path-data-loss fix/table-cell-blocks investigate/webkitgtk-atspi \
   chore/release-hygiene deps/tiptap-3
 
-# 8. old checkout: keep /Users/sgrundhoefer/Projects/novalis as the legacy working copy
-cd /Users/sgrundhoefer/Projects/novalis && git fetch --prune && git branch -m main legacy && git branch -u origin/legacy
+# 8. old checkout: keep /Users/sgrundhoefer/Projects/novalis-legacy as the legacy working copy
+cd /Users/sgrundhoefer/Projects/novalis-legacy && git fetch --prune && git branch -m main legacy && git branch -u origin/legacy
 #    delete local worktree-agent-*, pr20, pr20fresh, tier4-wave1; keep planC-capture only if quick-capture is wanted
 ```
 
-Protection stays active for everyone except the owner for the roughly ten minutes between steps 1b and 5. From step 4 on every change to `main` is a PR gated by the two runner jobs. The rewrite's working copy is `/Users/sgrundhoefer/Projects/novalisNeo`, re-pointed at the repo after step 4. Hygiene: no session trailers; `.claude/` and `docs/plans/` ignored; `docs/decisions/` tracked.
+Protection stays active for everyone except the owner for the roughly ten minutes between steps 1b and 5. From step 4 on every change to `main` is a PR gated by the two runner jobs. The rewrite's working copy is `/Users/sgrundhoefer/Projects/novalis`, re-pointed at the repo after step 4. Hygiene: no session trailers; `.claude/` and `docs/plans/` ignored; `docs/decisions/` tracked.
 
 ---
 
