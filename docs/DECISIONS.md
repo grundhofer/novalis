@@ -535,6 +535,19 @@ the notes name the unrun rows; the old releases and tags deleted, source on
 carries the meaning the checklist gate carried: not yet verified on every
 sync path, contract not yet frozen. No ADR: nothing is added to the product.
 
+## Answered 2026-09-19
+
+Of the Homebrew tap PLAN.md §4.5 had left optional, after the explanation
+that a tap has to be its own repository:
+
+> nein, ich will so ein homebrew repo.
+
+Created the same day as `grundhofer/homebrew-novalis`: `Casks/novalis.rb`
+for the app and `Formula/novalis-cli.rb` for the CLI, both following
+pre-releases; `docs/RELEASING.md` "Homebrew tap" has the per-release steps.
+No ADR: a distribution channel outside the app, no change to the product,
+no outbound connection from it (ADR-0002 stands: the app checks nothing).
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
