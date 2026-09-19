@@ -134,10 +134,35 @@ Never tell users to disable Gatekeeper globally.
 (paste the block above)
 ```
 
-## Homebrew tap (optional)
+## Homebrew tap
 
-`grundhofer/homebrew-novalis` carries `Casks/novalis.rb` with a `binary` stanza
-for the CLI. Update `version` and `sha256` from `SHA256SUMS` after publishing.
+`grundhofer/homebrew-novalis` (created 2026-09-19 at the owner's word: "nein,
+ich will so ein homebrew repo") carries two files, because a cask has one
+`url` and the app and the CLI are two release assets:
+
+- `Casks/novalis.rb` — the app, from the DMG. `version` and the DMG's
+  `sha256` change per release.
+- `Formula/novalis-cli.rb` — the `novalis` binary, from the CLI tarball. The
+  version sits in the `url`, the tarball's `sha256` beside it.
+
+Both take their checksums from the release's **published** `SHA256SUMS`, not
+from a local run's: a re-run of `release.yml` rebuilds the tarballs with new
+timestamps and new digests (the first tap commit had the first run's CLI
+digest and failed `brew fetch`). Both carry a `livecheck` block that keeps
+pre-releases, since Homebrew's `github_releases` strategy drops them by
+default and there is nothing else before 1.0.0. `brew audit --cask` reports
+"is a GitHub pre-release" for the same reason; that is the main tap's rule,
+not a defect here.
+
+After publishing a release:
+
+```sh
+brew tap grundhofer/novalis   # once
+# edit the two files, then
+brew style --cask grundhofer/novalis/novalis && brew style grundhofer/novalis/novalis-cli
+brew fetch --cask grundhofer/novalis/novalis && brew fetch grundhofer/novalis/novalis-cli
+```
+
 The main `homebrew/cask` tap is not used: it rejects un-notarized artefacts and
 applies notability criteria this repository does not meet (verified, ADR-0002).
 
