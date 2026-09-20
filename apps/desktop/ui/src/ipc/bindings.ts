@@ -278,6 +278,12 @@ export type BootstrapDto = {
 	 *  resolved here so the UI and the native menu agree.
 	 */
 	locale: string,
+	/**
+	 *  The value of `NOVALIS_PERF`, when set: the UI runs its keystroke
+	 *  probe (`1`) or a self-typing burst (`type:<n>`) and prints the
+	 *  PLAN.md §11.3 numbers to the console (`ui/src/lib/perf.ts`).
+	 */
+	perf: string | null,
 };
 
 /**

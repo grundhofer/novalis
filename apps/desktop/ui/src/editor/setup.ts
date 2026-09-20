@@ -48,7 +48,8 @@ import { Tag, WikiLink } from "./markdownExt";
  */
 
 export interface EditorHooks {
-  onChange: (text: string) => void;
+  /** The buffer changed. No text: the store reads it once, when it needs it. */
+  onChange: () => void;
   onFollowLink: (target: string) => void;
   onSave: () => void;
   /** Every note in the vault, for `[[` completion. */
@@ -176,7 +177,7 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
       { key: "Mod-s", run: () => (hooks.onSave(), true) },
     ]),
     EditorView.updateListener.of((update) => {
-      if (update.docChanged) hooks.onChange(update.state.doc.toString());
+      if (update.docChanged) hooks.onChange();
     }),
     EditorView.editable.of(!hooks.readOnly),
     EditorState.readOnly.of(hooks.readOnly),

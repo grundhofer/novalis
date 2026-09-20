@@ -30,6 +30,16 @@ import { useVault } from "./vault";
  *
  * `Cmd+W` and `Cmd+Q` never block and never lose text (D19): closing flushes,
  * and a refused save always has a destination.
+ *
+ * The live document is CodeMirror's; `Doc.text` mirrors it *lazily*.
+ * Materialising the buffer on every keystroke cost 3–5 ms in a 1 MB note and
+ * 18–30 ms at 5 MB against the 8/16 ms budget (measured 2026-09-20, ADR-0022
+ * F7), so the editor only says *that* the buffer changed (`touch`) and hands
+ * over a reader (`attach`). Whoever needs the text — a save, the merge, the
+ * counts, a completion — calls `flush` first, which reads the buffer once.
+ * `pending` holds the paths whose buffer is ahead of the mirror; every place
+ * that replaces the mirror from disk clears it, so a view about to be rebuilt
+ * cannot write its stale buffer over the fresh text on its way out.
  */
 
 /** PLAN.md §4.2. */
@@ -46,7 +56,7 @@ export type Banner =
 
 export interface Doc {
   path: string;
-  /** The buffer. CodeMirror owns the live document; this mirrors it. */
+  /** The buffer as of the last `flush`; CodeMirror owns the live document. */
   text: string;
   /** The text of our last successful write — the base for the merge. */
   savedText: string;
@@ -70,6 +80,15 @@ interface EditorSaveState {
   open: (path: string) => Promise<Doc>;
   close: (path: string) => Promise<void>;
   rename: (from: string, to: string) => void;
+  /** Register the live buffer's reader once the editor is mounted. */
+  attach: (path: string, read: () => string) => void;
+  /** Forget the reader — after a `flush`, since the buffer is about to go. */
+  detach: (path: string, read: () => string) => void;
+  /** The buffer changed: dirty, autosave clock restarted, no text read. */
+  touch: (path: string) => void;
+  /** Bring the mirror up to date with the buffer; the text, or undefined for a path not open. */
+  flush: (path: string) => string | undefined;
+  /** Replace the mirror outright — the preview's edits, while no editor is mounted for the path. */
   setText: (path: string, text: string) => void;
   save: (path: string) => Promise<void>;
   flushAll: () => Promise<void>;
@@ -82,6 +101,8 @@ interface EditorSaveState {
 }
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const readers = new Map<string, () => string>();
+const pending = new Set<string>();
 
 function cancelTimer(path: string): void {
   const timer = timers.get(path);
@@ -89,6 +110,18 @@ function cancelTimer(path: string): void {
     clearTimeout(timer);
     timers.delete(path);
   }
+}
+
+/** Autosave `AUTOSAVE_MS` after the last change (PLAN.md §4.2). */
+function armAutosave(path: string, save: (path: string) => Promise<void>): void {
+  cancelTimer(path);
+  timers.set(
+    path,
+    setTimeout(() => {
+      timers.delete(path);
+      void save(path).catch(report);
+    }, AUTOSAVE_MS),
+  );
 }
 
 function docFromFile(file: FileDto): Doc {
@@ -154,6 +187,8 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
   close: async (path) => {
     await get().save(path);
     cancelTimer(path);
+    // The save flushed; this only keeps a mark from outliving its doc.
+    pending.delete(path);
     set((s) => {
       const docs = { ...s.docs };
       delete docs[path];
@@ -162,15 +197,23 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
   },
 
   rename: (from, to) => {
-    const doc = get().docs[from];
-    if (!doc || from === to) return;
+    if (from === to || !get().docs[from]) return;
     // The map is keyed by path, so a rename has to re-key it or the pane reads
-    // `docs[to]`, finds nothing and falls through to the empty state. Both
-    // callers save before renaming, so dropping the pending autosave — which
-    // is keyed by the old path and would write a file that no longer exists —
-    // loses nothing.
+    // `docs[to]`, finds nothing and falls through to the empty state. The
+    // command path saves before renaming; the watcher path (a rename by the
+    // CLI, the Finder or the sync client under an open note) does not, and
+    // the view for `from` is still alive here — so the buffer is read now,
+    // and the re-keyed doc carries it. Dropping the pending autosave, keyed
+    // by the old path and aimed at a file that no longer exists, loses
+    // nothing. The editor is rebuilt under the new path and attaches again;
+    // the old key's reader and pending mark go with the old key.
+    get().flush(from);
     cancelTimer(from);
+    pending.delete(from);
+    readers.delete(from);
     set((s) => {
+      const doc = s.docs[from];
+      if (!doc) return s;
       const docs = { ...s.docs };
       delete docs[from];
       docs[to] = {
@@ -184,22 +227,48 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     });
   },
 
+  attach: (path, read) => {
+    readers.set(path, read);
+  },
+
+  detach: (path, read) => {
+    if (readers.get(path) === read) readers.delete(path);
+  },
+
+  touch: (path) => {
+    const doc = get().docs[path];
+    if (!doc || doc.readOnly) return;
+    pending.add(path);
+    // The first keystroke flips the dirty dot; the rest change nothing here.
+    if (!doc.dirty) set((s) => ({ docs: { ...s.docs, [path]: { ...doc, dirty: true } } }));
+    armAutosave(path, get().save);
+  },
+
+  flush: (path) => {
+    const doc = get().docs[path];
+    if (!doc) return undefined;
+    const read = readers.get(path);
+    if (!read || !pending.has(path)) return doc.text;
+    pending.delete(path);
+    const text = read();
+    if (text === doc.text) return text;
+    set((s) => {
+      const current = s.docs[path];
+      return current ? { docs: { ...s.docs, [path]: { ...current, text } } } : s;
+    });
+    return text;
+  },
+
   setText: (path, text) => {
     const doc = get().docs[path];
     if (!doc || doc.readOnly || doc.text === text) return;
     set((s) => ({ docs: { ...s.docs, [path]: { ...doc, text, dirty: true } } }));
-    cancelTimer(path);
-    timers.set(
-      path,
-      setTimeout(() => {
-        timers.delete(path);
-        void get().save(path).catch(report);
-      }, AUTOSAVE_MS),
-    );
+    armAutosave(path, get().save);
   },
 
   save: async (path) => {
     cancelTimer(path);
+    get().flush(path);
     const doc = get().docs[path];
     if (!doc || !doc.dirty || doc.readOnly || doc.saving) return;
     const text = doc.text;
@@ -214,6 +283,11 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
       // its "Modified" column kept the time the note was opened. The conflict
       // copy is a row of its own while the autosaves go there.
       useVault.getState().touch(doc.writePath, precondition);
+      // Typing during the write leaves the buffer ahead of what was written:
+      // the doc stays dirty and the clock is re-armed, because the tick that
+      // fired meanwhile found `saving` and left. (Before the lazy mirror this
+      // window silently waited for the next keystroke.)
+      const latest = get().flush(path) ?? text;
       set((s) => {
         const current = s.docs[path];
         if (!current) return s;
@@ -224,7 +298,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
               ...current,
               saving: false,
               savedText: text,
-              dirty: current.text !== text,
+              dirty: latest !== text,
               precondition: current.writePath === current.path ? precondition : current.precondition,
               lastWriteHash:
                 current.writePath === current.path ? precondition.hash : current.lastWriteHash,
@@ -232,6 +306,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
           },
         };
       });
+      if (latest !== text && get().docs[path]) armAutosave(path, get().save);
     } catch (error) {
       if (!isConflict(error) || doc.writePath !== doc.path) {
         set((s) => {
@@ -243,6 +318,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
       // §5.3 step 3: the buffer goes to a conflict copy immediately and keeps
       // autosaving there. Nothing is lost and nothing is clobbered.
       const copy = await unwrap(commands.writeConflictCopy(path, text));
+      const latest = get().flush(path) ?? text;
       set((s) => {
         const current = s.docs[path];
         if (!current) return s;
@@ -252,7 +328,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
             [path]: {
               ...current,
               saving: false,
-              dirty: false,
+              dirty: latest !== text,
               savedText: text,
               writePath: copy,
               banner: { kind: "changedOnDisk" },
@@ -260,6 +336,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
           },
         };
       });
+      if (latest !== text && get().docs[path]) armAutosave(path, get().save);
     }
   },
 
@@ -268,6 +345,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
   },
 
   externalChange: async (path) => {
+    get().flush(path);
     const doc = get().docs[path];
     // While a conflict copy is active the target is frozen until the banner is
     // resolved; more disk changes do not change that.
@@ -286,6 +364,8 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
       }
       set((s) => {
         const current = s.docs[path];
+        // A keystroke during the read made it dirty: the banner path, not
+        // a silent replace (and `pending` is only ever set with `dirty`).
         if (!current || current.dirty) return s;
         return {
           docs: {
@@ -314,7 +394,11 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     }
 
     const file = await unwrap(commands.readFile(path));
-    const merged = mergeLinkRewrite(doc.savedText, file.text, doc.text);
+    // The read took time; merge against what the buffer holds now. The
+    // flush leaves nothing pending, and nothing can type between here and
+    // the replace below, so the view rebuilt for it cannot undo it.
+    const buffer = get().flush(path) ?? doc.text;
+    const merged = mergeLinkRewrite(doc.savedText, file.text, buffer);
     set((s) => {
       const current = s.docs[path];
       if (!current) return s;
@@ -348,6 +432,9 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     // Reload discards the conflict copy: the user chose the disk version.
     if (doc.writePath !== doc.path) await unwrap(commands.trash(doc.writePath));
     const file = await unwrap(commands.readFile(path));
+    // The user chose the disk version; whatever the buffer holds goes with
+    // the view that is about to be rebuilt.
+    pending.delete(path);
     set((s) => {
       const current = s.docs[path];
       if (!current) return s;
@@ -364,6 +451,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
   },
 
   keepMine: async (path, vaultKind) => {
+    get().flush(path);
     const doc = get().docs[path];
     if (!doc) return;
     // In a vault that is not in a cloud folder there is no vendor version
@@ -378,6 +466,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     const precondition = await unwrap(commands.writeFile(path, doc.text, null));
     useVault.getState().touch(path, precondition);
     if (doc.writePath !== doc.path) await unwrap(commands.trash(doc.writePath));
+    const latest = get().flush(path) ?? doc.text;
     set((s) => {
       const current = s.docs[path];
       if (!current) return s;
@@ -389,16 +478,18 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
             writePath: path,
             precondition,
             lastWriteHash: precondition.hash,
-            savedText: current.text,
-            dirty: false,
+            savedText: doc.text,
+            dirty: latest !== doc.text,
             banner: null,
           },
         },
       };
     });
+    if (latest !== doc.text && get().docs[path]) armAutosave(path, get().save);
   },
 
   keepBoth: async (path) => {
+    get().flush(path);
     const doc = get().docs[path];
     if (!doc) return path;
     const copy =
@@ -407,6 +498,7 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
         : doc.writePath;
     // The tab follows the copy: that is the text the user is editing.
     const file = await unwrap(commands.readFile(copy));
+    pending.delete(path);
     set((s) => {
       const docs = { ...s.docs };
       delete docs[path];

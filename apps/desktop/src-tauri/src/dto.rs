@@ -689,6 +689,10 @@ pub struct BootstrapDto {
     /// The resolved UI language (`de` or `en`) — `language: system` is
     /// resolved here so the UI and the native menu agree.
     pub locale: String,
+    /// The value of `NOVALIS_PERF`, when set: the UI runs its keystroke
+    /// probe (`1`) or a self-typing burst (`type:<n>`) and prints the
+    /// PLAN.md §11.3 numbers to the console (`ui/src/lib/perf.ts`).
+    pub perf: Option<String>,
 }
 
 /// The result of opening a different vault: the same two fields `bootstrap`

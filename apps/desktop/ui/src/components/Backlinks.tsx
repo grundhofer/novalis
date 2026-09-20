@@ -30,7 +30,7 @@ import "../styles/backlinks.css";
  */
 function openAt(path: string, target: LineTarget): void {
   if (useTabs.getState().active === path) {
-    const line = resolveLine(useEditorSave.getState().docs[path]?.text ?? "", target);
+    const line = resolveLine(useEditorSave.getState().flush(path) ?? "", target);
     if (previewMounted()) goToPreviewLine(line);
     else goToEditorLine(line);
     return;

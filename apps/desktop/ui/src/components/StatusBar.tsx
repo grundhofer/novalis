@@ -6,7 +6,21 @@ import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { cloudCounts, useVault } from "../stores/vault";
 
-/** Words · characters · position · cloud state (PLAN.md §5.3). */
+/** The word count of the mirror; never split in plain mode (ADR-0022 F7). */
+export function countWords(text: string | undefined, plainMode: boolean): number {
+  if (text === undefined || plainMode) return 0;
+  const trimmed = text.trim();
+  return trimmed ? trimmed.split(/\s+/u).length : 0;
+}
+
+/**
+ * Words · characters · position · cloud state (PLAN.md §5.3).
+ *
+ * The counts follow the mirror, which the autosave tick refreshes — not the
+ * keystroke (ADR-0022 F7): splitting a 5 MB buffer into words on every key
+ * was most of what a keystroke cost. In plain mode (≥ 5 MB) words are not
+ * counted at all; characters are the string's length, free.
+ */
 export default function StatusBar() {
   const { t } = useTranslation();
   const active = useTabs((s) => s.active);
@@ -15,11 +29,9 @@ export default function StatusBar() {
   const children = useVault((s) => s.children);
   const counts = useMemo(() => cloudCounts(children), [children]);
 
-  const words = useMemo(() => {
-    if (!doc) return 0;
-    const trimmed = doc.text.trim();
-    return trimmed ? trimmed.split(/\s+/u).length : 0;
-  }, [doc]);
+  const text = doc?.text;
+  const plainMode = doc?.plainMode ?? false;
+  const words = useMemo(() => countWords(text, plainMode), [text, plainMode]);
 
   const copy = active ? useEditorSave.getState().conflictCopyPath(active) : null;
 
@@ -27,7 +39,7 @@ export default function StatusBar() {
     <footer className="statusbar">
       {doc && (
         <>
-          <span className="status-item">{t("status.words", { count: words })}</span>
+          {!doc.plainMode && <span className="status-item">{t("status.words", { count: words })}</span>}
           <span className="status-item">{t("status.characters", { count: doc.text.length })}</span>
           {doc.readOnly && <span className="status-item">{t("status.readOnly")}</span>}
           {doc.plainMode && <span className="status-item">{t("status.plainMode")}</span>}
