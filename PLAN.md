@@ -161,7 +161,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | CLI `init <dir>` (writes `.novalis/vault.json`) | cli | yes | Enables vault discovery by walking up from cwd |
 | CLI `help --json` and `skill --path` | cli | yes | Agent self-discovery |
 | CLI `doctor --fix` | cli | no (doctor stays read-only) | |
-| "Install command-line tool" menu item (symlinks the bundled `novalis` into `/usr/local/bin`) | review | yes | Otherwise agents have no `novalis` on PATH |
+| "Install command-line tool" menu item (symlinks the bundled `novalis` into `/usr/local/bin`) | review | ~~yes~~ struck 2026-09-20: `brew install grundhofer/novalis/novalis-cli` fills the need (docs/DECISIONS.md) | Otherwise agents have no `novalis` on PATH |
 | MCP server (`novalis mcp`, stdio, same binary) | cli | no (v2) | Only for clients without shell access |
 | Localized CLI (German) | cli, monorepo | no | Agents read English |
 | Pseudo-locale `en-XA` for dev | monorepo | yes | Catches unwrapped strings; dev-only |
@@ -433,7 +433,7 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 | C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
 | D (view, ADR-0015/0016) | `pdf png jpg jpeg gif webp` | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
 
-Stop there. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
+Stop there — until ADR-0022 (2026-09-20): the list widens to ≈93 extensions and ≈21 names from one generated table, and this section is rewritten from that table when it lands (docs/research/2026-09-20-formats-plan.md §3). No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
@@ -541,7 +541,7 @@ Cache in app-data with WAL + 5 s busy timeout, schema version in the file name; 
 
 ### 9.4 Distribution
 
-`novalis` ships inside the app bundle at `Contents/MacOS/novalis`; the "Install command-line tool" menu item (§4.4) symlinks it to `/usr/local/bin/novalis`; the personal tap's cask carries a `binary` stanza; releases also publish `novalis-cli-<ver>-arm64.tar.gz`. `doctor` warns on app/CLI version skew.
+`novalis` is installed with `brew install grundhofer/novalis/novalis-cli` (the tap's formula, 2026-09-19) or from the release tarball `novalis-cli-<ver>-arm64.tar.gz`; the "Install command-line tool" menu item of §4.4 was struck on 2026-09-20 (docs/DECISIONS.md) and the CLI is not bundled inside the app. `doctor` warns on app/CLI version skew.
 
 ### 9.5 MCP (v2, needs yes)
 
