@@ -30,11 +30,12 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 
+import { grammarNameOf, presentationOf, PRESETS } from "../lib/fileTypes.presentation";
 import { resolveWikiTarget } from "../lib/links";
-import { extensionOf } from "../lib/paths";
 import { attachments } from "./attachments";
 import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
+import { detectIndent } from "./indentDetect";
 import { Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -56,27 +57,20 @@ export interface EditorHooks {
   notePaths: () => string[];
   /** A note's text, for `[[note#` completion; `null` when it cannot be read. */
   noteText: (path: string) => Promise<string | null>;
+  /** The document as opened, for the indent detector (its first lines). */
+  text: string;
   readOnly: boolean;
   plainMode: boolean;
   spellcheck: boolean;
 }
 
-/** Soft wrap and line numbers per file type (PLAN.md §4.2). */
-function typeOptions(path: string): { wrap: boolean; numbers: boolean; indent: string } {
-  const extension = extensionOf(path);
-  const prose = extension === "md" || extension === "markdown" || extension === "txt" || extension === "text";
-  const wide = extension === "csv" || extension === "tsv";
-  const fourSpaces = ["py", "rs", "swift", "sh", "bash", "zsh"].includes(extension);
-  return {
-    wrap: prose,
-    numbers: !prose || wide,
-    indent: fourSpaces ? "    " : "  ",
-  };
-}
-
+/**
+ * The grammar for a path, by the table's name (lib/fileTypes.presentation):
+ * exact, never fuzzy, so `text` does not become LaTeX and `cfg` not TTCN-3.
+ */
 async function languageFor(path: string): Promise<Extension | null> {
-  const extension = extensionOf(path);
-  if (extension === "md" || extension === "markdown") {
+  const grammar = grammarNameOf(path);
+  if (grammar === "Markdown") {
     // The GFM bundle plus our two inline parsers; fenced code blocks resolve
     // their grammar lazily out of `language-data`.
     return yamlFrontmatter({
@@ -87,7 +81,8 @@ async function languageFor(path: string): Promise<Extension | null> {
       }),
     });
   }
-  const description = LanguageDescription.matchFilename(languages, path);
+  if (grammar === null) return null;
+  const description = LanguageDescription.matchLanguageName(languages, grammar, false);
   if (!description) return null;
   const support = await description.load();
   return support;
@@ -151,8 +146,10 @@ function completions(hooks: EditorHooks) {
 }
 
 export async function buildExtensions(path: string, hooks: EditorHooks): Promise<Extension[]> {
-  const options = typeOptions(path);
-  const isMarkdown = extensionOf(path) === "md" || extensionOf(path) === "markdown";
+  // A path the table does not list never reaches the editor; `data` is the
+  // safe dress if one ever does.
+  const options = PRESETS[presentationOf(path)?.preset ?? "data"];
+  const isMarkdown = grammarNameOf(path) === "Markdown";
 
   const base: Extension[] = [
     history(),
@@ -165,7 +162,10 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
     highlightSelectionMatches(),
     bracketMatching(),
     indentOnInput(),
-    indentUnit.of(options.indent),
+    // PLAN.md §4.2: the file's own indentation wins over the preset's — except
+    // a tab that is syntax, not style: `make` rejects a recipe line indented
+    // with the spaces an `ifeq` block above it may have taught the detector.
+    indentUnit.of(options.indent === "\t" ? "\t" : (detectIndent(hooks.text) ?? options.indent)),
     search({ top: true }),
     keymap.of([
       ...closeBracketsKeymap,

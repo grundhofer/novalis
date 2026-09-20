@@ -75,6 +75,7 @@ export default function Editor({
         onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
         noteText,
+        text: doc.text,
         readOnly: doc.readOnly,
         plainMode: doc.plainMode,
         spellcheck,
