@@ -149,20 +149,23 @@ _test-rust:
     cargo test --workspace
 
 # PLAN.md §11.2: `ui/src/ipc/bindings.ts` is generated from the Rust command
-# surface. CI regenerates it and runs `git diff --exit-code`; there may be no
-# git repository here yet, so this compares against a copy taken first.
+# surface and `ui/src/lib/fileTypes.generated.ts` from the shell's file-type
+# table (ADR-0022). CI regenerates both and runs `git diff --exit-code`; there
+# may be no git repository here yet, so this compares against copies taken first.
 _bindings-check:
     #!/usr/bin/env bash
     set -euo pipefail
-    file="{{ui}}/src/ipc/bindings.ts"
-    before="$(mktemp)"
-    trap 'rm -f "$before"' EXIT
-    cp "$file" "$before"
+    files=("{{ui}}/src/ipc/bindings.ts" "{{ui}}/src/lib/fileTypes.generated.ts")
+    before="$(mktemp -d)"
+    trap 'rm -rf "$before"' EXIT
+    for file in "${files[@]}"; do cp "$file" "$before/$(basename "$file")"; done
     cargo run --quiet -p novalis-desktop --example gen_bindings >/dev/null
-    if ! diff -u "$before" "$file"; then
-      echo "bindings.ts was stale and has just been regenerated -- review and commit it" >&2
-      exit 1
-    fi
+    for file in "${files[@]}"; do
+      if ! diff -u "$before/$(basename "$file")" "$file"; then
+        echo "$(basename "$file") was stale and has just been regenerated -- review and commit it" >&2
+        exit 1
+      fi
+    done
 
 # Catalog shape, en/de parity and key drift, as the UI package's `i18n:check` script.
 _i18n-check:

@@ -140,14 +140,16 @@ jobs:
         run: cargo test --locked --workspace
 
       # PLAN.md §11.2: `ui/src/ipc/bindings.ts` is generated from the Rust
-      # command surface by tauri-specta, so a changed command signature must
-      # arrive with a regenerated file. A debug build rewrites it at startup,
-      # which is exactly why the committed copy can go stale unnoticed.
-      - name: IPC bindings are up to date
+      # command surface by tauri-specta, and `ui/src/lib/fileTypes.generated.ts`
+      # from the shell's file-type table (ADR-0022), so a changed command
+      # signature or table row must arrive with a regenerated file. A debug
+      # build rewrites both at startup, which is exactly why a committed copy
+      # can go stale unnoticed.
+      - name: IPC bindings and the file-type table are up to date
         if: matrix.os == 'ubuntu-latest'
         run: |
           cargo run --locked -p novalis-desktop --example gen_bindings
-          git diff --exit-code -- apps/desktop/ui/src/ipc/bindings.ts
+          git diff --exit-code -- apps/desktop/ui/src/ipc/bindings.ts apps/desktop/ui/src/lib/fileTypes.generated.ts
 
       # Minimalism gate (PLAN.md §11.5): a new top-level Cargo.lock or
       # pnpm-lock.yaml entry needs an ADR-NNNN reference in the PR body.

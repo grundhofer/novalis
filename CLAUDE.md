@@ -64,7 +64,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 | `crates/novalis-cli/tests/**/*.golden` | `UPDATE_GOLDEN=1 just test-cli` |
 | `packages/tokens/tokens.css` | `just tokens-sync <slug> <commit>` once designSprache ships tokens; until then hand-written with the header `GENERATED-PENDING` |
 | `THIRD-PARTY-NOTICES.md` | generated from the lockfiles (`PLAN.md` §11.6) |
-| UI ⇄ Rust IPC bindings | the desktop crate's export command; CI diffs the result |
+| UI ⇄ Rust IPC bindings, `apps/desktop/ui/src/lib/fileTypes.generated.ts` | the desktop crate's export command (`cargo run -p novalis-desktop --example gen_bindings`); CI diffs both |
 
 ## Local limitations
 

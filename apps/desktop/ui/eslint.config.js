@@ -17,7 +17,7 @@ import tseslint from "typescript-eslint";
 //     paints the fatal overlay over a working window. This is the one rule
 //     that needs type information, hence `projectService`.
 export default tseslint.config(
-  { ignores: ["dist", "src/ipc/bindings.ts"] },
+  { ignores: ["dist", "src/ipc/bindings.ts", "src/lib/fileTypes.generated.ts"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

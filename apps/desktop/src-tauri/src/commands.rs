@@ -38,7 +38,7 @@ use crate::dto::*;
 use crate::error::{IpcError, IpcResult};
 use crate::i18n::{resolve_locale, Catalog};
 use crate::state::{AppState, BoardRead, MenuShape};
-use crate::{cache, menu, watcher};
+use crate::{cache, file_types, menu, watcher};
 
 /// Hits are posted in groups: a 10k-note vault otherwise sends 10k messages
 /// and the UI thread spends the whole search doing React updates.
@@ -476,53 +476,13 @@ pub async fn write_conflict_copy(
     .await
 }
 
-/// The extensions a typed name keeps in `create_note` (ADR-0014): the file
-/// types the editor opens, PLAN.md §7.3 tiers A–C, lower-case. A name with
-/// any other extension, or none, gets `.md`: "v1.2" becomes "v1.2.md".
-const CREATABLE_EXTENSIONS: &[&str] = &[
-    "md",
-    "markdown",
-    "txt",
-    "text",
-    "json",
-    "map",
-    "yaml",
-    "yml",
-    "toml",
-    "xml",
-    "svg",
-    "html",
-    "htm",
-    "css",
-    "js",
-    "mjs",
-    "cjs",
-    "jsx",
-    "ts",
-    "mts",
-    "cts",
-    "tsx",
-    "py",
-    "rs",
-    "sh",
-    "bash",
-    "zsh",
-    "ini",
-    "conf",
-    "cfg",
-    "properties",
-    "env",
-    "swift",
-    "csv",
-    "tsv",
-    "log",
-];
-
-/// The file name a typed name becomes (ADR-0014). An extension from
-/// [`CREATABLE_EXTENSIONS`] is kept as typed, case-insensitively — except
-/// `.md`, which is written lower-case whatever was typed, because the core
-/// recognises a note by exactly `.md` (`is_note_name`) and `Todo.MD` would
-/// otherwise be a file no search, link or cache ever sees.
+/// The file name a typed name becomes (ADR-0014). An extension the editor
+/// opens ([`file_types::is_creatable_ext`], PLAN.md §7.3 tiers A–C) is kept
+/// as typed, case-insensitively — except `.md`, which is written lower-case
+/// whatever was typed, because the core recognises a note by exactly `.md`
+/// (`is_note_name`) and `Todo.MD` would otherwise be a file no search, link
+/// or cache ever sees. Any other extension, or none, gets `.md`: "v1.2"
+/// becomes "v1.2.md".
 fn creatable_name(name: &str) -> String {
     let ext = match name.rfind('.') {
         Some(i) if i > 0 => name[i + 1..].to_ascii_lowercase(),
@@ -530,7 +490,7 @@ fn creatable_name(name: &str) -> String {
     };
     if ext == "md" {
         format!("{}.md", &name[..name.len() - 3])
-    } else if CREATABLE_EXTENSIONS.contains(&ext.as_str()) {
+    } else if file_types::is_creatable_ext(&ext) {
         name.to_string()
     } else {
         format!("{name}.md")
