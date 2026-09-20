@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0021). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0025). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -51,7 +51,7 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | CLI `init` (writes `.novalis/vault.json`) | yes |
 | CLI `help --json`, `skill --path` | yes |
 | CLI `doctor --fix` | no |
-| "Install command-line tool" menu item | yes |
+| "Install command-line tool" menu item | yes — **struck 2026-09-20** (below): the tap's `novalis-cli` formula fills the need |
 | MCP server | no (v2) |
 | Localized CLI | no |
 | Pseudo-locale `en-XA` (dev only) | yes |
@@ -548,6 +548,173 @@ pre-releases; `docs/RELEASING.md` "Homebrew tap" has the per-release steps.
 No ADR: a distribution channel outside the app, no change to the product,
 no outbound connection from it (ADR-0002 stands: the app checks nothing).
 
+## Answered 2026-09-20
+
+On 2026-09-19 the owner asked for two things at once:
+
+> mache bitte einen plan möglichst viele formate zu unterstützen (auch
+> syntax highlighting etc) und trotzdem recht schlank und performant zu
+> bleiben. die nutzer sollen novalis nicht nur zur organisation ihrer
+> notizen sondern auch als texteditor/anzeiger verstehen.
+> welche weitere features würdest du von einer notiz/journal app erwarten,
+> welche heute noch fehlen?
+> liste diese auf und lass uns entscheiden, was wir noch einbauen. nutze
+> gerne subagenten zur analyse und ideenfindung.
+
+The analysis (four inventory reports, a format plan with an adversarial
+critique, ten perspective agents whose 178 ideas were merged to 121 and
+checked one by one against the record — 88 survived) is in
+`docs/research/2026-09-20-*.md`: `formats-plan.md` (the plan, eight
+bundled questions with a recommendation each) and `feature-gaps.md` (34
+"build", 52 "ask", 16 approved-not-built, 35 "no", 21 already rejected,
+17 hard-to-find, in ten decision blocks). Two perspectives — onboarding /
+discoverability and accessibility / keyboard / i18n — did not run
+(session limits) and are named as such. Three questions, three answers:
+
+Format plan ("Alle Empfehlungen übernehmen / Nur die ADR-freien Phasen
+jetzt / Ich antworte einzeln"):
+
+> Alle Empfehlungen übernehmen (Recommended)
+
+Recorded as **ADR-0022** (the widened file-type list from one generated
+table, `.map` out, the doc names, only the prose bundle among the extras,
+quick-open and search over every listed file with a session-only "All
+files" toggle and CLI `search --all-files`, the code presets — Geist Mono,
+full width, no spellcheck in code, indentation guides, tag chip Markdown-
+only — fence highlighting in the ⌘E preview, ⌘E and image paste for
+`.markdown`, the binary verdict on open, the keystroke fix first,
+`Todo.MD` left as is, a documentation sentence instead of a folder
+denylist), **ADR-0023** (EPUB and CBZ on `rawzip` and one `read_packed`
+command, 28 of 30), **ADR-0024** (DOCX through `mammoth`, capped at 15 MB,
+after a CSP check in `just dev`) and **ADR-0025** (`heic heif avif` after a
+decode check; PDF outline popover and keyboard paging now, PDF search and
+continuous scroll later; image zoom without the font-size chords; CSV/TSV
+table and rendered SVG behind the eye glyph). Build order: F7 → F1 → F2 →
+F3b (no decision needed) → F4 → F3a → F5 → F6 → EPUB → CBZ → DOCX.
+
+Feature gaps ("Block 1 bauen, B-Empfehlungen übernehmen / Nur Block 1
+(Defekte) jetzt / Ich antworte Block für Block"):
+
+> Block 1 bauen, B-Empfehlungen übernehmen (Recommended)
+
+That answer means, block by block of `2026-09-20-feature-gaps.md` §8
+(keys in parentheses map to its tables):
+
+- **Built as defects or plan fulfilment, no further question** (table A,
+  block 1 and the "ohne Ja gebaut" lines): ⌘Q waits for the save flush
+  (`reliability-quit-flush`); the §7.5 spellcheck underlines, test first
+  (`reading-spellcheck-underlines`); a search hit opens at its line
+  (`search-hit-jump-to-line`); cursor and scroll survive ⌘E and tab
+  switches (`reading-position-kept`); CRLF stays CRLF
+  (`texteditor-eol-preserve-crlf`); session restore survives a deleted
+  file (`reliability-session-restore-missing-file`); download state and a
+  30 s timeout when opening a cloud-only file
+  (`reliability-cloud-open-timeout`); window position and size
+  (`macos-window-restore`); Ln/Col, selection and cursor count in the
+  status bar (`texteditor-status-position`); heading jump also in the
+  preview (`reading-heading-jump-in-preview`); `[[note#heading]]` lands on
+  the heading (`reading-follow-heading-anchor`); keyboard in the search
+  results (`search-keyboard-results`); the folder filter
+  (`search-folder-filter`); tags in the palette
+  (`search-tag-palette-entries`, the §4.4 yes); the "deleted on disk"
+  banner (`reliability-deleted-on-disk-banner`); card backlinks load the
+  board (`kanban-backlink-card-jump`); every linked note opens from a card
+  (`kanban-open-any-linked-note`); indentation detection
+  (`texteditor-indent-detection`) and guides (`texteditor-indent-guides`,
+  both ADR-0022); `novalis sync status` and `skill --path`
+  (`cli-agents-sync-status`, `cli-agents-skill-path`); the JSON gaps
+  `utf8`, `notUtf8Skipped` and `vault` on `index --status`
+  (`cli-agents-json-shape-gaps`); match highlighting
+  (`search-match-highlight`); BOM and the title (`reliability-bom-title`);
+  the window title "note — vault" (`macos-window-title`); the legacy-vault
+  banner (`reliability-legacy-vault-banner`); conflict copies at **stage
+  0** — a badge in the tree, PLAN.md §5.3's panel promise reworded and the
+  five `status.conflicts.*` strings deleted (`reliability-conflict-resolve-
+  panel`). Each is a small pull request with a test; the ones that touch
+  the keymap, a mouse gesture or a mockup surface carry a one-line record
+  as their ADRs say.
+- **Yes, each with its own ADR in the pull request that builds it, citing
+  this entry**: search prefilled with the selection
+  (`search-prefill-selection`); ⌘-click on a `#tag` chip filters
+  (`search-tag-chip-click`); create a note from the quick-open query
+  (`search-create-from-quick-open`) and from a ⌘-click on an unresolved
+  `[[link]]`, unresolved links drawn dimmed
+  (`pkm-create-note-from-missing-wikilink`); the ten most recent notes in
+  ⌘P, kept in `state.json` (`search-palette-recent`); "Go to Heading…" as
+  a palette mode with the `@` prefix, no chord
+  (`search-goto-symbol-prefix`); quick-open and search over the listed
+  files (`search-quick-open-all-files`, `search-all-files-toggle` — ADR-
+  0022); previous / next day (`journal-prev-next-day`); Go ▸ Today's Note
+  with `⌘J` (`journal-today-menu-chord`); insert date/time
+  (`journal-insert-datetime`); CLI `novalis journal [--date] [--append]`
+  (`cli-agents-journal-command`); task checkboxes clickable in the preview
+  (`reading-checkbox-toggle-in-preview`); code highlighting in the preview
+  (`reading-code-highlight-in-preview`, ADR-0022); image zoom
+  (`reading-image-zoom`, ADR-0025); dragging a note from the tree into the
+  editor inserts `[[link]]` (`export-drop-note-inserts-wikilink`); tab
+  reorder by drag (`texteditor-tab-reorder-drag`); close other / all tabs
+  (`texteditor-tab-close-others`); show invisibles
+  (`texteditor-show-invisibles`); Sort Lines and Join Lines
+  (`texteditor-line-ops`); PDFs as attachments by drop or ⌘V and files
+  from the Finder dropped on a folder row (`export-attach-non-image-
+  files`, `macos-finder-drop-into-tree`, one ADR amending ADR-0017);
+  relative links rewritten on move, the core form, with a `doctor`
+  attachments check (`reliability-move-rewrites-relative-links`,
+  `export-doctor-attachments`); "Copy Path" and "Copy Link to Note" in the
+  palette (`export-copy-path`, `export-copy-wikilink`); dropping a note on
+  a column creates a card (`kanban-note-to-card`); a note picker for
+  "Link Note…" (`kanban-link-note-picker`); a context menu on cards with a
+  Column submenu, `tree_context_menu` generalised, 27 stays 27
+  (`kanban-card-context-menu`); the card description rendered as Markdown
+  with links and boxes inert (`kanban-description-markdown`, reopening
+  ADR-0013 now that the renderer exists); new card from the palette, note
+  from card, card from selection, a click on a card without a note opens
+  its description (`kanban-new-card-palette`, `kanban-card-to-note`,
+  `kanban-card-from-selection`, `kanban-card-click-without-note`); delete
+  board as a designed action (`kanban-delete-board`); "Open With", Dock
+  drop and `open -a novalis` for `md markdown txt`, a toast for files
+  outside the vault (`macos-open-with-dock-drop`), and with it on the same
+  branch the `novalis://open?path=` and `novalis://today` scheme
+  (`macos-url-scheme`); external `https://` links open in the default
+  browser through one `open_url` command — **the 28th** — with a sentence
+  in `docs/PRIVACY.md`, by click in the preview and ⌘-click in the editor
+  (`export-open-external-links`); "Open in Default App" in the context
+  menu and the palette (`export-open-in-default-app`); View ▸ Backlinks
+  (`pkm-backlinks-pane-menu`); CLI `search --regex` and `--case-sensitive`
+  (`cli-agents-search-flags`); `cat <path>` tries the exact non-`.md` path
+  first, decided before 1.0 (`cli-agents-non-md-files`); `board new`
+  (`cli-agents-board-lifecycle`; rename/mv later).
+- **No** (the recommendation was no and the owner took it): whole-word
+  in the vault search, multi-file replace, "Duplicate", wrap toggle per
+  tab, upper/lower/unique/reverse line ops, `ls --since`, `⌘R` for the
+  heading mode, keyboard operation of the board (reopen once the tree has
+  keyboard navigation), card filter and column collapse (until a board
+  grows past ~30 cards), unlinked mentions, link preview on hover,
+  extract selection to note, the vault-check panel and the conflict panel
+  (28th IPC; stage 0 instead), a diff view for conflict copies, Copy as
+  HTML, a Help menu with the shortcut sheet (for now), the right-click
+  form of the copy commands, `cat --html`, shell completion, and
+  everything in table D.
+- **Struck**: the "Install Command-Line Tool" menu item approved on
+  2026-09-05 (`cli-agents-install-cli-menu-item`) — the tap's
+  `novalis-cli` formula (2026-09-19) is the install path; PLAN.md §4.4 and
+  §9.4 say so, the six catalog strings go in a cleanup pull request.
+- **Stays rejected**: printing the ⌘E preview through the system dialog
+  and images under their `![]()` line in the editor were the two
+  previously rejected ideas with a new argument (table E); the owner's
+  earlier decisions stand ("no Print in v1"; "Erst im Lesemodus ⌘E").
+- **To be run later** (block 9.3): the two missing perspectives; until
+  then the tree's keyboard navigation, the sidebar resize handle and the
+  unlocalised CodeMirror find panel (`EditorState.phrases`) are treated as
+  defects, not features.
+
+Where to keep the analysis ("docs/research/ per PR / Nur die Pläne, nicht
+die Berichte / Im Chat belassen"):
+
+> docs/research/ per PR (Recommended)
+
+Recorded as this entry and the six files under `docs/research/`.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
@@ -558,5 +725,5 @@ These came out of the build and need your yes before they are closed:
 | `schemars` major | Three majors are in `Cargo.lock` (0.8 via Tauri's build deps, 0.9 via tauri-specta, 1.2 for the CLI's `JsonSchema` bound) | Pin the CLI to 0.9 to match tauri-specta, or accept three and say so in ADR-0011 |
 | CLI golden test location | PLAN §11.1 says `tests/cli/<case>/`, the build used `tests/golden/<case>/` and the integrator renamed it to `tests/cli/` | Keep `tests/cli/` and leave §11.1 as written |
 | `edit --replace-section` semantics | §9.2 read literally would delete the heading too; the CLI keeps the heading and replaces the body, because otherwise the operation is not repeatable | Keep the implemented behaviour and reword §9.2 before 1.0 |
-| "Install Command-Line Tool" menu item (§4.4, approved) | The app binary is already `Contents/MacOS/novalis-desktop`; the CLI needs a name and a place in the bundle before the menu item can do anything | Ship the CLI as a sidecar named `novalis` and symlink that |
+| "Install Command-Line Tool" menu item (§4.4, approved) | The app binary is already `Contents/MacOS/novalis-desktop`; the CLI needs a name and a place in the bundle before the menu item can do anything | **Closed 2026-09-20**: struck; `brew install grundhofer/novalis/novalis-cli` (2026-09-19) is the install path, the six `app.installCli.*` / `menu.app.installCli` / `errors.installCliFailed` strings go in a cleanup pull request |
 | `docs/KEYMAP.md` scope of `Shift+Cmd+N` | Documented as `global`, PLAN §7.4 groups it under "Tree" | Keep `global`; it is what the parity test enforces |
