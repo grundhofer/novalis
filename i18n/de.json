@@ -13,6 +13,7 @@
   "app.openVault.button": "Vault öffnen…",
   "app.openVault.title": "Vault öffnen",
   "app.untitled": "Ohne Titel",
+  "banner.binary": "Diese Datei ist binär und wird schreibgeschützt geöffnet.",
   "banner.changedOnDisk.body": "Dein Text bleibt in {{path}}, bis du entscheidest.",
   "banner.changedOnDisk.keepMine": "Meine behalten",
   "banner.changedOnDisk.reload": "Neu laden",

@@ -24,7 +24,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::notes::frontmatter;
 use crate::notes::relink::{self, Change, RelinkOptions, RelinkSpec, RewrittenFile};
 use crate::vault::cloud::MaterializeOff;
-use crate::vault::fs::{create_atomic, read_bytes, read_file, rename, write_atomic};
+use crate::vault::fs::{create_atomic, read_bytes, read_text, rename, write_atomic, TextRead};
 use crate::vault::path::{fold, folder_of, join_rel, nfc, stem_of};
 use crate::vault::walk::walk_notes;
 
@@ -273,8 +273,17 @@ fn collect_notes(vault: &Path, report: &mut MigrateReport) -> CoreResult<Vec<Not
             });
             continue;
         }
-        let content = match read_file(&vault.join(&f.path)) {
-            Ok(c) => c,
+        let content = match read_text(&vault.join(&f.path)) {
+            Ok(TextRead::Text(c)) => c,
+            // Binary or not UTF-8: known by its stem, never rewritten.
+            Ok(TextRead::Binary { .. }) => {
+                notes.push(Note {
+                    path: f.path.clone(),
+                    title: stem_of(&f.path).to_string(),
+                    cloud_only: false,
+                });
+                continue;
+            }
             Err(CoreError::CloudOnly { .. }) => {
                 report.cloud_only_skipped.push(f.path.clone());
                 notes.push(Note {

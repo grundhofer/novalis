@@ -27,7 +27,7 @@ use crate::notes::frontmatter;
 use crate::notes::links::{extract, LinkForm, Resolution, StemIndex};
 use crate::util::{epoch_ms, sha256_hex};
 use crate::vault::cloud::MaterializeOff;
-use crate::vault::fs::read_file;
+use crate::vault::fs::{read_text, TextRead};
 use crate::vault::path::{fold, nfc, stem_of};
 use crate::vault::walk::walk_notes;
 
@@ -50,7 +50,8 @@ pub struct FileRow {
     pub path_fold: String,
     pub mtime_ns: i64,
     pub size: u64,
-    /// `None` for cloud-only files (never read, so never hashed).
+    /// `None` for cloud-only files (never read, so never hashed) and for
+    /// binary ones (read no further than the NUL that decided it).
     pub hash: Option<String>,
     pub title: String,
     pub stem: String,
@@ -101,7 +102,8 @@ pub struct ScanReport {
     pub removed: usize,
     /// Notes that are cloud-only placeholders right now.
     pub cloud_only: usize,
-    /// Notes whose body was not valid UTF-8 (indexed without links or tags).
+    /// Notes whose body was not valid UTF-8, or binary (indexed with the stem
+    /// as title, without links or tags).
     pub not_utf8: usize,
 }
 
@@ -491,8 +493,8 @@ impl Cache {
                 parsed: None,
             };
             if !f.cloud_only {
-                match read_file(&self.root.join(&f.path)) {
-                    Ok(content) => {
+                match read_text(&self.root.join(&f.path)) {
+                    Ok(TextRead::Text(content)) => {
                         report.read += 1;
                         // Take the identity from the same read, so a file
                         // rewritten during the scan is picked up next time.
@@ -509,6 +511,21 @@ impl Cache {
                                 links: Vec::new(),
                             });
                         }
+                    }
+                    // A `.md` with a NUL in its head is a file the editor
+                    // opens read-only; the index knows it by its stem, like a
+                    // note that is not UTF-8, and holds no hash for it.
+                    Ok(TextRead::Binary { size, mtime_ns }) => {
+                        report.read += 1;
+                        report.not_utf8 += 1;
+                        item.mtime_ns = mtime_ns;
+                        item.size = size;
+                        item.parsed = Some(Parsed {
+                            title: stem_of(&f.path).to_string(),
+                            hash: String::new(),
+                            tags: Vec::new(),
+                            links: Vec::new(),
+                        });
                     }
                     Err(CoreError::CloudOnly { .. }) => {
                         item.cloud_only = true;
@@ -560,8 +577,13 @@ impl Cache {
                 del_links.execute([&item.path])?;
                 del_tags.execute([&item.path])?;
                 let stem = stem_of(&item.path).to_string();
+                // No hash for a cloud-only file (never read) or a binary one
+                // (read up to its first NUL and no further).
                 let (hash, title) = match &item.parsed {
-                    Some(p) => (Some(p.hash.clone()), p.title.clone()),
+                    Some(p) => (
+                        Some(p.hash.clone()).filter(|h| !h.is_empty()),
+                        p.title.clone(),
+                    ),
                     None => (None, stem.clone()),
                 };
                 ins_file.execute(rusqlite::params![
@@ -837,13 +859,20 @@ mod tests {
             [0xff, 0xfe, b'[', b'[', b'x', b']', b']'],
         )
         .unwrap();
+        // A note with a NUL in its head is binary to the read: same row
+        // shape, no hash, and the link after the NUL is never parsed.
+        std::fs::write(root.join("nul.md"), b"# T\0[[y]]").unwrap();
         let mut c = open(tmp.path(), &root);
         let r = c.incremental_scan().unwrap();
-        assert_eq!(r.not_utf8, 1);
+        assert_eq!(r.not_utf8, 2);
         let row = c.file("bin.md").unwrap().unwrap();
         assert!(row.hash.is_some());
         assert_eq!(row.title, "bin");
         assert!(c.outgoing("bin.md").unwrap().is_empty());
+        let nul = c.file("nul.md").unwrap().unwrap();
+        assert_eq!(nul.title, "nul");
+        assert_eq!(nul.hash, None, "read no further than the NUL");
+        assert!(c.outgoing("nul.md").unwrap().is_empty());
     }
 
     #[test]

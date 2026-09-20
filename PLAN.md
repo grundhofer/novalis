@@ -512,7 +512,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 
 | Command | Key flags | Output | Effect |
 |---|---|---|---|
-| `ls [folder]` | `--tree`, `--tag T`, `--sort`, `--limit`, `--fields` | `{items:[{path,stem,title,linkTarget,folder,tags,modified,size,sha256\|null,cloudOnly}],truncated}` | read; `sha256` from the cache, NULL for cloud-only |
+| `ls [folder]` | `--tree`, `--tag T`, `--sort`, `--limit`, `--fields` | `{items:[{path,stem,title,linkTarget,folder,tags,modified,size,sha256\|null,cloudOnly}],truncated}` | read; `sha256` from the cache, NULL for cloud-only and for binary (a NUL in the first 8 KiB, ADR-0022) |
 | `cat <note>…` | `--body`, `--frontmatter`, `--lines A:B`, `--materialize [--timeout 30s]` | text, or `{items:[{path,title,linkTarget,frontmatter,body,sha256,links:[{target,form,line,resolvedPath}]}]}` | read; cloud-only → exit 8 unless `--materialize` |
 | `new <path>` | `--tag T…`, `--content <text\|->`, `--exist-ok` | `{path,stem,linkTarget,existing}` | create; title = stem; `--tag` writes a `tags:` key; exit 4 if exists |
 | `edit <note>` | one of `--append`, `--prepend`, `--replace-section "## H"`, `--insert-after-section "## H"`, `--find/--replace [--regex] [--expect N=1]`, `--set-body -`; `--if-match`; `--nth N` for duplicate headings | `{path,sha256Before,sha256After,changed}` (+`diff`) | atomic write; frontmatter untouched; a section runs from its heading to the line before the next heading of the same or higher level; `--prepend`/`--insert-after-section` insert after the frontmatter block; duplicate heading → exit 4 with candidates |

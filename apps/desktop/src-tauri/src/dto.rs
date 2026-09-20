@@ -10,7 +10,7 @@ use novalis_core::boards::{Board, BoardRef, Card, Column};
 use novalis_core::search::{SearchHit, SearchQuery, SearchReport};
 use novalis_core::settings::{Appearance, EditorSettings, Language, Settings};
 use novalis_core::vault::cloud::VaultKind;
-use novalis_core::vault::fs::{DirEntry, EntryKind, FileContent, FileStat, Precondition};
+use novalis_core::vault::fs::{DirEntry, EntryKind, FileContent, FileStat, Precondition, TextRead};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -330,6 +330,10 @@ pub struct FileDto {
     /// False for a file that is not valid UTF-8: it opened read-only and its
     /// text is lossy (PLAN.md §7.3).
     pub utf8: bool,
+    /// A NUL byte in the first 8 KiB (ADR-0022): the body was never read,
+    /// `text` is empty, the precondition carries no hash, and the file opens
+    /// read-only.
+    pub binary: bool,
     /// At or above 5 MB: no Markdown decorations, no highlighting.
     pub plain_mode: bool,
     /// At or above 50 MB: additionally warn.
@@ -344,8 +348,29 @@ impl FileDto {
             precondition: content.precondition().into(),
             text: content.text,
             utf8: content.utf8,
+            binary: false,
             plain_mode: size >= PLAIN_MODE_BYTES,
             huge: size >= HUGE_FILE_BYTES,
+        }
+    }
+
+    pub fn from_read(path: String, read: TextRead) -> Self {
+        match read {
+            TextRead::Text(content) => Self::new(path, content),
+            TextRead::Binary { size, mtime_ns } => FileDto {
+                path,
+                precondition: Precondition {
+                    mtime_ns,
+                    size,
+                    hash: String::new(),
+                }
+                .into(),
+                text: String::new(),
+                utf8: true,
+                binary: true,
+                plain_mode: size >= PLAIN_MODE_BYTES,
+                huge: size >= HUGE_FILE_BYTES,
+            },
         }
     }
 }

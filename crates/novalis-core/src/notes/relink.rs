@@ -17,7 +17,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::notes::links::{extract, Link, LinkForm, Resolution, StemIndex};
 use crate::util::percent_encode_path;
 use crate::vault::cloud::MaterializeOff;
-use crate::vault::fs::{read_file, write_atomic};
+use crate::vault::fs::{read_text, write_atomic, TextRead};
 use crate::vault::path::{
     fold, folder_of, nfc, normalize_rel, relative_from, resolve_relative, vault_note_rel,
 };
@@ -278,8 +278,14 @@ pub fn relink_many(
             continue;
         }
         let abs = vault.join(&note.path);
-        let content = match read_file(&abs) {
-            Ok(c) => c,
+        // A binary note (a NUL in its head) is skipped like one that is not
+        // UTF-8: nothing rewrites a file the app opens read-only.
+        let content = match read_text(&abs) {
+            Ok(TextRead::Text(c)) => c,
+            Ok(TextRead::Binary { .. }) => {
+                report.skipped.push(note.path.clone());
+                continue;
+            }
             Err(CoreError::CloudOnly { .. }) => {
                 report.cloud_only_skipped.push(note.path.clone());
                 continue;
@@ -557,12 +563,19 @@ mod tests {
             [0xff, 0xfe, b'[', b'[', b'B', b']', b']'],
         )
         .unwrap();
+        // A NUL in the head is binary to the read: the link after it is
+        // never rewritten, as the app never lets it be edited.
+        std::fs::write(root.join("nul.md"), b"# T\0 [[B]]\n").unwrap();
         let specs = vec![
             RelinkSpec::new("Notes on: A", "A2.md").with_old_path("a.md"),
             RelinkSpec::new("B", "B2.md").with_old_path("B.md"),
         ];
         let r = relink_many(root, &specs, &RelinkOptions::default()).unwrap();
-        assert_eq!(r.skipped, vec!["bin.md"]);
+        assert_eq!(r.skipped, vec!["bin.md", "nul.md"]);
         assert_eq!(read(root, "n.md"), "[[A2]] and [[B2]]\n");
+        assert_eq!(
+            std::fs::read(root.join("nul.md")).unwrap(),
+            b"# T\0 [[B]]\n"
+        );
     }
 }

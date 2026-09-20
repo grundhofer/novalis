@@ -369,6 +369,12 @@ export type FileDto = {
 	 *  text is lossy (PLAN.md §7.3).
 	 */
 	utf8: boolean,
+	/**
+	 *  A NUL byte in the first 8 KiB (ADR-0022): the body was never read,
+	 *  `text` is empty, the precondition carries no hash, and the file opens
+	 *  read-only.
+	 */
+	binary: boolean,
 	/**  At or above 5 MB: no Markdown decorations, no highlighting. */
 	plainMode: boolean,
 	/**  At or above 50 MB: additionally warn. */

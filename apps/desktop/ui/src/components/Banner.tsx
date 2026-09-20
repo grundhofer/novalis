@@ -84,11 +84,13 @@ export default function Banner() {
   }
 
   const key =
-    doc.banner.kind === "notUtf8"
-      ? "banner.notUtf8"
-      : doc.banner.kind === "hugeFile"
-        ? "banner.hugeFile"
-        : "banner.plainMode";
+    doc.banner.kind === "binary"
+      ? "banner.binary"
+      : doc.banner.kind === "notUtf8"
+        ? "banner.notUtf8"
+        : doc.banner.kind === "hugeFile"
+          ? "banner.hugeFile"
+          : "banner.plainMode";
 
   return (
     <div className="banner" role="status">

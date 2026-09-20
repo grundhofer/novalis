@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::cache::{Cache, LinkRow};
 use crate::error::{CoreError, CoreResult};
 use crate::vault::cloud::MaterializeOff;
-use crate::vault::fs::read_file;
+use crate::vault::fs::{read_text, TextRead};
 use crate::vault::path::{fold, is_note_name};
 use crate::vault::walk::walk_files;
 
@@ -81,7 +81,9 @@ pub struct SearchReport {
     pub scanned: usize,
     /// Files skipped because they are cloud-only placeholders.
     pub cloud_only_skipped: usize,
-    /// Files skipped because they are not valid UTF-8.
+    /// Files skipped because they are not valid UTF-8 — or binary, which
+    /// the read decides on the first 8 KiB and never reads past (`all_files`
+    /// in a folder that also holds a video costs that much, not the video).
     pub not_utf8_skipped: usize,
     pub matches: usize,
     /// The limit was reached and the scan stopped early.
@@ -139,8 +141,8 @@ pub fn link_snippets(root: &Path, rows: &[LinkRow]) -> CoreResult<Vec<String>> {
         .iter()
         .map(|row| {
             let text = texts.entry(row.src.as_str()).or_insert_with(|| {
-                match read_file(&root.join(&row.src)) {
-                    Ok(c) if c.utf8 => Some(c.text),
+                match read_text(&root.join(&row.src)) {
+                    Ok(TextRead::Text(c)) if c.utf8 => Some(c.text),
                     _ => None,
                 }
             });
@@ -236,8 +238,13 @@ pub fn search(
                     }
                     let i = next.fetch_add(1, Ordering::Relaxed);
                     let Some(rel) = candidates.get(i) else { break };
-                    let content = match read_file(&root.join(rel)) {
-                        Ok(c) => c,
+                    let content = match read_text(&root.join(rel)) {
+                        Ok(TextRead::Text(c)) => c,
+                        Ok(TextRead::Binary { .. }) => {
+                            scanned.fetch_add(1, Ordering::Relaxed);
+                            not_utf8.fetch_add(1, Ordering::Relaxed);
+                            continue;
+                        }
                         Err(CoreError::CloudOnly { .. }) => {
                             cloud.fetch_add(1, Ordering::Relaxed);
                             continue;
@@ -335,6 +342,9 @@ mod tests {
         write(root, "sub/c.md", "nothing here\n");
         write(root, "notes.txt", "local-first in a text file\n");
         write(root, ".hidden/d.md", "local-first hidden\n");
+        // A binary next to the notes, with the needle past a NUL: an
+        // `all_files` scan must count it as skipped, never regex it.
+        std::fs::write(root.join("clip.bin"), b"RIFF\0\0\0\0local-first inside\n").unwrap();
         tmp
     }
 
@@ -371,8 +381,14 @@ mod tests {
 
         let mut q = SearchQuery::new("local-first");
         q.all_files = true;
-        let (hits, _) = search_collect(tmp.path(), &q, None).unwrap();
+        let (hits, report) = search_collect(tmp.path(), &q, None).unwrap();
         assert_eq!(hits.len(), 3);
+        assert!(hits.iter().all(|h| h.path != "clip.bin"));
+        assert_eq!(
+            report.not_utf8_skipped, 1,
+            "the binary is counted, not searched"
+        );
+        assert_eq!(report.scanned, 5);
     }
 
     #[test]

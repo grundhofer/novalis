@@ -90,7 +90,7 @@ Flags: `--tree` (nested `children[]` instead of a flat list), `--tag T`
   "sha256":"…","cloudOnly":false}],"truncated":false}
 ```
 
-`sha256` is `null` for cloud-only notes (the cache never reads them).
+`sha256` is `null` for cloud-only notes (the cache never reads them) and for binary ones (a NUL in the first 8 KiB; the cache reads no further, and the app opens them read-only).
 
 ### `cat <note>…` — Status: harness
 
