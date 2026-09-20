@@ -1,28 +1,28 @@
+import { EXTENSION_KINDS, NAME_KINDS, type FileKind } from "./fileTypes.generated";
 import { extensionOf, fileNameOf } from "./paths";
 
 /**
- * The file types the app handles, PLAN.md §7.3: tiers A–C open in the editor
- * as text, tier D (ADR-0015) opens read-only in the viewer. The tree shows
+ * The file types the app handles, PLAN.md §7.3: notes and text open in the
+ * editor, tier D (ADR-0015) opens read-only in the viewer. The tree shows
  * nothing else (ADR-0015): a `.wav` next to the notes is not the app's
  * business, and opening it as text was a banner and a wasted read.
  *
- * `CREATABLE_EXTENSIONS` mirrors the shell's list of the same name in
- * `src-tauri/src/commands.rs` (ADR-0014): what the New Note dialog keeps.
- * The two are kept in step by hand; the shell decides, this one only tells.
+ * The list itself is the shell's (`src-tauri/src/file_types.rs`, ADR-0022),
+ * written to `fileTypes.generated.ts` by the same run that writes the IPC
+ * bindings; the shell decides what a typed name becomes, this module only
+ * tells what is listed and how it opens. What stays here is presentation:
+ * which viewer a tier-D type gets and the MIME type it is handed with.
  */
 
-export const CREATABLE_EXTENSIONS: readonly string[] = [
-  "md", "markdown", "txt", "text", "json", "map", "yaml", "yml", "toml", "xml", "svg", "html",
-  "htm", "css", "js", "mjs", "cjs", "jsx", "ts", "mts", "cts", "tsx", "py", "rs", "sh", "bash",
-  "zsh", "ini", "conf", "cfg", "properties", "env", "swift", "csv", "tsv", "log",
-];
-
-/** Tier C names without an extension (`.gitignore` is hidden and never listed). */
-const TEXT_NAMES: ReadonlySet<string> = new Set(["Dockerfile", "LICENSE", "Makefile"]);
+/** What the New Note dialog keeps as typed (ADR-0014): every text extension. */
+export const CREATABLE_EXTENSIONS: readonly string[] = Object.entries(EXTENSION_KINDS)
+  .filter(([, kind]) => kind !== "view")
+  .map(([extension]) => extension);
 
 export type ViewKind = "pdf" | "image";
 
-const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
+/** Which viewer a tier-D type opens in; every `view` row of the table has one. */
+export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
   pdf: "pdf",
   png: "image",
   jpg: "image",
@@ -32,7 +32,7 @@ const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
 };
 
 /** The MIME type the viewer hands the WebView for a tier-D file. */
-const MIME: Readonly<Record<string, string>> = {
+export const MIME: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
   png: "image/png",
   jpg: "image/jpeg",
@@ -41,9 +41,20 @@ const MIME: Readonly<Record<string, string>> = {
   webp: "image/webp",
 };
 
+/**
+ * What the app does with this path, or `null` when it is not listed. Own
+ * keys only: a file named `constructor` must not find `Object.prototype`.
+ */
+export function kindOf(rel: string): FileKind | null {
+  const extension = extensionOf(rel);
+  if (extension) return Object.hasOwn(EXTENSION_KINDS, extension) ? (EXTENSION_KINDS[extension] ?? null) : null;
+  const name = fileNameOf(rel);
+  return Object.hasOwn(NAME_KINDS, name) ? (NAME_KINDS[name] ?? null) : null;
+}
+
 /** How a path opens: in the viewer (tier D), or not at all (`null` = text). */
 export function viewKind(rel: string): ViewKind | null {
-  return VIEW_EXTENSIONS[extensionOf(rel)] ?? null;
+  return kindOf(rel) === "view" ? (VIEW_EXTENSIONS[extensionOf(rel)] ?? null) : null;
 }
 
 export function mimeOf(rel: string): string {
@@ -52,7 +63,5 @@ export function mimeOf(rel: string): string {
 
 /** Whether the tree lists this file at all. Folders are always listed. */
 export function isSupported(rel: string): boolean {
-  const extension = extensionOf(rel);
-  if (extension) return CREATABLE_EXTENSIONS.includes(extension) || extension in VIEW_EXTENSIONS;
-  return TEXT_NAMES.has(fileNameOf(rel));
+  return kindOf(rel) !== null;
 }

@@ -1,13 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { isSupported, mimeOf, viewKind } from "./fileTypes";
+import { CREATABLE_EXTENSIONS, isSupported, kindOf, MIME, mimeOf, VIEW_EXTENSIONS, viewKind } from "./fileTypes";
+import { EXTENSION_KINDS } from "./fileTypes.generated";
 
 describe("fileTypes", () => {
+  // The list is the shell's (ADR-0022); the viewer and the MIME type are the
+  // UI's. A `view` row without a viewer would open nothing; a viewer entry
+  // without a row would never be reached.
+  it("gives every view row of the generated table a viewer and a MIME type, and no other", () => {
+    const viewRows = Object.entries(EXTENSION_KINDS)
+      .filter(([, kind]) => kind === "view")
+      .map(([extension]) => extension)
+      .sort();
+    expect(Object.keys(VIEW_EXTENSIONS).sort()).toEqual(viewRows);
+    expect(Object.keys(MIME).sort()).toEqual(viewRows);
+    expect(CREATABLE_EXTENSIONS).not.toContain("pdf");
+    expect(CREATABLE_EXTENSIONS).toContain("md");
+    expect(kindOf("a.md")).toBe("note");
+    expect(kindOf("a.markdown")).toBe("text");
+    expect(kindOf("Makefile")).toBe("text");
+    expect(kindOf("a.pdf")).toBe("view");
+    expect(kindOf("a.wav")).toBeNull();
+  });
+
   it("lists the §7.3 text types and the tier-D viewer types, nothing else", () => {
     for (const path of ["a.md", "notes/b.txt", "c.json", "Notes.TXT", "d.pdf", "e.PNG", "Makefile", "sub/LICENSE"]) {
       expect(isSupported(path), path).toBe(true);
     }
-    for (const path of ["song.wav", "clip.mp4", "book.epub", "archive.zip", "README", "x.docx"]) {
+    for (const path of ["song.wav", "clip.mp4", "book.epub", "archive.zip", "README", "x.docx", "constructor", "a.toString"]) {
       expect(isSupported(path), path).toBe(false);
     }
   });

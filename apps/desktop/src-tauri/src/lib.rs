@@ -7,12 +7,14 @@
 //!
 //! The command and event surface is declared once in [`specta_builder`] and is
 //! the single source of truth for `ui/src/ipc/bindings.ts`, regenerated with
-//! `cargo run -p novalis-desktop --example gen_bindings`.
+//! `cargo run -p novalis-desktop --example gen_bindings`; the same run writes
+//! the file-type table of [`file_types`] to `ui/src/lib/fileTypes.generated.ts`.
 
 mod cache;
 mod commands;
 mod dto;
 mod error;
+mod file_types;
 mod i18n;
 mod menu;
 mod state;
@@ -62,11 +64,13 @@ fn specta_builder() -> Builder<tauri::Wry> {
         .events(collect_events![FsBatch, MenuAction, CacheUpdated])
 }
 
-/// Regenerate `ui/src/ipc/bindings.ts` from the command and event surface.
+/// Regenerate `ui/src/ipc/bindings.ts` from the command and event surface,
+/// and `ui/src/lib/fileTypes.generated.ts` from the file-type table.
 /// Called by `examples/gen_bindings.rs` and, in a debug build, at startup so a
 /// changed command signature can never be stale during `just dev`.
 pub fn export_bindings() {
-    let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/src/ipc/bindings.ts");
+    let ui = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/src");
+    let out = ui.join("ipc/bindings.ts");
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent).expect("create the ui ipc directory");
     }
@@ -76,6 +80,11 @@ pub fn export_bindings() {
     specta_builder()
         .export(specta_typescript::Typescript::default(), &out)
         .expect("export TypeScript bindings");
+    std::fs::write(
+        ui.join("lib/fileTypes.generated.ts"),
+        file_types::export_ts(),
+    )
+    .expect("export the file-type table");
 }
 
 pub fn run() {
