@@ -50,6 +50,7 @@ const MERGE_MAX_BYTES = 1_000_000;
 export type Banner =
   | { kind: "changedOnDisk" }
   | { kind: "replacedBySync" }
+  | { kind: "binary" }
   | { kind: "notUtf8" }
   | { kind: "plainMode" }
   | { kind: "hugeFile" };
@@ -134,15 +135,17 @@ function docFromFile(file: FileDto): Doc {
     lastWriteHash: null,
     dirty: false,
     saving: false,
-    readOnly: !file.utf8,
+    readOnly: file.binary || !file.utf8,
     plainMode: file.plainMode,
-    banner: !file.utf8
-      ? { kind: "notUtf8" }
-      : file.huge
-        ? { kind: "hugeFile" }
-        : file.plainMode
-          ? { kind: "plainMode" }
-          : null,
+    banner: file.binary
+      ? { kind: "binary" }
+      : !file.utf8
+        ? { kind: "notUtf8" }
+        : file.huge
+          ? { kind: "hugeFile" }
+          : file.plainMode
+            ? { kind: "plainMode" }
+            : null,
     revision: 0,
   };
 }
@@ -367,14 +370,16 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
         // A keystroke during the read made it dirty: the banner path, not
         // a silent replace (and `pending` is only ever set with `dirty`).
         if (!current || current.dirty) return s;
+        // The doc follows the disk whole — a file that turned binary or
+        // lost its UTF-8 reloads read-only under its banner, not as an empty
+        // writable buffer — and keeps knowing whether the disk holds our
+        // last write.
         return {
           docs: {
             ...s.docs,
             [path]: {
-              ...current,
-              text: file.text,
-              savedText: file.text,
-              precondition: file.precondition,
+              ...docFromFile(file),
+              lastWriteHash: current.lastWriteHash,
               revision: current.revision + 1,
             },
           },

@@ -339,9 +339,9 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> IpcResult<Fi
         let rel = normalize_rel(&path)?;
         let abs = vault_rel(&root, &rel)?;
         // Explicit open under the default IO policy: a cloud-only note is
-        // downloaded here on purpose (§4.5 "downloaded on open").
-        let content = fs::read_file(&abs)?;
-        Ok(FileDto::new(rel, content))
+        // downloaded here on purpose (§4.5 "downloaded on open"). A binary
+        // file is read no further than the NUL that decides it.
+        Ok(FileDto::from_read(rel, fs::read_text(&abs)?))
     })
     .await
 }
@@ -1137,6 +1137,37 @@ mod tests {
         ] {
             assert_eq!(creatable_name(typed), created, "typed {typed:?}");
         }
+    }
+
+    /// The core's binary verdict on the wire (ADR-0022): no text, no hash,
+    /// read-only; a text read is what `new` makes of it.
+    #[test]
+    fn a_binary_read_crosses_ipc_without_text_or_hash() {
+        use crate::dto::FileDto;
+        use novalis_core::vault::fs::{FileContent, TextRead};
+        let binary = FileDto::from_read(
+            "core.dump".into(),
+            TextRead::Binary {
+                size: 6 * 1024 * 1024,
+                mtime_ns: 7,
+            },
+        );
+        assert!(binary.binary);
+        assert_eq!(binary.text, "");
+        assert_eq!(binary.precondition.hash, "");
+        assert_eq!(binary.precondition.mtime_ns, "7");
+        assert!(binary.utf8 && binary.plain_mode && !binary.huge);
+        let content = FileContent {
+            text: "hi".into(),
+            mtime_ns: 1,
+            size: 2,
+            hash: "h".into(),
+            utf8: true,
+        };
+        assert_eq!(
+            FileDto::from_read("a.md".into(), TextRead::Text(content.clone())),
+            FileDto::new("a.md".into(), content)
+        );
     }
 
     /// The non-note guard refuses what `vault_note_rel` refuses, minus the

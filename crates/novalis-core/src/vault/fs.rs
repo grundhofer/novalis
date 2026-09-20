@@ -186,17 +186,75 @@ pub fn read_bytes(path: &Path) -> CoreResult<(Vec<u8>, Precondition)> {
 /// Read a text file. See [`FileContent`] for the UTF-8 rule.
 pub fn read_file(path: &Path) -> CoreResult<FileContent> {
     let (bytes, pre) = read_bytes(path)?;
+    Ok(content_of(bytes, pre))
+}
+
+fn content_of(bytes: Vec<u8>, pre: Precondition) -> FileContent {
     let (text, utf8) = match String::from_utf8(bytes) {
         Ok(s) => (s, true),
         Err(e) => (String::from_utf8_lossy(e.as_bytes()).into_owned(), false),
     };
-    Ok(FileContent {
+    FileContent {
         text,
         mtime_ns: pre.mtime_ns,
         size: pre.size,
         hash: pre.hash,
         utf8,
-    })
+    }
+}
+
+/// How many leading bytes [`read_text`] looks at before deciding that a
+/// file is binary — git's and grep's heuristic, a NUL in the head.
+pub const BINARY_HEAD_BYTES: usize = 8 * 1024;
+
+/// What [`read_text`] found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextRead {
+    /// A text file, UTF-8 or lossy (see [`FileContent`]).
+    Text(FileContent),
+    /// A NUL byte in the head: the body was never read past it, so there
+    /// is no hash. Callers open such a file read-only or skip it.
+    Binary { size: u64, mtime_ns: i64 },
+}
+
+/// [`read_file`] with a binary verdict, from one descriptor: the first
+/// [`BINARY_HEAD_BYTES`] decide, and a binary file costs no more than
+/// that. A UTF-16 BOM is text that is not UTF-8 — its NULs are the
+/// encoding, and PLAN.md §4.2 promises the read-only banner for it, not a
+/// binary verdict; a UTF-8 BOM has no NUL and needs no exception. Under
+/// the materialize-off policy a dataless file still fails with
+/// [`CoreError::CloudOnly`] on the first read.
+pub fn read_text(path: &Path) -> CoreResult<TextRead> {
+    let map = |e| CoreError::from_io(path, e);
+    let mut f = File::open(path).map_err(map)?;
+    let meta = f.metadata().map_err(map)?;
+    let mut head = vec![0u8; BINARY_HEAD_BYTES];
+    let mut n = 0;
+    while n < head.len() {
+        match f.read(&mut head[n..]) {
+            Ok(0) => break,
+            Ok(k) => n += k,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(map(e)),
+        }
+    }
+    head.truncate(n);
+    let utf16 = head.starts_with(&[0xff, 0xfe]) || head.starts_with(&[0xfe, 0xff]);
+    if !utf16 && head.contains(&0) {
+        return Ok(TextRead::Binary {
+            size: meta.len(),
+            mtime_ns: mtime_ns_of(&meta),
+        });
+    }
+    let mut bytes = head;
+    bytes.reserve(meta.len().saturating_sub(bytes.len() as u64) as usize);
+    f.read_to_end(&mut bytes).map_err(map)?;
+    let pre = Precondition {
+        mtime_ns: mtime_ns_of(&meta),
+        size: meta.len(),
+        hash: sha256_hex(&bytes),
+    };
+    Ok(TextRead::Text(content_of(bytes, pre)))
 }
 
 static TEMP_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -618,6 +676,47 @@ mod tests {
         assert!(!c.utf8);
         assert!(c.text.ends_with('a'));
         assert!(read_file(&tmp.path().join("missing.md"))
+            .unwrap_err()
+            .is_not_found());
+    }
+
+    /// The verdict is the head's: a NUL in the first 8 KiB is binary and
+    /// the body is never read; a UTF-8 BOM is plain text; a UTF-16 BOM is
+    /// text that is not UTF-8, as it was.
+    #[test]
+    fn read_text_tells_binary_from_text_by_the_head() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("f");
+        std::fs::write(&p, b"PK\x03\x04\0junk").unwrap();
+        assert!(matches!(
+            read_text(&p).unwrap(),
+            TextRead::Binary { size: 9, .. }
+        ));
+        std::fs::write(&p, "nul\0inside").unwrap();
+        assert!(matches!(read_text(&p).unwrap(), TextRead::Binary { .. }));
+        std::fs::write(&p, [0xff, 0xfe, b'a', 0, b'b', 0]).unwrap();
+        match read_text(&p).unwrap() {
+            TextRead::Text(c) => assert!(!c.utf8),
+            other => panic!("{other:?}"),
+        }
+        std::fs::write(&p, b"\xef\xbb\xbf# H\n").unwrap();
+        match read_text(&p).unwrap() {
+            TextRead::Text(c) => {
+                assert!(c.utf8);
+                assert_eq!(c.text, "\u{feff}# H\n");
+                assert_eq!(c.hash, sha256_hex(b"\xef\xbb\xbf# H\n"));
+            }
+            other => panic!("{other:?}"),
+        }
+        // A NUL past the head is not seen: the file is text, hashed whole.
+        let mut late = vec![b'x'; BINARY_HEAD_BYTES + 10];
+        late[BINARY_HEAD_BYTES + 5] = 0;
+        std::fs::write(&p, &late).unwrap();
+        match read_text(&p).unwrap() {
+            TextRead::Text(c) => assert_eq!(c.hash, sha256_hex(&late)),
+            other => panic!("{other:?}"),
+        }
+        assert!(read_text(&tmp.path().join("missing"))
             .unwrap_err()
             .is_not_found());
     }

@@ -191,6 +191,7 @@ describe("the lazy text mirror (ADR-0022 F7)", () => {
     text,
     precondition: { mtimeNs: "9", size: String(text.length), hash: "disk" },
     utf8: true,
+    binary: false,
     plainMode: false,
     huge: false,
   });
@@ -415,6 +416,42 @@ describe("the lazy text mirror (ADR-0022 F7)", () => {
     expect(useEditorSave.getState().docs["a.md"]).toMatchObject({ savedText: "mine", dirty: true, banner: null });
     await vi.runAllTimersAsync();
     expect(writtenTexts()).toEqual(["mine", "mine more"]);
+  });
+
+  // ADR-0022 F3b: the shell read no further than the NUL that decided it —
+  // the tab opens read-only with its own banner, and a keystroke changes
+  // nothing.
+  it("opens a binary file read-only under the binary banner", async () => {
+    useEditorSave.setState({ docs: {} });
+    vi.mocked(unwrap).mockResolvedValueOnce({ ...onDisk(""), path: "core.dump", binary: true });
+
+    const doc = await useEditorSave.getState().open("core.dump");
+
+    expect(doc).toMatchObject({ readOnly: true, banner: { kind: "binary" }, text: "" });
+    useEditorSave.getState().attach("core.dump", () => "typed");
+    useEditorSave.getState().touch("core.dump");
+    expect(useEditorSave.getState().docs["core.dump"]?.dirty).toBe(false);
+  });
+
+  // The silent reload used to patch text and precondition only, so a clean
+  // tab whose file turned binary on disk stayed writable with an empty
+  // buffer — and the next keystroke, written with an empty hash, passed the
+  // core's (mtime, size) check and replaced the binary.
+  it("a clean tab whose file turned binary reloads read-only", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce({ ...onDisk(""), binary: true });
+
+    await useEditorSave.getState().externalChange("a.md");
+
+    expect(useEditorSave.getState().docs["a.md"]).toMatchObject({
+      readOnly: true,
+      banner: { kind: "binary" },
+      text: "",
+      revision: 1,
+    });
+    useEditorSave.getState().attach("a.md", () => "x");
+    useEditorSave.getState().touch("a.md");
+    await vi.runAllTimersAsync();
+    expect(writtenTexts()).toEqual([]);
   });
 
   it("detach forgets only the reader it was given", () => {
