@@ -259,6 +259,7 @@ pub async fn bootstrap(app: AppHandle, state: State<'_, AppState>) -> IpcResult<
         tree,
         last_open: ui_state,
         locale,
+        perf: std::env::var("NOVALIS_PERF").ok().filter(|v| !v.is_empty()),
     })
 }
 

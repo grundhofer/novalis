@@ -240,7 +240,11 @@ const REGISTRY: Record<string, () => CommandResult> = {
     // Only a note has a rendered form (ADR-0020); a PDF or an image is
     // already the viewer, and a `.txt` has nothing to render.
     const active = useTabs.getState().active;
-    if (active && isNote(active)) useUi.getState().togglePreview(active);
+    if (!active || !isNote(active)) return;
+    // The preview renders the mirror; the editor's buffer may be ahead of it
+    // until the editor unmounts, which is after the preview's first render.
+    useEditorSave.getState().flush(active);
+    useUi.getState().togglePreview(active);
   },
   "view.fontLarger": () => useUi.getState().changeFontSize(1),
   "view.fontSmaller": () => useUi.getState().changeFontSize(-1),

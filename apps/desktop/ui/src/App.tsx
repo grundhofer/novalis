@@ -109,6 +109,9 @@ export default function App() {
       const boot = await unwrap(commands.bootstrap());
       await initI18n(boot.locale);
       useUi.getState().hydrate(boot.settings, boot.lastOpen, boot.locale);
+      // The probe is a dev tool behind an env var: its chunk stays out of the
+      // eager bundle.
+      if (boot.perf) (await import("./lib/perf")).startKeystrokeProbe(boot.perf);
       if (boot.vault) {
         useVault.getState().setVault(boot.vault, boot.tree);
         useBoard.getState().setBoards(boot.vault.boards);

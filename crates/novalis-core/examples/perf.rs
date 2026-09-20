@@ -8,10 +8,11 @@
 //! job on a breach.
 //!
 //! Only the two budgets that can honestly be measured from the core are here.
-//! Everything about the app (first paint, keystroke latency, RSS, note-open
-//! times) needs the shell running with instrumentation that does not exist
-//! yet; those rows are listed under `unmeasured` so a green run can never be
-//! read as full coverage.
+//! Everything about the app (first paint, RSS, note-open times) needs the
+//! shell running with instrumentation that does not exist yet; keystroke
+//! latency is measured by hand in the app with `NOVALIS_PERF` (numbers in
+//! docs/BUDGET.json's notes). Those rows are listed under `unmeasured` so a
+//! green run can never be read as full coverage.
 //!
 //! Timing uses `std::time::Instant` rather than a benchmarking framework: a new
 //! dependency needs an owner decision (CLAUDE.md), and a coarse gate at 2x the
@@ -43,11 +44,11 @@ const UNMEASURED: &[(&str, &str)] = &[
     ("openNote50MbPlainMs", "needs the shell"),
     (
         "keystrokeP50Ms",
-        "needs CodeMirror in the webview (Spike C)",
+        "measured by hand in the app with NOVALIS_PERF (docs/BUDGET.json notes)",
     ),
     (
         "keystrokeP95Ms",
-        "needs CodeMirror in the webview (Spike C)",
+        "measured by hand in the app with NOVALIS_PERF (docs/BUDGET.json notes)",
     ),
     (
         "watcherBurst1000FilesMaxTreeUpdates",

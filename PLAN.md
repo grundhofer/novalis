@@ -593,15 +593,15 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
 | Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
-| Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string) |
-| Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on |
+| Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string); measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
+| Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on; measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
 | Save | 1 fsync'd write, 0 re-reads, 0 cache work on the calling path |
 | Incremental scan | 10k notes ≤ 1.5 s (stat all, read only changed) |
 | Search | 10k notes / 100 MB ≤ 300 ms p95 to first results (decides FTS5 later) |
 | Watcher | 1,000-file burst → ≤ 1 tree update, ≤ 100 ms UI-thread work |
 | Binary / DMG / crates | ≤ 12 MB DMG; `Cargo.lock` ≤ scaffold + 150 (D26) |
 
-Measured with a hidden `--exit-after-first-frame` flag + `hyperfine`, `/usr/bin/time -l` for RSS, in-app `NOVALIS_PERF=1` keydown → double-rAF deltas (Spike C uses a standalone harness page with the same measurement before the app exists), timed core tests.
+Measured with a hidden `--exit-after-first-frame` flag + `hyperfine`, `/usr/bin/time -l` for RSS, in-app `NOVALIS_PERF=1` keydown → double-rAF deltas (measured by hand, not in CI: `NOVALIS_PERF=type:<n>` types the keystrokes itself, and the probe also records the keystroke's own task time, since the double-rAF floor is two frames — docs/BUDGET.json notes; first numbers 2026-09-20, ADR-0022 F7), and timed core tests.
 
 ### 11.4 Release, signing, versioning
 

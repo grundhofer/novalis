@@ -17,7 +17,7 @@ import { editorTheme, markdownHighlight } from "./theme";
  * completes nothing; the reason is not worth a toast mid-keystroke.
  */
 async function noteText(path: string): Promise<string | null> {
-  const open = useEditorSave.getState().docs[path]?.text;
+  const open = useEditorSave.getState().flush(path);
   if (open !== undefined) return open;
   try {
     return (await unwrap(commands.readFile(path))).text;
@@ -34,6 +34,11 @@ async function noteText(path: string): Promise<string | null> {
  * The view is rebuilt when the path changes, and when `revision` changes —
  * which is how a silent reload from the watcher replaces the buffer without
  * the editor and the store disagreeing about the text.
+ *
+ * The store never sees a keystroke's text: the view registers a reader and
+ * reports changes with `touch`; `flush` reads the buffer when a save, a
+ * count or a completion needs it, and once more here before the view goes
+ * (stores/editorSave.ts).
  */
 
 export interface EditorProps {
@@ -57,6 +62,7 @@ export default function Editor({
     const element = host.current;
     if (!element) return;
     let view: EditorView | null = null;
+    let read: (() => string) | null = null;
     let cancelled = false;
 
     const doc = useEditorSave.getState().docs[path];
@@ -64,7 +70,7 @@ export default function Editor({
 
     void (async () => {
       const extensions = await buildExtensions(path, {
-        onChange: (text) => useEditorSave.getState().setText(path, text),
+        onChange: () => useEditorSave.getState().touch(path),
         onFollowLink,
         onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
@@ -74,13 +80,16 @@ export default function Editor({
         spellcheck,
       });
       if (cancelled) return;
-      view = new EditorView({
+      const created = new EditorView({
         parent: element,
         state: EditorState.create({
           doc: useEditorSave.getState().docs[path]?.text ?? doc.text,
           extensions: [editorTheme, syntaxHighlighting(markdownHighlight), ...extensions],
         }),
       });
+      view = created;
+      read = () => created.state.doc.toString();
+      useEditorSave.getState().attach(path, read);
       setActiveView(view);
       view.focus();
       const target = takeDeferredLine();
@@ -90,6 +99,15 @@ export default function Editor({
     return () => {
       cancelled = true;
       if (view) {
+        // The buffer goes with the view: what it holds beyond the mirror is
+        // read now, while it still exists. A view being rebuilt after a
+        // reload has nothing pending (the store cleared it) unless a key
+        // reached it between the store's replace and React's commit — the
+        // same one-task window the eager mirror had.
+        if (read) {
+          useEditorSave.getState().flush(path);
+          useEditorSave.getState().detach(path, read);
+        }
         setActiveView(null);
         view.destroy();
       }
