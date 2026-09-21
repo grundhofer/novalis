@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { getStyleTags, tags as t } from "@lezer/highlight";
 import { describe, expect, it, vi } from "vitest";
 
+import { fenceLanguage } from "./fences";
 import { buildExtensions, type EditorHooks } from "./setup";
 
 vi.mock("../ipc/client", () => ({
@@ -86,6 +87,24 @@ describe("buildExtensions", () => {
     expect(attrs(note, EditorView.contentAttributes).spellcheck).toBe("true");
     const off = await stateFor("a.md", "# Title\n", false);
     expect(attrs(off, EditorView.contentAttributes).spellcheck).toBe("false");
+  });
+
+  // A fence names its grammar exactly, through the function the preview
+  // uses (./fences): ```py is Python and ```text is not LaTeX. The grammar is
+  // loaded first, since nothing re-parses a state that has no view.
+  it("resolves a fence's grammar the way the preview does", async () => {
+    await fenceLanguage("py")?.load();
+    const text = "```py\nx = 1\n```\n\n```text\n\\x\n```\n";
+    const state = await stateFor("a.md", text);
+    const chain = (pos: number) => {
+      const names: string[] = [];
+      const tree = syntaxTree(state);
+      let node: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(pos, 1);
+      for (; node; node = node.parent) names.push(node.name);
+      return names;
+    };
+    expect(chain(text.indexOf("x = 1"))).toContain("Script");
+    expect(chain(text.indexOf("\\x"))).toEqual(["CodeText", "FencedCode", "Document", "Document"]);
   });
 
   // Upstream marks the frontmatter's `---` as `meta`, which the code rules

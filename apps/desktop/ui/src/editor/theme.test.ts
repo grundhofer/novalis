@@ -35,7 +35,7 @@ describe("markdownHighlight", () => {
       expect(style(tag), tag.toString()).not.toBeNull();
     }
     // A function name is weighted, never coloured: no thirteenth token.
-    expect(rules).toContain("font-weight: 450");
+    expect(rules).toContain("font-weight: var(--ds-font-weight-medium)");
     expect(rules).not.toContain("syntax-function");
   });
 

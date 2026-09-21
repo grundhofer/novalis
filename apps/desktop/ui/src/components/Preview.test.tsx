@@ -177,6 +177,23 @@ describe("Preview", () => {
     expect(useUi.getState().toast?.key).toBe("errors.internal");
   });
 
+  // The real `editor/fences`: the JSON grammar is small enough to load here,
+  // and the hand-over is the point (ADR-0022 point 8).
+  it("highlights a fence that names a grammar with the editor's code classes, text unchanged", async () => {
+    doc("n.md", "x");
+    fragment = '<pre><code class="language-json">{"a": 1}\n</code></pre><pre><code class="language-text">{"a": 1}\n</code></pre>';
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+
+    const number = await screen.findByText("1", { selector: ".tok-number" });
+    const [json, text] = container.querySelectorAll("pre > code");
+    expect(json?.contains(number)).toBe(true);
+    expect(json?.querySelector(".tok-property")?.textContent).toBe('"a"');
+    expect(json?.textContent).toBe('{"a": 1}\n');
+    // A fence that names no grammar keeps the core's markup.
+    expect(text?.querySelector("span")).toBeNull();
+    expect(text?.textContent).toBe('{"a": 1}\n');
+  });
+
   it("shows a relative image from the shell's bytes and frees the URL with the fragment", async () => {
     doc("Notes/n.md", "x");
     fragment = '<p><img src="attachments/x.png" alt="x"> <img src="https://example.com/y.png" alt="y"></p>';

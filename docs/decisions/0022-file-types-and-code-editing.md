@@ -197,3 +197,21 @@ the UI's `kindOf` in Rust — extension, else name, else the `Dockerfile.`
 prefix) so only listed text is read or counted. The CLI's `--all-files`
 stays unfiltered. Under `--all-files`, a `--tag` filter still yields notes
 only, because the tag index knows notes; the reference says so.
+
+**Amended 2026-09-21 (F6)** — point 8 is built with three details it left
+open. The alias map is the file table: a fence's one word is a listed
+extension first (`lib/fileTypes.presentation`, so ```py, ```rs and ```jsonc
+read as the files do and ```txt stays plain), then a grammar's own name or
+alias, and only `plaintext`, `console`, `shell-session` and `golang` are a
+hand-written list — no second table of what a short name means. The
+highlighting runs inside the preview's render, before the fragment is
+shown, not as a swap afterwards like Mermaid's: the code never flashes
+plain and the find marks see the final text; a fence over 64 KiB, or one
+whose grammar will not load, stays as the core wrote it. And the bundle
+gate has a fifth row, `previewChunkGzipKb` (docs/BUDGET.json): the Preview
+chunk plus what it imports statically beyond the eager set, so a static
+CodeMirror import in the preview fails `just check` instead of quietly
+coupling the chunks. The editor's code rules are one exported table
+(`CODE_RULES`, `editor/theme.ts`); the preview wears them as `tok-*`
+classes that `styles/preview.css` dresses on the same tokens, and a test
+compares the two.
