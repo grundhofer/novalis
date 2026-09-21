@@ -45,6 +45,10 @@ describe("buildExtensions", () => {
     // The bundle is Markdown wrapped in the YAML-frontmatter language.
     expect(state.facet(language)?.name).toBe("yaml-frontmatter");
     expect(state.facet(indentUnit)).toBe("  ");
+    // A Markdown dialect is a file with the same bundle (ADR-0022, amended 2026-09-21).
+    const dialect = await stateFor("post.mdx", "# Title\n");
+    expect(state.facet(language)?.name).toBe(dialect.facet(language)?.name);
+    expect(attrs(dialect, EditorView.editorAttributes).class).toBeUndefined();
   });
 
   // `make` accepts nothing but a tab: the detector may not talk it into

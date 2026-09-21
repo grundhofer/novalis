@@ -62,6 +62,7 @@ export const EXTENSION_KINDS: Readonly<Record<string, FileKind>> = {
   "rb": "text",
   "pl": "text",
   "pm": "text",
+  "php": "text",
   "lua": "text",
   "tcl": "text",
   "ps1": "text",

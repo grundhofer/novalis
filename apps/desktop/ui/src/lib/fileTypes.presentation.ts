@@ -45,20 +45,21 @@ export const PRESETS: Readonly<
 const p = (preset: Preset, grammar: string | null): Presentation => ({ preset, grammar });
 
 export const EXTENSION_PRESENTATION: Readonly<Record<string, Presentation>> = {
-  // Notes and prose. The prose formats are plain: a Markdown grammar for
-  // `mkd mdx rmd qmd` would bring the whole note bundle with it.
+  // Notes and prose. The Markdown dialects get the Markdown grammar and with
+  // it the note bundle, like `markdown` (ADR-0022, amended 2026-09-21); they
+  // stay files. The other prose formats are plain.
   md: p("prose", "Markdown"),
   markdown: p("prose", "Markdown"),
+  mkd: p("prose", "Markdown"),
+  mdx: p("prose", "Markdown"),
+  rmd: p("prose", "Markdown"),
+  qmd: p("prose", "Markdown"),
   txt: p("prose", null),
   text: p("prose", null),
   rst: p("prose", null),
   adoc: p("prose", null),
   org: p("prose", null),
   textile: p("prose", null),
-  mkd: p("prose", null),
-  mdx: p("prose", null),
-  rmd: p("prose", null),
-  qmd: p("prose", null),
   srt: p("prose", null),
   vtt: p("prose", null),
   tex: p("prose", "LaTeX"),
@@ -108,6 +109,7 @@ export const EXTENSION_PRESENTATION: Readonly<Record<string, Presentation>> = {
   rb: p("code2", "Ruby"),
   pl: p("code4", "Perl"),
   pm: p("code4", "Perl"),
+  php: p("code4", "PHP"),
   lua: p("code2", "Lua"),
   tcl: p("code4", "Tcl"),
   ps1: p("code4", "PowerShell"),

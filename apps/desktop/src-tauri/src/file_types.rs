@@ -128,6 +128,7 @@ pub const FILE_TYPES: &[FileType] = &[
     name("Rakefile", Kind::Text),
     ext("pl", Kind::Text),
     ext("pm", Kind::Text),
+    ext("php", Kind::Text),
     ext("lua", Kind::Text),
     ext("tcl", Kind::Text),
     ext("ps1", Kind::Text),
@@ -305,7 +306,9 @@ mod tests {
 
     #[test]
     fn creatable_is_every_text_extension_and_no_viewer_type() {
-        for e in ["md", "txt", "json", "swift", "log", "go", "tex", "org"] {
+        for e in [
+            "md", "txt", "json", "swift", "log", "go", "tex", "org", "php",
+        ] {
             assert!(is_creatable_ext(e), "{e}");
         }
         for e in ["pdf", "png", "wav", "MD", "", "docx", "map", "m", "1"] {

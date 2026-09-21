@@ -44,6 +44,7 @@ describe("fileTypes", () => {
       "Containerfile",
       "justfile",
       "x.diff",
+      "index.php",
     ]) {
       expect(isSupported(path), path).toBe(true);
     }
