@@ -33,7 +33,7 @@ vi.mock("../ipc/client", () => ({
 
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 250)));
 
-const REPORT = { scanned: 3, cloudOnlySkipped: 0, notUtf8Skipped: 2, matches: 3, truncated: false, cancelled: false };
+const REPORT = { scanned: 3, cloudOnlySkipped: 0, notUtf8Skipped: 2, matches: 2, truncated: false, cancelled: false };
 
 describe("SearchPanel", () => {
   beforeEach(() => {
@@ -42,10 +42,10 @@ describe("SearchPanel", () => {
     vi.mocked(commands.search).mockReset();
   });
 
-  // "All files" (ADR-0022 point 5): the core scans every regular file, the
-  // panel keeps the hits the tree would list and counts the rest out of
-  // the total; the toggle outlives the panel for the session.
-  it("sends allFiles, keeps only listed hits and names what was skipped", async () => {
+  // "All files" (ADR-0022 point 5): the shell scans every listed file and
+  // sends only those hits, the footer names what the scan could not read;
+  // the toggle outlives the panel for the session.
+  it("sends allFiles, lists the hits and names what was skipped", async () => {
     vi.mocked(commands.search).mockImplementation(async (_query, channel) => {
       const box = channel as unknown as { onmessage: (event: SearchEventDto) => void };
       box.onmessage({
@@ -53,7 +53,6 @@ describe("SearchPanel", () => {
         hits: [
           { path: "notes/a.md", line: 1, snippet: "needle in a note" },
           { path: "src/main.go", line: 7, snippet: "needle in Go" },
-          { path: "build/tool.zip", line: 2, snippet: "needle in an archive name" },
         ],
       });
       box.onmessage({ kind: "done", report: REPORT });
@@ -68,7 +67,6 @@ describe("SearchPanel", () => {
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ query: "needle", allFiles: true });
     expect(screen.getByText("needle in a note")).toBeTruthy();
     expect(screen.getByText("needle in Go")).toBeTruthy();
-    expect(screen.queryByText("needle in an archive name")).toBeNull();
     expect(screen.getByText("editor.search.results=2")).toBeTruthy();
     expect(screen.getByText("editor.search.notUtf8Skipped=2")).toBeTruthy();
     expect(useUi.getState().searchAllFiles).toBe(true);

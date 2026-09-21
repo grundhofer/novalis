@@ -176,7 +176,9 @@ Case-insensitive substring search over note bodies and titles by an on-demand
 scan; cloud-only notes are never read. With `--all-files` the scan covers
 every regular file in the vault (unfiltered — the app keeps to what its tree
 lists); a file that is not UTF-8 text, or binary (a NUL in its first 8 KiB),
-is counted in `notUtf8Skipped` and never read further.
+is counted in `notUtf8Skipped` and never read further. `--tag` is answered
+from the cache, which indexes notes: combined with `--all-files` it still
+yields notes only.
 
 ```json
 {"items":[{"path":"…","line":14,"snippet":"…"}],"truncated":false,"cloudOnlySkipped":3,"notUtf8Skipped":0}

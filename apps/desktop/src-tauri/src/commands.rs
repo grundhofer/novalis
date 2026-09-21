@@ -36,6 +36,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::dto::*;
 use crate::error::{IpcError, IpcResult};
+use crate::file_types::Kind;
 use crate::i18n::{resolve_locale, Catalog};
 use crate::state::{AppState, BoardRead, MenuShape};
 use crate::{cache, file_types, menu, watcher};
@@ -736,7 +737,12 @@ pub async fn search(
         } else {
             None
         };
-        let report = search::search(&root, &core_query, cache.as_ref(), &mut on_hit)?;
+        // Under "All files" the core walks every regular file; only what the
+        // tree lists and opens as text is read or counted, so the limit is
+        // not spent on hits in a `node_modules` the user never sees
+        // (ADR-0022 point 5, amended 2026-09-21).
+        let keep = |path: &str| matches!(file_types::kind_of(path), Some(Kind::Note | Kind::Text));
+        let report = search::search_where(&root, &core_query, cache.as_ref(), &keep, &mut on_hit)?;
         if !buffer.is_empty() {
             let _ = on_event.send(SearchEventDto::Hits { hits: buffer });
         }
