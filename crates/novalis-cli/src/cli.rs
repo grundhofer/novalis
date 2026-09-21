@@ -309,6 +309,10 @@ pub struct SearchArgs {
     pub folder: Option<String>,
     #[arg(long, value_name = "N", default_value_t = 50)]
     pub limit: usize,
+    /// Every regular file in the vault, not only notes; a file that is not
+    /// UTF-8 text is counted in notUtf8Skipped, never read past 8 KiB.
+    #[arg(long)]
+    pub all_files: bool,
     /// Include the matching line. On by default; --snippets=false drops it.
     #[arg(
         long,

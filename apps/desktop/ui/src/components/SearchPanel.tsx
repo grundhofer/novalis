@@ -11,6 +11,7 @@ import {
   type SearchReportDto,
   type TagCountDto,
 } from "../ipc/client";
+import { isSupported } from "../lib/fileTypes";
 import { useTabs } from "../stores/tabs";
 import { report as reportError, useUi } from "../stores/ui";
 import "../styles/overlay.css";
@@ -35,7 +36,11 @@ export default function SearchPanel() {
   const [tag, setTag] = useState("");
   const [tags, setTags] = useState<TagCountDto[]>([]);
   const [hits, setHits] = useState<SearchHitDto[]>([]);
+  // Hits in files the tree does not list (ADR-0022 point 5): the core's
+  // `allFiles` is every regular file, the app opens only what it lists.
+  const [hidden, setHidden] = useState(0);
   const [report, setReport] = useState<SearchReportDto | null>(null);
+  const allFiles = useUi((s) => s.searchAllFiles);
   const [running, setRunning] = useState(false);
   const input = useRef<HTMLInputElement | null>(null);
 
@@ -65,12 +70,15 @@ export default function SearchPanel() {
     }
     setRunning(true);
     setHits([]);
+    setHidden(0);
     setReport(null);
     const channel = new Channel<SearchEventDto>();
     channel.onmessage = (event) => {
       if (event.kind === "hits") {
+        const listed = event.hits.filter((hit) => isSupported(hit.path));
+        setHidden((count) => count + event.hits.length - listed.length);
         setHits((current) =>
-          current.length >= MAX_RESULTS ? current : [...current, ...event.hits].slice(0, MAX_RESULTS),
+          current.length >= MAX_RESULTS ? current : [...current, ...listed].slice(0, MAX_RESULTS),
         );
       } else {
         setReport(event.report);
@@ -86,7 +94,7 @@ export default function SearchPanel() {
             folder: null,
             tag: tag.trim() === "" ? null : tag.trim(),
             limit: MAX_RESULTS,
-            allFiles: false,
+            allFiles,
           },
           channel,
         ),
@@ -94,7 +102,7 @@ export default function SearchPanel() {
     } finally {
       setRunning(false);
     }
-  }, [query, regex, caseSensitive, tag]);
+  }, [query, regex, caseSensitive, tag, allFiles]);
 
   useEffect(() => {
     const timer = setTimeout(() => void run().catch(reportError), DEBOUNCE_MS);
@@ -134,6 +142,14 @@ export default function SearchPanel() {
             onClick={() => setRegex((v) => !v)}
           >
             {t("editor.find.regex")}
+          </button>
+          <button
+            className={allFiles ? "kbd on" : "kbd"}
+            type="button"
+            title={t("editor.search.allFiles")}
+            onClick={() => useUi.getState().toggleSearchAllFiles()}
+          >
+            {t("editor.search.allFiles")}
           </button>
           <input
             className="palette-filter"
@@ -186,9 +202,12 @@ export default function SearchPanel() {
         </div>
 
         <div className="palette-foot">
-          {report && <span>{t("editor.search.results", { count: report.matches })}</span>}
+          {report && <span>{t("editor.search.results", { count: Math.max(0, report.matches - hidden) })}</span>}
           {report && report.cloudOnlySkipped > 0 && (
             <span>{t("editor.search.cloudOnlySkipped", { count: report.cloudOnlySkipped })}</span>
+          )}
+          {report && report.notUtf8Skipped > 0 && (
+            <span>{t("editor.search.notUtf8Skipped", { count: report.notUtf8Skipped })}</span>
           )}
           {report?.truncated && <span>{t("editor.search.truncated", { count: MAX_RESULTS })}</span>}
         </div>

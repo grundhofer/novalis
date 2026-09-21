@@ -171,12 +171,15 @@ exit 8 for a cloud-only note unless `--materialize`.
 
 ### `search <query>` — Status: harness
 
-Flags: `--tag T`, `--folder F`, `--limit 50`, `--snippets`. Case-insensitive
-substring search over note bodies and titles by an on-demand scan; cloud-only
-notes are never read.
+Flags: `--tag T`, `--folder F`, `--limit 50`, `--snippets`, `--all-files`.
+Case-insensitive substring search over note bodies and titles by an on-demand
+scan; cloud-only notes are never read. With `--all-files` the scan covers
+every regular file in the vault (unfiltered — the app keeps to what its tree
+lists); a file that is not UTF-8 text, or binary (a NUL in its first 8 KiB),
+is counted in `notUtf8Skipped` and never read further.
 
 ```json
-{"items":[{"path":"…","line":14,"snippet":"…"}],"truncated":false,"cloudOnlySkipped":3}
+{"items":[{"path":"…","line":14,"snippet":"…"}],"truncated":false,"cloudOnlySkipped":3,"notUtf8Skipped":0}
 ```
 
 ### `links` — Status: harness

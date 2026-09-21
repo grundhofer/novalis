@@ -5,9 +5,9 @@ import { dispatchCommand, paletteCommands } from "../lib/commands";
 import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
 import { rank } from "../lib/fuzzy";
 import { bindingFor, glyphsOf } from "../lib/keymap";
-import { folderOf, stemOf } from "../lib/paths";
+import { fileNameOf, folderOf, isNote, stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
-import { useNotes } from "../stores/notes";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/overlay.css";
@@ -23,13 +23,13 @@ import "../styles/overlay.css";
  */
 
 type Entry =
-  | { kind: "note"; path: string }
+  | { kind: "file"; path: string }
   | { kind: "board"; slug: string; name: string }
   | { kind: "command"; id: string; label: string }
   | { kind: "heading"; line: number; text: string };
 
 const SECTION_KEY: Record<Entry["kind"], string> = {
-  note: "palette.section.notes",
+  file: "palette.section.notes",
   board: "palette.section.boards",
   command: "palette.section.commands",
   heading: "palette.section.headings",
@@ -52,7 +52,7 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement | null>(null);
-  const notes = useNotes((s) => s.paths);
+  const files = useFiles((s) => s.files);
   const boards = useBoard((s) => s.boards);
 
   useEffect(() => {
@@ -61,13 +61,15 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
   }, []);
 
   const pool: Entry[] = useMemo(() => {
-    const noteEntries: Entry[] = notes.map((path) => ({ kind: "note", path }));
+    // Every listed file, not only notes (ADR-0022); a note shows its stem,
+    // anything else its name with the extension.
+    const fileEntries: Entry[] = files.map((path) => ({ kind: "file", path }));
     const boardEntries: Entry[] = boards.map((b) => ({
       kind: "board",
       slug: b.slug,
       name: b.name,
     }));
-    if (mode === "quickOpen") return [...noteEntries, ...boardEntries];
+    if (mode === "quickOpen") return [...fileEntries, ...boardEntries];
     const commandEntries: Entry[] = paletteCommands().filter((c) => mode !== "settings" || c.settings).map(
       (c) => ({
         kind: "command",
@@ -76,13 +78,13 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
       }),
     );
     if (mode === "settings") return commandEntries;
-    return [...commandEntries, ...headingsOfActiveDocument(), ...noteEntries, ...boardEntries];
-  }, [mode, notes, boards, t]);
+    return [...commandEntries, ...headingsOfActiveDocument(), ...fileEntries, ...boardEntries];
+  }, [mode, files, boards, t]);
 
   const label = (entry: Entry): string => {
     switch (entry.kind) {
-      case "note":
-        return stemOf(entry.path);
+      case "file":
+        return isNote(entry.path) ? stemOf(entry.path) : fileNameOf(entry.path);
       case "board":
         return entry.name;
       case "command":
@@ -108,7 +110,7 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
     if (!entry) return;
     close();
     switch (entry.kind) {
-      case "note":
+      case "file":
         void useTabs.getState().open(entry.path).catch(report);
         break;
       case "board":
@@ -165,8 +167,8 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
                 <span className={entry.kind === "command" ? "result-glyph command" : "result-glyph"} />
                 <span className="result-label">{label(entry)}</span>
                 <span className="result-meta">
-                  {entry.kind === "note"
-                    ? folderOf(entry.path) || t(SECTION_KEY.note)
+                  {entry.kind === "file"
+                    ? folderOf(entry.path) || (isNote(entry.path) ? t(SECTION_KEY.file) : "")
                     : chord
                       ? glyphsOf(chord)
                       : t(SECTION_KEY[entry.kind])}

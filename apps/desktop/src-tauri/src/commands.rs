@@ -28,7 +28,7 @@ use novalis_core::vault::path::{
     file_name_of, is_hidden, is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of,
     vault_note_rel, vault_rel,
 };
-use novalis_core::vault::walk::walk_notes;
+use novalis_core::vault::walk::walk_files;
 use novalis_core::{CoreError, PathReason};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
@@ -310,18 +310,19 @@ pub async fn list_dir(state: State<'_, AppState>, path: String) -> IpcResult<Vec
     .await
 }
 
-/// Every note in the vault, vault-relative and sorted.
-///
-/// Quick-open (`Cmd+P`), the `[[`-completion source and the board's "Link
-/// Note…" all need the whole list, and the tree only knows the folders the
-/// user has opened. `walk_notes` runs under the materialize-off guard and
-/// stats only, so a 10k-note cloud vault costs no downloads.
+/// Every regular file in the vault, vault-relative and sorted — not only
+/// notes (ADR-0022): quick-open lists every file the tree would, and the
+/// `[[`-completion source keeps the `.md` among them. The UI applies the
+/// file-type table; the shell hands over the walk, because the table's name
+/// patterns are the UI's to run. The tree only knows the folders the user
+/// has opened. `walk_files` runs under the materialize-off guard and stats
+/// only, so a 10k-note cloud vault costs no downloads.
 #[tauri::command]
 #[specta::specta]
-pub async fn list_notes(state: State<'_, AppState>) -> IpcResult<Vec<String>> {
+pub async fn list_files(state: State<'_, AppState>) -> IpcResult<Vec<String>> {
     let root = state.require_vault()?;
     blocking(move || {
-        Ok(walk_notes(&root)?
+        Ok(walk_files(&root)?
             .into_iter()
             .map(|file| file.path)
             .collect())
