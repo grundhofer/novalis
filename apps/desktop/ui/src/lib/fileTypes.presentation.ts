@@ -193,15 +193,15 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, Presentation]> = Object.entries(
 );
 
 /**
- * Grammars that key on a file-name pattern inside a row that has none of its
- * own: `language-data` claims these by regex over the path, which the name
- * lookup would otherwise lose (`nginx.conf` is a `conf`, `CMakeLists.txt` a
- * `txt`). A row with a grammar is never overruled — `Dockerfile.md` is a
- * note.
+ * A dress by file name inside a row that has no grammar of its own:
+ * `language-data` claims these by regex over the path, which the name
+ * lookup would otherwise lose (`nginx.conf` is a `conf`, `CMakeLists.txt`
+ * a `txt` — and code, not prose). A row with a grammar is never overruled —
+ * `Dockerfile.md` is a note.
  */
-const NAME_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/nginx[^/]*\.conf$/i, "Nginx"],
-  [/^CMakeLists\.txt$/, "CMake"],
+const NAME_PATTERNS: ReadonlyArray<readonly [RegExp, Presentation]> = [
+  [/nginx[^/]*\.conf$/i, p("data", "Nginx")],
+  [/^CMakeLists\.txt$/, p("code2", "CMake")],
 ];
 
 /** The dress of a listed path, or null when the table does not list it. */
@@ -209,20 +209,15 @@ export function presentationOf(rel: string): Presentation | null {
   if (kindOf(rel) === null) return null;
   const name = fileNameOf(rel);
   const extension = extensionOf(rel);
-  return (
+  const row =
     (extension ? EXTENSION_PRESENTATION[extension] : NAME_PRESENTATION[name]) ??
     PATTERNS.find(([pattern]) => pattern.test(name))?.[1] ??
-    null
-  );
+    null;
+  if (row?.grammar) return row;
+  return NAME_PATTERNS.find(([pattern]) => pattern.test(name))?.[1] ?? row;
 }
 
 /** The `language-data` name to load for a path, or null for plain text. */
 export function grammarNameOf(rel: string): string | null {
-  const row = presentationOf(rel);
-  if (row?.grammar) return row.grammar;
-  const name = fileNameOf(rel);
-  for (const [pattern, grammar] of NAME_PATTERNS) {
-    if (pattern.test(name)) return grammar;
-  }
-  return null;
+  return presentationOf(rel)?.grammar ?? null;
 }

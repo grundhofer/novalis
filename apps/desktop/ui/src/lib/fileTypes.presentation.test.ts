@@ -96,6 +96,10 @@ describe("fileTypes.presentation", () => {
     expect(presentationOf("LICENSE")?.preset).toBe("prose");
     expect(presentationOf("paper.tex")?.preset).toBe("prose");
     expect(presentationOf("Dockerfile.dev")?.preset).toBe("code2");
+    // A name pattern dresses the whole row, not just its grammar.
+    expect(presentationOf("CMakeLists.txt")).toEqual({ preset: "code2", grammar: "CMake" });
+    expect(presentationOf("sub/nginx.conf")).toEqual({ preset: "data", grammar: "Nginx" });
+    expect(presentationOf("notes/CMakeLists.txt.md")?.preset).toBe("prose");
     expect(PRESETS[presentationOf("a.md")?.preset ?? "data"]).toMatchObject({ wrap: true, numbers: false });
     expect(PRESETS[presentationOf("a.py")?.preset ?? "data"].indent).toBe("    ");
     expect(PRESETS[presentationOf("a.csv")?.preset ?? "data"]).toMatchObject({ wrap: false, numbers: true });
