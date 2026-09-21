@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchCommand } from "../lib/commands";
 import { useBoard } from "../stores/board";
-import { useNotes } from "../stores/notes";
+import { useFiles } from "../stores/files";
+import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import Palette from "./Palette";
 
@@ -31,7 +32,7 @@ vi.mock("../lib/commands", async (importOriginal) => ({
 
 describe("Palette", () => {
   beforeEach(() => {
-    useNotes.setState({ paths: [], loaded: true });
+    useFiles.setState({ files: [], notes: [], loaded: true });
     useBoard.setState({ boards: [] });
     useUi.setState({ overlay: { kind: "palette" } });
   });
@@ -75,6 +76,25 @@ describe("Palette", () => {
     fireEvent.change(input, { target: { value: "menu.edit.checkSpellingWhileTyping" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(dispatchCommand).toHaveBeenCalledWith("settings.spellcheck");
+  });
+
+  // Quick-open lists every file the tree lists (ADR-0022 point 5): a note by
+  // its stem, anything else by its name with the extension; the `[[` source
+  // is the notes alone.
+  it("opens any listed file from quick-open, named with its extension", () => {
+    useFiles.setState({ files: ["a.md", "notes/b.txt", "c.pdf"], notes: ["a.md"], loaded: true });
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open });
+    render(<Palette mode="quickOpen" />);
+    const input = screen.getByPlaceholderText("palette.quickOpenPlaceholder");
+
+    expect(screen.getByText("a")).toBeTruthy();
+    expect(screen.getByText("b.txt")).toBeTruthy();
+    expect(screen.getByText("c.pdf")).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: "b.txt" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(open).toHaveBeenCalledWith("notes/b.txt");
   });
 
   it("offers no command in quick-open", () => {

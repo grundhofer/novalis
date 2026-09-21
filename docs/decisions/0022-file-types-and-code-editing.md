@@ -186,3 +186,14 @@ Markdown grammar and the editor bundle that comes with it (decorations,
 completion, the chords, Cmd-click), as files — cache, links, backlinks and
 the CLI stay `.md`; image paste (`attachments.ts` keys on `.md`) and ⌘E
 stay what point 6 says, `.md` and, when built, `.markdown`.
+
+**Amended 2026-09-21 (F5)** — point 5 said the UI keeps only the hits the
+tree would list; the review of the F5 pull request showed that a hit in an
+unlisted file then still spends a slot of the core's limit, so a `vendor/`
+tree full of matches could end a scan before the notes were reached. The
+filter runs in the shell instead, before the limit: `search_where` lets the
+caller narrow the walk, and the app passes its table (`file_types::kind_of`,
+the UI's `kindOf` in Rust — extension, else name, else the `Dockerfile.`
+prefix) so only listed text is read or counted. The CLI's `--all-files`
+stays unfiltered. Under `--all-files`, a `--tag` filter still yields notes
+only, because the tag index knows notes; the reference says so.

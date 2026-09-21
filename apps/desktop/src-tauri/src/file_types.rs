@@ -23,13 +23,14 @@ pub enum Kind {
 
 /// How a file is recognised: by its lower-case extension, by its whole file
 /// name when it has no extension worth the name (`Makefile`), or by a
-/// pattern over the file name (`Dockerfile.dev`) — a regex the UI runs
-/// after the other two failed; the shell evaluates none.
+/// prefix of the file name with something after it (`Dockerfile.dev`),
+/// tried after the other two failed. The UI gets the prefix as an anchored
+/// regex; [`kind_of`] is the same lookup in Rust.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
     Ext(&'static str),
     Name(&'static str),
-    Pattern(&'static str),
+    Prefix(&'static str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,9 +53,9 @@ const fn name(name: &'static str, kind: Kind) -> FileType {
     }
 }
 
-const fn pattern(pattern: &'static str, kind: Kind) -> FileType {
+const fn prefix(prefix: &'static str, kind: Kind) -> FileType {
     FileType {
-        key: Key::Pattern(pattern),
+        key: Key::Prefix(prefix),
         kind,
     }
 }
@@ -178,7 +179,7 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("dockerfile", Kind::Text),
     name("Dockerfile", Kind::Text),
     name("Containerfile", Kind::Text),
-    pattern(r"^Dockerfile\..+$", Kind::Text),
+    prefix("Dockerfile.", Kind::Text),
     ext("cmake", Kind::Text),
     name("Makefile", Kind::Text),
     name("GNUmakefile", Kind::Text),
@@ -206,6 +207,44 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("webp", Kind::View),
 ];
 
+/// What the app does with this vault-relative path, or `None` when the tree
+/// does not list it — the UI's `kindOf` in Rust, for what must decide before
+/// the UI sees the path (the search limit, ADR-0022 point 5): by the
+/// lower-case extension, else by the whole name, else by a prefix.
+pub fn kind_of(rel: &str) -> Option<Kind> {
+    let name = rel.rsplit('/').next().unwrap_or(rel);
+    let ext = name
+        .rfind('.')
+        .filter(|&i| i > 0)
+        .map(|i| name[i + 1..].to_ascii_lowercase());
+    let by_key = FILE_TYPES.iter().find(|t| match (&ext, t.key) {
+        (Some(e), Key::Ext(x)) => x == e,
+        (None, Key::Name(n)) => n == name,
+        _ => false,
+    });
+    by_key
+        .or_else(|| {
+            FILE_TYPES.iter().find(
+                |t| matches!(t.key, Key::Prefix(p) if name.len() > p.len() && name.starts_with(p)),
+            )
+        })
+        .map(|t| t.kind)
+}
+
+/// The anchored regex source the UI runs for a prefix row: the prefix,
+/// escaped, then at least one character.
+fn prefix_regex(prefix: &str) -> String {
+    let mut out = String::from("^");
+    for c in prefix.chars() {
+        if r"\.^$|?*+()[]{}".contains(c) {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out.push_str(".+$");
+    out
+}
+
 /// Whether a typed name keeps this (lower-case) extension in `create_note`
 /// (ADR-0014): the extensions the editor opens. A viewer type cannot be
 /// created empty.
@@ -218,7 +257,7 @@ pub fn is_creatable_ext(ext: &str) -> bool {
 /// The TypeScript module the UI reads: three maps, extension → kind, file
 /// name → kind and pattern source → kind, in the table's order. Keys are
 /// quoted so a row like `c++` or `.bashrc` needs no special case when it
-/// comes; a pattern is escaped as a string the UI hands to `RegExp`.
+/// comes; a prefix row becomes a regex source the UI hands to `RegExp`.
 pub fn export_ts() -> String {
     let kind = |k: Kind| match k {
         Kind::Note => "note",
@@ -253,10 +292,10 @@ pub fn export_ts() -> String {
          export const PATTERN_KINDS: Readonly<Record<string, FileKind>> = {\n",
     );
     for t in FILE_TYPES {
-        if let Key::Pattern(p) = t.key {
+        if let Key::Prefix(p) = t.key {
             out.push_str(&format!(
                 "  \"{}\": \"{}\",\n",
-                p.replace('\\', "\\\\"),
+                prefix_regex(p).replace('\\', "\\\\"),
                 kind(t.kind)
             ));
         }
@@ -267,7 +306,7 @@ pub fn export_ts() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{export_ts, is_creatable_ext, Key, Kind, FILE_TYPES};
+    use super::{export_ts, is_creatable_ext, prefix_regex, Key, Kind, FILE_TYPES};
 
     /// The invariants the UI and `creatable_name` rely on: extensions are
     /// lower-case and dot-free, every key is unique, and `md` is the only
@@ -286,13 +325,9 @@ mod tests {
                     assert!(!n.is_empty() && !n.contains('/'), "{n:?}");
                     assert!(seen.insert(format!("name:{n}")), "duplicate name {n:?}");
                 }
-                Key::Pattern(p) => {
-                    // Anchored, so a pattern can never match a name by accident.
-                    assert!(p.starts_with('^') && p.ends_with('$'), "{p:?}");
-                    assert!(
-                        seen.insert(format!("pattern:{p}")),
-                        "duplicate pattern {p:?}"
-                    );
+                Key::Prefix(p) => {
+                    assert!(!p.is_empty() && !p.contains('/'), "{p:?}");
+                    assert!(seen.insert(format!("prefix:{p}")), "duplicate prefix {p:?}");
                 }
             }
             assert!(
@@ -316,6 +351,45 @@ mod tests {
         }
     }
 
+    /// The same cases `fileTypes.test.ts` runs against the UI's `kindOf`:
+    /// extension first, the whole name only without one, the prefix last.
+    #[test]
+    fn kind_of_is_the_ui_lookup() {
+        use super::kind_of;
+        for path in [
+            "a.md",
+            "notes/b.txt",
+            "Notes.TXT",
+            "Makefile",
+            "sub/LICENSE",
+            "README",
+            "main.go",
+            "build/Dockerfile.dev",
+            "Containerfile",
+            "justfile",
+            "d.pdf",
+        ] {
+            assert!(kind_of(path).is_some(), "{path}");
+        }
+        for path in [
+            "song.wav",
+            "archive.zip",
+            "app.js.map",
+            "matrix.m",
+            "syslog.1",
+            "readme",
+            "Dockerfile.",
+            "Dockerfiles",
+            ".md",
+            "a/.txt",
+        ] {
+            assert!(kind_of(path).is_none(), "{path}");
+        }
+        assert_eq!(kind_of("Dockerfile.md"), Some(Kind::Note));
+        assert_eq!(kind_of("Dockerfile.dev"), Some(Kind::Text));
+        assert_eq!(kind_of("e.PNG"), Some(Kind::View));
+    }
+
     /// The generated module is a valid object literal per map and names
     /// every row once.
     #[test]
@@ -330,11 +404,11 @@ mod tests {
             };
             let key = match t.key {
                 Key::Ext(k) | Key::Name(k) => k.to_string(),
-                Key::Pattern(p) => p.replace('\\', "\\\\"),
+                Key::Prefix(p) => prefix_regex(p).replace('\\', "\\\\"),
             };
             let line = format!("  \"{key}\": \"{kind}\",\n");
             assert_eq!(ts.matches(&line).count(), 1, "{line:?}");
         }
-        assert!(ts.contains("\"^Dockerfile\\\\..+$\": \"text\""));
+        assert!(ts.contains("\"^Dockerfile\\\\..+$\": \"text\""), "{ts}");
     }
 }
