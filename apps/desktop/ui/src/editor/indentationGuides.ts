@@ -26,22 +26,31 @@ function indentOf(line: string, tabSize: number): number {
   return -1;
 }
 
-/** How far a blank run looks for the content line that decides its guides. */
-const LOOKAROUND = 200;
+/** The longest gap that still counts as a gap inside a block, in blank lines. */
+const GAP = 200;
 
 /**
  * Guides for lines `first…last` of `doc`. A content line gets one per started
- * indent unit. A blank run belongs to the block around it: judged by the
- * nearest content lines above and below (the rule VS Code uses), so a gap
- * inside a block keeps the block's guides and a gap between two top-level
- * items has none.
+ * indent unit. A gap belongs to the block around it: judged by the content
+ * lines on both sides (the rule VS Code uses), so a gap inside a block keeps
+ * the block's guides and a gap between two top-level items has none. A gap
+ * longer than `GAP` is a hole in the file, not a gap in a block, and has
+ * none either — decided from the gap alone, so the answer does not change
+ * with where the viewport starts, and no line is looked at more than once
+ * per build plus the `GAP` reach.
  */
 export function indentLevels(doc: Text, first: number, last: number, unit: number, tabSize: number): number[] {
   const columns = (n: number): number => indentOf(doc.line(n).text, tabSize);
+  // The content line above the viewport, if it is within a gap's reach.
+  let aboveLine = 0;
   let above = -1;
-  for (let n = first - 1; n >= Math.max(1, first - LOOKAROUND); n -= 1) {
-    above = columns(n);
-    if (above >= 0) break;
+  for (let n = first - 1; n >= Math.max(1, first - GAP); n -= 1) {
+    const cols = columns(n);
+    if (cols >= 0) {
+      aboveLine = n;
+      above = cols;
+      break;
+    }
   }
   const levels: number[] = [];
   let n = first;
@@ -49,21 +58,23 @@ export function indentLevels(doc: Text, first: number, last: number, unit: numbe
     const own = columns(n);
     if (own >= 0) {
       levels.push(Math.ceil(own / unit));
+      aboveLine = n;
       above = own;
       n += 1;
       continue;
     }
-    // A blank run: `end` is the content line that closes it, or one past the
-    // lookaround when none does.
-    const bound = Math.min(doc.lines, n + LOOKAROUND);
+    // A gap: `end` is the content line that closes it, if one does within
+    // the reach — else the reach's end, and every line up to it is labelled
+    // now, so the rest of a long gap costs one look per line.
+    const reach = above < 0 ? n : Math.min(doc.lines, aboveLine + GAP + 1);
     let end = n + 1;
     let below = -1;
-    for (; end <= bound; end += 1) {
+    for (; end <= reach; end += 1) {
       below = columns(end);
       if (below >= 0) break;
     }
     const level =
-      above < 0 || below < 0
+      below < 0
         ? 0
         : above < below
           ? Math.floor(above / unit) + 1

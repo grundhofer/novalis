@@ -39,12 +39,16 @@ describe("indentLevels", () => {
     expect(levels(lines, 4, 4, 4, 6)).toEqual([1, 1, 0]);
   });
 
-  it("stops looking two hundred lines out", () => {
-    const lines = ["    a", ...Array.from({ length: 250 }, () => ""), "    b"];
-    const result = levels(lines);
-    expect(result[0]).toBe(1);
-    expect(result[1]).toBe(0);
-    expect(result[251]).toBe(1);
-    expect(result).toHaveLength(252);
+  it("treats a gap of more than two hundred lines as a hole, wherever the viewport starts", () => {
+    const gap = (blank: number) => ["    a", ...Array.from({ length: blank }, () => ""), "    b"];
+    const inside = gap(200);
+    expect(levels(inside)).toEqual(Array.from({ length: 202 }, () => 1));
+    expect(levels(inside, 4, 4, 100, 150)).toEqual(Array.from({ length: 51 }, () => 1));
+    expect(levels(inside, 4, 4, 201, 202)).toEqual([1, 1]);
+    const hole = gap(201);
+    expect(levels(hole)).toEqual([1, ...Array.from({ length: 201 }, () => 0), 1]);
+    expect(levels(hole, 4, 4, 2, 2)).toEqual([0]);
+    expect(levels(hole, 4, 4, 100, 150)).toEqual(Array.from({ length: 51 }, () => 0));
+    expect(levels(hole, 4, 4, 202, 203)).toEqual([0, 1]);
   });
 });
