@@ -124,10 +124,7 @@ export default function App() {
       if (boot.vault) {
         void useNotes.getState().refresh().catch(report);
         const { boardVisible: boardWasVisible, activeBoard } = boot.lastOpen;
-        for (const path of boot.lastOpen.openTabs ?? []) {
-          await useTabs.getState().open(path, { background: true });
-        }
-        if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
+        await useTabs.getState().reopen(boot.lastOpen.openTabs ?? [], boot.lastOpen.activeTab ?? null);
         // Making the tab current hid the board (stores/tabs.ts); one that was
         // showing when the app quit comes back over it.
         if (boardWasVisible && activeBoard) useUi.getState().setActiveBoard(activeBoard);

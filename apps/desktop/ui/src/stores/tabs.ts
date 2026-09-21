@@ -25,6 +25,7 @@ interface TabsState {
   historyIndex: number;
 
   restore: (tabs: string[], active: string | null) => void;
+  reopen: (paths: string[], active: string | null) => Promise<void>;
   open: (path: string, options?: { background?: boolean }) => Promise<void>;
   activate: (path: string) => Promise<void>;
   close: (path: string) => Promise<void>;
@@ -46,6 +47,25 @@ export const useTabs = create<TabsState>((set, get) => ({
   historyIndex: -1,
 
   restore: (tabs, active) => set({ tabs, active, history: active ? [active] : [], historyIndex: active ? 0 : -1 }),
+
+  // The last session's tabs, opened in the background, then the active one
+  // made current. A tab whose file is gone since — deleted on the phone, the
+  // same path in another vault — is skipped and reported once; it must not
+  // take the window with it, which is what the boot's catch did.
+  reopen: async (paths, active) => {
+    let failure: unknown = null;
+    const opened: string[] = [];
+    for (const path of paths) {
+      try {
+        await get().open(path, { background: true });
+        opened.push(path);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
+    if (failure !== null) report(failure);
+    if (active && opened.includes(active)) await get().activate(active);
+  },
 
   open: async (path, options) => {
     if (!viewKind(path)) await useEditorSave.getState().open(path);
