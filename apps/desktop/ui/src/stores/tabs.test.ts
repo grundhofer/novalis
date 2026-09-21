@@ -85,6 +85,19 @@ describe("useTabs and the board pane", () => {
     expect(useUi.getState().boardVisible).toBe(true);
   });
 
+  // The tree is usable while the session restores; a note opened and typed
+  // into meanwhile is saved when the last session's tab is made current.
+  it("reports a save that fails on the way to the last active tab, instead of throwing", async () => {
+    useTabs.setState({ tabs: ["meanwhile.md"], active: "meanwhile.md", history: ["meanwhile.md"], historyIndex: 0 });
+    useEditorSave.setState({ save: vi.fn().mockRejectedValue(new Error("disk full")) });
+
+    await expect(useTabs.getState().reopen(["a.md"], "a.md")).resolves.toBeUndefined();
+
+    expect(useTabs.getState().tabs).toEqual(["meanwhile.md", "a.md"]);
+    expect(useTabs.getState().active).toBe("meanwhile.md");
+    expect(useUi.getState().toast?.values).toEqual({ detail: "Error: disk full" });
+  });
+
   it("hides it when a tab is activated", async () => {
     useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md", history: ["a.md"], historyIndex: 0 });
 

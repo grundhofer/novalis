@@ -50,8 +50,10 @@ export const useTabs = create<TabsState>((set, get) => ({
 
   // The last session's tabs, opened in the background, then the active one
   // made current. A tab whose file is gone since — deleted on the phone, the
-  // same path in another vault — is skipped and reported once; it must not
-  // take the window with it, which is what the boot's catch did.
+  // same path in another vault — is skipped, and the first failure is one
+  // toast; nothing here may take the window with it, which is what the
+  // boot's catch did. The tree is interactive while this runs, so a note
+  // the user opened meanwhile is saved by `activate`; that save can fail too.
   reopen: async (paths, active) => {
     let failure: unknown = null;
     const opened: string[] = [];
@@ -63,8 +65,14 @@ export const useTabs = create<TabsState>((set, get) => ({
         failure ??= error;
       }
     }
+    if (active && opened.includes(active)) {
+      try {
+        await get().activate(active);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
     if (failure !== null) report(failure);
-    if (active && opened.includes(active)) await get().activate(active);
   },
 
   open: async (path, options) => {
