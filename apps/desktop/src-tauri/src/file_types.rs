@@ -21,12 +21,15 @@ pub enum Kind {
     View,
 }
 
-/// How a file is recognised: by its lower-case extension, or by its whole
-/// file name when it has no extension worth the name (`Makefile`).
+/// How a file is recognised: by its lower-case extension, by its whole file
+/// name when it has no extension worth the name (`Makefile`), or by a
+/// pattern over the file name (`Dockerfile.dev`) — a regex the UI runs
+/// after the other two failed; the shell evaluates none.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Key {
     Ext(&'static str),
     Name(&'static str),
+    Pattern(&'static str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,23 +52,66 @@ const fn name(name: &'static str, kind: Kind) -> FileType {
     }
 }
 
-/// PLAN.md §7.3 tiers A–D as shipped; the order is the table's.
+const fn pattern(pattern: &'static str, kind: Kind) -> FileType {
+    FileType {
+        key: Key::Pattern(pattern),
+        kind,
+    }
+}
+
+/// PLAN.md §7.3 as shipped, in the order of the plan's table (ADR-0022
+/// point 2, docs/research/2026-09-20-formats-plan.md §3.1): every row has a
+/// grammar already in the bundle or is plain on purpose. What is not here
+/// is not listed — the plan's §3.3 says why, row by row.
 pub const FILE_TYPES: &[FileType] = &[
-    // Tier A (Lezer grammars, lazy)
+    // Notes and prose
     ext("md", Kind::Note),
     ext("markdown", Kind::Text),
     ext("txt", Kind::Text),
     ext("text", Kind::Text),
+    ext("rst", Kind::Text),
+    ext("adoc", Kind::Text),
+    ext("org", Kind::Text),
+    ext("textile", Kind::Text),
+    ext("mkd", Kind::Text),
+    ext("mdx", Kind::Text),
+    ext("rmd", Kind::Text),
+    ext("qmd", Kind::Text),
+    ext("srt", Kind::Text),
+    ext("vtt", Kind::Text),
+    ext("tex", Kind::Text),
+    ext("ltx", Kind::Text),
+    // Data
     ext("json", Kind::Text),
-    ext("map", Kind::Text),
+    ext("json5", Kind::Text),
+    ext("jsonc", Kind::Text),
     ext("yaml", Kind::Text),
     ext("yml", Kind::Text),
     ext("toml", Kind::Text),
     ext("xml", Kind::Text),
+    ext("xsl", Kind::Text),
+    ext("xsd", Kind::Text),
+    ext("plist", Kind::Text),
     ext("svg", Kind::Text),
+    ext("csv", Kind::Text),
+    ext("tsv", Kind::Text),
+    ext("log", Kind::Text),
+    ext("diff", Kind::Text),
+    ext("patch", Kind::Text),
+    ext("bib", Kind::Text),
+    // Configuration
+    ext("ini", Kind::Text),
+    ext("properties", Kind::Text),
+    ext("cfg", Kind::Text),
+    ext("env", Kind::Text),
+    ext("conf", Kind::Text),
+    // Web
     ext("html", Kind::Text),
     ext("htm", Kind::Text),
     ext("css", Kind::Text),
+    ext("scss", Kind::Text),
+    ext("sass", Kind::Text),
+    ext("less", Kind::Text),
     ext("js", Kind::Text),
     ext("mjs", Kind::Text),
     ext("cjs", Kind::Text),
@@ -74,26 +120,83 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("mts", Kind::Text),
     ext("cts", Kind::Text),
     ext("tsx", Kind::Text),
+    ext("vue", Kind::Text),
+    // Scripts and shells
     ext("py", Kind::Text),
-    ext("rs", Kind::Text),
-    // Tier B (legacy stream modes)
+    ext("rb", Kind::Text),
+    name("Gemfile", Kind::Text),
+    name("Rakefile", Kind::Text),
+    ext("pl", Kind::Text),
+    ext("pm", Kind::Text),
+    ext("lua", Kind::Text),
+    ext("tcl", Kind::Text),
+    ext("ps1", Kind::Text),
     ext("sh", Kind::Text),
     ext("bash", Kind::Text),
     ext("zsh", Kind::Text),
-    ext("ini", Kind::Text),
-    ext("conf", Kind::Text),
-    ext("cfg", Kind::Text),
-    ext("properties", Kind::Text),
-    ext("env", Kind::Text),
+    // Systems
+    ext("c", Kind::Text),
+    ext("h", Kind::Text),
+    ext("cpp", Kind::Text),
+    ext("cc", Kind::Text),
+    ext("cxx", Kind::Text),
+    ext("hpp", Kind::Text),
+    ext("hh", Kind::Text),
+    ext("hxx", Kind::Text),
+    ext("rs", Kind::Text),
+    ext("go", Kind::Text),
     ext("swift", Kind::Text),
+    // JVM and .NET
+    ext("java", Kind::Text),
+    ext("kt", Kind::Text),
+    ext("kts", Kind::Text),
+    ext("scala", Kind::Text),
+    ext("cs", Kind::Text),
+    ext("groovy", Kind::Text),
+    ext("gradle", Kind::Text),
+    name("Jenkinsfile", Kind::Text),
+    // Mobile, functional, Lisp
+    ext("dart", Kind::Text),
+    ext("hs", Kind::Text),
+    ext("ml", Kind::Text),
+    ext("mli", Kind::Text),
+    ext("elm", Kind::Text),
+    ext("erl", Kind::Text),
+    ext("clj", Kind::Text),
+    ext("cljs", Kind::Text),
+    ext("edn", Kind::Text),
+    ext("lisp", Kind::Text),
+    ext("el", Kind::Text),
+    ext("scm", Kind::Text),
+    // Science, databases, interfaces
+    ext("r", Kind::Text),
+    ext("jl", Kind::Text),
+    ext("sql", Kind::Text),
+    ext("proto", Kind::Text),
+    // Build
+    ext("dockerfile", Kind::Text),
     name("Dockerfile", Kind::Text),
-    // Tier C (plain)
-    ext("csv", Kind::Text),
-    ext("tsv", Kind::Text),
-    ext("log", Kind::Text),
-    name("LICENSE", Kind::Text),
+    name("Containerfile", Kind::Text),
+    pattern(r"^Dockerfile\..+$", Kind::Text),
+    ext("cmake", Kind::Text),
     name("Makefile", Kind::Text),
-    // Tier D (view, ADR-0015/0016)
+    name("GNUmakefile", Kind::Text),
+    name("makefile", Kind::Text),
+    ext("mk", Kind::Text),
+    name("Justfile", Kind::Text),
+    name("justfile", Kind::Text),
+    // Documentation names
+    name("LICENSE", Kind::Text),
+    name("README", Kind::Text),
+    name("CHANGELOG", Kind::Text),
+    name("CONTRIBUTING", Kind::Text),
+    name("AUTHORS", Kind::Text),
+    name("NOTICE", Kind::Text),
+    name("COPYING", Kind::Text),
+    name("VERSION", Kind::Text),
+    name("TODO", Kind::Text),
+    name("CODEOWNERS", Kind::Text),
+    // View (ADR-0015/0016)
     ext("pdf", Kind::View),
     ext("png", Kind::View),
     ext("jpg", Kind::View),
@@ -111,9 +214,10 @@ pub fn is_creatable_ext(ext: &str) -> bool {
         .any(|t| t.kind != Kind::View && matches!(t.key, Key::Ext(e) if e == ext))
 }
 
-/// The TypeScript module the UI reads: two maps, extension → kind and
-/// file name → kind, in the table's order. Keys are quoted so a row like
-/// `c++` or `.bashrc` needs no special case when it comes.
+/// The TypeScript module the UI reads: three maps, extension → kind, file
+/// name → kind and pattern source → kind, in the table's order. Keys are
+/// quoted so a row like `c++` or `.bashrc` needs no special case when it
+/// comes; a pattern is escaped as a string the UI hands to `RegExp`.
 pub fn export_ts() -> String {
     let kind = |k: Kind| match k {
         Kind::Note => "note",
@@ -142,6 +246,20 @@ pub fn export_ts() -> String {
             out.push_str(&format!("  \"{n}\": \"{}\",\n", kind(t.kind)));
         }
     }
+    out.push_str(
+        "};\n\n\
+         /** Regex source over the file name → kind, tried after the two maps. */\n\
+         export const PATTERN_KINDS: Readonly<Record<string, FileKind>> = {\n",
+    );
+    for t in FILE_TYPES {
+        if let Key::Pattern(p) = t.key {
+            out.push_str(&format!(
+                "  \"{}\": \"{}\",\n",
+                p.replace('\\', "\\\\"),
+                kind(t.kind)
+            ));
+        }
+    }
     out.push_str("};\n");
     out
 }
@@ -167,6 +285,14 @@ mod tests {
                     assert!(!n.is_empty() && !n.contains('/'), "{n:?}");
                     assert!(seen.insert(format!("name:{n}")), "duplicate name {n:?}");
                 }
+                Key::Pattern(p) => {
+                    // Anchored, so a pattern can never match a name by accident.
+                    assert!(p.starts_with('^') && p.ends_with('$'), "{p:?}");
+                    assert!(
+                        seen.insert(format!("pattern:{p}")),
+                        "duplicate pattern {p:?}"
+                    );
+                }
             }
             assert!(
                 t.kind != Kind::Note || t.key == Key::Ext("md"),
@@ -179,10 +305,10 @@ mod tests {
 
     #[test]
     fn creatable_is_every_text_extension_and_no_viewer_type() {
-        for e in ["md", "txt", "json", "swift", "log"] {
+        for e in ["md", "txt", "json", "swift", "log", "go", "tex", "org"] {
             assert!(is_creatable_ext(e), "{e}");
         }
-        for e in ["pdf", "png", "wav", "MD", "", "docx"] {
+        for e in ["pdf", "png", "wav", "MD", "", "docx", "map", "m", "1"] {
             assert!(!is_creatable_ext(e), "{e}");
         }
     }
@@ -194,14 +320,18 @@ mod tests {
         let ts = export_ts();
         assert!(ts.starts_with("// This file has been generated"));
         for t in FILE_TYPES {
-            let (key, kind) = match (t.key, t.kind) {
-                (Key::Ext(e), Kind::Note) => (e, "note"),
-                (Key::Ext(e), Kind::Text) | (Key::Name(e), Kind::Text) => (e, "text"),
-                (Key::Ext(e), Kind::View) | (Key::Name(e), Kind::View) => (e, "view"),
-                (Key::Name(n), Kind::Note) => (n, "note"),
+            let kind = match t.kind {
+                Kind::Note => "note",
+                Kind::Text => "text",
+                Kind::View => "view",
+            };
+            let key = match t.key {
+                Key::Ext(k) | Key::Name(k) => k.to_string(),
+                Key::Pattern(p) => p.replace('\\', "\\\\"),
             };
             let line = format!("  \"{key}\": \"{kind}\",\n");
             assert_eq!(ts.matches(&line).count(), 1, "{line:?}");
         }
+        assert!(ts.contains("\"^Dockerfile\\\\..+$\": \"text\""));
     }
 }

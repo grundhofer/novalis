@@ -45,20 +45,55 @@ export const PRESETS: Readonly<
 const p = (preset: Preset, grammar: string | null): Presentation => ({ preset, grammar });
 
 export const EXTENSION_PRESENTATION: Readonly<Record<string, Presentation>> = {
+  // Notes and prose. The prose formats are plain: a Markdown grammar for
+  // `mkd mdx rmd qmd` would bring the whole note bundle with it.
   md: p("prose", "Markdown"),
   markdown: p("prose", "Markdown"),
   txt: p("prose", null),
   text: p("prose", null),
+  rst: p("prose", null),
+  adoc: p("prose", null),
+  org: p("prose", null),
+  textile: p("prose", null),
+  mkd: p("prose", null),
+  mdx: p("prose", null),
+  rmd: p("prose", null),
+  qmd: p("prose", null),
+  srt: p("prose", null),
+  vtt: p("prose", null),
+  tex: p("prose", "LaTeX"),
+  ltx: p("prose", "LaTeX"),
+  // Data
   json: p("data", "JSON"),
-  map: p("data", "JSON"),
+  json5: p("data", "JSON"),
+  jsonc: p("data", "JSON"),
   yaml: p("data", "YAML"),
   yml: p("data", "YAML"),
   toml: p("data", "TOML"),
   xml: p("data", "XML"),
+  xsl: p("data", "XML"),
+  xsd: p("data", "XML"),
+  plist: p("data", "XML"),
   svg: p("data", "XML"),
+  csv: p("data", null),
+  tsv: p("data", null),
+  log: p("data", null),
+  diff: p("data", "diff"),
+  patch: p("data", "diff"),
+  bib: p("data", null),
+  // Configuration
+  ini: p("data", "Properties files"),
+  properties: p("data", "Properties files"),
+  cfg: p("data", "Properties files"),
+  env: p("data", "Properties files"),
+  conf: p("data", null),
+  // Web
   html: p("code2", "HTML"),
   htm: p("code2", "HTML"),
   css: p("code2", "CSS"),
+  scss: p("code2", "SCSS"),
+  sass: p("code2", "Sass"),
+  less: p("code2", "LESS"),
   js: p("code2", "JavaScript"),
   mjs: p("code2", "JavaScript"),
   cjs: p("code2", "JavaScript"),
@@ -67,28 +102,95 @@ export const EXTENSION_PRESENTATION: Readonly<Record<string, Presentation>> = {
   mts: p("code2", "TypeScript"),
   cts: p("code2", "TypeScript"),
   tsx: p("code2", "TSX"),
+  vue: p("code2", "Vue"),
+  // Scripts and shells
   py: p("code4", "Python"),
-  rs: p("code4", "Rust"),
+  rb: p("code2", "Ruby"),
+  pl: p("code4", "Perl"),
+  pm: p("code4", "Perl"),
+  lua: p("code2", "Lua"),
+  tcl: p("code4", "Tcl"),
+  ps1: p("code4", "PowerShell"),
   sh: p("code4", "Shell"),
   bash: p("code4", "Shell"),
   zsh: p("code4", "Shell"),
-  ini: p("data", "Properties files"),
-  conf: p("data", null),
-  cfg: p("data", "Properties files"),
-  properties: p("data", "Properties files"),
-  env: p("data", "Properties files"),
+  // Systems
+  c: p("code4", "C"),
+  h: p("code4", "C"),
+  cpp: p("code4", "C++"),
+  cc: p("code4", "C++"),
+  cxx: p("code4", "C++"),
+  hpp: p("code4", "C++"),
+  hh: p("code4", "C++"),
+  hxx: p("code4", "C++"),
+  rs: p("code4", "Rust"),
+  go: p("codeT", "Go"),
   swift: p("code4", "Swift"),
-  csv: p("data", null),
-  tsv: p("data", null),
-  log: p("data", null),
+  // JVM and .NET
+  java: p("code4", "Java"),
+  kt: p("code4", "Kotlin"),
+  kts: p("code4", "Kotlin"),
+  scala: p("code2", "Scala"),
+  cs: p("code4", "C#"),
+  groovy: p("code4", "Groovy"),
+  gradle: p("code4", "Groovy"),
+  // Mobile, functional, Lisp
+  dart: p("code2", "Dart"),
+  hs: p("code2", "Haskell"),
+  ml: p("code2", "OCaml"),
+  mli: p("code2", "OCaml"),
+  elm: p("code4", "Elm"),
+  erl: p("code4", "Erlang"),
+  clj: p("code2", "Clojure"),
+  cljs: p("code2", "Clojure"),
+  edn: p("code2", "Clojure"),
+  lisp: p("code2", "Common Lisp"),
+  el: p("code2", "Common Lisp"),
+  scm: p("code2", "Scheme"),
+  // Science, databases, interfaces
+  r: p("code2", "R"),
+  jl: p("code4", "Julia"),
+  sql: p("code2", "SQL"),
+  proto: p("code2", "ProtoBuf"),
+  // Build
+  dockerfile: p("code2", "Dockerfile"),
+  cmake: p("code2", "CMake"),
+  // `make` accepts nothing but a tab; there is no grammar for it.
+  mk: p("codeT", null),
 };
 
 export const NAME_PRESENTATION: Readonly<Record<string, Presentation>> = {
+  Gemfile: p("code2", "Ruby"),
+  Rakefile: p("code2", "Ruby"),
+  Jenkinsfile: p("code4", "Groovy"),
   Dockerfile: p("code2", "Dockerfile"),
-  LICENSE: p("code2", null),
-  // `make` accepts nothing but a tab; there is no grammar for it.
+  Containerfile: p("code2", "Dockerfile"),
   Makefile: p("codeT", null),
+  GNUmakefile: p("codeT", null),
+  makefile: p("codeT", null),
+  Justfile: p("codeT", null),
+  justfile: p("codeT", null),
+  // Documentation names read like notes.
+  LICENSE: p("prose", null),
+  README: p("prose", null),
+  CHANGELOG: p("prose", null),
+  CONTRIBUTING: p("prose", null),
+  AUTHORS: p("prose", null),
+  NOTICE: p("prose", null),
+  COPYING: p("prose", null),
+  VERSION: p("prose", null),
+  TODO: p("prose", null),
+  CODEOWNERS: p("prose", null),
 };
+
+/** The dress of each pattern row, keyed by the generated regex source. */
+export const PATTERN_PRESENTATION: Readonly<Record<string, Presentation>> = {
+  "^Dockerfile\\..+$": p("code2", "Dockerfile"),
+};
+
+const PATTERNS: ReadonlyArray<readonly [RegExp, Presentation]> = Object.entries(PATTERN_PRESENTATION).map(
+  ([source, dress]) => [new RegExp(source), dress] as const,
+);
 
 /**
  * Grammars that key on a file-name pattern inside a row that has none of its
@@ -105,10 +207,13 @@ const NAME_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
 /** The dress of a listed path, or null when the table does not list it. */
 export function presentationOf(rel: string): Presentation | null {
   if (kindOf(rel) === null) return null;
+  const name = fileNameOf(rel);
   const extension = extensionOf(rel);
-  return extension
-    ? (EXTENSION_PRESENTATION[extension] ?? null)
-    : (NAME_PRESENTATION[fileNameOf(rel)] ?? null);
+  return (
+    (extension ? EXTENSION_PRESENTATION[extension] : NAME_PRESENTATION[name]) ??
+    PATTERNS.find(([pattern]) => pattern.test(name))?.[1] ??
+    null
+  );
 }
 
 /** The `language-data` name to load for a path, or null for plain text. */

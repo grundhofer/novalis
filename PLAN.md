@@ -131,7 +131,7 @@ No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question. State that i
 
 ### 4.2 Hard-coded defaults that would otherwise be settings (confirm or change the value)
 
-Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch for prose; code and data files run full width in Geist Mono with line numbers, indentation guides and no spellcheck (ADR-0022) · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
+Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch for prose; code and data files run full width in Geist Mono with line numbers, indentation guides and no spellcheck (ADR-0022) · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner). Projects do not belong in a vault: `node_modules`, `target`, `build` and the like are listed like any folder, because they can hold notes and plain files are the truth — there is no folder denylist in the walker (ADR-0022).
 
 ### 4.3 Sublime/GFM baseline that the plan treats as part of "text editor" and "Markdown", listed so you see it before code exists
 
@@ -426,14 +426,21 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 
 ### 7.3 File types
 
-| Tier | Extensions | Grammar |
-|---|---|---|
-| A (Lezer) | `md markdown` · `txt text` (none) · `json map` · `yaml yml` · `toml` (legacy stream) · `xml svg` · `html htm` · `css` · `js mjs cjs jsx ts mts cts tsx` · `py` · `rs` | `@codemirror/language-data`, lazy |
-| B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
-| C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
-| D (view, ADR-0015/0016) | `pdf png jpg jpeg gif webp` | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
+The table is the shell's `apps/desktop/src-tauri/src/file_types.rs` (ADR-0022), written to `ui/src/lib/fileTypes.generated.ts` by the bindings export and diffed by CI; the UI derives the tree filter, the New Note rule and the viewer routing from it, and dresses each row (`fileTypes.presentation.ts`: preset and grammar name, checked against the installed `@codemirror/language-data` table). What is listed is what opens; the row's grammar is looked up by name, never by path. This is the table as shipped (docs/research/2026-09-20-formats-plan.md §3.1, plus the prose bundle of its question 4):
 
-Stop there — until ADR-0022 (2026-09-20): the list widens to ≈93 extensions and ≈21 names, and this section is rewritten from the table when that lands (docs/research/2026-09-20-formats-plan.md §3). The table is the shell's `file_types.rs`, written to `ui/src/lib/fileTypes.generated.ts` by the bindings export and diffed by CI; the UI derives the tree filter, the New Note rule and the viewer routing from it. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
+| Kind | Extensions and names | Editor | Grammar |
+|---|---|---|---|
+| Note | `md` | prose | Markdown with frontmatter, `[[`, `#tags` — the only note (cache, links, CLI) |
+| Prose | `markdown` · `txt text` · `rst adoc org textile mkd mdx rmd qmd srt vtt` · `tex ltx` · `LICENSE README CHANGELOG CONTRIBUTING AUTHORS NOTICE COPYING VERSION TODO CODEOWNERS` | prose (wrap, no numbers, Inter, spellcheck) | Markdown for `markdown`; LaTeX for `tex ltx`; the rest plain |
+| Data | `json json5 jsonc` · `yaml yml` · `toml` · `xml xsl xsd plist svg` · `csv tsv log` · `diff patch` · `bib` · `ini properties cfg env conf` | data (mono, numbers, indent detected, 2 by default) | JSON, YAML, TOML, XML, diff, Properties files; `*nginx*.conf` Nginx; `csv tsv log bib conf` plain — csv/tsv are not a table editor |
+| Web | `html htm` · `css scss sass less` · `js mjs cjs jsx` · `ts mts cts tsx` · `vue` | code2 | HTML, CSS/SCSS/Sass/LESS, JavaScript/JSX, TypeScript/TSX, Vue |
+| Scripts, shells | `py` · `rb` `Gemfile` `Rakefile` · `pl pm` · `lua` · `tcl` · `ps1` · `sh bash zsh` | code4 (py pl pm tcl ps1 sh bash zsh), code2 (rb lua) | Python, Ruby, Perl, Lua, Tcl, PowerShell, Shell |
+| Systems, JVM, .NET | `c h` · `cpp cc cxx hpp hh hxx` · `rs` · `go` · `swift` · `java` · `kt kts` · `scala` · `cs` · `groovy gradle` `Jenkinsfile` | code4; `go` codeT (tab); `scala` code2 | C, C++, Rust, Go, Swift, Java, Kotlin, Scala, C#, Groovy |
+| Mobile, functional, Lisp, science, data | `dart` · `hs` · `ml mli` · `elm` · `erl` · `clj cljs edn` · `lisp el` · `scm` · `r` · `jl` · `sql` · `proto` | code2; `elm erl jl` code4 | Dart, Haskell, OCaml, Elm, Erlang, Clojure, Common Lisp, Scheme, R, Julia, SQL, ProtoBuf |
+| Build | `dockerfile` `Dockerfile` `Containerfile` `Dockerfile.*` · `cmake` `CMakeLists.txt` · `Makefile GNUmakefile makefile` `mk` · `Justfile justfile` | code2; make and just codeT (a tab is syntax) | Dockerfile, CMake; make and just plain |
+| View (ADR-0015/0016) | `pdf png jpg jpeg gif webp` | viewer, read-only | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
+
+Not listed, until someone asks (the plan's §3.3, ADR-0022): media, archives, binaries, databases, lock files, secrets, fonts, cloud stubs, build output including source maps (`map` left the list on 2026-09-20), one-letter and numeric extensions, the ambiguous `m`, template dialects, variant spellings. Dotfiles are hidden by the core. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner, a file with a NUL in its first 8 KiB opens read-only as binary. The app's New Note dialog creates any text type when the typed name carries its extension (`notes.txt`, `config.json`, `main.go`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
