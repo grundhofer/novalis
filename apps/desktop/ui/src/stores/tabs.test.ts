@@ -51,6 +51,53 @@ describe("useTabs and the board pane", () => {
     expect(useUi.getState().boardVisible).toBe(true);
   });
 
+  // Boot used to await every restore inside the one promise whose catch
+  // replaces the window with "Something went wrong": a note deleted on the
+  // phone since the last quit made the app unusable until state.json was
+  // edited by hand (block 1 A6, docs/DECISIONS.md 2026-09-20).
+  it("restores the last session around a tab whose file is gone, and says so once", async () => {
+    const open = vi
+      .fn()
+      .mockImplementation((path: string) =>
+        path === "gone.md" || path === "also-gone.md"
+          ? Promise.reject(new Error(path))
+          : Promise.resolve(undefined),
+      );
+    useEditorSave.setState({ open });
+
+    await useTabs.getState().reopen(["a.md", "gone.md", "b.md", "also-gone.md"], "b.md");
+
+    expect(useTabs.getState().tabs).toEqual(["a.md", "b.md"]);
+    expect(useTabs.getState().active).toBe("b.md");
+    expect(useUi.getState().toast).toEqual({ key: "errors.internal", values: { detail: "Error: gone.md" } });
+  });
+
+  it("makes nothing current when the active tab is the one that is gone", async () => {
+    useEditorSave.setState({
+      open: vi.fn().mockImplementation((path: string) => (path === "gone.md" ? Promise.reject(new Error(path)) : Promise.resolve(undefined))),
+    });
+
+    await useTabs.getState().reopen(["a.md", "gone.md"], "gone.md");
+
+    expect(useTabs.getState().tabs).toEqual(["a.md"]);
+    expect(useTabs.getState().active).toBeNull();
+    // The board that was showing when the app quit is still there to come back over.
+    expect(useUi.getState().boardVisible).toBe(true);
+  });
+
+  // The tree is usable while the session restores; a note opened and typed
+  // into meanwhile is saved when the last session's tab is made current.
+  it("reports a save that fails on the way to the last active tab, instead of throwing", async () => {
+    useTabs.setState({ tabs: ["meanwhile.md"], active: "meanwhile.md", history: ["meanwhile.md"], historyIndex: 0 });
+    useEditorSave.setState({ save: vi.fn().mockRejectedValue(new Error("disk full")) });
+
+    await expect(useTabs.getState().reopen(["a.md"], "a.md")).resolves.toBeUndefined();
+
+    expect(useTabs.getState().tabs).toEqual(["meanwhile.md", "a.md"]);
+    expect(useTabs.getState().active).toBe("meanwhile.md");
+    expect(useUi.getState().toast?.values).toEqual({ detail: "Error: disk full" });
+  });
+
   it("hides it when a tab is activated", async () => {
     useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md", history: ["a.md"], historyIndex: 0 });
 
