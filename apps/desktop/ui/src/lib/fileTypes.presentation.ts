@@ -27,16 +27,19 @@ export interface Presentation {
 }
 
 /**
- * What a preset means in the editor. `data` and `code2` read the same until
- * the code dress of ADR-0022 (F4) tells them apart; the rows already use the
- * plan's vocabulary so the widened list (F3a) lands without renaming.
+ * What a preset means in the editor. `mono` is the code dress of ADR-0022:
+ * Geist Mono at full width, indentation guides, no spellcheck. `data` and
+ * `code2` read the same; the rows use the plan's vocabulary so the widened
+ * list (F3a) lands without renaming.
  */
-export const PRESETS: Readonly<Record<Preset, { wrap: boolean; numbers: boolean; indent: "  " | "    " | "\t" }>> = {
-  prose: { wrap: true, numbers: false, indent: "  " },
-  data: { wrap: false, numbers: true, indent: "  " },
-  code2: { wrap: false, numbers: true, indent: "  " },
-  code4: { wrap: false, numbers: true, indent: "    " },
-  codeT: { wrap: false, numbers: true, indent: "\t" },
+export const PRESETS: Readonly<
+  Record<Preset, { wrap: boolean; numbers: boolean; mono: boolean; indent: "  " | "    " | "\t" }>
+> = {
+  prose: { wrap: true, numbers: false, mono: false, indent: "  " },
+  data: { wrap: false, numbers: true, mono: true, indent: "  " },
+  code2: { wrap: false, numbers: true, mono: true, indent: "  " },
+  code4: { wrap: false, numbers: true, mono: true, indent: "    " },
+  codeT: { wrap: false, numbers: true, mono: true, indent: "\t" },
 };
 
 const p = (preset: Preset, grammar: string | null): Presentation => ({ preset, grammar });

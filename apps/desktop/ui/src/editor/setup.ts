@@ -14,10 +14,13 @@ import {
   indentOnInput,
   indentUnit,
   LanguageDescription,
+  LanguageSupport,
+  type LRLanguage,
 } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
+import { styleTags, tags as t } from "@lezer/highlight";
 import {
   crosshairCursor,
   drawSelection,
@@ -36,6 +39,7 @@ import { attachments } from "./attachments";
 import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
+import { indentationGuides } from "./indentationGuides";
 import { Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -73,13 +77,20 @@ async function languageFor(path: string): Promise<Extension | null> {
   if (grammar === "Markdown") {
     // The GFM bundle plus our two inline parsers; fenced code blocks resolve
     // their grammar lazily out of `language-data`.
-    return yamlFrontmatter({
+    const bundle = yamlFrontmatter({
       content: markdown({
         base: markdownLanguage,
         codeLanguages: languages,
         extensions: [WikiLink, Tag],
       }),
     });
+    // The frontmatter's `---` lines are `meta` upstream, which the code rules
+    // now colour as a keyword; as a marker they keep the dimmed look every
+    // other marker has. `yamlFrontmatter` builds an `LRLanguage`.
+    const language = (bundle.language as LRLanguage).configure({
+      props: [styleTags({ DashLine: t.processingInstruction })],
+    });
+    return new LanguageSupport(language, bundle.support);
   }
   if (grammar === null) return null;
   const description = LanguageDescription.matchLanguageName(languages, grammar, false);
@@ -182,7 +193,8 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
     EditorView.editable.of(!hooks.readOnly),
     EditorState.readOnly.of(hooks.readOnly),
     EditorView.contentAttributes.of({
-      spellcheck: String(hooks.spellcheck),
+      // The setting applies to prose (docs/SETTINGS.md); code is never checked.
+      spellcheck: String(hooks.spellcheck && !options.mono),
       // WKWebView hides the red underlines (tauri-apps/tauri#7705); the
       // right-click menu still offers the native suggestions (PLAN.md §7.5).
       autocorrect: "off",
@@ -192,6 +204,9 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
 
   if (options.wrap) base.push(EditorView.lineWrapping);
   if (options.numbers) base.push(lineNumbers(), highlightActiveLineGutter());
+  // The code dress (ADR-0022): the class the theme keys its mono rules on,
+  // and indentation guides (PLAN.md §4.3).
+  if (options.mono) base.push(EditorView.editorAttributes.of({ class: "nv-mono" }), indentationGuides);
 
   // Plain mode: the buffer is the source of truth and nothing decorates it.
   if (hooks.plainMode) return base;

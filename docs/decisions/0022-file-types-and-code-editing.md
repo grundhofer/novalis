@@ -8,7 +8,8 @@ Accepted; built in phases (docs/research/2026-09-20-formats-plan.md §6:
 F7, F1, F2, F3b need no decision and go first; F4, F3a, F5, F6 build the
 rows below). Amends PLAN.md §7.3 ("Stop there"), §4.2 (editor defaults for
 code), §4.3 (indentation guides) and ADR-0015 §3 (the list the tree
-shows); amends ADR-0017 and ADR-0020 for `.markdown`. No new dependency,
+shows); amends ADR-0017 and ADR-0020 for `.markdown`, and ADR-0007's font
+row (Geist Mono in the editor for the code presets, point 4). No new dependency,
 no new setting, no new chord, no new menu item; the IPC count stays 27.
 
 ## Context

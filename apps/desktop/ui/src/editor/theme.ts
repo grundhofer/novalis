@@ -2,6 +2,8 @@ import { HighlightStyle } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 
+import { noteTag } from "./markdownExt";
+
 /**
  * The editor's looks, entirely in semantic tokens (`--ds-*`).
  *
@@ -29,6 +31,14 @@ export const editorTheme = EditorView.theme({
     margin: "0 auto",
     paddingBottom: "0",
   },
+  // The code dress (ADR-0022): every preset but prose sets `nv-mono` on the
+  // editor — Geist Mono with its tracking, the full width instead of the
+  // measure. Size and line height stay the editor's; there is one of each.
+  "&.nv-mono .cm-scroller": {
+    fontFamily: "var(--ds-font-mono)",
+    letterSpacing: "var(--ds-letter-spacing-mono)",
+  },
+  "&.nv-mono .cm-content": { maxWidth: "none", margin: "0" },
   "&.cm-editor.cm-focused": { outline: "none" },
   ".cm-cursor, .cm-dropCursor": {
     borderLeft: "1.5px solid var(--ds-color-editor-cursor)",
@@ -116,7 +126,7 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: t.link, color: "var(--ds-color-syntax-link)" },
   { tag: t.url, color: "var(--ds-color-syntax-link)" },
   {
-    tag: t.labelName,
+    tag: noteTag,
     color: "var(--ds-color-syntax-tag)",
     backgroundColor: "var(--ds-color-accent-fill)",
     border: "1px solid var(--ds-color-accent-line)",
@@ -141,4 +151,23 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: [t.typeName, t.className, t.definition(t.variableName)], color: "var(--ds-color-syntax-type)" },
   { tag: [t.propertyName, t.attributeName], color: "var(--ds-color-fg-muted)" },
   { tag: t.invalid, color: "var(--ds-color-syntax-invalid)" },
+  // The code dress (ADR-0022), on the tokens that exist: function names by
+  // weight, not colour; operators and punctuation dimmed like markers; the
+  // rest borrowed from the nearest of the twelve. A plain `variableName`
+  // stays uncoloured on purpose.
+  {
+    tag: [
+      t.function(t.variableName),
+      t.function(t.propertyName),
+      t.function(t.definition(t.variableName)),
+    ],
+    fontWeight: "450",
+  },
+  { tag: [t.operator, t.punctuation], color: "var(--ds-color-syntax-marker)" },
+  { tag: [t.meta, t.annotation, t.macroName], color: "var(--ds-color-syntax-keyword)" },
+  { tag: t.namespace, color: "var(--ds-color-syntax-type)" },
+  { tag: [t.regexp, t.escape], color: "var(--ds-color-syntax-string)" },
+  { tag: t.inserted, color: "var(--ds-color-success-text)" },
+  { tag: t.deleted, color: "var(--ds-color-warning-text)" },
+  { tag: t.changed, color: "var(--ds-color-syntax-number)" },
 ]);
