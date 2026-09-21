@@ -1,7 +1,7 @@
 import { tags as t } from "@lezer/highlight";
 import { describe, expect, it } from "vitest";
 
-import { noteTag } from "./markdownExt";
+import { codeTag, noteTag } from "./markdownExt";
 import { markdownHighlight } from "./theme";
 
 const style = (tag: Parameters<typeof markdownHighlight.style>[0][number]) =>
@@ -37,6 +37,13 @@ describe("markdownHighlight", () => {
     // A function name is weighted, never coloured: no thirteenth token.
     expect(rules).toContain("font-weight: var(--ds-font-weight-medium)");
     expect(rules).not.toContain("syntax-function");
+  });
+
+  it("colours a code block's text on its own tag, as inline code is coloured", () => {
+    const rules = markdownHighlight.module?.getRules() ?? "";
+    expect(style(codeTag)).not.toBeNull();
+    expect(rules).toContain(`.${style(codeTag)} {color: var(--ds-color-syntax-code);}`);
+    expect(rules).toContain(`.${style(t.monospace)} {font-family: var(--ds-font-mono); font-size: 0.9em; color: var(--ds-color-syntax-code);}`);
   });
 
   it("leaves a plain variable name and a Markdown marker as they were", () => {

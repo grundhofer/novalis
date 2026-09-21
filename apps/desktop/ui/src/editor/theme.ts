@@ -2,7 +2,7 @@ import { HighlightStyle } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { type Tag, tags as t } from "@lezer/highlight";
 
-import { noteTag } from "./markdownExt";
+import { codeTag, noteTag } from "./markdownExt";
 
 /**
  * The editor's looks, entirely in semantic tokens (`--ds-*`).
@@ -98,6 +98,9 @@ export const editorTheme = EditorView.theme({
     fontSize: "0.85em",
     color: "var(--ds-color-fg-subtle)",
   },
+  // A code block's lines, plain or with a grammar: the face inline code
+  // gets from its tag, here on the line (markdownExt.ts `codeTag`).
+  ".cm-line.nv-code": { fontFamily: "var(--ds-font-mono)", fontSize: "0.9em" },
   ".cm-line.nv-task-done": { color: "var(--ds-color-fg-subtle)" },
   ".nv-checkbox": {
     display: "inline-block",
@@ -196,6 +199,7 @@ export const markdownHighlight = HighlightStyle.define([
     fontSize: "0.9em",
     color: "var(--ds-color-syntax-code)",
   },
+  { tag: codeTag, color: "var(--ds-color-syntax-code)" },
   { tag: t.quote, color: "var(--ds-color-syntax-quote)" },
   { tag: t.list, color: "var(--ds-color-fg-default)" },
   ...CODE_RULES.map(({ tag, style }) => ({ tag, ...style })),

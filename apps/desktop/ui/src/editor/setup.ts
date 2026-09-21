@@ -41,7 +41,7 @@ import { fenceLanguage } from "./fences";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
-import { Tag, WikiLink } from "./markdownExt";
+import { CodeText, Tag, WikiLink } from "./markdownExt";
 
 /**
  * The editor, assembled once per open document.
@@ -83,7 +83,7 @@ async function languageFor(path: string): Promise<Extension | null> {
       content: markdown({
         base: markdownLanguage,
         codeLanguages: fenceLanguage,
-        extensions: [WikiLink, Tag],
+        extensions: [WikiLink, Tag, CodeText],
       }),
     });
     // The frontmatter's `---` lines are `meta` upstream, which the code rules

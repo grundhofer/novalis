@@ -214,4 +214,11 @@ CodeMirror import in the preview fails `just check` instead of quietly
 coupling the chunks. The editor's code rules are one exported table
 (`CODE_RULES`, `editor/theme.ts`); the preview wears them as `tok-*`
 classes that `styles/preview.css` dresses on the same tokens, and a test
-compares the two.
+compares the two. In the editor, a fence whose grammar was known had read
+in the prose face while a plain fence read in mono, because upstream's
+`monospace` sits on the `CodeText` node and a grammar's parse mounted over
+the text hides that node from the highlighter; the owner asked for this
+too ("gleich 2. noch an"). The face and size are now the line's
+(`nv-code`, decorations.ts) for every code block, plain or not, and the
+node keeps its colour on a tag of its own (`codeTag`, markdownExt.ts);
+inline code keeps `monospace`.

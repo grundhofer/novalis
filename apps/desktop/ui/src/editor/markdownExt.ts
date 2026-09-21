@@ -1,4 +1,4 @@
-import { Tag as HighlightTag, tags } from "@lezer/highlight";
+import { styleTags, Tag as HighlightTag, tags } from "@lezer/highlight";
 import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
 
 /**
@@ -77,6 +77,20 @@ export const Tag: MarkdownConfig = {
       before: "Escape",
     },
   ],
+};
+
+/**
+ * The text of a fenced or indented code block, its colour only: upstream
+ * puts `monospace` on it, but a fence with a grammar mounts that grammar's
+ * tree over the text and the highlighter never sees the outer node, so the
+ * face and size come from the line instead (decorations.ts `nv-code`,
+ * theme.ts) and a fence reads in mono whether or not its grammar is known.
+ * Inline code keeps `monospace`.
+ */
+export const codeTag = HighlightTag.define("codeTag");
+
+export const CodeText: MarkdownConfig = {
+  props: [styleTags({ CodeText: codeTag })],
 };
 
 /** The link target inside a `[[…]]`, with `|label` and `#heading` stripped. */

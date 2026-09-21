@@ -5,6 +5,7 @@ import { getStyleTags, tags as t } from "@lezer/highlight";
 import { describe, expect, it, vi } from "vitest";
 
 import { fenceLanguage } from "./fences";
+import { codeTag } from "./markdownExt";
 import { buildExtensions, type EditorHooks } from "./setup";
 
 vi.mock("../ipc/client", () => ({
@@ -105,6 +106,45 @@ describe("buildExtensions", () => {
     };
     expect(chain(text.indexOf("x = 1"))).toContain("Script");
     expect(chain(text.indexOf("\\x"))).toEqual(["CodeText", "FencedCode", "Document", "Document"]);
+  });
+
+  // A code block's face is the line's, so a fence with a grammar — whose
+  // parse hides the outer node from the highlighter — reads in mono like a
+  // plain one; the node keeps its colour on a tag of its own, and inline
+  // code keeps `monospace`.
+  it("puts the code face on a block's lines, with or without a grammar", async () => {
+    await fenceLanguage("py")?.load();
+    const text = "`a`\n\n```py\nx = 1\n```\n\n```text\n\\x\n```\n";
+    const state = await stateFor("a.md", text);
+    const view = new EditorView({ state, parent: document.body });
+    const lines = [...view.dom.querySelectorAll(".cm-line")].map((line) => [
+      line.textContent,
+      line.classList.contains("nv-code"),
+    ]);
+    view.destroy();
+    expect(lines).toEqual([
+      ["`a`", false],
+      ["", false],
+      ["```py", false],
+      ["x = 1", true],
+      ["```", false],
+      ["", false],
+      ["```text", false],
+      ["\\x", true],
+      ["```", false],
+      ["", false],
+    ]);
+    const tagsOf = (name: string) => {
+      let found: string[] | undefined;
+      syntaxTree(state).iterate({
+        enter: (node) => {
+          if (found === undefined && node.name === name) found = getStyleTags(node)?.tags.map(String);
+        },
+      });
+      return found;
+    };
+    expect(tagsOf("InlineCode")).toEqual([String(t.monospace)]);
+    expect(tagsOf("CodeText")).toEqual([String(codeTag)]);
   });
 
   // Upstream marks the frontmatter's `---` as `meta`, which the code rules
