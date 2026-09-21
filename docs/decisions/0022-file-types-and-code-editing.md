@@ -183,5 +183,6 @@ Markdown-Grammatik / Keins von beiden":
 So `php` is listed (`code4`, the PHP grammar; the variants `php3-7 phtml`
 stay out as before), and `mkd mdx rmd qmd` open like `markdown`: the
 Markdown grammar and the editor bundle that comes with it (decorations,
-completion, the chords, image paste, Cmd-click), as files — cache, links,
-backlinks and the CLI stay `.md`, and ⌘E stays what point 6 says.
+completion, the chords, Cmd-click), as files — cache, links, backlinks and
+the CLI stay `.md`; image paste (`attachments.ts` keys on `.md`) and ⌘E
+stay what point 6 says, `.md` and, when built, `.markdown`.

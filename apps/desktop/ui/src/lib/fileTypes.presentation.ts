@@ -46,8 +46,8 @@ const p = (preset: Preset, grammar: string | null): Presentation => ({ preset, g
 
 export const EXTENSION_PRESENTATION: Readonly<Record<string, Presentation>> = {
   // Notes and prose. The Markdown dialects get the Markdown grammar and with
-  // it the note bundle, like `markdown` (ADR-0022, amended 2026-09-21); they
-  // stay files. The other prose formats are plain.
+  // it the editor bundle, like `markdown` (ADR-0022, amended 2026-09-21);
+  // they stay files. The other prose formats are plain.
   md: p("prose", "Markdown"),
   markdown: p("prose", "Markdown"),
   mkd: p("prose", "Markdown"),
