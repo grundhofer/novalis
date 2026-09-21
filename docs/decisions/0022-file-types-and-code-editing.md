@@ -168,3 +168,21 @@ Nur die ADR-freien Phasen jetzt / Ich antworte einzeln", the owner chose:
   without a transform (Node ESM does).
 - Not decided here: reading formats (ADR-0023, ADR-0024) and the viewer
   follow-ups (ADR-0025).
+
+**Amended 2026-09-21** — after F3a landed (#134), two rows the table had
+left open were put to the owner: `php`, which point 2 above names but the
+plan's §3.1 table the owner answered does not carry, and the Markdown
+grammar for the prose bundle's dialects `mkd mdx rmd qmd`, which F3a had
+opened plain because the grammar brings the note bundle (point 4's
+decorations, completion, chords, attachments) with it. Asked "Soll ich die
+beiden offenen Zeilen bauen?" with "Beide / Nur php / Nur die
+Markdown-Grammatik / Keins von beiden":
+
+> Beide (Recommended)
+
+So `php` is listed (`code4`, the PHP grammar; the variants `php3-7 phtml`
+stay out as before), and `mkd mdx rmd qmd` open like `markdown`: the
+Markdown grammar and the editor bundle that comes with it (decorations,
+completion, the chords, Cmd-click), as files — cache, links, backlinks and
+the CLI stay `.md`; image paste (`attachments.ts` keys on `.md`) and ⌘E
+stay what point 6 says, `.md` and, when built, `.markdown`.
