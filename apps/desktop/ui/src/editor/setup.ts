@@ -37,10 +37,11 @@ import { grammarNameOf, presentationOf, PRESETS } from "../lib/fileTypes.present
 import { resolveWikiTarget } from "../lib/links";
 import { attachments } from "./attachments";
 import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
+import { fenceLanguage } from "./fences";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
-import { Tag, WikiLink } from "./markdownExt";
+import { CodeText, Tag, WikiLink } from "./markdownExt";
 
 /**
  * The editor, assembled once per open document.
@@ -75,13 +76,14 @@ export interface EditorHooks {
 async function languageFor(path: string): Promise<Extension | null> {
   const grammar = grammarNameOf(path);
   if (grammar === "Markdown") {
-    // The GFM bundle plus our two inline parsers; fenced code blocks resolve
-    // their grammar lazily out of `language-data`.
+    // The GFM bundle plus our two inline parsers; a fenced code block resolves
+    // its grammar lazily out of `language-data` by the fence's name, exactly,
+    // the way the preview does (./fences).
     const bundle = yamlFrontmatter({
       content: markdown({
         base: markdownLanguage,
-        codeLanguages: languages,
-        extensions: [WikiLink, Tag],
+        codeLanguages: fenceLanguage,
+        extensions: [WikiLink, Tag, CodeText],
       }),
     });
     // The frontmatter's `---` lines are `meta` upstream, which the code rules

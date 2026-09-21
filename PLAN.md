@@ -144,7 +144,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Tags as search filter / palette (frontmatter `tags:` and inline `#tags`; no tree panel) | editor-scope | **yes, v1** | Every old vault already carries tags; core of "organizing" |
 | Backlinks list for the open note (shows "cards linking here" too) | editor-scope, kanban | **yes, v1** | Data is free from the cache |
 | `[[` and `#` autocompletion | editor-scope | yes, v1 | Writing ergonomics; cheap with the cache |
-| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
+| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020); fences highlighted 2026-09-21 (ADR-0022 point 8) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
 | Hide-syntax live preview mode (Obsidian style) | stack | no | Most expensive editor feature; conflicts with multi-cursor |
 | Split view / board + note split (two panes) | editor-scope, design | no (D21) | Adds a pane-focus model; L5 mockup shows what it would be |
 | Folding, typewriter/focus mode, minimap, vim | editor-scope | no | Modes with own state |
@@ -598,7 +598,7 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Window visible (first paint) after launch | ≤ 300 ms, **provisional**: measured so far is 166–231 ms to the `setup()` callback with a hidden window; Spike C measures first paint with `--exit-after-first-frame` and re-sets this row |
 | Tree interactive, 10k-note vault, warm disk | ≤ 500 ms, independent of the cache |
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
-| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB |
+| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB; the Preview chunk plus its static, non-eager imports ≤ 8 KB gzip (ADR-0022 point 8: it reaches CodeMirror only by `import()`) |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
 | Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string); measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
 | Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on; measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
