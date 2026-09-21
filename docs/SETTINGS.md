@@ -54,6 +54,8 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
   recent-vaults list (PLAN.md §4.4).
 - Hard-coded defaults that would otherwise be settings are listed in PLAN.md
   §4.2 and are not persisted anywhere.
+- `spellcheck` applies to prose — Markdown, plain text and the prose formats
+  (ADR-0022); a code or data file is never checked, whatever the setting says.
 - The tree's file order (`treeSort`: by name, or by modified time newest
   first, chosen in the sidebar legend, ADR-0012) is state in `state.json` next
   to the sidebar width, not a fifth setting: losing it costs one click.

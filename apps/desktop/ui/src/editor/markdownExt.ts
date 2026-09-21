@@ -1,4 +1,4 @@
-import { tags } from "@lezer/highlight";
+import { Tag as HighlightTag, tags } from "@lezer/highlight";
 import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
 
 /**
@@ -47,12 +47,19 @@ const TAG_BODY = /[\p{L}\p{N}_/-]/u;
 const WORD_BEFORE = /[\p{L}\p{N}_]/u;
 
 /**
+ * The chip's own highlight tag. It has no parent and no grammar node carries
+ * it, so a CSS `#id`, a YAML anchor or a Rust loop label — all `labelName`
+ * upstream — can never wear the chip (ADR-0022).
+ */
+export const noteTag = HighlightTag.define("noteTag");
+
+/**
  * Inline `#tag`. A `#` that follows a word character is not a tag (`C#`,
  * `rgb(#fff)` after a letter), and a `#` at the start of a line has already
  * been consumed by the heading block parser before inline parsing runs.
  */
 export const Tag: MarkdownConfig = {
-  defineNodes: [{ name: "TagRef", style: tags.labelName }],
+  defineNodes: [{ name: "TagRef", style: noteTag }],
   parseInline: [
     {
       name: "TagRef",

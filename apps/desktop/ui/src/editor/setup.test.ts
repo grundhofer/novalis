@@ -1,5 +1,7 @@
-import { indentUnit, language } from "@codemirror/language";
+import { indentUnit, language, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { getStyleTags, tags as t } from "@lezer/highlight";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildExtensions, type EditorHooks } from "./setup";
@@ -12,7 +14,7 @@ vi.mock("../ipc/client", () => ({
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
 
-async function stateFor(path: string, text: string): Promise<EditorState> {
+async function stateFor(path: string, text: string, spellcheck = false): Promise<EditorState> {
   const hooks: EditorHooks = {
     onChange: () => undefined,
     onFollowLink: () => undefined,
@@ -22,9 +24,19 @@ async function stateFor(path: string, text: string): Promise<EditorState> {
     text,
     readOnly: false,
     plainMode: false,
-    spellcheck: false,
+    spellcheck,
   };
   return EditorState.create({ doc: text, extensions: await buildExtensions(path, hooks) });
+}
+
+/** The static editor/content attributes a state asks for, merged. */
+function attrs(state: EditorState, facet: typeof EditorView.editorAttributes): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const source of state.facet(facet)) {
+    if (typeof source === "function") continue;
+    for (const [name, value] of Object.entries(source)) merged[name] = `${merged[name] ?? ""} ${value}`.trim();
+  }
+  return merged;
 }
 
 describe("buildExtensions", () => {
@@ -49,5 +61,39 @@ describe("buildExtensions", () => {
     expect(state.facet(indentUnit)).toBe("  ");
     const plain = await stateFor("a.py", "x = 1\n");
     expect(plain.facet(indentUnit)).toBe("    ");
+  });
+
+  // The code dress (ADR-0022): every preset but prose is mono, full width,
+  // with indentation guides on the file's own unit, and never spellchecked.
+  it("dresses code in mono with guides on its indent unit, and prose not", async () => {
+    const rust = await stateFor("a.rs", "fn main() {\n    x();\n}\n", true);
+    expect(attrs(rust, EditorView.editorAttributes).class).toBe("nv-mono");
+    expect(attrs(rust, EditorView.editorAttributes).style).toContain("--nv-indent: calc(4 * ");
+    expect(attrs(rust, EditorView.contentAttributes).spellcheck).toBe("false");
+
+    const make = await stateFor("Makefile", "all:\n\tcc a.c\n", true);
+    expect(attrs(make, EditorView.editorAttributes).style).toContain("--nv-indent: calc(4 * ");
+    const json = await stateFor("a.json", "{}\n", true);
+    expect(attrs(json, EditorView.editorAttributes).style).toContain("--nv-indent: calc(2 * ");
+
+    const note = await stateFor("a.md", "# Title\n", true);
+    expect(attrs(note, EditorView.editorAttributes).class).toBeUndefined();
+    expect(attrs(note, EditorView.editorAttributes).style).toBeUndefined();
+    expect(attrs(note, EditorView.contentAttributes).spellcheck).toBe("true");
+    const off = await stateFor("a.md", "# Title\n", false);
+    expect(attrs(off, EditorView.contentAttributes).spellcheck).toBe("false");
+  });
+
+  // Upstream marks the frontmatter's `---` as `meta`, which the code rules
+  // colour as a keyword; here it is a marker like every other.
+  it("keeps the frontmatter's dashes a marker", async () => {
+    const state = await stateFor("a.md", "---\ntitle: x\n---\n\n# Title\n");
+    const dashes: string[] = [];
+    syntaxTree(state).iterate({
+      enter: (node) => {
+        if (node.name === "DashLine") dashes.push(String(getStyleTags(node)?.tags[0]));
+      },
+    });
+    expect(dashes).toEqual([String(t.processingInstruction), String(t.processingInstruction)]);
   });
 });
