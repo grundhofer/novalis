@@ -71,7 +71,8 @@ Available now (the core harness):
 | `search <query> [--tag T] [--folder F] [--limit 50] [--snippets] [--all-files]` | on-demand scan over notes, or with `--all-files` over every regular file in the vault; `cloudOnlySkipped` and `notUtf8Skipped` count what was not searched |
 | `links <note> [--backlinks\|--outgoing]` · `links --unresolved` · `links --orphans` | link graph, including cards that reference the note |
 | `tags [--limit N]` | `{tag, count}` |
-| `index --status` · `index --rebuild` | cache state; rebuild only when `doctor` says so |
+| `index --status` · `index --rebuild` | cache state and the vault's absolute path; rebuild only when `doctor` says so |
+| `sync status` | `vaultKind`, `cloudOnly[]`, `conflictCopies[]`; read-only — ask before a bulk `cat --materialize` |
 | `init <dir>` | write `.novalis/vault.json` (idempotent) |
 | `doctor` | read-only health report; there is no `--fix` |
 | `relink <from> <to> [--force] [--materialize]` | rewrite a literal link target everywhere (merges, dedupes) |
@@ -87,7 +88,6 @@ Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
 
 | Command | One line |
 |---|---|
-| `sync status` | `vaultKind`, `cloudOnly[]`, `conflictCopies[]` |
 | `skill --path` | the directory of this skill |
 
 There is no command that creates a board: the app does that, and so does

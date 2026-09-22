@@ -520,7 +520,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | Command | Key flags | Output | Effect |
 |---|---|---|---|
 | `ls [folder]` | `--tree`, `--tag T`, `--sort`, `--limit`, `--fields` | `{items:[{path,stem,title,linkTarget,folder,tags,modified,size,sha256\|null,cloudOnly}],truncated}` | read; `sha256` from the cache, NULL for cloud-only and for binary (a NUL in the first 8 KiB, ADR-0022) |
-| `cat <note>…` | `--body`, `--frontmatter`, `--lines A:B`, `--materialize [--timeout 30s]` | text, or `{items:[{path,title,linkTarget,frontmatter,body,sha256,links:[{target,form,line,resolvedPath}]}]}` | read; cloud-only → exit 8 unless `--materialize` |
+| `cat <note>…` | `--body`, `--frontmatter`, `--lines A:B`, `--materialize [--timeout 30s]` | text, or `{items:[{path,title,linkTarget,frontmatter,body,sha256,utf8,links:[{target,form,line,resolvedPath}]}]}` | read; cloud-only → exit 8 unless `--materialize` |
 | `new <path>` | `--tag T…`, `--content <text\|->`, `--exist-ok` | `{path,stem,linkTarget,existing}` | create; title = stem; `--tag` writes a `tags:` key; exit 4 if exists |
 | `edit <note>` | one of `--append`, `--prepend`, `--replace-section "## H"`, `--insert-after-section "## H"`, `--find/--replace [--regex] [--expect N=1]`, `--set-body -`; `--if-match`; `--nth N` for duplicate headings | `{path,sha256Before,sha256After,changed}` (+`diff`) | atomic write; frontmatter untouched; a section runs from its heading to the line before the next heading of the same or higher level; `--prepend`/`--insert-after-section` insert after the frontmatter block; duplicate heading → exit 4 with candidates |
 | `meta <note>` | `--set k=v`, `--unset k`, `--add-tag`, `--rm-tag`; `--if-match` | `{path,frontmatter,sha256After}` | line-level YAML text edit of named keys, strict parse first, unknown keys preserved (D22) |
@@ -534,7 +534,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated,description?}]}` | answers "which cards link to X" |
 | `card add <b> --title T [--description D] [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
 | `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
-| `index --rebuild` / `--status` | | `{cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |
+| `index --rebuild` / `--status` | | `{vault,cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |
 | `sync status` | | `{vaultKind:"fileProvider"\|"mirrored"\|"local",cloudOnly:[path],conflictCopies:[path]}` | Mode 1 read-only |
 | `doctor` | | `{ok,checks:[{id,status,detail}]}` | vault marker, cache opens, app/CLI version skew, frontmatter parse failures, unresolved links, duplicate stems, unlinkable stems (`#`/`\|`), notes under board folders, conflict copies, cloud-only notes with unindexed links, legacy `@due/@status` count |
 | `migrate` | `--dry-run` (default), `--apply`, `--rename-to-title`, `--import-columns`, `--import-status` (needs yes), `--materialize` | `{renames:[{from,to,reason}],linksRewritten:[{path,count}],unlinkable:[…],columns,legacyTokens,cloudOnlySkipped}` | §10 |

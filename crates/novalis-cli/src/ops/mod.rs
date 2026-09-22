@@ -20,6 +20,7 @@ pub mod new;
 pub mod relink;
 pub mod rm;
 pub mod search;
+pub mod sync;
 pub mod tags;
 
 use schemars::schema_for;
@@ -46,6 +47,7 @@ pub fn output_schema(command: &str) -> Option<serde_json::Value> {
         "doctor" => schema_for!(doctor::DoctorOut),
         "migrate" => schema_for!(migrate::MigrateOut),
         "help" => schema_for!(help::HelpOut),
+        "sync" => schema_for!(sync::SyncOut),
         _ => return None,
     };
     serde_json::to_value(schema).ok()
@@ -59,13 +61,11 @@ mod tests {
     fn every_built_command_publishes_a_schema() {
         for name in [
             "ls", "cat", "new", "edit", "meta", "migrate", "mv", "rm", "search", "links", "tags",
-            "relink", "board", "card", "index", "init", "doctor", "help",
+            "relink", "board", "card", "index", "init", "doctor", "help", "sync",
         ] {
             let schema = output_schema(name).unwrap_or_else(|| panic!("{name} has no schema"));
             assert!(schema.is_object(), "{name}");
         }
-        for name in ["sync", "skill"] {
-            assert!(output_schema(name).is_none(), "{name}");
-        }
+        assert!(output_schema("skill").is_none());
     }
 }
