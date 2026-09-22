@@ -137,6 +137,7 @@
   "errors.trashFailed": "{{path}} could not be moved to the Trash.",
   "menu.app.about": "About novalis",
   "menu.app.installCli": "Install Command-Line Tool…",
+  "menu.app.quit": "Quit novalis",
   "menu.edit.addCursorAbove": "Add Cursor Above",
   "menu.edit.addCursorBelow": "Add Cursor Below",
   "menu.edit.bold": "Bold",

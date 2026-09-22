@@ -9,6 +9,7 @@ import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
 import { fileNameOf, folderOf, joinRel } from "./paths";
+import { uiStateNow } from "./uiState";
 
 /**
  * One dispatcher for every command id in `docs/KEYMAP.md`, plus the menu-only
@@ -211,7 +212,26 @@ function targetFolder(): string {
   return entry?.dir && !entry.boardSlug ? path : folderOf(path);
 }
 
+/** How long quitting waits for the open buffers (D19: quitting never blocks). */
+export const QUIT_FLUSH_MS = 2000;
+
+/**
+ * ⌘Q, Quit in the menu and the window's close button (D19): every open
+ * buffer is written, for two seconds at most, then the state goes out with
+ * `quit` and the shell exits on it. A save that fails is reported like any
+ * other and does not keep the app open — the conflict copy is already on
+ * disk by then (PLAN.md §5.3).
+ */
+async function quit(): Promise<void> {
+  await Promise.race([
+    useEditorSave.getState().flushAll().catch(report),
+    new Promise<void>((resolve) => setTimeout(resolve, QUIT_FLUSH_MS)),
+  ]);
+  await unwrap(commands.stateSave({ ...uiStateNow(), quit: true }));
+}
+
 const REGISTRY: Record<string, () => CommandResult> = {
+  "app.quit": () => quit(),
   "file.save": () => {
     const active = useTabs.getState().active;
     if (active) return useEditorSave.getState().save(active);

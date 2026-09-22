@@ -13,14 +13,17 @@
 use novalis_core::settings::{Appearance, Language, Settings};
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::time::Duration;
 use tauri::menu::{
     AboutMetadata, CheckMenuItemBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder,
     SubmenuBuilder,
 };
-use tauri::{AppHandle, Wry};
+
+use tauri::{AppHandle, Manager, Wry};
 use tauri_specta::Event;
 
 use crate::i18n::Catalog;
+use crate::state::AppState;
 
 /// What the UI sees when a menu item is clicked. `id` is a `docs/KEYMAP.md`
 /// command id, or a `menu.`-prefixed id for the items that have no chord.
@@ -35,6 +38,7 @@ pub struct MenuAction {
 /// Test-only data: it exists to be checked, not to be read at runtime.
 #[cfg(test)]
 pub const MENU_KEYS: &[&str] = &[
+    "menu.app.quit",
     "menu.file.title",
     "menu.file.newNote",
     "menu.file.newFolder",
@@ -153,7 +157,15 @@ pub fn build(
         .hide_others()
         .show_all()
         .separator()
-        .quit()
+        // Not the predefined Quit: that one terminates at once and no event
+        // reaches the app, so the last second of typing was lost (D19). This
+        // item asks the UI to save first — [`request_quit`].
+        .item(&item(
+            app,
+            "app.quit",
+            cat.t("menu.app.quit"),
+            "CmdOrCtrl+KeyQ",
+        )?)
         .build()?;
 
     let file = SubmenuBuilder::new(app, cat.t("menu.file.title"))
@@ -552,5 +564,36 @@ pub fn install(
 
 /// Forward a menu click to the UI as one `menu-action` event.
 pub fn dispatch(app: &AppHandle, id: &str) {
+    if id == "app.quit" {
+        request_quit(app);
+        return;
+    }
     let _ = MenuAction { id: id.to_string() }.emit(app);
+}
+
+/// How long a quit waits for the UI before the app exits anyway: the UI caps
+/// its own flush at two seconds, so this only fires when the page is gone.
+const QUIT_FALLBACK: Duration = Duration::from_secs(3);
+
+/// ⌘Q, Quit in the menu and the window's close button (D19): the UI saves
+/// every open buffer, then sends its last `state_save` with `quit`, and the
+/// shell exits there. Quitting never hangs — after [`QUIT_FALLBACK`] the app
+/// exits whatever the page is doing.
+pub fn request_quit(app: &AppHandle) {
+    let first = app
+        .try_state::<AppState>()
+        .map(|state| state.begin_quit())
+        .unwrap_or(true);
+    if !first {
+        return;
+    }
+    let _ = MenuAction {
+        id: "app.quit".to_string(),
+    }
+    .emit(app);
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(QUIT_FALLBACK);
+        handle.exit(0);
+    });
 }

@@ -41,7 +41,7 @@ it back).
 | `Cmd+N` | ⌘N | `file.newNote` | global | Apple standard |
 | `Cmd+O` | ⌘O | `vault.open` | global | Apple standard |
 | `Cmd+W` | ⌘W | `tab.close` | global | Apple standard (never blocks, D19) |
-| `Cmd+Q` | ⌘Q | `system` | global | Apple standard; the macOS Quit item (never blocks, D19) |
+| `Cmd+Q` | ⌘Q | `app.quit` | global | Apple standard; saves every open buffer first, then quits — never blocks: after 2 s it quits anyway (D19) |
 | `Cmd+B` | ⌘B | `markdown.bold` | editor:markdown | Apple standard; wraps in `**` |
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | Apple standard; the macOS Full Screen item |
@@ -124,11 +124,13 @@ it back).
 - System-provided edit keys (`Cmd+A/C/V/X`, `Cmd+H`, `Cmd+M`, arrows, word and
   line movement, `Escape`) come from macOS and WKWebView and are neither bound
   nor overridden by the app outside the PDF pane (whose `viewer` rows are in
-  the table); the parity test ignores them. `Cmd+Q` and
-  `Ctrl+Cmd+F` are listed with `system` instead of a command id for the same
-  reason: they are Tauri's predefined Quit and Full Screen menu items, which act
-  without emitting a `menu-action`, so binding them in the app's keymap would
-  only risk swallowing them.
+  the table); the parity test ignores them. `Ctrl+Cmd+F` is listed with
+  `system` instead of a command id for the same reason: it is Tauri's
+  predefined Full Screen menu item, which acts without emitting a
+  `menu-action`, so binding it in the app's keymap would only risk swallowing
+  it. `Cmd+Q` was the predefined Quit until 2026-09-22 and is now the app's
+  own `app.quit` item: the predefined one terminated at once, before the
+  last second of typing was saved. Closing the window takes the same path.
 - Keys inside the find bar, the palette and dialogs (`Enter`, `Escape`, arrows)
   are the components' own defaults, not app bindings.
 - In the read-only preview (`Cmd+E`, ADR-0020 amended 2026-09-16) there is no
