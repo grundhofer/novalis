@@ -98,4 +98,36 @@ describe("Editor keeps the place", () => {
     view.unmount();
     expect(useCursor.getState().cursor).toBeNull();
   });
+
+  // feature-gaps A2: WebKit leaves the first editable of a launch unchecked
+  // in the built app; the first key typed sets `spellcheck` once more.
+  it("sets spellcheck again at the first key of the session, once", async () => {
+    const view = await mount("a.md");
+    const content = view.view.contentDOM;
+    // Prose with the setting off is never checked; this note has it off.
+    expect(content.getAttribute("spellcheck")).toBe("false");
+    view.unmount();
+
+    const rendered = render(
+      <Editor path="a.md" revision={0} spellcheck onFollowLink={() => undefined} notePaths={() => []} />,
+    );
+    let dom: HTMLElement | null = null;
+    for (let i = 0; i < 50 && !dom; i += 1) {
+      await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+      dom = rendered.container.querySelector<HTMLElement>(".cm-content");
+    }
+    const seen: (string | null)[] = [];
+    const observer = new MutationObserver(() => seen.push(dom!.getAttribute("spellcheck")));
+    observer.observe(dom!, { attributes: true, attributeFilter: ["spellcheck"] });
+
+    dom!.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    dom!.dispatchEvent(new KeyboardEvent("keydown", { key: "b" }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    observer.disconnect();
+
+    expect(seen).toEqual(["false", "true"]);
+    rendered.unmount();
+  });
 });
+

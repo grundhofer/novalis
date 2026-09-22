@@ -1185,8 +1185,12 @@ pub async fn settings_set(
     patch: SettingsPatchDto,
 ) -> IpcResult<SettingsDto> {
     let mut settings: Settings = state.settings();
+    let spellcheck_before = settings.spellcheck;
     patch.apply(&mut settings);
     settings.save(&state.settings_path())?;
+    if settings.spellcheck != spellcheck_before {
+        crate::spelling::seed(settings.spellcheck);
+    }
     state.set_settings(settings.clone());
     refresh_menu(
         &app,

@@ -43,6 +43,30 @@ async function noteText(path: string): Promise<string | null> {
  * (stores/editorSave.ts).
  */
 
+/**
+ * WebKit leaves the first editable of a launch unchecked in the built app:
+ * the underlines (PLAN.md §7.5) came for every editor built later, never for
+ * the one the session restore builds first, whatever the defaults key says.
+ * Setting the element's `spellcheck` again makes WebKit look at it anew; it
+ * is done once per session, at the first key typed — by then WebKit knows
+ * its spelling state (measured 2026-09-22 in `just app`; `just dev`, slower
+ * to load, never showed it).
+ */
+let spellingNudged = false;
+function nudgeSpelling(content: HTMLElement): void {
+  if (spellingNudged || content.getAttribute("spellcheck") !== "true") return;
+  content.addEventListener(
+    "keydown",
+    () => {
+      if (spellingNudged) return;
+      spellingNudged = true;
+      content.setAttribute("spellcheck", "false");
+      requestAnimationFrame(() => content.setAttribute("spellcheck", "true"));
+    },
+    { once: true },
+  );
+}
+
 /** The status bar's `Ln, Col` and what is selected (`stores/cursor.ts`). */
 function reportCursor(path: string, state: EditorState): void {
   const head = state.selection.main.head;
@@ -122,6 +146,7 @@ export default function Editor({
         }
       }
       const created = new EditorView({ parent: element, state });
+      nudgeSpelling(created.contentDOM);
       reportCursor(path, created.state);
       // The scroll is recorded as it happens, as the first line in view:
       // when the pane goes because the preview takes its place, React has
