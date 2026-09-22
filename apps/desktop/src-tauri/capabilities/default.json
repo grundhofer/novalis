@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The minimum the main window needs. `core:default` covers the IPC bridge, the event channel the fs-batch and menu-action events ride on, and ordinary window control. `core:window:allow-start-dragging` is the one addition: `core:window:default` does not include it, and without it every press on the custom title bar's `data-tauri-drag-region` rejects into the fatal overlay instead of moving the window. Nothing else is granted: there is no filesystem, shell, http or process permission, every file operation goes through a typed command backed by novalis-core, and the folder picker is opened from Rust so the dialog plugin needs no JS permission either.",
+  "description": "The minimum the main window needs. `core:default` covers the IPC bridge, the event channel the fs-batch and menu-action events ride on, and ordinary window control. `core:window:allow-start-dragging` is one addition: `core:window:default` does not include it, and without it every press on the custom title bar's `data-tauri-drag-region` rejects into the fatal overlay instead of moving the window. `core:window:allow-set-title` is the other: the window title (open file — vault) that Mission Control, the Window menu and the Dock show. Nothing else is granted: there is no filesystem, shell, http or process permission, every file operation goes through a typed command backed by novalis-core, and the folder picker is opened from Rust so the dialog plugin needs no JS permission either.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "permissions": ["core:default", "core:window:allow-start-dragging", "core:window:allow-set-title"]
 }
