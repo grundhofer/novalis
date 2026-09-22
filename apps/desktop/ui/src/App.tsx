@@ -15,6 +15,7 @@ import { dispatchCommand } from "./lib/commands";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
+import { uiStateNow } from "./lib/uiState";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
 import { useFiles } from "./stores/files";
@@ -232,21 +233,9 @@ export default function App() {
   useEffect(() => {
     if (!ready) return undefined;
     const timer = setTimeout(() => {
-      // `state.json` keeps a field only while it is sent: one left out here
-      // is reset at the next launch.
-      void unwrap(
-        commands.stateSave({
-          openTabs: tabs,
-          activeTab: active,
-          sidebarVisible,
-          sidebarWidth,
-          boardVisible,
-          backlinksVisible,
-          cloudHintShown,
-          activeBoard,
-          treeSort,
-        }),
-      ).catch(() => {
+      // The values are the stores' (`lib/uiState.ts`); the dependencies
+      // below are what makes a change of any of them save.
+      void unwrap(commands.stateSave(uiStateNow())).catch(() => {
         // Losing the window layout is not worth a message; the next save wins.
       });
     }, STATE_SAVE_MS);

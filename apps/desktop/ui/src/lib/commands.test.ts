@@ -5,11 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.stubEnv("TZ", "Europe/Berlin");
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
+import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { dispatchCommand, moveEntry, openTreeContextMenu } from "./commands";
+import { dispatchCommand, moveEntry, openTreeContextMenu, QUIT_FLUSH_MS } from "./commands";
 
 // The dispatcher reaches the shell through `../ipc/client`; a lib test has no
 // Tauri to talk to, so the boundary is mocked and only the dispatcher's own
@@ -34,6 +35,7 @@ vi.mock("../ipc/client", () => {
       rename: vi.fn(),
       reveal: vi.fn(),
       treeContextMenu: vi.fn(),
+      stateSave: vi.fn(),
     },
     unwrap: vi.fn(),
     NovalisError,
@@ -348,5 +350,56 @@ describe("tree context menu and reveal", () => {
     vi.mocked(commands.reveal).mockClear();
     await dispatchCommand("tree.reveal");
     expect(commands.reveal).not.toHaveBeenCalled();
+  });
+});
+
+// D19: ⌘Q, the menu's Quit and the close button write every buffer before
+// the shell exits, and never wait longer than two seconds for it.
+describe("app.quit", () => {
+  const flushAll = useEditorSave.getState().flushAll;
+  beforeEach(() => {
+    stubStores();
+    vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
+    vi.mocked(commands.stateSave).mockReset();
+    useTabs.setState({ tabs: ["a.md"], active: "a.md" });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    useEditorSave.setState({ flushAll });
+  });
+
+  it("saves every buffer, then sends the state with quit", async () => {
+    const order: string[] = [];
+    useEditorSave.setState({
+      flushAll: vi.fn(async () => {
+        await flush();
+        order.push("flush");
+      }),
+    });
+    vi.mocked(commands.stateSave).mockImplementation((state) => {
+      order.push(`state:${String(state.quit)}`);
+      return null as never;
+    });
+
+    dispatchCommand("app.quit");
+    for (let i = 0; i < 4; i += 1) await flush();
+
+    expect(order).toEqual(["flush", "state:true"]);
+    expect(vi.mocked(commands.stateSave).mock.calls[0]?.[0]).toMatchObject({
+      openTabs: ["a.md"],
+      activeTab: "a.md",
+      quit: true,
+    });
+  });
+
+  it("quits after two seconds when a save hangs", async () => {
+    vi.useFakeTimers();
+    useEditorSave.setState({ flushAll: vi.fn(() => new Promise<void>(() => {})) });
+
+    dispatchCommand("app.quit");
+    await vi.advanceTimersByTimeAsync(QUIT_FLUSH_MS - 1);
+    expect(commands.stateSave).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(commands.stateSave).toHaveBeenCalledTimes(1);
   });
 });

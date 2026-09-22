@@ -1168,18 +1168,32 @@ pub async fn state_save(
     state: State<'_, AppState>,
     ui_state: UiStateDto,
 ) -> IpcResult<()> {
-    refresh_menu(&app, &state, &state.settings(), &ui_state);
+    let quit = ui_state.quit;
+    if !quit {
+        refresh_menu(&app, &state, &state.settings(), &ui_state);
+    }
     let path = state.ui_state_path();
-    blocking(move || {
+    let written = blocking(move || {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| CoreError::from_io(parent, e))?;
         }
-        let mut bytes = serde_json::to_vec_pretty(&ui_state).map_err(CoreError::from)?;
+        // `quit` is a request, not state: it never reaches the file.
+        let mut value = serde_json::to_value(&ui_state).map_err(CoreError::from)?;
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("quit");
+        }
+        let mut bytes = serde_json::to_vec_pretty(&value).map_err(CoreError::from)?;
         bytes.push(b'\n');
         fs::write_atomic(&path, &bytes, None)?;
         Ok(())
     })
-    .await
+    .await;
+    // The UI's last word before quitting (D19): the buffers are on disk, and
+    // a state file that could not be written is no reason to stay open.
+    if quit {
+        app.exit(0);
+    }
+    written
 }
 
 #[cfg(test)]

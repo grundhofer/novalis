@@ -119,6 +119,14 @@ pub fn run() {
         // docs/KEYMAP.md command id; the UI dispatches it exactly as it
         // dispatches the matching chord.
         .on_menu_event(|app, event| menu::dispatch(app, event.id().as_ref()))
+        // Closing the one window quits the app: the same save-first path as
+        // ⌘Q, so it cannot drop the last second of typing either (D19).
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                menu::request_quit(window.app_handle());
+            }
+        })
         .run(tauri::generate_context!())
         .expect("run the novalis desktop app");
 }

@@ -592,6 +592,12 @@ export type UiStateDto = {
 	 *  dismissed; state, not a setting (ADR-0004).
 	 */
 	cloudHintShown?: boolean,
+	/**
+	 *  Set only on the UI's last save before quitting, once every open
+	 *  buffer is on disk (D19): the shell writes the state and exits. Never
+	 *  written to `state.json` (`state_save` drops the key).
+	 */
+	quit?: boolean,
 };
 
 export type VaultDto = {
