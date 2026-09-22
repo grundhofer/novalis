@@ -4,9 +4,10 @@ Date: 2026-09-20
 
 ## Status
 
-Accepted. The EPUB half is built (`vault/archive.rs`, `read_packed`,
-`EpubViewer.tsx`); CBZ is still the next pull request
-(docs/research/2026-09-20-formats-plan.md §6, step V2). Builds the
+Accepted, and both halves are built: EPUB (`vault/archive.rs`,
+`read_packed`, `EpubViewer.tsx`) and, on the same primitive and without a
+line of core or shell change, CBZ (`CbzViewer.tsx`,
+docs/research/2026-09-20-formats-plan.md §6, step V2). Builds the
 2026-09-15 approval recorded in ADR-0016 ("EPUB (Recommended) … CBZ").
 Adds one crate (`rawzip`, MIT; Cargo.lock 514 → 515 of 581) and one IPC
 command (`read_packed`, 28 of the 30 PLAN.md §2.3 rule 8 allows). No CSP
@@ -66,8 +67,13 @@ Asked with all viewer questions bundled, the owner chose:
 - **CBZ** on the same primitive: the image entries (`png jpg jpeg gif
   webp`) in natural sort order, one page as `<img>` from a `blob:` URL
   with the next page prefetched, a bar with ‹ page N of M ›; zoom shares
-  ADR-0025's image-zoom work. CBR (RAR) is not built: `unrar` is a `*-sys`
-  crate with a non-free licence.
+  ADR-0025's image-zoom work. An image is not always a page: a macOS
+  archive carries a resource fork (`__MACOSX/…/._page-01.jpg`) beside
+  every file, and those are left out, as is anything that is not one of
+  the five types. Exactly two pages are held — the one shown and the one
+  after it — so turning a page frees what is two pages back and a long
+  comic costs no more than a short one. CBR (RAR) is not built: `unrar`
+  is a `*-sys` crate with a non-free licence.
 - **What neither viewer does** (the ADR-0015/0016 line): annotate,
   highlight, bookmark, edit, export, print, fetch anything, or remember
   anything outside `state.json`.

@@ -253,3 +253,49 @@
 .epub-host {
   display: block;
 }
+
+/* ------------------------------------------------------------------- cbz */
+/* The comic reader (ADR-0023). One page, fitted to the pane; the bar is the
+   PDF's, without the zoom it does not have yet. */
+.cbz {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.cbz-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+  height: var(--ds-size-tabstrip);
+  padding: 0 var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-muted);
+}
+
+.cbz-count {
+  min-width: 8em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cbz-sheet {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-5);
+}
+
+.cbz-page {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

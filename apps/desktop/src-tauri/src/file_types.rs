@@ -201,6 +201,7 @@ pub const FILE_TYPES: &[FileType] = &[
     // View (ADR-0015/0016, ADR-0023)
     ext("pdf", Kind::View),
     ext("epub", Kind::View),
+    ext("cbz", Kind::View),
     ext("png", Kind::View),
     ext("jpg", Kind::View),
     ext("jpeg", Kind::View),

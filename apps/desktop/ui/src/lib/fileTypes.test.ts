@@ -46,6 +46,7 @@ describe("fileTypes", () => {
       "x.diff",
       "index.php",
       "books/book.epub",
+      "comics/issue.cbz",
     ]) {
       expect(isSupported(path), path).toBe(true);
     }
@@ -73,10 +74,12 @@ describe("fileTypes", () => {
     expect(viewKind("a.pdf")).toBe("pdf");
     expect(viewKind("a.JPG")).toBe("image");
     expect(viewKind("a.EPUB")).toBe("epub");
+    expect(viewKind("a.cbz")).toBe("cbz");
     expect(viewKind("a.svg")).toBeNull();
     expect(viewKind("a.md")).toBeNull();
     expect(mimeOf("a.pdf")).toBe("application/pdf");
     expect(mimeOf("a.jpeg")).toBe("image/jpeg");
     expect(mimeOf("a.epub")).toBe("application/epub+zip");
+    expect(mimeOf("a.cbz")).toBe("application/vnd.comicbook+zip");
   });
 });
