@@ -34,7 +34,8 @@
       ],
       "path": "journal/2026-08-03.md",
       "sha256": "35dff82eebbc8848071619d3b5b78c838f18242e0d9f8b0799fb1c59d9341f98",
-      "title": "2026-08-03"
+      "title": "2026-08-03",
+      "utf8": true
     }
   ],
   "truncated": false
