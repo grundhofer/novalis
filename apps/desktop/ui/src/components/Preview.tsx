@@ -14,6 +14,7 @@ import { commands, unwrap } from "../ipc/client";
 import { mimeOf, viewKind } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
 import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
+import { keepPosition, keptPosition } from "../lib/positions";
 import { setPreviewBridge } from "../lib/previewBridge";
 import { blockForLine, parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
@@ -218,7 +219,7 @@ function showHit(hits: Hits, index: number, count: HTMLElement | null, t: Transl
  * line-exact, since a rendered block has no lines. Nothing to do when the
  * line is past the text or the fragment has no tagged block.
  */
-function showLine(host: HTMLElement, text: string, line: number): void {
+function showLine(host: HTMLElement, text: string, line: number, lit = true): void {
   const blocks = [...host.querySelectorAll<HTMLElement>("[data-pos]")];
   const spans = blocks.map((block) => parseBlockSpan(block.getAttribute("data-pos")) ?? { start: 0, end: 0 });
   const index = blockForLine(spans, text, line);
@@ -226,6 +227,7 @@ function showLine(host: HTMLElement, text: string, line: number): void {
   if (!block) return;
   // jsdom has no layout, and no `scrollIntoView` (ADR-0011).
   if (typeof block.scrollIntoView === "function") block.scrollIntoView({ block: "center" });
+  if (!lit) return;
   // The preview has no cursor to show where the jump landed, so the block
   // is lit for a moment; a jump while one is still lit moves the light.
   for (const lit of host.querySelectorAll(".preview-target")) lit.classList.remove("preview-target");
@@ -254,6 +256,8 @@ export default function Preview({
   /** Which note has a fragment on screen — the first one renders at once. */
   const shown = useRef<string | null>(null);
   const body = useRef<HTMLDivElement>(null);
+  /** The note whose first fragment has been placed (`lib/positions.ts`). */
+  const positioned = useRef<string | null>(null);
 
   const [findOpen, setFindOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -313,7 +317,19 @@ export default function Preview({
     if (target) {
       const source = useEditorSave.getState().docs[rendered.path]?.text ?? "";
       showLine(host, source, resolveLine(source, target));
+    } else if (positioned.current !== rendered.path) {
+      // The first fragment of this note: where the reader was (`lib/
+      // positions.ts`) — the preview's own place if it was the last pane
+      // read, else the editor's cursor line, shown without the light.
+      const position = keptPosition(rendered.path);
+      const scroller = host.parentElement;
+      if (position?.last === "preview" && position.previewScroll !== undefined && scroller) {
+        scroller.scrollTop = position.previewScroll;
+      } else if (position?.line !== undefined) {
+        showLine(host, useEditorSave.getState().docs[rendered.path]?.text ?? "", position.line, false);
+      }
     }
+    positioned.current = rendered.path;
 
     // A relative `src` is a vault path the webview cannot reach; the bytes
     // come through `read_blob` like the viewer's. Until they arrive the alt
@@ -539,7 +555,12 @@ export default function Preview({
           </button>
         </div>
       )}
-      <section className="preview">
+      <section
+        className="preview"
+        onScroll={(event) =>
+          keepPosition(path, { previewScroll: event.currentTarget.scrollTop, last: "preview" })
+        }
+      >
         <div className="preview-body" ref={body} onClick={onClick} />
       </section>
     </>
