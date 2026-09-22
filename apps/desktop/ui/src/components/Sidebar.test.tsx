@@ -422,4 +422,20 @@ describe("Sidebar", () => {
     expect(openTreeContextMenu).toHaveBeenLastCalledWith("boards/atlas", true);
     expect(useTabs.getState().open).not.toHaveBeenCalled();
   });
+
+  // Conflict copies at stage 0 (DECISIONS.md 2026-09-20): findable in the
+  // tree, with the note they shadow as the tooltip.
+  it("marks a sync client's conflict copy and names what it shadows", () => {
+    useVault.getState().setVault({ root: "/v", name: "v", kind: "local", boards: [] }, [
+      entry("a.md", false),
+      { ...entry("a-MacBook.md", false), conflictCopyOf: "a.md" },
+    ]);
+    render(<Sidebar />);
+
+    const badges = screen.getAllByText("tree.conflictCopy");
+    expect(badges).toHaveLength(1);
+    expect(badges[0]?.closest("[role=treeitem]")?.querySelector(".name")?.textContent).toBe("a-MacBook.md");
+    expect(badges[0]?.getAttribute("title")).toBe("a.md");
+  });
 });
+
