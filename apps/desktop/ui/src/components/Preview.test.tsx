@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
 import { deferLine, takeDeferredLine } from "../lib/editorBridge";
+import { forgetPositions, keepPosition, keptPosition } from "../lib/positions";
 import { goToPreviewLine, previewMounted, runPreviewCommand } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
 import { useUi } from "../stores/ui";
@@ -229,6 +230,48 @@ describe("Preview", () => {
     expect(onFollowLink).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByAltText("linked"));
     expect(onFollowLink).toHaveBeenLastCalledWith("other.md");
+  });
+
+  // docs/research/2026-09-20-feature-gaps.md A4: back where the reader was.
+  it("returns to its own scroll, and records the reader's", async () => {
+    forgetPositions();
+    doc("n.md", "# Hi");
+    fragment = "<h1>Hi</h1>";
+    keepPosition("n.md", { previewScroll: 120, last: "preview", line: 1 });
+    const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+    const section = container.querySelector("section.preview") as HTMLElement;
+    expect(section.scrollTop).toBe(120);
+
+    section.scrollTop = 300;
+    fireEvent.scroll(section);
+    expect(keptPosition("n.md")).toMatchObject({ previewScroll: 300, last: "preview" });
+    forgetPositions();
+  });
+
+  it("opens at the editor's cursor line when the editor was read last, unlit", async () => {
+    forgetPositions();
+    doc("n.md", "first\n\nsecond\n");
+    fragment = '<p data-pos="0-5">first</p><p data-pos="7-13">second</p>';
+    keepPosition("n.md", { line: 3, last: "editor" });
+    const scrolled: string[] = [];
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+      scrolled.push(this.textContent ?? "");
+    };
+    try {
+      const { container } = render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+      await flush();
+      expect(scrolled).toEqual(["second"]);
+      // A place kept, not a jump: nothing is lit.
+      expect(container.querySelector(".preview-target")).toBeNull();
+    } finally {
+      // jsdom has none; an own `undefined` left behind would shadow the
+      // stubs other tests put on `Element.prototype`.
+      if (original) HTMLElement.prototype.scrollIntoView = original;
+      else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      forgetPositions();
+    }
   });
 
   it("reports an image the shell cannot read and leaves the alt text", async () => {

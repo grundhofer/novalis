@@ -1,10 +1,11 @@
 import { syntaxHighlighting } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
 import { commands, unwrap } from "../ipc/client";
 import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
+import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
 import { useEditorSave } from "../stores/editorSave";
 import { report } from "../stores/ui";
 import { setActiveView } from "./commands";
@@ -81,12 +82,33 @@ export default function Editor({
         spellcheck,
       });
       if (cancelled) return;
-      const created = new EditorView({
-        parent: element,
-        state: EditorState.create({
-          doc: useEditorSave.getState().docs[path]?.text ?? doc.text,
-          extensions: [editorTheme, syntaxHighlighting(markdownHighlight), ...extensions],
-        }),
+      let state = EditorState.create({
+        doc: useEditorSave.getState().docs[path]?.text ?? doc.text,
+        extensions: [editorTheme, syntaxHighlighting(markdownHighlight), ...extensions],
+      });
+      // Back where the reader left it (`lib/positions.ts`): the selection is
+      // set before the view exists, so nothing scrolls to it; the text may
+      // have shrunk since (a reload), so every end is clamped to it.
+      const position = keptPosition(path);
+      if (position?.selection) {
+        const length = state.doc.length;
+        const clamp = (at: number) => Math.min(Math.max(0, at), length);
+        const ranges = position.selection.ranges.map((r) => EditorSelection.range(clamp(r.anchor), clamp(r.head)));
+        if (ranges.length > 0) {
+          state = state.update({
+            selection: EditorSelection.create(ranges, Math.min(position.selection.main, ranges.length - 1)),
+          }).state;
+        }
+      }
+      const created = new EditorView({ parent: element, state });
+      // The scroll is recorded as it happens, as the first line in view:
+      // when the pane goes because the preview takes its place, React has
+      // detached it before the cleanup below runs, and a detached scroller
+      // reads 0 (and may say so in one last scroll event).
+      created.scrollDOM.addEventListener("scroll", () => {
+        if (!created.dom.isConnected) return;
+        const height = created.scrollDOM.getBoundingClientRect().top - created.documentTop;
+        keepPosition(path, { editorTop: created.lineBlockAtHeight(Math.max(0, height)).from });
       });
       view = created;
       // `sliceDoc()`, not `doc.toString()`: it joins with the file's own line
@@ -96,7 +118,12 @@ export default function Editor({
       setActiveView(view);
       view.focus();
       const target = takeDeferredLine();
+      // A jump (a search hit, a backlink) wins over the kept place.
       if (target) goToEditorLine(resolveLine(view.state.doc.toString(), target));
+      else if (position?.editorTop !== undefined) {
+        const top = Math.min(position.editorTop, created.state.doc.length);
+        created.dispatch({ effects: EditorView.scrollIntoView(top, { y: "start" }) });
+      }
     })().catch(report);
 
     return () => {
@@ -111,6 +138,11 @@ export default function Editor({
           useEditorSave.getState().flush(path);
           useEditorSave.getState().detach(path, read);
         }
+        keepPosition(path, {
+          selection: view.state.selection.toJSON() as KeptSelection,
+          line: view.state.doc.lineAt(view.state.selection.main.head).number,
+          last: "editor",
+        });
         setActiveView(null);
         view.destroy();
       }
