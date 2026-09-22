@@ -44,7 +44,10 @@ describe("Palette", () => {
     const input = screen.getByPlaceholderText("palette.placeholder");
 
     fireEvent.change(input, { target: { value: "dark" } });
-    expect(screen.getByText("palette.cmd.appearance:settings.appearance.dark")).toBeTruthy();
+    const label = document.querySelector(".result.active .result-label");
+    expect(label?.textContent).toBe("palette.cmd.appearance:settings.appearance.dark");
+    // The letters the fuzzy match took are marked.
+    expect([...(label?.querySelectorAll("mark.match") ?? [])].map((mark) => mark.textContent).join("")).toBe("dark");
 
     fireEvent.keyDown(input, { key: "Enter" });
     expect(dispatchCommand).toHaveBeenCalledWith("settings.appearance.dark");

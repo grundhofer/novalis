@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, events, unwrap, type BacklinksDto } from "../ipc/client";
-import { deferLine, goToEditorLine, resolveLine, type LineTarget } from "../lib/editorBridge";
-import { goToPreviewLine, previewMounted } from "../lib/previewBridge";
-import { useEditorSave } from "../stores/editorSave";
+import { openAt } from "../lib/openAt";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
@@ -21,30 +19,6 @@ import "../styles/backlinks.css";
  * The catalog decided this shape before the code existed: a title, an empty
  * line naming both kinds, and separate counts.
  */
-/**
- * Open `path` with the link's line in view. The note that is already open
- * keeps its pane, so the jump is immediate — in the preview when that is
- * what shows it; any other note gets its pane built after the tab switch,
- * so the target waits in the bridge for it. Either way the line is settled
- * against the text the pane shows, not the one the cache indexed.
- */
-function openAt(path: string, target: LineTarget): void {
-  if (useTabs.getState().active === path) {
-    const line = resolveLine(useEditorSave.getState().flush(path) ?? "", target);
-    if (previewMounted()) goToPreviewLine(line);
-    else goToEditorLine(line);
-    return;
-  }
-  deferLine(target);
-  void useTabs
-    .getState()
-    .open(path)
-    .catch((e: unknown) => {
-      deferLine(null);
-      report(e);
-    });
-}
-
 export default function Backlinks() {
   const { t } = useTranslation();
   const active = useTabs((s) => s.active);

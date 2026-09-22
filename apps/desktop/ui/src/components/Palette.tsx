@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { dispatchCommand, paletteCommands } from "../lib/commands";
 import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
 import { rank } from "../lib/fuzzy";
+import { positionRanges } from "../lib/matchRanges";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { fileNameOf, folderOf, isNote, stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
@@ -11,6 +12,7 @@ import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/overlay.css";
+import Marked from "./Marked";
 
 /**
  * Quick-open (`Cmd+P`), the command palette (`Shift+Cmd+P`) and the settings
@@ -133,6 +135,9 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
           <span className="palette-prompt" aria-hidden="true" />
           <input
             className="palette-text"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             ref={input}
             value={query}
             placeholder={t(PLACEHOLDER_KEY[mode])}
@@ -165,7 +170,9 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
                 onClick={() => run(entry)}
               >
                 <span className={entry.kind === "command" ? "result-glyph command" : "result-glyph"} />
-                <span className="result-label">{label(entry)}</span>
+                <span className="result-label">
+                  <Marked text={label(entry)} ranges={positionRanges(ranked.match.positions)} />
+                </span>
                 <span className="result-meta">
                   {entry.kind === "file"
                     ? folderOf(entry.path) || (isNote(entry.path) ? t(SECTION_KEY.file) : "")
