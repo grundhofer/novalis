@@ -36,6 +36,15 @@ export function isNote(rel: string): boolean {
   return extensionOf(rel) === "md";
 }
 
+/**
+ * A note or a `.markdown` file: what the ⌘E preview renders and image paste
+ * writes next to (ADR-0022 point 6). The Markdown dialects are not in it.
+ */
+export function isMarkdownFile(rel: string): boolean {
+  const extension = extensionOf(rel);
+  return extension === "md" || extension === "markdown";
+}
+
 /** Every ancestor folder of `rel`, root first. */
 export function ancestorsOf(rel: string): string[] {
   const parts = rel.split("/");

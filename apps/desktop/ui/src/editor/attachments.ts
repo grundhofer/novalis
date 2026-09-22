@@ -2,13 +2,14 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { extensionForMime, saveAttachment } from "../lib/attachments";
-import { isNote } from "../lib/paths";
+import { isMarkdownFile } from "../lib/paths";
 import { report } from "../stores/ui";
 
 /**
- * Paste and drop of images into a note (ADR-0017). The bytes never enter the
- * buffer: they go to `attachments/` next to the note through
- * `lib/attachments.ts`, and the note gets the link once the file is written.
+ * Paste and drop of images into a note, or a `.markdown` file (ADR-0017;
+ * ADR-0022 point 6). The bytes never enter the buffer: they go to
+ * `attachments/` next to the file through `lib/attachments.ts`, and the note
+ * gets the link once the file is written.
  *
  * Both handlers answer synchronously — `true` after `preventDefault()`, so
  * neither CodeMirror's own drop handler (which would read the file as text)
@@ -36,7 +37,7 @@ async function bytesOf(file: File): Promise<Uint8Array> {
 }
 
 export function attachments(notePath: string): Extension {
-  if (!isNote(notePath)) return [];
+  if (!isMarkdownFile(notePath)) return [];
   return EditorView.domEventHandlers({
     paste(event, view) {
       // A read-only buffer (not UTF-8) takes no edits, so no file either.

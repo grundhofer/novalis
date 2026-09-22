@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.stubEnv("TZ", "Europe/Berlin");
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
-import { useNotes } from "../stores/notes";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
@@ -30,7 +30,7 @@ vi.mock("../ipc/client", () => {
       createNote: vi.fn(),
       createFolder: vi.fn(),
       listDir: vi.fn(),
-      listNotes: vi.fn(),
+      listFiles: vi.fn(),
       rename: vi.fn(),
       reveal: vi.fn(),
       treeContextMenu: vi.fn(),
@@ -64,7 +64,7 @@ function stubStores() {
   const refresh = vi.fn().mockResolvedValue(undefined);
   const open = vi.fn().mockResolvedValue(undefined);
   useVault.setState({ reload, selected: null });
-  useNotes.setState({ refresh });
+  useFiles.setState({ refresh });
   useTabs.setState({ open, active: null });
   useUi.setState({ prompt: null, toast: null });
   return { reload, refresh, open };

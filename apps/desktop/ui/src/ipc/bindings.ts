@@ -16,14 +16,15 @@ export const commands = {
 	openVault: (path: string) => typedError<VaultOpenDto, IpcError>(__TAURI_INVOKE("open_vault", { path })),
 	listDir: (path: string) => typedError<EntryDto[], IpcError>(__TAURI_INVOKE("list_dir", { path })),
 	/**
-	 *  Every note in the vault, vault-relative and sorted.
-	 * 
-	 *  Quick-open (`Cmd+P`), the `[[`-completion source and the board's "Link
-	 *  Note…" all need the whole list, and the tree only knows the folders the
-	 *  user has opened. `walk_notes` runs under the materialize-off guard and
-	 *  stats only, so a 10k-note cloud vault costs no downloads.
+	 *  Every regular file in the vault, vault-relative and sorted — not only
+	 *  notes (ADR-0022): quick-open lists every file the tree would, and the
+	 *  `[[`-completion source keeps the `.md` among them. The UI applies the
+	 *  file-type table; the shell hands over the walk, because the table's name
+	 *  patterns are the UI's to run. The tree only knows the folders the user
+	 *  has opened. `walk_files` runs under the materialize-off guard and stats
+	 *  only, so a 10k-note cloud vault costs no downloads.
 	 */
-	listNotes: () => typedError<string[], IpcError>(__TAURI_INVOKE("list_notes")),
+	listFiles: () => typedError<string[], IpcError>(__TAURI_INVOKE("list_files")),
 	readFile: (path: string) => typedError<FileDto, IpcError>(__TAURI_INVOKE("read_file", { path })),
 	/**
 	 *  Read a file the viewer shows as it is — a PDF or an image (ADR-0015).

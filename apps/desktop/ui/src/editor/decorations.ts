@@ -24,6 +24,7 @@ const headingLine = [1, 2, 3, 4, 5, 6].map((level) =>
 );
 const quoteLine = Decoration.line({ class: "nv-quote" });
 const frontmatterLine = Decoration.line({ class: "nv-frontmatter" });
+const codeLine = Decoration.line({ class: "nv-code" });
 const taskDoneLine = Decoration.line({ class: "nv-task-done" });
 
 class CheckboxWidget extends WidgetType {
@@ -72,6 +73,17 @@ function build(view: EditorView): DecorationSet {
           const last = view.state.doc.lineAt(Math.min(node.to, view.state.doc.length)).number;
           for (let n = first; n <= last; n += 1) {
             lines.push(frontmatterLine.range(view.state.doc.line(n).from));
+          }
+        } else if (name === "CodeText") {
+          // The text of a fenced or indented block, one node per block or
+          // per line inside a container; a trailing newline belongs to the
+          // last line, not the next. The face is the line's (markdownExt.ts
+          // `codeTag`): a grammar's parse mounted over the text would hide a
+          // mark on the node from the highlighter.
+          const first = view.state.doc.lineAt(node.from).number;
+          const last = view.state.doc.lineAt(Math.max(node.from, node.to - 1)).number;
+          for (let n = first; n <= last; n += 1) {
+            lines.push(codeLine.range(view.state.doc.line(n).from));
           }
         } else if (name === "TaskMarker") {
           const text = view.state.doc.sliceString(node.from, node.to);
