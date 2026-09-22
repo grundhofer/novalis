@@ -73,6 +73,7 @@ Available now (the core harness):
 | `tags [--limit N]` | `{tag, count}` |
 | `index --status` · `index --rebuild` | cache state and the vault's absolute path; rebuild only when `doctor` says so |
 | `sync status` | `vaultKind`, `cloudOnly[]`, `conflictCopies[]`; read-only — ask before a bulk `cat --materialize` |
+| `skill --path` | the directory of this skill (exit 3 when it is not installed beside the binary) |
 | `init <dir>` | write `.novalis/vault.json` (idempotent) |
 | `doctor` | read-only health report; there is no `--fix` |
 | `relink <from> <to> [--force] [--materialize]` | rewrite a literal link target everywhere (merges, dedupes) |
@@ -83,12 +84,6 @@ Available now (the core harness):
 | `card ls [--board B] [--note N] [--column C]` | which cards reference a note; tombstones are never listed |
 | `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
 | `card mv <id> …` · `card set <id> [--title T] [--description TEXT] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
-
-Planned (PLAN.md §12 Phase 4; until they ship these exit 2 with a hint):
-
-| Command | One line |
-|---|---|
-| `skill --path` | the directory of this skill |
 
 There is no command that creates a board: the app does that, and so does
 `migrate --import-columns`. Never write a board or card file by hand.
@@ -117,7 +112,7 @@ There is no command that creates a board: the app does that, and so does
 |---|---|---|
 | 0 | ok | |
 | 1 | internal error | report `error.message`; do not retry blindly |
-| 2 | usage, `--no-index` on a mutation, or a planned command | read `error.hint`; fix the invocation |
+| 2 | usage, or `--no-index` on a mutation | read `error.hint`; fix the invocation |
 | 3 | not found | check the `path`/`stem` with `ls` |
 | 4 | conflict: exists, ambiguous, precondition or `--if-match` mismatch | use `error.candidates`; re-read and re-plan |
 | 5 | needs `--force`: dangling backlinks on `rm`, `--no-relink` with backlinks, cloud-only skips on `mv`/`relink`/`migrate` | resolve the cause; `--force` only with the user's yes |
