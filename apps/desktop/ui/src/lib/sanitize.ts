@@ -18,6 +18,9 @@
  * and sets a `blob:` URL (`data-src` carries the raw value until then), so
  * nothing is ever fetched by the mere act of showing a chapter — which the
  * CSP would refuse anyway, and which would otherwise flash a broken image.
+ * A `data:image/…` source is carried the same way and for the same reason,
+ * even though it fetches nothing: it is what a DOCX's pictures arrive as
+ * (ADR-0024), and it stays the reader's decision what an `<img>` loads.
  */
 
 /** Elements copied with their children. */
@@ -72,6 +75,9 @@ const ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
 
 /** `https:`, `mailto:` and the like — the test `lib/links.ts` uses. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+/** An inline picture: the whole image is the value, so nothing is fetched. */
+const DATA_IMAGE = /^data:image\//i;
 
 /** The schemes a link may name; anything else (`javascript:`) is dropped. */
 const LINK_SCHEMES = /^(?:https?|mailto|tel):/i;
@@ -134,6 +140,6 @@ function copyAttributes(source: Element, target: Element, name: string): void {
   // URL once it has the bytes, and an image it cannot find stays alt text.
   if (name === "img") {
     const src = source.getAttribute("src");
-    if (src && !SCHEME.test(src)) target.setAttribute("data-src", src);
+    if (src && (!SCHEME.test(src) || DATA_IMAGE.test(src))) target.setAttribute("data-src", src);
   }
 }

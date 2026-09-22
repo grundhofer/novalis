@@ -1,4 +1,10 @@
-import { EXTENSION_KINDS, NAME_KINDS, PATTERN_KINDS, type FileKind } from "./fileTypes.generated";
+import {
+  EXCLUDED_PREFIXES,
+  EXTENSION_KINDS,
+  NAME_KINDS,
+  PATTERN_KINDS,
+  type FileKind,
+} from "./fileTypes.generated";
 import { extensionOf, fileNameOf } from "./paths";
 
 /**
@@ -14,13 +20,14 @@ import { extensionOf, fileNameOf } from "./paths";
  * which viewer a tier-D type gets and the MIME type it is handed with.
  */
 
-export type ViewKind = "pdf" | "image" | "epub" | "cbz";
+export type ViewKind = "pdf" | "image" | "epub" | "cbz" | "docx";
 
 /** Which viewer a tier-D type opens in; every `view` row of the table has one. */
 export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
   pdf: "pdf",
   epub: "epub",
   cbz: "cbz",
+  docx: "docx",
   png: "image",
   jpg: "image",
   jpeg: "image",
@@ -33,6 +40,7 @@ export const MIME: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
   epub: "application/epub+zip",
   cbz: "application/vnd.comicbook+zip",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -52,6 +60,9 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, FileKind]> = Object.entries(PATT
  */
 export function kindOf(rel: string): FileKind | null {
   const name = fileNameOf(rel);
+  // Word's `~$letter.docx` beside an open document: an extension the table
+  // knows, a file nobody wants to see (ADR-0024).
+  if (EXCLUDED_PREFIXES.some((prefix) => name.startsWith(prefix))) return null;
   const extension = extensionOf(rel);
   if (extension && Object.hasOwn(EXTENSION_KINDS, extension)) return EXTENSION_KINDS[extension] ?? null;
   if (!extension && Object.hasOwn(NAME_KINDS, name)) return NAME_KINDS[name] ?? null;

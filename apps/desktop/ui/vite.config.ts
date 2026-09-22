@@ -54,5 +54,12 @@ export default defineConfig({
     css: { include: [/\.css\?raw$/] },
     setupFiles: ["src/test/setup.ts"],
     restoreMocks: true,
+    // mammoth ships a Node half and a browser half and picks between them
+    // with its `browser` field (ADR-0024). The app gets the browser half
+    // from Vite; vitest resolves as Node does, so without this the reader's
+    // `arrayBuffer` input reaches the Node unzip, which wants a path, and
+    // every document in the test would be "unreadable". The file is the
+    // package's own browser build of the same code.
+    alias: { mammoth: "mammoth/mammoth.browser.js" },
   },
 });

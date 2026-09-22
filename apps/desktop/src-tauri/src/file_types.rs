@@ -202,6 +202,7 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("pdf", Kind::View),
     ext("epub", Kind::View),
     ext("cbz", Kind::View),
+    ext("docx", Kind::View),
     ext("png", Kind::View),
     ext("jpg", Kind::View),
     ext("jpeg", Kind::View),
@@ -209,12 +210,21 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("webp", Kind::View),
 ];
 
+/// Name prefixes the app never lists, whatever their extension says. Word
+/// writes its lock file for `letter.docx` as `~$letter.docx` (ADR-0024) —
+/// not dot-prefixed, so the core's hidden rule does not catch it, and a
+/// table that reads `docx` would otherwise show it as a document.
+pub const EXCLUDED_PREFIXES: &[&str] = &["~$"];
+
 /// What the app does with this vault-relative path, or `None` when the tree
 /// does not list it — the UI's `kindOf` in Rust, for what must decide before
 /// the UI sees the path (the search limit, ADR-0022 point 5): by the
 /// lower-case extension, else by the whole name, else by a prefix.
 pub fn kind_of(rel: &str) -> Option<Kind> {
     let name = rel.rsplit('/').next().unwrap_or(rel);
+    if EXCLUDED_PREFIXES.iter().any(|p| name.starts_with(p)) {
+        return None;
+    }
     let ext = name
         .rfind('.')
         .filter(|&i| i > 0)
@@ -302,7 +312,15 @@ pub fn export_ts() -> String {
             ));
         }
     }
-    out.push_str("};\n");
+    out.push_str("};\n\n");
+    out.push_str(
+        "/** Name prefixes that are never listed, whatever their extension says. */\n\
+         export const EXCLUDED_PREFIXES: readonly string[] = [",
+    );
+    for (i, p) in EXCLUDED_PREFIXES.iter().enumerate() {
+        out.push_str(&format!("{}\"{p}\"", if i == 0 { "" } else { ", " }));
+    }
+    out.push_str("];\n");
     out
 }
 
@@ -384,12 +402,16 @@ mod tests {
             "Dockerfiles",
             ".md",
             "a/.txt",
+            // Word's lock file beside an open document (ADR-0024).
+            "~$letter.docx",
+            "briefe/~$letter.docx",
         ] {
             assert!(kind_of(path).is_none(), "{path}");
         }
         assert_eq!(kind_of("Dockerfile.md"), Some(Kind::Note));
         assert_eq!(kind_of("Dockerfile.dev"), Some(Kind::Text));
         assert_eq!(kind_of("e.PNG"), Some(Kind::View));
+        assert_eq!(kind_of("briefe/letter.docx"), Some(Kind::View));
     }
 
     /// The generated module is a valid object literal per map and names
@@ -412,5 +434,9 @@ mod tests {
             assert_eq!(ts.matches(&line).count(), 1, "{line:?}");
         }
         assert!(ts.contains("\"^Dockerfile\\\\..+$\": \"text\""), "{ts}");
+        assert!(
+            ts.contains("export const EXCLUDED_PREFIXES: readonly string[] = [\"~$\"];"),
+            "{ts}"
+        );
     }
 }

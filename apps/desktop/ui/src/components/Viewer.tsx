@@ -8,20 +8,22 @@ import { report } from "../stores/ui";
 import "../styles/viewer.css";
 
 /**
- * The read-only pane for a PDF, an image, a book or a comic (ADR-0015,
- * ADR-0023).
+ * The read-only pane for a PDF, an image, a book, a comic or a Word
+ * document (ADR-0015, ADR-0023, ADR-0024).
  *
- * A PDF and an image come through `read_blob` as base64: the image is shown
- * from a `blob:` URL that lives as long as the tab shows the file, the PDF
- * goes to pdf.js (ADR-0016). A book and a comic are not one file but a
- * container, so they never pass here at all — their readers open them part
- * by part through `read_packed`. All four viewers are their own chunk and
- * none of them loads before a file of its kind is opened.
+ * A PDF, an image and a document come through `read_blob` as base64: the
+ * image is shown from a `blob:` URL that lives as long as the tab shows the
+ * file, the PDF goes to pdf.js (ADR-0016) and the document to mammoth. A
+ * book and a comic are not one file but a container, so they never pass
+ * here at all — their readers open them part by part through `read_packed`.
+ * All five viewers are their own chunk and none of them loads before a file
+ * of its kind is opened.
  */
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
 const EpubViewer = lazy(() => import("./EpubViewer"));
 const CbzViewer = lazy(() => import("./CbzViewer"));
+const DocxViewer = lazy(() => import("./DocxViewer"));
 
 /** Whether the file is a container the viewer reads inside, not one blob. */
 function packed(kind: ViewKind): boolean {
@@ -77,9 +79,13 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
   if (loaded?.path !== path) return <div className="pane-loading">{t("editor.loading")}</div>;
   return (
     <section className="viewer">
-      {kind === "pdf" ? (
+      {kind === "pdf" || kind === "docx" ? (
         <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
-          <PdfViewer bytes={loaded.bytes} />
+          {kind === "pdf" ? (
+            <PdfViewer bytes={loaded.bytes} />
+          ) : (
+            <DocxViewer bytes={loaded.bytes} />
+          )}
         </Suspense>
       ) : (
         <img className="viewer-image" src={loaded.url ?? undefined} alt={stemOf(path)} />

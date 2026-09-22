@@ -299,3 +299,26 @@
   max-height: 100%;
   object-fit: contain;
 }
+
+/* ------------------------------------------------------------------ docx */
+/* The Word reader (ADR-0024). The document itself is dressed inside the
+   shadow root (`lib/documentCss.ts`, the same dress a book chapter wears);
+   what is here is the pane around it. */
+.docx {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.docx-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.docx-host {
+  display: block;
+}

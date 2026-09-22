@@ -47,6 +47,7 @@ describe("fileTypes", () => {
       "index.php",
       "books/book.epub",
       "comics/issue.cbz",
+      "briefe/brief.docx",
     ]) {
       expect(isSupported(path), path).toBe(true);
     }
@@ -54,7 +55,9 @@ describe("fileTypes", () => {
       "song.wav",
       "clip.mp4",
       "archive.zip",
-      "x.docx",
+      // Word's lock file beside an open document (ADR-0024).
+      "~$brief.docx",
+      "briefe/~$brief.docx",
       "app.js.map",
       "matrix.m",
       "boot.s",
@@ -75,11 +78,13 @@ describe("fileTypes", () => {
     expect(viewKind("a.JPG")).toBe("image");
     expect(viewKind("a.EPUB")).toBe("epub");
     expect(viewKind("a.cbz")).toBe("cbz");
+    expect(viewKind("a.DOCX")).toBe("docx");
     expect(viewKind("a.svg")).toBeNull();
     expect(viewKind("a.md")).toBeNull();
     expect(mimeOf("a.pdf")).toBe("application/pdf");
     expect(mimeOf("a.jpeg")).toBe("image/jpeg");
     expect(mimeOf("a.epub")).toBe("application/epub+zip");
     expect(mimeOf("a.cbz")).toBe("application/vnd.comicbook+zip");
+    expect(mimeOf("a.docx")).toContain("wordprocessingml.document");
   });
 });

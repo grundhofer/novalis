@@ -58,6 +58,13 @@ describe("sanitizeInto", () => {
     // A remote image is not fetched and not remembered: without a name
     // inside the book there is nothing for the reader to resolve.
     expect(clean('<img src="https://example.com/pixel.gif" alt="">')).toBe('<img alt="">');
+    // A picture out of a Word document is the value itself (ADR-0024) and
+    // travels the same way, because what an `<img>` loads stays the
+    // reader's decision.
+    expect(clean('<img src="data:image/png;base64,AAAA" alt="Chart">')).toBe(
+      '<img alt="Chart" data-src="data:image/png;base64,AAAA">',
+    );
+    expect(clean('<img src="data:text/html;base64,AAAA" alt="">')).toBe('<img alt="">');
   });
 
   it("keeps the text of an element it does not know, and loses the element", () => {

@@ -285,6 +285,8 @@
   "viewer.cbz.pageOf": "Seite {{current}} von {{count}}",
   "viewer.cbz.protected": "Dieser Comic ist kopiergeschützt und lässt sich nicht öffnen.",
   "viewer.cbz.unreadable": "Dieser Comic konnte nicht gelesen werden.",
+  "viewer.docx.tooLarge": "Dieses Dokument ist größer als 15 MB und wird nicht dargestellt.",
+  "viewer.docx.unreadable": "Dieses Dokument konnte nicht gelesen werden.",
   "viewer.epub.chapterNumber": "Kapitel {{number}}",
   "viewer.epub.chapterOf": "Kapitel {{current}} von {{count}}",
   "viewer.epub.contents": "Inhalt",
