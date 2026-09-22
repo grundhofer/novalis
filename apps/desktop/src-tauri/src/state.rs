@@ -10,7 +10,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use novalis_core::settings::{Appearance, Language, Settings};
@@ -106,6 +106,9 @@ pub struct AppState {
     /// Bumped by every new search; a running scan stops when it is no longer
     /// the newest. Cheaper than a cancel command and impossible to leak.
     search_generation: Arc<AtomicU64>,
+    /// Set by the first quit request (⌘Q, the menu, the window's close
+    /// button); the ones after it only wait for the same exit.
+    quitting: AtomicBool,
     config_dir: PathBuf,
 }
 
@@ -123,8 +126,15 @@ impl AppState {
             }),
             own_writes: Arc::new(Mutex::new(OwnWrites::default())),
             search_generation: Arc::new(AtomicU64::new(0)),
+            quitting: AtomicBool::new(false),
             config_dir,
         }
+    }
+
+    /// Whether this is the first quit request; a second one must not start
+    /// another flush or another fallback timer.
+    pub fn begin_quit(&self) -> bool {
+        !self.quitting.swap(true, Ordering::SeqCst)
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
@@ -285,5 +295,14 @@ mod tests {
         let other = state.begin_board_read("other").unwrap();
         assert!(Arc::ptr_eq(&a.lock, &b.lock));
         assert!(!Arc::ptr_eq(&a.lock, &other.lock));
+    }
+
+    /// ⌘Q pressed twice, or ⌘Q and then the close button: one flush, one
+    /// fallback timer.
+    #[test]
+    fn only_the_first_quit_request_starts_a_quit() {
+        let state = AppState::new(PathBuf::new(), Settings::default());
+        assert!(state.begin_quit());
+        assert!(!state.begin_quit());
     }
 }

@@ -137,6 +137,7 @@
   "errors.trashFailed": "{{path}} konnte nicht in den Papierkorb gelegt werden.",
   "menu.app.about": "Über novalis",
   "menu.app.installCli": "Kommandozeilen-Werkzeug installieren…",
+  "menu.app.quit": "novalis beenden",
   "menu.edit.addCursorAbove": "Cursor oberhalb hinzufügen",
   "menu.edit.addCursorBelow": "Cursor unterhalb hinzufügen",
   "menu.edit.bold": "Fett",

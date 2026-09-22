@@ -188,6 +188,11 @@ pub struct UiStateDto {
     /// dismissed; state, not a setting (ADR-0004).
     #[serde(default)]
     pub cloud_hint_shown: bool,
+    /// Set only on the UI's last save before quitting, once every open
+    /// buffer is on disk (D19): the shell writes the state and exits. Never
+    /// written to `state.json` (`state_save` drops the key).
+    #[serde(default)]
+    pub quit: bool,
 }
 
 impl Default for UiStateDto {
@@ -202,6 +207,7 @@ impl Default for UiStateDto {
             tree_sort: TreeSortDto::Name,
             backlinks_visible: false,
             cloud_hint_shown: false,
+            quit: false,
         }
     }
 }
