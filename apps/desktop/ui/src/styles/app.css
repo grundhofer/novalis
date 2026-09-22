@@ -444,6 +444,10 @@ button {
   color: var(--ds-color-fg-subtle);
 }
 
+.badge-conflict {
+  color: var(--ds-color-warning-text);
+}
+
 .sidebar-foot {
   display: flex;
   flex-direction: column;

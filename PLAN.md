@@ -307,7 +307,7 @@ Dependency budget: D26.
   4. Watcher events matching a recorded own write are dropped.
   5. Board and card writes carry the `(mtime, size, hash)` captured when that JSON was last read; on mismatch the store re-reads, re-applies the single field change (column / order / title / description / notes) and writes again; card edits are field-level and replayable, so no banner.
   6. CLI `edit --if-match <sha256>` maps to step 3 (refuse with exit 4 instead of writing a copy); `mv`/`relink` write each affected file under its scan-time precondition and report `conflicts`.
-- **Cloud hints:** one-line, dismissable, in the status bar: vault is in a cloud folder · N notes cloud-only · N conflict copies found (click → list with Keep original / Keep copy / Keep both, resolution per §5.2 `vault::cloud`).
+- **Cloud hints:** one-line, dismissable, in the status bar: vault is in a cloud folder · N notes cloud-only · N conflict copies found, and each copy marked *conflict copy* in the tree with the note it shadows as its tooltip; it is resolved like any file — Rename, or Move to Trash — from its context menu (stage 0, 2026-09-22; a resolve panel with Keep original / Keep copy / Keep both is not built, and waits until a real vendor copy is observed).
 
 ### 5.4 CLI (`novalis-cli`) — see §9
 
