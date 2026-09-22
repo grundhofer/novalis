@@ -28,7 +28,8 @@ export type Overlay =
   | { kind: "quickOpen" }
   | { kind: "palette" }
   | { kind: "settings" }
-  | { kind: "search" };
+  /** `tag` presets the search's tag filter (a tag chosen in the palette). */
+  | { kind: "search"; tag?: string };
 
 /**
  * A one-line question. The app has no preferences window and no modal stack:
