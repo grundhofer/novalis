@@ -77,11 +77,11 @@ jobs:
       # with rust-toolchain.toml when bumping.
       #
       # The SHA is master's head, not a tag: this action's only tag (`v1`) is
-      # stale. Dependabot cannot map a branch SHA to a version, so this pin is
-      # maintained by hand — re-resolve with
-      # `gh api repos/dtolnay/rust-toolchain/commits/master --jq .sha`.
+      # stale. Dependabot bumps the SHA but cannot annotate it with a version,
+      # so the `master @ date` comment is maintained by hand — check the date with
+      # `gh api repos/dtolnay/rust-toolchain/commits/<sha> --jq .commit.committer.date`.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master @ 2026-09-12
         with:
           toolchain: "1.96.0"
           components: rustfmt, clippy
@@ -193,7 +193,7 @@ jobs:
       # from source costs ~3 min per run and a second toolchain. The versions
       # are pinned so a tool regression cannot turn CI red on its own schedule.
       - name: Install cargo-audit and cargo-deny
-        uses: taiki-e/install-action@26e9283f268b880168bdbd2c545dfcd60ec2c6ab # v2.87.13
+        uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2.87.15
         with:
           tool: cargo-audit@0.22.2,cargo-deny@0.20.2
 
