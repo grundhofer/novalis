@@ -161,9 +161,14 @@ impl CliError {
             CoreError::CacheBusy => EXIT_CACHE_BUSY,
             // A rejected path is something the caller typed, so it is usage.
             CoreError::InvalidPath { .. } => EXIT_USAGE,
-            CoreError::Io { .. } | CoreError::Parse { .. } | CoreError::Internal(_) => {
-                EXIT_INTERNAL
-            }
+            // `protected` is a DRM-encrypted container (ADR-0023). No CLI
+            // command reads one today; when one does, this is the row to
+            // revisit — until then it is a file the CLI cannot read, like a
+            // corrupt one.
+            CoreError::Protected { .. }
+            | CoreError::Io { .. }
+            | CoreError::Parse { .. }
+            | CoreError::Internal(_) => EXIT_INTERNAL,
         };
         let hint = match &e {
             CoreError::CloudOnly { .. } => Some("re-run with --materialize"),

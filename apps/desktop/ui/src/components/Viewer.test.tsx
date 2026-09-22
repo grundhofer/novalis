@@ -19,6 +19,9 @@ vi.mock("../ipc/client", () => ({
 vi.mock("./PdfViewer", () => ({
   default: ({ bytes }: { bytes: Uint8Array }) => <div data-testid="pdf">{bytes.length}</div>,
 }));
+vi.mock("./EpubViewer", () => ({
+  default: ({ path }: { path: string }) => <div data-testid="epub">{path}</div>,
+}));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -60,6 +63,17 @@ describe("Viewer", () => {
     expect((screen.getByAltText("p") as HTMLImageElement).src).toContain("blob:0");
     unmount();
     expect(revoked).toEqual(["blob:0"]);
+  });
+
+  // A book is a container, not a file to show: the reader reads inside it
+  // (ADR-0023), so nothing goes through `read_blob` here.
+  it("hands a book to the reader without reading it whole", async () => {
+    render(<Viewer path="books/moon.epub" kind="epub" />);
+    await flush();
+
+    expect((await screen.findByTestId("epub")).textContent).toBe("books/moon.epub");
+    expect(vi.mocked(unwrap)).not.toHaveBeenCalled();
+    expect(created).toEqual([]);
   });
 
   it("reports a file that cannot be read as a toast", async () => {

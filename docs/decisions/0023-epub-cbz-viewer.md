@@ -4,8 +4,9 @@ Date: 2026-09-20
 
 ## Status
 
-Accepted; not yet built (first and second of the three viewer pull
-requests in docs/research/2026-09-20-formats-plan.md §6). Builds the
+Accepted. The EPUB half is built (`vault/archive.rs`, `read_packed`,
+`EpubViewer.tsx`); CBZ is still the next pull request
+(docs/research/2026-09-20-formats-plan.md §6, step V2). Builds the
 2026-09-15 approval recorded in ADR-0016 ("EPUB (Recommended) … CBZ").
 Adds one crate (`rawzip`, MIT; Cargo.lock 514 → 515 of 581) and one IPC
 command (`read_packed`, 28 of the 30 PLAN.md §2.3 rule 8 allows). No CSP
@@ -102,3 +103,32 @@ Asked with all viewer questions bundled, the owner chose:
   DOMPurify (already in the lock through Mermaid, 10.9 kB gz) is the
   fallback if the review finds the allow-list wanting — then it becomes a
   direct dependency and this ADR is amended.
+
+## What the EPUB pull request settled (2026-09-22)
+
+- `rawzip` is pinned at **0.5.1** and `flate2` 1.1.10 (`rust_backend`, no
+  `*-sys`) became a direct dependency of `novalis-core`; `flate2` was
+  already in the lock through `png`, so `Cargo.lock` went 514 → 515 exactly
+  as priced. `deny.toml` needed nothing (both MIT / MIT OR Apache-2.0).
+- **`encryption.xml` alone is not DRM.** The decision above reads "an
+  entry named in `META-INF/encryption.xml` → protected", but the same file
+  declares IDPF and Adobe *font obfuscation*, which ordinary unprotected
+  books written by InDesign and Sigil carry. Taking presence as DRM would
+  refuse those books. So the core reads that one small entry and refuses
+  the book only when it names an algorithm that is not one of the two
+  obfuscation schemes — and refuses it when it cannot make sense of the
+  file at all. The reader drops book fonts anyway, so an obfuscated font
+  costs nothing. `CoreError::Protected` (code `protected`, exit 1 in the
+  CLI, which has no container command) is the typed error.
+- **SVG is dropped**, `math` with it: both carry their own scripting and
+  fetching surface. A cover drawn as SVG is what this costs; a cover
+  referenced as `<img src="cover.svg">` still shows, because an `<img>`
+  runs nothing of what it draws.
+- A chapter is parsed as `text/html`, not `application/xhtml+xml`: a book
+  whose XHTML is not well formed would otherwise show a parser error
+  instead of its text, and the allow-list copy cares about elements, not
+  about syntax.
+- Two caps, not one: the core refuses an entry above 64 MiB (declared size
+  first, `take()` second), the shell refuses a single `read_packed` call
+  whose parts exceed `HUGE_FILE_BYTES` (50 MB) — the same reason
+  `read_blob` has one, the IPC carries base64 in a JSON string.

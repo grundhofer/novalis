@@ -60,6 +60,12 @@ pub enum CoreError {
     #[error("no vault")]
     NoVault,
 
+    /// The file's content is encrypted and novalis has no key: a
+    /// DRM-protected book (ADR-0023). The file is there and readable; what
+    /// is inside it is not ours to show.
+    #[error("protected: {path}")]
+    Protected { path: String },
+
     #[error("io: {path}: {source}")]
     Io {
         path: String,
@@ -94,6 +100,7 @@ impl CoreError {
             CoreError::Ambiguous { .. } => "ambiguous",
             CoreError::CloudOnly { .. } => "cloud_only",
             CoreError::NoVault => "no_vault",
+            CoreError::Protected { .. } => "protected",
             CoreError::Io { .. } => "io",
             CoreError::Parse { .. } => "parse",
             CoreError::CacheBusy => "cache_busy",
@@ -109,6 +116,7 @@ impl CoreError {
             | CoreError::AlreadyExists { path }
             | CoreError::Conflict { path, .. }
             | CoreError::CloudOnly { path }
+            | CoreError::Protected { path }
             | CoreError::Io { path, .. }
             | CoreError::InvalidPath { path, .. } => Some(path),
             CoreError::Parse { path, .. } => path.as_deref(),
@@ -189,6 +197,7 @@ mod tests {
             },
             CoreError::CloudOnly { path: "a".into() },
             CoreError::NoVault,
+            CoreError::Protected { path: "a".into() },
             CoreError::Io {
                 path: "a".into(),
                 source: std::io::Error::other("x"),

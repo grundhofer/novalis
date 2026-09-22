@@ -198,8 +198,9 @@ pub const FILE_TYPES: &[FileType] = &[
     name("VERSION", Kind::Text),
     name("TODO", Kind::Text),
     name("CODEOWNERS", Kind::Text),
-    // View (ADR-0015/0016)
+    // View (ADR-0015/0016, ADR-0023)
     ext("pdf", Kind::View),
+    ext("epub", Kind::View),
     ext("png", Kind::View),
     ext("jpg", Kind::View),
     ext("jpeg", Kind::View),

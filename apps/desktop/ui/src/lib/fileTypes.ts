@@ -3,7 +3,7 @@ import { extensionOf, fileNameOf } from "./paths";
 
 /**
  * The file types the app handles, PLAN.md §7.3: notes and text open in the
- * editor, tier D (ADR-0015) opens read-only in the viewer. The tree shows
+ * editor, tier D (ADR-0015, ADR-0023) opens read-only in the viewer. The tree shows
  * nothing else (ADR-0015): a `.wav` next to the notes is not the app's
  * business, and opening it as text was a banner and a wasted read.
  *
@@ -14,11 +14,12 @@ import { extensionOf, fileNameOf } from "./paths";
  * which viewer a tier-D type gets and the MIME type it is handed with.
  */
 
-export type ViewKind = "pdf" | "image";
+export type ViewKind = "pdf" | "image" | "epub";
 
 /** Which viewer a tier-D type opens in; every `view` row of the table has one. */
 export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
   pdf: "pdf",
+  epub: "epub",
   png: "image",
   jpg: "image",
   jpeg: "image",
@@ -29,6 +30,7 @@ export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
 /** The MIME type the viewer hands the WebView for a tier-D file. */
 export const MIME: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
+  epub: "application/epub+zip",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",

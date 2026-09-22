@@ -9,6 +9,7 @@
 //! - [`vault::path`]  — NFC at ingress, vault-relative path guards, symlink-aware
 //! - [`vault::fs`]    — `list_dir`, `read_file`, `write_atomic`, `rename`, `trash`
 //! - [`vault::cloud`] — dataless detection, materialize-off guard, conflict copies
+//! - [`vault::archive`] — zip containers (EPUB, CBZ) read entry by entry
 //! - [`notes::frontmatter`] — lenient reader plus surgical key edits
 //! - [`notes::links`] / [`notes::relink`] — link extraction, resolution, rewriting
 //! - [`cache`]        — incremental SQLite cache (files, links, tags, meta)
