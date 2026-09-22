@@ -1,6 +1,6 @@
 import { EditorView } from "@codemirror/view";
 import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deferLine } from "../lib/editorBridge";
 import { forgetPositions, keptPosition } from "../lib/positions";
@@ -14,6 +14,15 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
+
+// A real view measures after a scroll request, and jsdom's `Range` has no
+// layout (ADR-0011). Without these the measure throws from a timer after the
+// test has finished — on a slow machine only, which is how CI found it.
+beforeAll(() => {
+  const empty = () => Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getClientRects ??= empty;
+  Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+});
 
 const TEXT = "# One\n\nfirst paragraph\n\nsecond paragraph\n";
 
