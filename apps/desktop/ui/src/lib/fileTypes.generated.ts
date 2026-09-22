@@ -109,6 +109,7 @@ export const EXTENSION_KINDS: Readonly<Record<string, FileKind>> = {
   "pdf": "view",
   "epub": "view",
   "cbz": "view",
+  "docx": "view",
   "png": "view",
   "jpg": "view",
   "jpeg": "view",
@@ -144,3 +145,6 @@ export const NAME_KINDS: Readonly<Record<string, FileKind>> = {
 export const PATTERN_KINDS: Readonly<Record<string, FileKind>> = {
   "^Dockerfile\\..+$": "text",
 };
+
+/** Name prefixes that are never listed, whatever their extension says. */
+export const EXCLUDED_PREFIXES: readonly string[] = ["~$"];

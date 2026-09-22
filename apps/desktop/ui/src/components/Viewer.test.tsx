@@ -25,6 +25,10 @@ vi.mock("./EpubViewer", () => ({
 vi.mock("./CbzViewer", () => ({
   default: ({ path }: { path: string }) => <div data-testid="cbz">{path}</div>,
 }));
+// mammoth is its own chunk and its own test; here only the hand-over counts.
+vi.mock("./DocxViewer", () => ({
+  default: ({ bytes }: { bytes: Uint8Array }) => <div data-testid="docx">{bytes.length}</div>,
+}));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -85,6 +89,15 @@ describe("Viewer", () => {
 
     expect((await screen.findByTestId("cbz")).textContent).toBe("comics/moon.cbz");
     expect(vi.mocked(unwrap)).not.toHaveBeenCalled();
+    expect(created).toEqual([]);
+  });
+
+  it("hands a Word document's bytes to the reader", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce({ path: "a.docx", base64: btoa("PK\u0003\u0004"), size: "4" });
+    render(<Viewer path="a.docx" kind="docx" />);
+    await flush();
+
+    expect((await screen.findByTestId("docx")).textContent).toBe("4");
     expect(created).toEqual([]);
   });
 

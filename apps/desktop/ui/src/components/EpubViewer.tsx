@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { useTranslation } from "react-i18next";
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
+import { DOCUMENT_CSS } from "../lib/documentCss";
 import {
   parseContainer,
   parseNav,
@@ -122,45 +123,6 @@ function parseChapter(xhtml: string): Document {
   return new DOMParser().parseFromString(xhtml, "text/html");
 }
 
-/**
- * The chapter's prose. The book's own stylesheets are not loaded (they
- * would bring fonts and remote URLs with them), so this is the whole dress
- * the text gets, and it follows the app's tokens in both appearances.
- */
-const CHAPTER_CSS = `
-:host { display: block; }
-.body {
-  max-width: var(--ds-measure-editor);
-  margin: 0 auto;
-  padding: var(--ds-space-7) var(--ds-space-6) var(--ds-space-9);
-  color: var(--ds-color-fg-default);
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-font-size-editor);
-  line-height: var(--ds-line-height-editor);
-  overflow-wrap: break-word;
-}
-h1, h2, h3, h4, h5, h6 { margin: 1.6em 0 0.6em; line-height: 1.25; font-weight: var(--ds-font-weight-strong); }
-h1 { font-size: 1.55em; letter-spacing: var(--ds-letter-spacing-title); }
-h2 { font-size: 1.24em; }
-h3 { font-size: 1.1em; }
-p, ul, ol, dl, blockquote, table, figure { margin: 0 0 1em; }
-ul, ol { padding-left: 1.5em; }
-li { margin: 0.2em 0; }
-blockquote {
-  padding-left: var(--ds-space-4);
-  border-left: 2px solid var(--ds-color-border-strong);
-  color: var(--ds-color-fg-muted);
-}
-a { color: var(--ds-color-syntax-link); text-decoration: underline; cursor: pointer; }
-code, pre, kbd, samp { font-family: var(--ds-font-mono); font-size: 0.9em; }
-pre { padding: var(--ds-space-3); overflow-x: auto; background: var(--ds-color-bg-fill); border-radius: var(--ds-radius-control); }
-img { display: block; max-width: 100%; height: auto; margin: 1em auto; }
-hr { height: 1px; border: 0; margin: 2em 0; background: var(--ds-color-border-default); }
-table { border-collapse: collapse; }
-th, td { padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--ds-color-border-default); text-align: left; }
-figcaption { color: var(--ds-color-fg-muted); font-size: 0.9em; text-align: center; }
-`;
-
 export default function EpubViewer({ path }: { path: string }) {
   const { t } = useTranslation();
   const [book, setBook] = useState<Book | null>(null);
@@ -219,7 +181,7 @@ export default function EpubViewer({ path }: { path: string }) {
       if (cancelled) return;
       const root = element.shadowRoot ?? element.attachShadow({ mode: "open" });
       const style = document.createElement("style");
-      style.textContent = CHAPTER_CSS;
+      style.textContent = DOCUMENT_CSS;
       const body = document.createElement("div");
       body.className = "body";
 

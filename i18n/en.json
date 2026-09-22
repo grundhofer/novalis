@@ -285,6 +285,8 @@
   "viewer.cbz.pageOf": "Page {{current}} of {{count}}",
   "viewer.cbz.protected": "This comic is copy-protected and cannot be opened.",
   "viewer.cbz.unreadable": "This comic could not be read.",
+  "viewer.docx.tooLarge": "This document is larger than 15 MB and is not shown.",
+  "viewer.docx.unreadable": "This document could not be read.",
   "viewer.epub.chapterNumber": "Chapter {{number}}",
   "viewer.epub.chapterOf": "Chapter {{current}} of {{count}}",
   "viewer.epub.contents": "Contents",
