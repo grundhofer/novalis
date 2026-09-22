@@ -87,8 +87,8 @@ pub enum Command {
     Migrate(MigrateArgs),
     /// What the sync client left: vault kind, cloud-only files, conflict copies.
     Sync(SyncArgs),
-    /// Print where the agent skill lives (planned in Phase 4).
-    Skill(StubArgs),
+    /// Print where the agent skill lives. Nothing is installed.
+    Skill(SkillArgs),
 }
 
 impl Command {
@@ -130,8 +130,8 @@ impl Command {
         }
     }
 
-    /// Whether the command needs a vault. `init` creates one, `help` and the
-    /// Phase-4 stubs need none.
+    /// Whether the command needs a vault. `init` creates one; `help` and
+    /// `skill` are about the binary.
     pub fn needs_vault(&self) -> bool {
         !matches!(self, Command::Init(_) | Command::Help | Command::Skill(_))
     }
@@ -571,9 +571,10 @@ pub enum SyncCommand {
 }
 
 #[derive(Debug, Args)]
-pub struct StubArgs {
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
-    pub rest: Vec<String>,
+pub struct SkillArgs {
+    /// Print the directory that holds SKILL.md.
+    #[arg(long, required = true)]
+    pub path: bool,
 }
 
 #[cfg(test)]
@@ -655,9 +656,10 @@ mod tests {
     }
 
     #[test]
-    fn phase_four_stubs_swallow_their_arguments() {
+    fn skill_asks_for_its_one_flag() {
         let cli = Cli::try_parse_from(["novalis", "skill", "--path"]).unwrap();
         assert_eq!(cli.command.name(), "skill");
+        assert!(Cli::try_parse_from(["novalis", "skill"]).is_err());
     }
 
     #[test]

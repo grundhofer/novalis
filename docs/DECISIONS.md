@@ -500,7 +500,7 @@ state of today, not of the day they were found.
 |---|---|
 | **Drive creates no conflict copy** — §5.3's conflict flow waits for a second file that never appears on Drive | Measured and recorded in `docs/SYNC-REALITY.md` (PR #107); the app does not pretend otherwise. Cross-device change detection stays Mode 2 work. |
 | **Two conflict detectors that disagree** — `stores/vault.ts` re-implemented the core's filename patterns, narrower | Settled: the UI counts `conflictCopyOf` as the core decides it; there is one detector. |
-| **The resolve panel does not exist** — §5.3 promises keep-original / keep-copy / keep-both, the five `status.conflicts.*` keys are referenced by no code, only a count shows | **Still open.** `docs/SYNC-REALITY.md` says so. Either build it or drop the promise from the plan. |
+| **The resolve panel does not exist** — §5.3 promises keep-original / keep-copy / keep-both, the five `status.conflicts.*` keys are referenced by no code, only a count shows | Settled 2026-09-22 at stage 0 (answered 2026-09-20, `reliability-conflict-resolve-panel`): each copy is marked in the tree and resolved from its context menu; §5.3 is reworded and the five `status.conflicts.*` keys and `palette.cmd.showConflictCopies` are deleted. The panel waits until a real vendor copy is observed. |
 | **Board conflict resolution is unreachable** — `resolve_card_conflicts` and `resolve_board_conflicts` were called by nothing | Settled: both run on the first `board_read` of a board after the vault was opened (PR #107, #111; "Erstes Lesen pro Board" above). |
 
 ## Answered 2026-09-18
