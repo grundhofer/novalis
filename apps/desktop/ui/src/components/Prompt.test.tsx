@@ -69,7 +69,7 @@ describe("Prompt", () => {
         titleKey: "menu.file.newNote",
         placeholderKey: "tree.renamePlaceholder",
         initial: "",
-        hint: { key: "tree.newNoteHint", values: { extensions: ".md .txt" } },
+        hint: { key: "tree.newNoteHint" },
         submit: vi.fn(),
       },
     });

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { dispatchCommand } from "../lib/commands";
-import { isNote, stemOf } from "../lib/paths";
+import { isMarkdownFile, stemOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
@@ -65,7 +65,7 @@ export default function TabStrip() {
         `Cmd+E`. Outside the scrolling strip, so a row of many tabs never
         pushes it out of sight; a glyph with the state in its tooltip, not a
         word. Only a note has a rendered form, so it is not there for a PDF. */}
-    {active && isNote(active) && (
+    {active && isMarkdownFile(active) && (
       <button
         className={previewing ? "btn ghost tool tab-preview on" : "btn ghost tool tab-preview"}
         type="button"

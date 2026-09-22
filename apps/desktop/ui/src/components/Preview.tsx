@@ -30,7 +30,8 @@ import "../styles/preview.css";
  * viewer's way (`read_blob`, a `blob:` URL for as long as the fragment
  * stands); a link goes through the app's `followLink` like a `Cmd`-click in
  * the editor; a ```mermaid fence becomes a diagram (owner yes 2026-09-15).
- * mermaid is its own chunk, fetched on the first diagram and never before.
+ * mermaid is its own chunk, fetched on the first diagram and never before;
+ * so is the highlighter for every other fence (ADR-0022 point 8).
  *
  * The editor's chords work here too (owner, 2026-09-16): `Cmd+F` opens a
  * find bar over the rendered text, `Cmd+B` and `Cmd+I` put a mark around the
@@ -83,6 +84,55 @@ async function mermaidFor(theme: "dark" | "default"): Promise<Mermaid> {
     mermaidTheme = theme;
   }
   return mermaid;
+}
+
+/**
+ * The fragment with its fences highlighted (ADR-0022 point 8): every
+ * `<pre><code class="language-…">` that names a grammar gets the editor's
+ * code rules as classes (`editor/fences`, styles/preview.css); a fence that
+ * names none, and a ```mermaid fence (a diagram, below), stay as the core
+ * wrote them. Done before the fragment is shown, so the code never flashes
+ * plain and the find marks see the final text. The module comes with
+ * `await import()`: this chunk keeps no CodeMirror import, and a fragment
+ * without a fence never loads it. The `<template>` is inert — nothing in
+ * it loads or runs — and what leaves it is the core's markup plus spans.
+ */
+async function highlightFences(html: string): Promise<string> {
+  if (!html.includes('<code class="language-')) return html;
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const fences = template.content.querySelectorAll('pre > code[class^="language-"]:not(.language-mermaid)');
+  if (fences.length === 0) return html;
+  let highlightFence: typeof import("../editor/fences").highlightFence;
+  try {
+    ({ highlightFence } = await import("../editor/fences"));
+  } catch (error) {
+    // The fragment is worth more than its colours: shown plain, and said.
+    report(error);
+    return html;
+  }
+  for (const code of fences) {
+    try {
+      const runs = await highlightFence(code.textContent ?? "", code.className.slice("language-".length));
+      if (!runs) continue;
+      const fragment = code.ownerDocument.createDocumentFragment();
+      for (const { text, classes } of runs) {
+        if (!classes) {
+          fragment.append(text);
+          continue;
+        }
+        const span = code.ownerDocument.createElement("span");
+        span.className = classes;
+        span.textContent = text;
+        fragment.append(span);
+      }
+      code.replaceChildren(fragment);
+    } catch (error) {
+      // A grammar that will not load leaves its fence plain, and says so.
+      report(error);
+    }
+  }
+  return template.innerHTML;
 }
 
 type Rendered = { path: string; html: string };
@@ -223,6 +273,7 @@ export default function Preview({
     let cancelled = false;
     const run = () => {
       unwrap(commands.renderMarkdown(text))
+        .then(highlightFences)
         .then((html) => {
           if (cancelled) return;
           shown.current = path;

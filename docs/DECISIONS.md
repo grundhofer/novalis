@@ -715,6 +715,19 @@ die Berichte / Im Chat belassen"):
 
 Recorded as this entry and the six files under `docs/research/`.
 
+## Answered 2026-09-21
+
+Two rows left open by F3a (#134), asked as "Soll ich die beiden offenen
+Zeilen bauen?" — `php` (named in ADR-0022's language list, absent from the
+plan's §3.1 table) and the Markdown grammar for `mkd mdx rmd qmd` (plain
+until then, because the grammar brings the note bundle with it):
+
+> Beide (Recommended)
+
+Recorded as the 2026-09-21 amendment of **ADR-0022**: `php` listed as
+code with the PHP grammar; the four dialects open like `.markdown`, as
+files.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

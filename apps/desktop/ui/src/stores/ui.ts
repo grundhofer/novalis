@@ -81,6 +81,11 @@ interface UiState {
    * by path. Session state: a restart opens every note in the editor.
    */
   previewing: Record<string, true>;
+  /**
+   * Vault search over every listed file, not only notes (ADR-0022). Session
+   * state like `previewing`: it outlives the panel, not the app.
+   */
+  searchAllFiles: boolean;
   overlay: Overlay;
   prompt: PromptRequest | null;
   toast: { key: string; values: Record<string, string> } | null;
@@ -100,6 +105,7 @@ interface UiState {
   setTreeSort: (sort: TreeSortDto) => void;
   togglePreview: (path: string) => void;
   endPreview: (path: string) => void;
+  toggleSearchAllFiles: () => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
@@ -152,6 +158,7 @@ export const useUi = create<UiState>((set, get) => ({
   activeBoard: null,
   treeSort: "name",
   previewing: {},
+  searchAllFiles: false,
   overlay: { kind: "none" },
   prompt: null,
   toast: null,
@@ -183,6 +190,8 @@ export const useUi = create<UiState>((set, get) => ({
   dismissCloudHint: () => set({ cloudHintShown: true }),
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
   setTreeSort: (treeSort) => set({ treeSort }),
+  toggleSearchAllFiles: () => set((s) => ({ searchAllFiles: !s.searchAllFiles })),
+
   togglePreview: (path) =>
     set((s) => {
       const previewing = { ...s.previewing };

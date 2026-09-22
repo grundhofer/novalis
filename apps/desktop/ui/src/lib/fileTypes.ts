@@ -1,4 +1,4 @@
-import { EXTENSION_KINDS, NAME_KINDS, type FileKind } from "./fileTypes.generated";
+import { EXTENSION_KINDS, NAME_KINDS, PATTERN_KINDS, type FileKind } from "./fileTypes.generated";
 import { extensionOf, fileNameOf } from "./paths";
 
 /**
@@ -13,11 +13,6 @@ import { extensionOf, fileNameOf } from "./paths";
  * tells what is listed and how it opens. What stays here is presentation:
  * which viewer a tier-D type gets and the MIME type it is handed with.
  */
-
-/** What the New Note dialog keeps as typed (ADR-0014): every text extension. */
-export const CREATABLE_EXTENSIONS: readonly string[] = Object.entries(EXTENSION_KINDS)
-  .filter(([, kind]) => kind !== "view")
-  .map(([extension]) => extension);
 
 export type ViewKind = "pdf" | "image";
 
@@ -41,15 +36,22 @@ export const MIME: Readonly<Record<string, string>> = {
   webp: "image/webp",
 };
 
+/** The table's patterns over the file name (`Dockerfile.dev`), compiled once. */
+const PATTERNS: ReadonlyArray<readonly [RegExp, FileKind]> = Object.entries(PATTERN_KINDS).map(
+  ([source, kind]) => [new RegExp(source), kind] as const,
+);
+
 /**
- * What the app does with this path, or `null` when it is not listed. Own
- * keys only: a file named `constructor` must not find `Object.prototype`.
+ * What the app does with this path, or `null` when it is not listed: by the
+ * extension, else by the whole name, else by a pattern. Own keys only: a
+ * file named `constructor` must not find `Object.prototype`.
  */
 export function kindOf(rel: string): FileKind | null {
-  const extension = extensionOf(rel);
-  if (extension) return Object.hasOwn(EXTENSION_KINDS, extension) ? (EXTENSION_KINDS[extension] ?? null) : null;
   const name = fileNameOf(rel);
-  return Object.hasOwn(NAME_KINDS, name) ? (NAME_KINDS[name] ?? null) : null;
+  const extension = extensionOf(rel);
+  if (extension && Object.hasOwn(EXTENSION_KINDS, extension)) return EXTENSION_KINDS[extension] ?? null;
+  if (!extension && Object.hasOwn(NAME_KINDS, name)) return NAME_KINDS[name] ?? null;
+  return PATTERNS.find(([pattern]) => pattern.test(name))?.[1] ?? null;
 }
 
 /** How a path opens: in the viewer (tier D), or not at all (`null` = text). */

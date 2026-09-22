@@ -68,7 +68,7 @@ Available now (the core harness):
 | `edit <note> <one edit flag> [--nth N] [--if-match S]` | one atomic text edit (`--append`, `--prepend`, `--replace-section`, `--insert-after-section`, `--find/--replace`, `--set-body -`); frontmatter untouched |
 | `mv <from> <to> [--no-relink] [--force] [--materialize]` | rename or move, then rewrite every link form and card reference |
 | `rm <note> [--force] [--materialize]` | macOS Trash; exit 5 while backlinks point here |
-| `search <query> [--tag T] [--folder F] [--limit 50] [--snippets]` | on-demand scan; `cloudOnlySkipped` counts what was not searched |
+| `search <query> [--tag T] [--folder F] [--limit 50] [--snippets] [--all-files]` | on-demand scan over notes, or with `--all-files` over every regular file in the vault; `cloudOnlySkipped` and `notUtf8Skipped` count what was not searched |
 | `links <note> [--backlinks\|--outgoing]` · `links --unresolved` · `links --orphans` | link graph, including cards that reference the note |
 | `tags [--limit N]` | `{tag, count}` |
 | `index --status` · `index --rebuild` | cache state; rebuild only when `doctor` says so |

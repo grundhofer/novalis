@@ -15,10 +15,10 @@ import { dispatchCommand } from "./lib/commands";
 import { isSupported, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
-import { isNote } from "./lib/paths";
+import { isMarkdownFile } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
-import { useNotes } from "./stores/notes";
+import { useFiles } from "./stores/files";
 import { useTabs } from "./stores/tabs";
 import { report, useUi, watchSystemAppearance } from "./stores/ui";
 import { useVault } from "./stores/vault";
@@ -122,12 +122,9 @@ export default function App() {
       // tabs. Never before (rule 12). A failure here is not fatal — the
       // window is already usable — so it only reports itself.
       if (boot.vault) {
-        void useNotes.getState().refresh().catch(report);
+        void useFiles.getState().refresh().catch(report);
         const { boardVisible: boardWasVisible, activeBoard } = boot.lastOpen;
-        for (const path of boot.lastOpen.openTabs ?? []) {
-          await useTabs.getState().open(path, { background: true });
-        }
-        if (boot.lastOpen.activeTab) await useTabs.getState().activate(boot.lastOpen.activeTab);
+        await useTabs.getState().reopen(boot.lastOpen.openTabs ?? [], boot.lastOpen.activeTab ?? null);
         // Making the tab current hid the board (stores/tabs.ts); one that was
         // showing when the app quit comes back over it.
         if (boardWasVisible && activeBoard) useUi.getState().setActiveBoard(activeBoard);
@@ -162,8 +159,8 @@ export default function App() {
           useTabs.getState().rename(rename.from, rename.to);
         }
       }
-      if (batch.added.some((e) => isNote(e.path)) || batch.removed.some(isNote)) {
-        void useNotes.getState().refresh().catch(report);
+      if (batch.added.some((e) => isSupported(e.path)) || batch.removed.some(isSupported)) {
+        void useFiles.getState().refresh().catch(report);
       }
       const board = useBoard.getState().slug;
       if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
@@ -277,11 +274,11 @@ export default function App() {
       .split("|")[0]!
       .split("#")[0]!
       .trim();
-    const hit = resolveWikiTarget(clean, useNotes.getState().paths);
+    const hit = resolveWikiTarget(clean, useFiles.getState().notes);
     if (hit) void useTabs.getState().open(hit).catch(report);
   }, []);
 
-  const notePaths = useCallback(() => useNotes.getState().paths, []);
+  const notePaths = useCallback(() => useFiles.getState().notes, []);
 
   if (bootError) {
     return (
@@ -327,7 +324,7 @@ export default function App() {
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Viewer path={active} kind={view} />
             </Suspense>
-          ) : active && doc && previewing && isNote(active) ? (
+          ) : active && doc && previewing && isMarkdownFile(active) ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Preview path={active} onFollowLink={followLink} />
             </Suspense>

@@ -166,6 +166,21 @@ pub fn search(
     cache: Option<&Cache>,
     on_hit: &mut (dyn FnMut(SearchHit) -> bool + Send),
 ) -> CoreResult<SearchReport> {
+    search_where(root, query, cache, &|_| true, on_hit)
+}
+
+/// [`search`] with the caller narrowing the walk: a path `keep` refuses is
+/// neither read nor counted, so the limit counts the caller's files alone.
+/// The app passes its file-type table under `all_files` (ADR-0022) — a hit
+/// in a file the tree never lists must not use up a slot; the CLI passes
+/// nothing, its `--all-files` is every file by design.
+pub fn search_where(
+    root: &Path,
+    query: &SearchQuery,
+    cache: Option<&Cache>,
+    keep: &dyn Fn(&str) -> bool,
+    on_hit: &mut (dyn FnMut(SearchHit) -> bool + Send),
+) -> CoreResult<SearchReport> {
     let re = build_regex(query)?;
     let tag_filter: Option<Vec<String>> = match (&query.tag, cache) {
         (Some(tag), Some(cache)) => {
@@ -185,7 +200,7 @@ pub fn search(
     let mut report = SearchReport::default();
     let mut candidates = Vec::new();
     for f in walk_files(root)? {
-        if !query.all_files && !is_note_name(&f.path) {
+        if (!query.all_files && !is_note_name(&f.path)) || !keep(&f.path) {
             continue;
         }
         let key = fold(&f.path);
@@ -564,5 +579,33 @@ plain
         assert_eq!(got[2], "", "a line past the end of the note");
         assert_eq!(got[3], "", "a note that is gone");
         assert!(crate::vault::cloud::materialize_is_default());
+    }
+    /// The caller's filter runs before the limit: a refused file is neither
+    /// read nor counted, so the limit is spent on the files the caller keeps.
+    #[test]
+    fn a_kept_filter_narrows_the_walk_before_the_limit() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("a.txt"), "needle\nneedle\nneedle\n").unwrap();
+        std::fs::write(tmp.path().join("b.md"), "needle\n").unwrap();
+        std::fs::write(tmp.path().join("c.bin"), b"needle\0").unwrap();
+        let mut q = SearchQuery::new("needle");
+        q.all_files = true;
+        q.limit = Some(2);
+        let mut hits = Vec::new();
+        let report = search_where(
+            tmp.path(),
+            &q,
+            None,
+            &|path| !path.ends_with(".txt"),
+            &mut |h| {
+                hits.push(h.path);
+                true
+            },
+        )
+        .unwrap();
+        assert_eq!(hits, ["b.md"]);
+        assert_eq!(report.scanned, 2);
+        assert_eq!(report.not_utf8_skipped, 1);
+        assert!(!report.truncated);
     }
 }

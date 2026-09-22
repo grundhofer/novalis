@@ -2,11 +2,12 @@ import { LanguageDescription } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { describe, expect, it } from "vitest";
 
-import { EXTENSION_KINDS, NAME_KINDS } from "./fileTypes.generated";
+import { EXTENSION_KINDS, NAME_KINDS, PATTERN_KINDS } from "./fileTypes.generated";
 import {
   EXTENSION_PRESENTATION,
   grammarNameOf,
   NAME_PRESENTATION,
+  PATTERN_PRESENTATION,
   presentationOf,
   PRESETS,
 } from "./fileTypes.presentation";
@@ -22,13 +23,18 @@ describe("fileTypes.presentation", () => {
         .sort();
     expect(Object.keys(EXTENSION_PRESENTATION).sort()).toEqual(rows(EXTENSION_KINDS));
     expect(Object.keys(NAME_PRESENTATION).sort()).toEqual(rows(NAME_KINDS));
+    expect(Object.keys(PATTERN_PRESENTATION).sort()).toEqual(rows(PATTERN_KINDS));
   });
 
   // An upstream rename in `language-data` would otherwise turn a grammar
   // off without a word.
   it("names only grammars the installed language-data table has", () => {
     const names = new Set(
-      [...Object.values(EXTENSION_PRESENTATION), ...Object.values(NAME_PRESENTATION)]
+      [
+        ...Object.values(EXTENSION_PRESENTATION),
+        ...Object.values(NAME_PRESENTATION),
+        ...Object.values(PATTERN_PRESENTATION),
+      ]
         .map((dress) => dress.grammar)
         .filter((grammar): grammar is string => grammar !== null),
     );
@@ -48,6 +54,8 @@ describe("fileTypes.presentation", () => {
       ["a.md", "Markdown"],
       ["a.zsh", "Shell"],
       ["sub/Dockerfile", "Dockerfile"],
+      ["Dockerfile.dev", "Dockerfile"],
+      ["Containerfile", "Dockerfile"],
       ["Dockerfile.md", "Markdown"],
       ["Dockerfile.txt", null],
       ["sub/nginx.conf", "Nginx"],
@@ -63,7 +71,20 @@ describe("fileTypes.presentation", () => {
       ["data.csv", null],
       ["a.conf", null],
       ["Makefile", null],
+      ["GNUmakefile", null],
+      ["justfile", null],
       ["LICENSE", null],
+      ["README", null],
+      ["Gemfile", "Ruby"],
+      ["Jenkinsfile", "Groovy"],
+      ["main.go", "Go"],
+      ["paper.tex", "LaTeX"],
+      ["x.diff", "diff"],
+      ["notes.mdx", "Markdown"],
+      ["report.qmd", "Markdown"],
+      ["index.php", "PHP"],
+      ["a.rst", null],
+      ["app.js.map", null],
       ["song.wav", null],
       ["constructor", null],
     ] as const) {
@@ -73,6 +94,15 @@ describe("fileTypes.presentation", () => {
 
   it("gives Makefile a tab and prose a wrap", () => {
     expect(PRESETS[presentationOf("Makefile")?.preset ?? "data"].indent).toBe("\t");
+    expect(PRESETS[presentationOf("main.go")?.preset ?? "data"].indent).toBe("\t");
+    expect(presentationOf("README")?.preset).toBe("prose");
+    expect(presentationOf("LICENSE")?.preset).toBe("prose");
+    expect(presentationOf("paper.tex")?.preset).toBe("prose");
+    expect(presentationOf("Dockerfile.dev")?.preset).toBe("code2");
+    // A name pattern dresses the whole row, not just its grammar.
+    expect(presentationOf("CMakeLists.txt")).toEqual({ preset: "code2", grammar: "CMake" });
+    expect(presentationOf("sub/nginx.conf")).toEqual({ preset: "data", grammar: "Nginx" });
+    expect(presentationOf("notes/CMakeLists.txt.md")?.preset).toBe("prose");
     expect(PRESETS[presentationOf("a.md")?.preset ?? "data"]).toMatchObject({ wrap: true, numbers: false });
     expect(PRESETS[presentationOf("a.py")?.preset ?? "data"].indent).toBe("    ");
     expect(PRESETS[presentationOf("a.csv")?.preset ?? "data"]).toMatchObject({ wrap: false, numbers: true });

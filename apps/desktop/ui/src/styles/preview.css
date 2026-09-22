@@ -157,6 +157,53 @@
   color: var(--ds-color-fg-default);
 }
 
+/* A fence's tokens (ADR-0022 point 8): one class per look of the editor's
+   code rules (editor/theme.ts CODE_RULES), on the same tokens; the test
+   beside editor/fences.ts reads these rules and compares them. */
+.preview-body .tok-keyword {
+  color: var(--ds-color-syntax-keyword);
+}
+
+.preview-body .tok-string {
+  color: var(--ds-color-syntax-string);
+}
+
+.preview-body .tok-comment {
+  color: var(--ds-color-syntax-comment);
+}
+
+.preview-body .tok-number {
+  color: var(--ds-color-syntax-number);
+}
+
+.preview-body .tok-type {
+  color: var(--ds-color-syntax-type);
+}
+
+.preview-body .tok-property {
+  color: var(--ds-color-fg-muted);
+}
+
+.preview-body .tok-invalid {
+  color: var(--ds-color-syntax-invalid);
+}
+
+.preview-body .tok-function {
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.preview-body .tok-marker {
+  color: var(--ds-color-syntax-marker);
+}
+
+.preview-body .tok-inserted {
+  color: var(--ds-color-success-text);
+}
+
+.preview-body .tok-deleted {
+  color: var(--ds-color-warning-text);
+}
+
 /* ----------------------------------------------------------------- table */
 .preview-body table {
   border-collapse: collapse;
