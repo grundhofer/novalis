@@ -3,8 +3,8 @@
 The contract is PLAN.md §9 (commands, JSON shapes, exit codes). Contracts are
 immutable after 1.0: fields and flags are added, never renamed or removed.
 Each command below carries a **Status** line: `harness` commands ship with the
-core (PLAN.md §12 Phase 2); `planned` commands ship in Phase 4 and exit 2 with
-a hint until then.
+core (PLAN.md §12 Phase 2), `available` ones came after it; none is planned
+any more.
 
 ## 1. Invocation
 
@@ -309,11 +309,13 @@ receives a `migrated` timestamp so a second device does not repeat it.
 Writes `<dir>/.novalis/vault.json` (`{"format": 1}`), idempotent. Output
 `{path, existing}`.
 
-### `help --json` · `skill --path` — Status: planned
+### `help --json` · `skill --path` — Status: available
 
 `help --json` prints the command tree with flags and output shapes.
-`skill --path` prints the directory holding this skill; nothing is installed
-automatically.
+`skill --path` → `{path}`, the directory holding this skill: beside the
+binary in the release tarball, beside `bin/` in the Homebrew keg. Exit 3 when
+it is not there (a binary built from a checkout; the skill is then
+`packages/agent-skill/novalis`). Nothing is installed automatically.
 
 ## 5. Exit codes
 
@@ -321,7 +323,7 @@ automatically.
 |---|---|---|
 | 0 | ok | |
 | 1 | internal | I/O, parse or database failures |
-| 2 | usage | bad flags, `--no-index` on a mutation, a planned command, a path outside the vault |
+| 2 | usage | bad flags, `--no-index` on a mutation, a path outside the vault |
 | 3 | not found | unknown note, board, card, column |
 | 4 | conflict | target exists, ambiguous stem or heading, precondition or `--if-match` / `--if-updated` mismatch, case or normalization collision |
 | 5 | needs `--force` | `rm` with dangling backlinks; `mv --no-relink` with backlinks; cloud-only skips on `mv`, `relink`, `migrate` |

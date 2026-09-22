@@ -140,15 +140,6 @@ impl CliError {
             .with_hint("re-run with --force to accept this")
     }
 
-    /// A command that is specified but not built yet (Phase 4, PLAN.md §12).
-    pub fn not_implemented(command: &str) -> Self {
-        CliError::new(
-            "not_implemented",
-            format!("`{command}` is planned in Phase 4"),
-            EXIT_USAGE,
-        )
-    }
-
     /// The §9.2 mapping from a typed core failure onto an exit code.
     pub fn from_core(e: CoreError) -> Self {
         let exit = match &e {

@@ -217,6 +217,11 @@ jobs:
             exit 1
           fi
           cp LICENSE "$STAGE/LICENSE"
+          # The agent skill, where `novalis skill --path` looks for it: beside
+          # the binary here, beside `bin/` in the Homebrew keg (PLAN.md §9.6).
+          mkdir -p "$STAGE/share/novalis"
+          cp -R packages/agent-skill/novalis "$STAGE/share/novalis/skill"
+          test -f "$STAGE/share/novalis/skill/SKILL.md"
           tar -czf "${NAME}.tar.gz" -C "${RUNNER_TEMP}" "${NAME}"
           ls -l "${NAME}.tar.gz"
           echo "path=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"

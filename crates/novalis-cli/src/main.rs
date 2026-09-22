@@ -112,6 +112,7 @@ fn run() -> Result<i32, CliError> {
         Command::Card(args) => finish(&ctx, ops::card::run(&ctx, args)?, &[]),
         Command::Migrate(args) => finish(&ctx, ops::migrate::run(&ctx, args)?, &[]),
         Command::Sync(args) => finish(&ctx, ops::sync::run(&ctx, args.command)?, &[]),
+        Command::Skill(_) => finish(&ctx, ops::skill::run()?, &[]),
         Command::Help => {
             if !ctx.json {
                 Cli::command().print_long_help()?;
@@ -119,9 +120,6 @@ fn run() -> Result<i32, CliError> {
             }
             finish(&ctx, ops::help::run(&ctx, ())?, &[])
         }
-        // PLAN.md §12 Phase 4. They parse so a script fails on the contract,
-        // not on a typo.
-        other => Err(CliError::not_implemented(other.name())),
     }
 }
 

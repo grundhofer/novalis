@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "not_found",
+    "hint": "it comes with the release tarball and with `brew install grundhofer/novalis/novalis-cli`; in a checkout it is packages/agent-skill/novalis",
+    "message": "the agent skill is not installed beside this binary",
+    "path": null
+  }
+}
