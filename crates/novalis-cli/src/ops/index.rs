@@ -19,6 +19,10 @@ pub const APP_VERSION_KEY: &str = "app_version";
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexOut {
+    /// The vault this cache belongs to, as an absolute path — what a script
+    /// needs to turn the vault-relative paths of the other commands into
+    /// files it can open.
+    pub vault: String,
     pub cache_path: String,
     pub files: usize,
     /// The cache was not refreshed by this invocation.
@@ -42,22 +46,24 @@ pub fn run(ctx: &Ctx, args: IndexArgs) -> Result<IndexOut, CliError> {
             IndexSource::Scan
         };
         if ctx.dry_run {
-            return report(&cache, source, true, true);
+            return report(ctx, &cache, source, true, true);
         }
         cache.rebuild()?;
-        return report(&cache, source, false, false);
+        return report(ctx, &cache, source, false, false);
     }
     let index = ctx.index()?;
-    report(&index.cache, index.source, index.stale, ctx.dry_run)
+    report(ctx, &index.cache, index.source, index.stale, ctx.dry_run)
 }
 
 fn report(
+    ctx: &Ctx,
     cache: &Cache,
     source: IndexSource,
     stale: bool,
     dry_run: bool,
 ) -> Result<IndexOut, CliError> {
     Ok(IndexOut {
+        vault: ctx.vault.to_string_lossy().into_owned(),
         cache_path: cache.path().to_string_lossy().into_owned(),
         files: cache.file_count()?,
         stale,

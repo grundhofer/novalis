@@ -50,6 +50,10 @@ pub struct CatItem {
     pub frontmatter: FrontmatterOut,
     pub body: String,
     pub sha256: String,
+    /// False when the file is not valid UTF-8: `body` is then a lossy
+    /// reading, and writing it back would replace the bytes it could not
+    /// read (`edit` refuses such a file for that reason).
+    pub utf8: bool,
     pub links: Vec<LinkOut>,
     /// What `--plain` prints for this note; never part of the JSON contract.
     #[serde(skip)]
@@ -68,7 +72,7 @@ pub fn fields(args: &CatArgs) -> Vec<String> {
     if !args.body && !args.frontmatter {
         return Vec::new();
     }
-    let mut out: Vec<String> = ["path", "title", "linkTarget", "sha256"]
+    let mut out: Vec<String> = ["path", "title", "linkTarget", "sha256", "utf8"]
         .iter()
         .map(|s| s.to_string())
         .collect();
@@ -127,6 +131,7 @@ pub fn run(ctx: &Ctx, args: CatArgs) -> Result<CatOut, CliError> {
             frontmatter: frontmatter::read(text).into(),
             body,
             sha256: content.hash.clone(),
+            utf8: content.utf8,
             links,
             plain,
             path,

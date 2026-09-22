@@ -100,11 +100,13 @@ note first). Text on a TTY or with `--plain`; JSON otherwise:
 
 ```json
 {"items":[{"path":"…","title":"…","linkTarget":"…","frontmatter":{"title":"…","tags":["…"]},
-  "body":"…","sha256":"…",
+  "body":"…","sha256":"…","utf8":true,
   "links":[{"target":"Local-First Software","form":"wikilink","line":12,"resolvedPath":"reading/Local-First Software.md"}]}]}
 ```
 
-Exit 8 for a cloud-only note without `--materialize`.
+Exit 8 for a cloud-only note without `--materialize`. `utf8: false` means the
+file is not valid UTF-8 and `body` is a lossy reading: never write it back
+(`edit` refuses such a file).
 
 ### `new <path>` — Status: harness
 
@@ -266,14 +268,17 @@ and `card rm` take no board argument.
 
 ### `index` — Status: harness
 
-`index --status` → `{cachePath, files, stale, indexSource, appVersion,
-cliVersion}`. `index --rebuild` drops and rebuilds the cache (exit 6 while the
+`index --status` → `{vault, cachePath, files, stale, indexSource, appVersion,
+cliVersion}`; `vault` is the absolute root, to turn the vault-relative paths
+of the other commands into files. `index --rebuild` drops and rebuilds the cache (exit 6 while the
 app holds it). Never delete the cache file yourself.
 
-### `sync status` — Status: planned
+### `sync status` — Status: available
 
 `{vaultKind: "fileProvider" | "mirrored" | "local", cloudOnly: [path],
-conflictCopies: [path]}`. Read-only.
+conflictCopies: [path]}`, paths vault-relative and sorted. Read-only: nothing
+is downloaded. Ask it before a bulk `cat --materialize` to know how much that
+would pull; `mirrored` is not detected yet and reads as `local`.
 
 ### `doctor` — Status: harness
 
