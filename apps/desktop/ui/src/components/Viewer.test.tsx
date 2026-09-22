@@ -22,6 +22,9 @@ vi.mock("./PdfViewer", () => ({
 vi.mock("./EpubViewer", () => ({
   default: ({ path }: { path: string }) => <div data-testid="epub">{path}</div>,
 }));
+vi.mock("./CbzViewer", () => ({
+  default: ({ path }: { path: string }) => <div data-testid="cbz">{path}</div>,
+}));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -65,13 +68,22 @@ describe("Viewer", () => {
     expect(revoked).toEqual(["blob:0"]);
   });
 
-  // A book is a container, not a file to show: the reader reads inside it
-  // (ADR-0023), so nothing goes through `read_blob` here.
+  // A book and a comic are containers, not files to show: their readers read
+  // inside them (ADR-0023), so nothing goes through `read_blob` here.
   it("hands a book to the reader without reading it whole", async () => {
     render(<Viewer path="books/moon.epub" kind="epub" />);
     await flush();
 
     expect((await screen.findByTestId("epub")).textContent).toBe("books/moon.epub");
+    expect(vi.mocked(unwrap)).not.toHaveBeenCalled();
+    expect(created).toEqual([]);
+  });
+
+  it("hands a comic to the reader without reading it whole", async () => {
+    render(<Viewer path="comics/moon.cbz" kind="cbz" />);
+    await flush();
+
+    expect((await screen.findByTestId("cbz")).textContent).toBe("comics/moon.cbz");
     expect(vi.mocked(unwrap)).not.toHaveBeenCalled();
     expect(created).toEqual([]);
   });

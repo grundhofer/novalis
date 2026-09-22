@@ -108,6 +108,7 @@ export const EXTENSION_KINDS: Readonly<Record<string, FileKind>> = {
   "mk": "text",
   "pdf": "view",
   "epub": "view",
+  "cbz": "view",
   "png": "view",
   "jpg": "view",
   "jpeg": "view",

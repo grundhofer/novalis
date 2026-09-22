@@ -8,18 +8,25 @@ import { report } from "../stores/ui";
 import "../styles/viewer.css";
 
 /**
- * The read-only pane for a PDF, an image or a book (ADR-0015, ADR-0023).
+ * The read-only pane for a PDF, an image, a book or a comic (ADR-0015,
+ * ADR-0023).
  *
  * A PDF and an image come through `read_blob` as base64: the image is shown
  * from a `blob:` URL that lives as long as the tab shows the file, the PDF
- * goes to pdf.js (ADR-0016). An EPUB is not one file but a container, so it
- * never passes here at all — the reader opens it part by part through
- * `read_packed`. All three viewers are their own chunk and none of them
- * loads before a file of its kind is opened.
+ * goes to pdf.js (ADR-0016). A book and a comic are not one file but a
+ * container, so they never pass here at all — their readers open them part
+ * by part through `read_packed`. All four viewers are their own chunk and
+ * none of them loads before a file of its kind is opened.
  */
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
 const EpubViewer = lazy(() => import("./EpubViewer"));
+const CbzViewer = lazy(() => import("./CbzViewer"));
+
+/** Whether the file is a container the viewer reads inside, not one blob. */
+function packed(kind: ViewKind): boolean {
+  return kind === "epub" || kind === "cbz";
+}
 
 function decode(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
@@ -37,8 +44,8 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
   useEffect(() => {
-    // A book is read inside, not whole: `EpubViewer` does its own reads.
-    if (kind === "epub") return undefined;
+    // A container is read inside, not whole: its reader does its own reads.
+    if (packed(kind)) return undefined;
     let url: string | null = null;
     let cancelled = false;
     unwrap(commands.readBlob(path))
@@ -55,14 +62,14 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
     };
   }, [path, kind]);
 
-  if (kind === "epub") {
+  if (packed(kind)) {
     return (
       <section className="viewer">
         <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
-          {/* Keyed by path: another book is another reader, with no state
-              of the last one — the same rule the other two follow through
-              `loaded.path`. */}
-          <EpubViewer key={path} path={path} />
+          {/* Keyed by path: another container is another reader, with no
+              state of the last one — the same rule the other two follow
+              through `loaded.path`. */}
+          {kind === "epub" ? <EpubViewer key={path} path={path} /> : <CbzViewer key={path} path={path} />}
         </Suspense>
       </section>
     );

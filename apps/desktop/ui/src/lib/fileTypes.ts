@@ -14,12 +14,13 @@ import { extensionOf, fileNameOf } from "./paths";
  * which viewer a tier-D type gets and the MIME type it is handed with.
  */
 
-export type ViewKind = "pdf" | "image" | "epub";
+export type ViewKind = "pdf" | "image" | "epub" | "cbz";
 
 /** Which viewer a tier-D type opens in; every `view` row of the table has one. */
 export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
   pdf: "pdf",
   epub: "epub",
+  cbz: "cbz",
   png: "image",
   jpg: "image",
   jpeg: "image",
@@ -31,6 +32,7 @@ export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
 export const MIME: Readonly<Record<string, string>> = {
   pdf: "application/pdf",
   epub: "application/epub+zip",
+  cbz: "application/vnd.comicbook+zip",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
