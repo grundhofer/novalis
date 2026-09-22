@@ -22,6 +22,8 @@
   min-width: 0;
   min-height: 0;
   align-self: stretch;
+  position: relative;
+  outline: none;
 }
 
 .pdf-bar {
@@ -198,9 +200,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The table of contents hangs under the bar and over the text, so opening
-   it moves nothing. */
-.epub-contents {
+/* The table of contents (`ContentsPopover.tsx`), the PDF outline's too
+   (ADR-0025). It hangs under the bar and over the text, so opening it moves
+   nothing; a nested entry is indented by its depth. */
+.contents {
   position: absolute;
   z-index: 2;
   top: var(--ds-size-tabstrip);
@@ -215,16 +218,17 @@
   box-shadow: var(--ds-shadow-modal);
 }
 
-.epub-contents-list {
+.contents-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.epub-contents-row {
+.contents-row {
   display: block;
   width: 100%;
   padding: var(--ds-space-2) var(--ds-space-3);
+  padding-left: calc(var(--ds-space-3) + var(--depth, 0) * var(--ds-space-4));
   border: 0;
   border-radius: var(--ds-radius-control);
   background: none;
@@ -235,11 +239,11 @@
   cursor: pointer;
 }
 
-.epub-contents-row:hover {
+.contents-row:hover {
   background: var(--ds-color-bg-hover);
 }
 
-.epub-contents-row.on {
+.contents-row.on {
   color: var(--ds-color-accent-text);
   background: var(--ds-color-accent-fill);
 }

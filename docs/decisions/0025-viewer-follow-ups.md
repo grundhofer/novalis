@@ -6,8 +6,8 @@ Date: 2026-09-20
 
 Accepted; each item its own small pull request after the ADR-0022
 phases, none of them a prerequisite for ADR-0023/0024. Built: item 1
-(`heic heif avif`, checked in `just dev` on 2026-09-22). Not yet built:
-items 2–4. Amends
+(`heic heif avif`, checked in `just dev` on 2026-09-22) and item 2 (the
+PDF outline and page keys). Not yet built: items 3–4. Amends
 ADR-0015 (image types; `svg` "stays XML text"), ADR-0016 ("one page,
 previous/next, zoom, fit width" was the asked scope), ADR-0020 ("a preview
 for anything but Markdown: not built") and ADR-0008 (a `viewer` keymap
@@ -46,6 +46,18 @@ rendered SVG yes, both read-only behind the existing eye glyph.
    reader uses for its table of contents (ADR-0023) — and keyboard paging
    `← → PageUp PageDown Home End` inside the pane. These are the first
    rows of a new keymap scope `viewer` in `docs/KEYMAP.md` (parity test).
+   *Built 2026-09-22*, with three details the record left open: the
+   popover became one component both readers use (`ContentsPopover.tsx`),
+   and a nested outline entry is indented by its depth; an entry that leads
+   to no page of the file (a web link, a missing named destination, a
+   broken reference) is left out and its children move up a level, and the
+   contents button is not shown for a PDF without an outline; `PageUp` and
+   `PageDown` have their own command ids (`viewer.pageUp`/`pageDown`)
+   because the parity test allows one chord per id — with one page on
+   screen they turn it like the arrows, and they are the keys that would
+   scroll by a screen under continuous scrolling. The pane takes focus when
+   it opens, as the editor does, and the window's keymap handler leaves
+   `viewer` chords to it, so an arrow key anywhere else is untouched.
    PDF text search and continuous scrolling are **later**, each its own
    question: search would be a `Cmd+F` row in the viewer scope, continuous
    scroll replaces "one page" and is worth ≈200 lines with

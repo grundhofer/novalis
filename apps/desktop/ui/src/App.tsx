@@ -198,7 +198,9 @@ export default function App() {
       const binding = commandForChord(chord);
       if (!binding) return;
       // Editor-scoped chords are CodeMirror's own bindings when the editor has
-      // focus; only the global ones are intercepted here.
+      // focus; only the global ones are intercepted here. Viewer-scoped ones
+      // are the PDF pane's, which takes them itself (ADR-0025).
+      if (binding.scope === "viewer") return;
       if (binding.scope !== "global" && document.activeElement?.closest(".cm-editor")) return;
       event.preventDefault();
       dispatch(binding.command);

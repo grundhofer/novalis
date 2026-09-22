@@ -19,13 +19,15 @@ app neither binds nor dispatches it.
 - `+` is the separator because no binding uses the `+` key; `Cmd+=` is the
   unshifted `=` key (the "plus" key on US and German layouts).
 - Keys: letters upper-case, digits, punctuation literal (`= - [ ] \ / ,`),
-  named keys `Up Down Left Right Enter Delete Escape`.
+  named keys `Up Down Left Right Enter Delete Escape Home End PageUp PageDown`.
 - The `Glyphs` column is the macOS display form (⌃ ⌥ ⇧ ⌘) used in menus.
 
 **Scopes:** `global` (works everywhere in the window), `editor` (focus in the
 text editor), `editor:markdown` (editor with a Markdown document),
 `editor:code` (editor with a non-Markdown document), `tree` (focus in the
-sidebar tree), `board` (focus in the board pane).
+sidebar tree), `board` (focus in the board pane), `viewer` (focus in the PDF
+pane, ADR-0025; it takes focus when it opens, and a click on the page gives
+it back).
 
 <!-- keymap-table:start -->
 | Chord | Glyphs | Command | Scope | Origin |
@@ -83,6 +85,12 @@ sidebar tree), `board` (focus in the board pane).
 | `Enter` | ↩ | `tree.rename` | tree | Finder |
 | `Cmd+Delete` | ⌘⌫ | `tree.trash` | tree | Finder |
 | `Shift+Cmd+N` | ⇧⌘N | `tree.newFolder` | global | Finder |
+| `Left` | ← | `viewer.previousPage` | viewer | Preview.app (ADR-0025) |
+| `Right` | → | `viewer.nextPage` | viewer | Preview.app (ADR-0025) |
+| `PageUp` | ⇞ | `viewer.pageUp` | viewer | Preview.app; one page back while the viewer shows one page (ADR-0025) |
+| `PageDown` | ⇟ | `viewer.pageDown` | viewer | Preview.app; one page on while the viewer shows one page (ADR-0025) |
+| `Home` | ↖ | `viewer.firstPage` | viewer | Preview.app (ADR-0025) |
+| `End` | ↘ | `viewer.lastPage` | viewer | Preview.app (ADR-0025) |
 <!-- keymap-table:end -->
 
 ## Mouse gestures (not part of the parity table)
@@ -112,7 +120,8 @@ sidebar tree), `board` (focus in the board pane).
   defaults (newline, delete-to-line-start).
 - System-provided edit keys (`Cmd+A/C/V/X`, `Cmd+H`, `Cmd+M`, arrows, word and
   line movement, `Escape`) come from macOS and WKWebView and are neither bound
-  nor overridden by the app; the parity test ignores them. `Cmd+Q` and
+  nor overridden by the app outside the PDF pane (whose `viewer` rows are in
+  the table); the parity test ignores them. `Cmd+Q` and
   `Ctrl+Cmd+F` are listed with `system` instead of a command id for the same
   reason: they are Tauri's predefined Quit and Full Screen menu items, which act
   without emitting a `menu-action`, so binding them in the app's keymap would

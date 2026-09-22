@@ -1,15 +1,23 @@
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { chordOf, commandForChord } from "../lib/keymap";
+import { currentRow, outlineOf, type OutlineRow } from "../lib/pdfOutline";
 import { report } from "../stores/ui";
+import ContentsPopover from "./ContentsPopover";
 
 /**
  * The PDF pane (ADR-0016): pdf.js draws one page onto a canvas and lays its
  * text over it for selection, and the bar above is ours — previous, next,
  * page N of M, zoom, fit to width. The same on every platform's WebView,
  * which the WebView's own PDF view (macOS only, no controls) was not.
+ *
+ * ADR-0025 added the document's outline, in the popover the EPUB reader
+ * uses for its contents, and the `viewer` rows of docs/KEYMAP.md: while the
+ * pane has focus — it takes it when it opens, and a click on the page gives
+ * it back — the arrows, PageUp/PageDown and Home/End turn the page.
  *
  * pdf.js runs its parser in a worker; the worker file is bundled as an asset
  * and loaded from the app itself, so the CSP stays at `script-src 'self'`.
@@ -23,12 +31,26 @@ const ZOOM_STEP = 1.25;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 6;
 
+/** Where each `viewer` command of docs/KEYMAP.md goes from `page` of `count`. */
+const PAGE_KEYS: Readonly<Record<string, (page: number, count: number) => number>> = {
+  "viewer.previousPage": (page) => page - 1,
+  "viewer.nextPage": (page) => page + 1,
+  "viewer.pageUp": (page) => page - 1,
+  "viewer.pageDown": (page) => page + 1,
+  "viewer.firstPage": () => 1,
+  "viewer.lastPage": (_, count) => count,
+};
+
 export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
   const { t } = useTranslation();
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState<Zoom>("width");
   const [scale, setScale] = useState(1);
+  const [outline, setOutline] = useState<readonly OutlineRow[]>([]);
+  const [contentsOpen, setContentsOpen] = useState(false);
+  const pane = useRef<HTMLElement | null>(null);
+  const toggle = useRef<HTMLButtonElement | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const textLayer = useRef<HTMLDivElement | null>(null);
@@ -45,6 +67,15 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
         if (cancelled) return;
         setDoc(loaded);
         setPage(1);
+        setOutline([]);
+        setContentsOpen(false);
+        // The outline comes after the first page: it is a convenience, and
+        // resolving a long one is hundreds of round trips to the worker.
+        outlineOf(loaded, loaded.numPages)
+          .then((rows) => {
+            if (!cancelled) setOutline(rows);
+          })
+          .catch(report);
       })
       .catch((error: unknown) => {
         // Destroying the task rejects its promise ("Loading aborted"): that
@@ -56,6 +87,12 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
       task.destroy().catch(report);
     };
   }, [bytes]);
+
+  // The keys are the pane's while it has focus, so it takes focus when it
+  // opens, as the editor does for a note.
+  useEffect(() => {
+    pane.current?.focus({ preventScroll: true });
+  }, []);
 
   // One page: the canvas at device resolution, the text layer over it.
   useEffect(() => {
@@ -109,10 +146,35 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
   };
   const zoomBy = (factor: number) =>
     setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, scale * factor)));
+  const closeContents = useCallback(() => setContentsOpen(false), []);
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    // The page field keeps its own arrows and Home/End.
+    if (event.target instanceof HTMLInputElement) return;
+    const chord = chordOf(event.nativeEvent);
+    const binding = chord ? commandForChord(chord) : undefined;
+    const move = binding?.scope === "viewer" ? PAGE_KEYS[binding.command] : undefined;
+    if (!move) return;
+    // Taken even on the first or last page: PageDown would otherwise scroll
+    // the pane, and the key would do two different things.
+    event.preventDefault();
+    goTo(move(page, count));
+  };
 
   return (
-    <section className="pdf">
+    <section className="pdf" ref={pane} tabIndex={-1} onKeyDown={onKeyDown}>
       <header className="pdf-bar">
+        {outline.length > 0 && (
+          <button
+            className={contentsOpen ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
+            type="button"
+            ref={toggle}
+            aria-expanded={contentsOpen}
+            onClick={() => setContentsOpen((open) => !open)}
+          >
+            {t("viewer.outline")}
+          </button>
+        )}
         <button
           className="btn ghost pdf-tool"
           type="button"
@@ -172,6 +234,20 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
           {t("viewer.fitWidth")}
         </button>
       </header>
+      {contentsOpen && (
+        <ContentsPopover
+          label={t("viewer.outline")}
+          rows={outline}
+          current={currentRow(outline, page)}
+          toggle={toggle}
+          onPick={(index) => {
+            setContentsOpen(false);
+            goTo(outline[index]?.page ?? page);
+            pane.current?.focus({ preventScroll: true });
+          }}
+          onClose={closeContents}
+        />
+      )}
       <div className="pdf-scroll" ref={scroller}>
         <div className="pdf-sheet" style={{ "--total-scale-factor": scale } as React.CSSProperties}>
           <canvas className="pdf-canvas" ref={canvas} />
