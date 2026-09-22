@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import Banner from "./components/Banner";
 import CloudHint from "./components/CloudHint";
+import LegacyHint from "./components/LegacyHint";
 import Prompt from "./components/Prompt";
 import Sidebar from "./components/Sidebar";
 import StatusBar from "./components/StatusBar";
@@ -320,6 +321,7 @@ export default function App() {
         <main className="main">
           <TabStrip />
           <CloudHint />
+          <LegacyHint />
           <Banner />
           {boardVisible ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>

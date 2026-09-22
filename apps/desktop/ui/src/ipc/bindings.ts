@@ -613,6 +613,12 @@ export type VaultDto = {
 	name: string,
 	kind: VaultKindDto,
 	boards: BoardRefDto[],
+	/**
+	 *  Written by the old app and not migrated yet: its `.novalis/config.json`
+	 *  is there and `vault.json` carries no `migrated` stamp (PLAN.md §10,
+	 *  the read-only first-open prompt).
+	 */
+	legacy?: boolean,
 };
 
 export type VaultKindDto = "fileProvider" | "mirrored" | "local";
