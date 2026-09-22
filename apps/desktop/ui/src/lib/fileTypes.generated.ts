@@ -115,6 +115,9 @@ export const EXTENSION_KINDS: Readonly<Record<string, FileKind>> = {
   "jpeg": "view",
   "gif": "view",
   "webp": "view",
+  "heic": "view",
+  "heif": "view",
+  "avif": "view",
 };
 
 /** Whole file name → kind, for files that have no extension worth the name. */
