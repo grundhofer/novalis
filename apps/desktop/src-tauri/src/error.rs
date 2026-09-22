@@ -46,6 +46,15 @@ impl IpcError {
         }
     }
 
+    /// Downloading a cloud-only file for an explicit open took longer than
+    /// the app waits (PLAN.md §2.3 rule 7).
+    pub fn materialize_timeout(path: &str) -> Self {
+        IpcError {
+            path: Some(path.to_string()),
+            ..IpcError::of("materialize_timeout")
+        }
+    }
+
     /// No vault is open, so there is nothing to act on.
     pub fn no_vault() -> Self {
         IpcError::of("no_vault")

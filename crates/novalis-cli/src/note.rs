@@ -55,15 +55,10 @@ pub fn load_for_write(
 /// a blocking read, so the wait happens on a worker thread the CLI abandons
 /// on timeout instead of blocking the process forever.
 pub fn materialize_within(abs: &Path, timeout: Duration) -> Result<(), CliError> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    let path = abs.to_path_buf();
-    std::thread::spawn(move || {
-        let _ = tx.send(cloud::materialize(&path));
-    });
-    match rx.recv_timeout(timeout) {
-        Ok(Ok(())) => Ok(()),
-        Ok(Err(e)) => Err(CliError::from_core(e)),
-        Err(_) => Err(CliError::from_core(CoreError::CloudOnly {
+    match cloud::materialize_within(abs, timeout) {
+        Some(Ok(())) => Ok(()),
+        Some(Err(e)) => Err(CliError::from_core(e)),
+        None => Err(CliError::from_core(CoreError::CloudOnly {
             path: abs.to_string_lossy().into_owned(),
         })
         .with_hint(format!(
