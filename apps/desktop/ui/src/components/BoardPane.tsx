@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
 import { stemOf } from "../lib/paths";
 import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/board.css";
@@ -29,6 +30,9 @@ export default function BoardPane() {
   const busy = useBoard((s) => s.busy);
   const notice = useBoard((s) => (s.board ? s.notices[s.board.slug] : undefined));
   const activeNote = useTabs((s) => s.active);
+  const fileList = useFiles((s) => s.files);
+  const filesLoaded = useFiles((s) => s.loaded);
+  const files = useMemo(() => new Set(fileList), [fileList]);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [over, setOver] = useState<{ column: string; beforeCardId: string | null } | null>(null);
 
@@ -57,6 +61,14 @@ export default function BoardPane() {
    * place — but that is `tabs.activate`'s job for every foreground open, not
    * this click's, so it needs nothing beyond `open()`.
    */
+  /**
+   * A linked note that is no longer in the vault (deleted or moved outside
+   * the app since it was linked): its chip is drawn dimmed and opens
+   * nothing. Only once the file list has loaded — before that, every note
+   * would look missing.
+   */
+  const missing = (note: string) => filesLoaded && !files.has(note);
+
   const openCardNote = (card: CardDto) => {
     const note = card.notes[0];
     if (!note) return;
@@ -405,9 +417,26 @@ export default function BoardPane() {
                       <span className="card-state warn">{t("board.columnMissing")}</span>
                     )}
                     {card.notes.map((note) => (
-                      <span className="card-note" key={note}>
+                      <span className={missing(note) ? "card-note missing" : "card-note"} key={note}>
                         <span className="card-note-glyph" aria-hidden="true" />
-                        <span className="card-note-name">{stemOf(note)}</span>
+                        {missing(note) ? (
+                          <span className="card-note-name" title={t("board.noteMissing")}>
+                            {stemOf(note)}
+                          </span>
+                        ) : (
+                          <button
+                            className="card-note-name"
+                            type="button"
+                            draggable={false}
+                            title={t("board.openNote")}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void useTabs.getState().open(note).catch(report);
+                            }}
+                          >
+                            {stemOf(note)}
+                          </button>
+                        )}
                         <button
                           className="card-note-unlink"
                           type="button"
