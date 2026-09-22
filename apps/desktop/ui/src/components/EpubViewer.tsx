@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
@@ -16,6 +16,7 @@ import { mimeOf } from "../lib/fileTypes";
 import { extensionOf, stemOf } from "../lib/paths";
 import { sanitizeInto } from "../lib/sanitize";
 import { report, useUi } from "../stores/ui";
+import ContentsPopover from "./ContentsPopover";
 
 /**
  * The EPUB reader (ADR-0023) — the app's own, not a library's.
@@ -35,8 +36,8 @@ import { report, useUi } from "../stores/ui";
  * needs no wiring here.
  *
  * Reading position is the session's (the chapter is state, not a file), and
- * the book is never written to. `Cmd+F` is not bound: docs/KEYMAP.md has no
- * `viewer` scope yet (ADR-0025).
+ * the book is never written to. `Cmd+F` is not bound: the `viewer` scope of
+ * docs/KEYMAP.md has the PDF's page keys and no search (ADR-0025).
  */
 
 /** Where the reader stopped when a book will not open. */
@@ -131,7 +132,6 @@ export default function EpubViewer({ path }: { path: string }) {
   const [contentsOpen, setContentsOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
-  const contents = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
 
   // ---- the book ------------------------------------------------------------
@@ -224,28 +224,7 @@ export default function EpubViewer({ path }: { path: string }) {
     };
   }, [book, chapter, path]);
 
-  // ---- the contents popover ------------------------------------------------
-  // Escape closes it, and so does a click anywhere else — the toggle excepted,
-  // which would otherwise close it on the way down and open it again on the
-  // way up.
-  useEffect(() => {
-    if (!contentsOpen) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setContentsOpen(false);
-    };
-    const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (contents.current?.contains(target) || toggle.current?.contains(target)) return;
-      setContentsOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("mousedown", onMouseDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [contentsOpen]);
-
+  const closeContents = useCallback(() => setContentsOpen(false), []);
   const count = book?.spine.length ?? 0;
   const goTo = (next: number) => {
     if (count === 0) return;
@@ -344,21 +323,14 @@ export default function EpubViewer({ path }: { path: string }) {
         </button>
       </header>
       {contentsOpen && (
-        <nav className="epub-contents" ref={contents} aria-label={t("viewer.epub.contents")}>
-          <ul className="epub-contents-list">
-            {rows.map((row) => (
-              <li key={row.index}>
-                <button
-                  className={row.index === chapter ? "epub-contents-row on" : "epub-contents-row"}
-                  type="button"
-                  onClick={() => goTo(row.index)}
-                >
-                  {row.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <ContentsPopover
+          label={t("viewer.epub.contents")}
+          rows={rows}
+          current={rows.findIndex((row) => row.index === chapter)}
+          toggle={toggle}
+          onPick={(index) => goTo(rows[index]?.index ?? chapter)}
+          onClose={closeContents}
+        />
       )}
       <div className="epub-scroll" ref={scroller}>
         <div className="epub-host" ref={host} onClick={onClick} />

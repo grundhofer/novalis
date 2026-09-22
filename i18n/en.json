@@ -296,6 +296,7 @@
   "viewer.epub.unreadable": "This book could not be read.",
   "viewer.fitWidth": "Fit width",
   "viewer.nextPage": "Next page",
+  "viewer.outline": "Contents",
   "viewer.page": "Page",
   "viewer.pageOf": "of {{count}}",
   "viewer.previousPage": "Previous page",

@@ -5,14 +5,24 @@
  * `docs/KEYMAP.md`, in the same canonical notation: modifiers in the order
  * `Ctrl`, `Alt`, `Shift`, `Cmd`, joined by `+`, then the key — letters
  * upper-case, digits, punctuation literal, named keys `Up Down Left Right
- * Enter Delete Escape`.
+ * Enter Delete Escape Home End PageUp PageDown`.
  *
  * Chords whose scope is `editor*` are also bound inside CodeMirror; they are
  * listed here because the native menu owns the same chords on macOS and
  * dispatches them by command id, and because the command palette shows them.
+ * Chords whose scope is `viewer` are the PDF pane's own (ADR-0025): it reads
+ * them from this table while it has focus, and nothing else takes them — an
+ * arrow key anywhere else is still the tree's, the input's or the system's.
  */
 
-export type Scope = "global" | "editor" | "editor:markdown" | "editor:code" | "tree" | "board";
+export type Scope =
+  | "global"
+  | "editor"
+  | "editor:markdown"
+  | "editor:code"
+  | "tree"
+  | "board"
+  | "viewer";
 
 export interface Binding {
   readonly chord: string;
@@ -76,6 +86,15 @@ export const KEYMAP: readonly Binding[] = [
   { chord: "Enter", command: "tree.rename", scope: "tree" },
   { chord: "Cmd+Delete", command: "tree.trash", scope: "tree" },
   { chord: "Shift+Cmd+N", command: "tree.newFolder", scope: "global" },
+  // The PDF pane (ADR-0025). `PageUp`/`PageDown` are their own ids: with one
+  // page on screen they turn it like the arrows, and they are what would
+  // scroll by a screen if the viewer ever scrolls continuously.
+  { chord: "Left", command: "viewer.previousPage", scope: "viewer" },
+  { chord: "Right", command: "viewer.nextPage", scope: "viewer" },
+  { chord: "PageUp", command: "viewer.pageUp", scope: "viewer" },
+  { chord: "PageDown", command: "viewer.pageDown", scope: "viewer" },
+  { chord: "Home", command: "viewer.firstPage", scope: "viewer" },
+  { chord: "End", command: "viewer.lastPage", scope: "viewer" },
 ];
 
 /** `KeyboardEvent.code` → the key half of a chord. */
@@ -96,6 +115,10 @@ const KEY_BY_CODE: Record<string, string> = {
   Backspace: "Delete",
   Delete: "Delete",
   Escape: "Escape",
+  Home: "Home",
+  End: "End",
+  PageUp: "PageUp",
+  PageDown: "PageDown",
 };
 
 /**
@@ -134,6 +157,10 @@ const GLYPHS: Record<string, string> = {
   Enter: "↩",
   Delete: "⌫",
   Escape: "⎋",
+  Home: "↖",
+  End: "↘",
+  PageUp: "⇞",
+  PageDown: "⇟",
 };
 
 /** The macOS display form of a chord (`⇧⌘P`), for menus and the palette. */
