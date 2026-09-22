@@ -143,7 +143,11 @@ ich will so ein homebrew repo") carries two files, because a cask has one
 - `Casks/novalis.rb` — the app, from the DMG. `version` and the DMG's
   `sha256` change per release.
 - `Formula/novalis-cli.rb` — the `novalis` binary, from the CLI tarball. The
-  version sits in the `url`, the tarball's `sha256` beside it.
+  version sits in the `url`, the tarball's `sha256` beside it. From the first
+  release after 1.0.0-alpha.1 the tarball also carries the agent skill under
+  `share/novalis/skill` (`novalis skill --path`); the formula's `install`
+  then needs `share.install "share/novalis"` beside `bin.install "novalis"`
+  — not before, or `brew install` of alpha.1 fails on the missing folder.
 
 Both take their checksums from the release's **published** `SHA256SUMS`, not
 from a local run's: a re-run of `release.yml` rebuilds the tarballs with new
