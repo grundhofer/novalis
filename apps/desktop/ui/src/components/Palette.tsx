@@ -2,12 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { dispatchCommand, paletteCommands } from "../lib/commands";
-import { editorHeadings, goToEditorLine } from "../lib/editorBridge";
+import { goToEditorLine } from "../lib/editorBridge";
+import { previewKind } from "../lib/fileTypes";
 import { rank } from "../lib/fuzzy";
+import { headingsOf } from "../lib/headings";
 import { positionRanges } from "../lib/matchRanges";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { fileNameOf, folderOf, isNote, stemOf } from "../lib/paths";
+import { goToPreviewLine, previewMounted } from "../lib/previewBridge";
 import { useBoard } from "../stores/board";
+import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
@@ -37,8 +41,17 @@ const SECTION_KEY: Record<Entry["kind"], string> = {
   heading: "palette.section.headings",
 };
 
+/**
+ * The open note's headings, read from its text rather than from the editor,
+ * so the jump works in the preview too (ADR-0020 amended: "die shortcuts
+ * sollten auch im view mode funktionieren") and before the editor's chunk
+ * has loaded. Only a Markdown file has them; a `# comment` is not one.
+ */
 function headingsOfActiveDocument(): Entry[] {
-  return editorHeadings().map((h) => ({ kind: "heading", line: h.line, text: h.text }));
+  const active = useTabs.getState().active;
+  if (!active || previewKind(active) !== "markdown") return [];
+  const text = useEditorSave.getState().flush(active) ?? "";
+  return headingsOf(text).map((h) => ({ kind: "heading", line: h.line, text: h.text }));
 }
 
 export type PaletteMode = "quickOpen" | "palette" | "settings";
@@ -123,7 +136,8 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
         dispatchCommand(entry.id);
         break;
       case "heading":
-        goToEditorLine(entry.line);
+        if (previewMounted()) goToPreviewLine(entry.line);
+        else goToEditorLine(entry.line);
         break;
     }
   };

@@ -18,7 +18,7 @@ import {
 import { EditorSelection, type StateCommand } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 
-import { setEditorBridge, type EditorHeading } from "../lib/editorBridge";
+import { setEditorBridge } from "../lib/editorBridge";
 import { toggleCheckbox, wrapSelection } from "./decorations";
 
 /**
@@ -125,18 +125,6 @@ const REGISTRY: Record<string, Command> = {
   "markdown.toggleCheckbox": toggleCheckbox,
 };
 
-/** Every `#`-heading in the open document, for the palette's heading jump. */
-function headings(): EditorHeading[] {
-  if (!active) return [];
-  const out: EditorHeading[] = [];
-  for (let line = 1; line <= active.state.doc.lines; line += 1) {
-    const text = active.state.doc.line(line).text;
-    const match = /^(#{1,6})\s+(.*\S)/.exec(text);
-    if (match) out.push({ line, text: `${match[1]} ${match[2]}` });
-  }
-  return out;
-}
-
 // Registering here rather than exporting is what keeps CodeMirror out of the
 // eager bundle: nothing in the shell imports this file (see lib/editorBridge).
 setEditorBridge({
@@ -148,7 +136,6 @@ setEditorBridge({
     return command(view);
   },
   has: (id) => id in REGISTRY,
-  headings,
   goToLine: (line) => {
     if (!active || line < 1 || line > active.state.doc.lines) return;
     const target = active.state.doc.line(line);

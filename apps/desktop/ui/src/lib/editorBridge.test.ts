@@ -23,4 +23,11 @@ describe("resolveLine", () => {
     expect(resolveLine(text, { line: 4, snippet: "" })).toBe(4);
     expect(resolveLine(text, { line: 4, snippet: "gone" })).toBe(4);
   });
+
+  // `[[note#heading]]` (§7.2): the heading's line in the text shown wins.
+  it("lands on a named heading, ignoring case, before line and snippet", () => {
+    const text = "# Plan\n\n## Open Questions\n";
+    expect(resolveLine(text, { line: 1, snippet: "", heading: "open questions" })).toBe(3);
+    expect(resolveLine(text, { line: 1, snippet: "", heading: "Nowhere" })).toBe(1);
+  });
 });
