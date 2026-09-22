@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
 
 import Banner from "./components/Banner";
@@ -17,6 +18,7 @@ import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
 import { openAt } from "./lib/openAt";
 import { uiStateNow } from "./lib/uiState";
+import { windowTitle } from "./lib/windowTitle";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
 import { useFiles } from "./stores/files";
@@ -226,6 +228,15 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [dispatch]);
+
+  // ---- the macOS window title (lib/windowTitle.ts) -------------------------
+  const vaultName = vault?.name ?? null;
+  useEffect(() => {
+    // A title that cannot be set costs nothing but the title: never a toast.
+    void getCurrentWindow()
+      .setTitle(windowTitle(active, vaultName))
+      .catch(() => undefined);
+  }, [active, vaultName]);
 
   // ---- system appearance, autosave flush ---------------------------------
   useEffect(() => watchSystemAppearance(), []);
