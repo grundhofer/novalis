@@ -309,3 +309,77 @@ mark.preview-hit.current {
 .preview [data-pos].preview-target {
   background-color: var(--ds-color-editor-match);
 }
+
+/* ----------------------------------------------------------------- table */
+/* A CSV or TSV behind the eye (`TablePreview.tsx`, ADR-0025). The inner box
+   is as wide as the header's grid, so the absolutely placed rows under it
+   are too, and the pane scrolls both ways; the header sticks to the top. */
+.table-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--ds-color-bg-canvas);
+}
+
+.table-inner {
+  display: inline-block;
+  min-width: 100%;
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-font-size-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-fg-default);
+}
+
+.table-head {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-bg-raised);
+}
+
+/* On the cells, not the row: the columns are in `ch` of the row's own font,
+   and a bolder row would have wider columns than the body's. */
+.table-head .table-cell {
+  font-weight: var(--ds-font-weight-strong);
+}
+
+.table-body {
+  position: relative;
+}
+
+.table-row {
+  display: grid;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid var(--ds-color-border-default);
+}
+
+.table-cell {
+  padding: var(--ds-space-2) var(--ds-space-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--ds-color-border-default);
+}
+
+/* ------------------------------------------------------------------- svg */
+/* An SVG behind the eye (`SvgPreview.tsx`, ADR-0025): the picture, fitted. */
+.svg-preview {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-6);
+  background: var(--ds-color-bg-canvas);
+}
+
+.svg-preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

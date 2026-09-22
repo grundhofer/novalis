@@ -46,7 +46,7 @@ it back).
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | Apple standard; the macOS Full Screen item |
 | `Cmd+,` | ⌘, | `unbound` | global | No preferences window (ADR-0004) |
-| `Cmd+E` | ⌘E | `note.togglePreview` | global | The read-only preview of the open note (PLAN.md §4.4, ADR-0020); the button at the tab strip's end does the same |
+| `Cmd+E` | ⌘E | `note.togglePreview` | global | The read-only preview of the open note (PLAN.md §4.4, ADR-0020) — of a CSV or TSV its table, of an SVG its picture (ADR-0025); the button at the tab strip's end does the same |
 | `Cmd+P` | ⌘P | `quickOpen.open` | global | §4.5: quick-open, no Print |
 | `Shift+Cmd+P` | ⇧⌘P | `palette.open` | global | Sublime |
 | `Ctrl+G` | ⌃G | `editor.gotoLine` | editor | Sublime |
@@ -141,7 +141,10 @@ it back).
   is empty) the tab switches to the editor rather than guessing; every other
   editor chord (`Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D`, …) switches to the
   editor too, so the chord lands where it applies — it is not replayed there.
-  The table above is unchanged: same ids, same scopes.
+  The table above is unchanged: same ids, same scopes. `note.togglePreview`
+  is not only a note's (ADR-0025): a `.csv` or `.tsv` shows as a read-only
+  table and an `.svg` as its picture, and there every editor chord switches
+  back to the text.
 - `tree.reveal` (Show in Finder, ADR-0021) has no chord: it is a File menu
   item, a palette entry and a context-menu entry, and acts on the selected
   row or, with none, the active tab.

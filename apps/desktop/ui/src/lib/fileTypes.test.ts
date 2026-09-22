@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isSupported, kindOf, MIME, mimeOf, VIEW_EXTENSIONS, viewKind } from "./fileTypes";
+import { isSupported, kindOf, MIME, mimeOf, previewKind, VIEW_EXTENSIONS, viewKind } from "./fileTypes";
 import { EXTENSION_KINDS } from "./fileTypes.generated";
 
 describe("fileTypes", () => {
@@ -98,5 +98,16 @@ describe("fileTypes", () => {
     expect(mimeOf("a.heic")).toBe("image/heic");
     expect(mimeOf("a.heif")).toBe("image/heif");
     expect(mimeOf("a.avif")).toBe("image/avif");
+  });
+
+  it("names the second representation behind the eye glyph", () => {
+    expect(previewKind("a.md")).toBe("markdown");
+    expect(previewKind("a.markdown")).toBe("markdown");
+    expect(previewKind("data/a.CSV")).toBe("csv");
+    expect(previewKind("a.tsv")).toBe("tsv");
+    expect(previewKind("icon.svg")).toBe("svg");
+    for (const path of ["a.mdx", "a.txt", "a.json", "a.pdf", "a.png", "Makefile"]) {
+      expect(previewKind(path), path).toBeNull();
+    }
   });
 });

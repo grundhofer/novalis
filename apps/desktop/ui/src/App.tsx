@@ -12,10 +12,9 @@ import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand } from "./lib/commands";
-import { isSupported, viewKind } from "./lib/fileTypes";
+import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
-import { isMarkdownFile } from "./lib/paths";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
 import { useFiles } from "./stores/files";
@@ -31,6 +30,8 @@ const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
 const Viewer = lazy(() => import("./components/Viewer"));
 const Preview = lazy(() => import("./components/Preview"));
+const TablePreview = lazy(() => import("./components/TablePreview"));
+const SvgPreview = lazy(() => import("./components/SvgPreview"));
 const Backlinks = lazy(() => import("./components/Backlinks"));
 
 /** `state.json` is written at most this often while the user moves things. */
@@ -79,6 +80,7 @@ export default function App() {
   const doc = useEditorSave((s) => (active ? s.docs[active] : undefined));
   const view = active ? viewKind(active) : null;
   const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
+  const second = active && previewing ? previewKind(active) : null;
   const sidebarVisible = useUi((s) => s.sidebarVisible);
   const sidebarWidth = useUi((s) => s.sidebarWidth);
   const boardVisible = useUi((s) => s.boardVisible);
@@ -326,9 +328,15 @@ export default function App() {
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Viewer path={active} kind={view} />
             </Suspense>
-          ) : active && doc && previewing && isMarkdownFile(active) ? (
+          ) : active && doc && second ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
-              <Preview path={active} onFollowLink={followLink} />
+              {second === "markdown" ? (
+                <Preview path={active} onFollowLink={followLink} />
+              ) : second === "svg" ? (
+                <SvgPreview path={active} />
+              ) : (
+                <TablePreview path={active} kind={second} />
+              )}
             </Suspense>
           ) : active && doc ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>

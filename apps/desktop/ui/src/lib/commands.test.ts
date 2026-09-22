@@ -283,10 +283,28 @@ describe("note.togglePreview", () => {
     expect(useUi.getState().previewing).toEqual({});
   });
 
-  it("does nothing for a tab that is not a note", () => {
-    useTabs.setState({ active: "a.pdf" });
+  it("does nothing for a tab that has no second representation", () => {
+    for (const active of ["a.pdf", "a.txt", "a.json"]) {
+      useTabs.setState({ active });
+      dispatchCommand("note.togglePreview");
+    }
+    expect(useUi.getState().previewing).toEqual({});
+  });
 
+  // ADR-0025: a CSV or TSV has a table, an SVG its picture.
+  it("toggles the table of a CSV and the picture of an SVG", () => {
+    useTabs.setState({ active: "data/a.csv" });
     dispatchCommand("note.togglePreview");
+    useTabs.setState({ active: "icon.svg" });
+    dispatchCommand("note.togglePreview");
+    expect(useUi.getState().previewing).toEqual({ "data/a.csv": true, "icon.svg": true });
+  });
+
+  it("returns a table to the text on an editor chord, as it cannot take one", () => {
+    useTabs.setState({ active: "a.tsv" });
+    dispatchCommand("note.togglePreview");
+
+    dispatchCommand("find.open");
     expect(useUi.getState().previewing).toEqual({});
   });
 

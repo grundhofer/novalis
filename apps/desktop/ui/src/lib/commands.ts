@@ -7,7 +7,8 @@ import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { fileNameOf, folderOf, isMarkdownFile, joinRel } from "./paths";
+import { previewKind } from "./fileTypes";
+import { fileNameOf, folderOf, joinRel } from "./paths";
 
 /**
  * One dispatcher for every command id in `docs/KEYMAP.md`, plus the menu-only
@@ -233,11 +234,11 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "note.togglePreview": () => {
-    // Only Markdown has a rendered form (ADR-0020; `.markdown` too, ADR-0022
-    // point 6); a PDF or an image is already the viewer, and a `.txt` has
-    // nothing to render.
+    // Markdown renders (ADR-0020; `.markdown` too, ADR-0022 point 6), a
+    // CSV or TSV is a table and an SVG its picture (ADR-0025); a PDF or an
+    // image is already the viewer, and a `.txt` has nothing else to show.
     const active = useTabs.getState().active;
-    if (!active || !isMarkdownFile(active)) return;
+    if (!active || !previewKind(active)) return;
     // The preview renders the mirror; the editor's buffer may be ahead of it
     // until the editor unmounts, which is after the preview's first render.
     useEditorSave.getState().flush(active);
@@ -298,6 +299,14 @@ export function dispatchCommand(id: string): void {
       if (active) useUi.getState().endPreview(active);
       return;
     }
+  }
+  // A table or a picture (ADR-0025) takes no editor chord at all: every one
+  // returns to the text, like the ones the rendered note cannot place.
+  const active = useTabs.getState().active;
+  const second = active && useUi.getState().previewing[active] ? previewKind(active) : null;
+  if (active && second && second !== "markdown" && (isPreviewCommand(id) || isEditorCommand(id))) {
+    useUi.getState().endPreview(active);
+    return;
   }
   if (isEditorCommand(id)) runEditorCommand(id);
 }

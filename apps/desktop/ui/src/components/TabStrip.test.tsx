@@ -91,12 +91,25 @@ describe("TabStrip", () => {
       expect(button.className).toContain("on");
     });
 
-    it("is not there for a tab that is not a note", () => {
-      useTabs.setState({ tabs: ["a.md", "x.pdf"], active: "x.pdf" });
-      render(<TabStrip />);
-
+    it("is not there for a tab with nothing else to show", () => {
+      useTabs.setState({ tabs: ["a.md", "x.pdf", "b.txt"], active: "x.pdf" });
+      const { rerender } = render(<TabStrip />);
       expect(screen.queryByLabelText("editor.preview")).toBeNull();
       expect(screen.queryByLabelText("editor.edit")).toBeNull();
+
+      useTabs.setState({ active: "b.txt" });
+      rerender(<TabStrip />);
+      expect(screen.queryByLabelText("editor.preview")).toBeNull();
+    });
+
+    // ADR-0025: a CSV or TSV has its table behind the glyph, an SVG its picture.
+    it("is there for a CSV, a TSV and an SVG", () => {
+      for (const active of ["d.csv", "d.tsv", "i.svg"]) {
+        useTabs.setState({ tabs: [active], active });
+        const { unmount } = render(<TabStrip />);
+        expect(screen.getByLabelText("editor.preview"), active).toBeTruthy();
+        unmount();
+      }
     });
   });
 });
