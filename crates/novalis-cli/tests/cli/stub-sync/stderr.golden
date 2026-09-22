@@ -1,9 +1,0 @@
-{
-  "error": {
-    "candidates": [],
-    "code": "not_implemented",
-    "hint": null,
-    "message": "`sync` is planned in Phase 4",
-    "path": null
-  }
-}

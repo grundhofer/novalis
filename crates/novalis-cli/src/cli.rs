@@ -85,8 +85,8 @@ pub enum Command {
     Card(CardArgs),
     /// Migrate a vault written by the old app. Dry run unless --apply.
     Migrate(MigrateArgs),
-    /// Sync state of the vault (planned in Phase 4).
-    Sync(StubArgs),
+    /// What the sync client left: vault kind, cloud-only files, conflict copies.
+    Sync(SyncArgs),
     /// Print where the agent skill lives (planned in Phase 4).
     Skill(StubArgs),
 }
@@ -559,6 +559,18 @@ pub struct MigrateArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct SyncArgs {
+    #[command(subcommand)]
+    pub command: SyncCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SyncCommand {
+    /// The vault kind, the cloud-only files and the conflict copies. Read-only.
+    Status,
+}
+
+#[derive(Debug, Args)]
 pub struct StubArgs {
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
     pub rest: Vec<String>,
@@ -644,8 +656,15 @@ mod tests {
 
     #[test]
     fn phase_four_stubs_swallow_their_arguments() {
+        let cli = Cli::try_parse_from(["novalis", "skill", "--path"]).unwrap();
+        assert_eq!(cli.command.name(), "skill");
+    }
+
+    #[test]
+    fn sync_has_one_subcommand() {
         let cli = Cli::try_parse_from(["novalis", "sync", "status"]).unwrap();
         assert_eq!(cli.command.name(), "sync");
+        assert!(Cli::try_parse_from(["novalis", "sync"]).is_err());
     }
 
     #[test]

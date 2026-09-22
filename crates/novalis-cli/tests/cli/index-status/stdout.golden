@@ -4,5 +4,6 @@
   "cliVersion": "<VERSION>",
   "files": 63,
   "indexSource": "scan",
-  "stale": false
+  "stale": false,
+  "vault": "<VAULT>"
 }

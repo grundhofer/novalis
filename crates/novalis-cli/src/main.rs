@@ -111,6 +111,7 @@ fn run() -> Result<i32, CliError> {
         Command::Board(args) => finish(&ctx, ops::board::run(&ctx, args)?, &[]),
         Command::Card(args) => finish(&ctx, ops::card::run(&ctx, args)?, &[]),
         Command::Migrate(args) => finish(&ctx, ops::migrate::run(&ctx, args)?, &[]),
+        Command::Sync(args) => finish(&ctx, ops::sync::run(&ctx, args.command)?, &[]),
         Command::Help => {
             if !ctx.json {
                 Cli::command().print_long_help()?;
