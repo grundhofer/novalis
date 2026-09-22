@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { commands, unwrap } from "../ipc/client";
+import { commands, NovalisError, unwrap } from "../ipc/client";
 import { AUTOSAVE_MS, useEditorSave } from "./editorSave";
 import { useUi } from "./ui";
 import { useVault } from "./vault";
@@ -359,6 +359,7 @@ describe("the lazy text mirror (ADR-0022 F7)", () => {
     useEditorSave.getState().attach("a.md", () => buffer);
     const conflict = Object.assign(new Error("conflict"), { conflict: true });
     vi.mocked(unwrap).mockRejectedValueOnce(conflict); // writeFile: precondition failed
+    vi.mocked(unwrap).mockResolvedValueOnce({ text: "theirs" } as never); // readFile: the file is there
     vi.mocked(unwrap).mockImplementationOnce(async () => {
       buffer = "v2";
       useEditorSave.getState().touch("a.md");
@@ -465,3 +466,80 @@ describe("the lazy text mirror (ADR-0022 F7)", () => {
     expect(useEditorSave.getState().flush("a.md")).toBe("second");
   });
 });
+
+// feature-gaps A17: a note deleted elsewhere while it is open. Before, the
+// next autosave hit a missing file, wrote a conflict copy and showed
+// "Changed on disk", whose actions then failed on the missing path.
+describe("useEditorSave.deletedOnDisk", () => {
+  const notFound = () => Object.assign(new NovalisError({ code: "not_found" } as never), { code: "not_found" });
+  beforeEach(() => {
+    vi.mocked(unwrap).mockReset();
+    vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
+    vi.mocked(commands.readFile).mockReset();
+    vi.mocked(commands.writeFile).mockReset();
+    vi.mocked(commands.writeConflictCopy).mockClear();
+    useEditorSave.setState({ docs: {} });
+  });
+
+  it("lets a clean tab go", async () => {
+    vi.mocked(commands.readFile).mockImplementation(() => Promise.reject(notFound()) as never);
+    useEditorSave.setState({ docs: { "a.md": doc("a.md") } });
+
+    expect(await useEditorSave.getState().deletedOnDisk("a.md")).toBe("gone");
+    expect(useEditorSave.getState().docs["a.md"]?.banner).toBeNull();
+  });
+
+  it("keeps unsaved text under the banner, and writes nothing until it is answered", async () => {
+    vi.mocked(commands.readFile).mockImplementation(() => Promise.reject(notFound()) as never);
+    useEditorSave.setState({ docs: { "a.md": { ...doc("a.md"), text: "mine", dirty: true } } });
+
+    expect(await useEditorSave.getState().deletedOnDisk("a.md")).toBe("kept");
+    expect(useEditorSave.getState().docs["a.md"]?.banner).toEqual({ kind: "deletedOnDisk" });
+
+    await useEditorSave.getState().save("a.md");
+    expect(commands.writeFile).not.toHaveBeenCalled();
+    expect(commands.writeConflictCopy).not.toHaveBeenCalled();
+  });
+
+  it("keep mine writes the text as the file again and clears the banner", async () => {
+    vi.mocked(commands.writeFile).mockReturnValue({ mtimeNs: "2", size: "4", hash: "new" } as never);
+    useEditorSave.setState({
+      docs: { "a.md": { ...doc("a.md"), text: "mine", dirty: true, banner: { kind: "deletedOnDisk" } } },
+    });
+
+    await useEditorSave.getState().restoreDeleted("a.md");
+    expect(commands.writeFile).toHaveBeenCalledWith("a.md", "mine", null);
+    expect(useEditorSave.getState().docs["a.md"]).toMatchObject({ banner: null, dirty: false, savedText: "mine" });
+  });
+
+  // Found in the app: the autosave can reach the missing file before the
+  // watcher reports it; that conflict is the deletion too, not a copy.
+  it("turns a save that finds the file gone into the banner, not a conflict copy", async () => {
+    const conflict = Object.assign(new Error("conflict"), { conflict: true });
+    vi.mocked(unwrap).mockRejectedValueOnce(conflict).mockRejectedValueOnce(notFound());
+    useEditorSave.setState({ docs: { "a.md": { ...doc("a.md"), text: "mine", dirty: true } } });
+
+    await useEditorSave.getState().save("a.md");
+    expect(commands.writeConflictCopy).not.toHaveBeenCalled();
+    expect(useEditorSave.getState().docs["a.md"]).toMatchObject({
+      banner: { kind: "deletedOnDisk" },
+      dirty: true,
+      saving: false,
+      writePath: "a.md",
+    });
+  });
+
+  it("treats a file that is back as an ordinary change", async () => {
+    vi.mocked(commands.readFile).mockReturnValue({ text: "body" } as never);
+    const externalChange = vi.fn().mockResolvedValue(undefined);
+    const real = useEditorSave.getState().externalChange;
+    useEditorSave.setState({ docs: { "a.md": doc("a.md") }, externalChange });
+    try {
+      expect(await useEditorSave.getState().deletedOnDisk("a.md")).toBe("kept");
+      expect(externalChange).toHaveBeenCalledWith("a.md");
+    } finally {
+      useEditorSave.setState({ externalChange: real });
+    }
+  });
+});
+
