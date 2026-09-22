@@ -3,12 +3,11 @@ import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBr
 import { commands, NovalisError, unwrap } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
-import { useNotes } from "../stores/notes";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import { CREATABLE_EXTENSIONS } from "./fileTypes";
-import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
+import { fileNameOf, folderOf, isMarkdownFile, joinRel } from "./paths";
 
 /**
  * One dispatcher for every command id in `docs/KEYMAP.md`, plus the menu-only
@@ -27,15 +26,12 @@ async function newNote(folder: string): Promise<void> {
     titleKey: "menu.file.newNote",
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
-    // What a typed extension does (ADR-0014), and which ones count.
-    hint: {
-      key: "tree.newNoteHint",
-      values: { extensions: [...CREATABLE_EXTENSIONS].sort().map((e) => `.${e}`).join(" ") },
-    },
+    // What a typed extension does (ADR-0014): the table is too long to list.
+    hint: { key: "tree.newNoteHint" },
     submit: async (name) => {
       const entry = await unwrap(commands.createNote(folder, name));
       await useVault.getState().reload(folder);
-      await useNotes.getState().refresh();
+      await useFiles.getState().refresh();
       await useTabs.getState().open(entry.path);
     },
   });
@@ -78,7 +74,7 @@ async function todayNote(): Promise<void> {
     const vault = useVault.getState();
     if (!vault.children[""]?.some((e) => e.path === JOURNAL_FOLDER)) await vault.reload("");
     await vault.reload(JOURNAL_FOLDER);
-    await useNotes.getState().refresh();
+    await useFiles.getState().refresh();
   } catch (error) {
     // `create_atomic` is mkdir -p plus RENAME_EXCL, so `already_exists` is
     // exact — the note is there — and there is no pre-check to race with.
@@ -103,7 +99,7 @@ async function renameTo(from: string, target: string): Promise<void> {
   const toFolder = folderOf(target);
   await vault.reload(fromFolder);
   if (toFolder !== fromFolder) await vault.reload(toFolder);
-  await useNotes.getState().refresh();
+  await useFiles.getState().refresh();
 }
 
 async function renamePath(path: string): Promise<void> {
@@ -143,7 +139,7 @@ async function trashPath(path: string): Promise<void> {
       const tabs = useTabs.getState();
       if (tabs.tabs.includes(path)) await tabs.close(path);
       await useVault.getState().reload(folderOf(path));
-      await useNotes.getState().refresh();
+      await useFiles.getState().refresh();
     },
   });
 }
@@ -159,7 +155,7 @@ async function openVault(): Promise<void> {
   // at the next start against a vault that may not have it.
   useUi.getState().setActiveBoard(null);
   useTabs.getState().restore([], null);
-  await useNotes.getState().refresh();
+  await useFiles.getState().refresh();
 }
 
 async function newBoard(): Promise<void> {
@@ -237,10 +233,11 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "note.togglePreview": () => {
-    // Only a note has a rendered form (ADR-0020); a PDF or an image is
-    // already the viewer, and a `.txt` has nothing to render.
+    // Only Markdown has a rendered form (ADR-0020; `.markdown` too, ADR-0022
+    // point 6); a PDF or an image is already the viewer, and a `.txt` has
+    // nothing to render.
     const active = useTabs.getState().active;
-    if (!active || !isNote(active)) return;
+    if (!active || !isMarkdownFile(active)) return;
     // The preview renders the mirror; the editor's buffer may be ahead of it
     // until the editor unmounts, which is after the preview's first render.
     useEditorSave.getState().flush(active);

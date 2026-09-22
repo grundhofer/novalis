@@ -131,7 +131,7 @@ No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question. State that i
 
 ### 4.2 Hard-coded defaults that would otherwise be settings (confirm or change the value)
 
-Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner).
+Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch for prose; code and data files run full width in Geist Mono with line numbers, indentation guides and no spellcheck (ADR-0022) · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner). Projects do not belong in a vault: `node_modules`, `target`, `build` and the like are listed like any folder, because they can hold notes and plain files are the truth — there is no folder denylist in the walker (ADR-0022).
 
 ### 4.3 Sublime/GFM baseline that the plan treats as part of "text editor" and "Markdown", listed so you see it before code exists
 
@@ -144,7 +144,7 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Tags as search filter / palette (frontmatter `tags:` and inline `#tags`; no tree panel) | editor-scope | **yes, v1** | Every old vault already carries tags; core of "organizing" |
 | Backlinks list for the open note (shows "cards linking here" too) | editor-scope, kanban | **yes, v1** | Data is free from the cache |
 | `[[` and `#` autocompletion | editor-scope | yes, v1 | Writing ergonomics; cheap with the cache |
-| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
+| Read-only rendered Markdown preview (`Cmd-E`) | editor-scope | yes, built 2026-09-15 (ADR-0020); fences highlighted 2026-09-21 (ADR-0022 point 8) | Reading long notes and tables; rendered by Rust `pulldown-cmark`, no editor impact |
 | Hide-syntax live preview mode (Obsidian style) | stack | no | Most expensive editor feature; conflicts with multi-cursor |
 | Split view / board + note split (two panes) | editor-scope, design | no (D21) | Adds a pane-focus model; L5 mockup shows what it would be |
 | Folding, typewriter/focus mode, minimap, vim | editor-scope | no | Modes with own state |
@@ -426,14 +426,21 @@ Resolution of `[[X]]`: X is matched case-insensitively against file stems (after
 
 ### 7.3 File types
 
-| Tier | Extensions | Grammar |
-|---|---|---|
-| A (Lezer) | `md markdown` · `txt text` (none) · `json map` · `yaml yml` · `toml` (legacy stream) · `xml svg` · `html htm` · `css` · `js mjs cjs jsx ts mts cts tsx` · `py` · `rs` | `@codemirror/language-data`, lazy |
-| B (legacy stream) | `sh bash zsh` · `ini conf cfg properties env` · `swift` · `Dockerfile` | `@codemirror/legacy-modes` |
-| C (plain) | `csv tsv log gitignore LICENSE Makefile` | none; csv/tsv open with wrap off and line numbers on, not a table editor |
-| D (view, ADR-0015/0016) | `pdf png jpg jpeg gif webp` | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
+The table is the shell's `apps/desktop/src-tauri/src/file_types.rs` (ADR-0022), written to `ui/src/lib/fileTypes.generated.ts` by the bindings export and diffed by CI; the UI derives the tree filter, the New Note rule and the viewer routing from it, and dresses each row (`fileTypes.presentation.ts`: preset and grammar name, checked against the installed `@codemirror/language-data` table). What is listed is what opens; the row's grammar is looked up by name, never by path. This is the table as shipped (docs/research/2026-09-20-formats-plan.md §3.1, plus the prose bundle of its question 4):
 
-Stop there — until ADR-0022 (2026-09-20): the list widens to ≈93 extensions and ≈21 names, and this section is rewritten from the table when that lands (docs/research/2026-09-20-formats-plan.md §3). The table is the shell's `file_types.rs`, written to `ui/src/lib/fileTypes.generated.ts` by the bindings export and diffed by CI; the UI derives the tree filter, the New Note rule and the viewer routing from it. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner. The app's New Note dialog creates any of the tier A–C types when the typed name carries the extension (`notes.txt`, `config.json`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
+| Kind | Extensions and names | Editor | Grammar |
+|---|---|---|---|
+| Note | `md` | prose | Markdown with frontmatter, `[[`, `#tags` — the only note (cache, links, CLI) |
+| Prose | `markdown mkd mdx rmd qmd` · `txt text` · `rst adoc org textile srt vtt` · `tex ltx` · `LICENSE README CHANGELOG CONTRIBUTING AUTHORS NOTICE COPYING VERSION TODO CODEOWNERS` | prose (wrap, no numbers, Inter, spellcheck) | Markdown with its bundle for `markdown mkd mdx rmd qmd` (files, not notes); LaTeX for `tex ltx`; the rest plain |
+| Data | `json json5 jsonc` · `yaml yml` · `toml` · `xml xsl xsd plist svg` · `csv tsv log` · `diff patch` · `bib` · `ini properties cfg env conf` | data (mono, numbers, indent detected, 2 by default) | JSON, YAML, TOML, XML, diff, Properties files; `*nginx*.conf` Nginx; `csv tsv log bib conf` plain — csv/tsv are not a table editor |
+| Web | `html htm` · `css scss sass less` · `js mjs cjs jsx` · `ts mts cts tsx` · `vue` | code2 | HTML, CSS/SCSS/Sass/LESS, JavaScript/JSX, TypeScript/TSX, Vue |
+| Scripts, shells | `py` · `rb` `Gemfile` `Rakefile` · `pl pm` · `php` · `lua` · `tcl` · `ps1` · `sh bash zsh` | code4 (py pl pm php tcl ps1 sh bash zsh), code2 (rb lua) | Python, Ruby, Perl, PHP, Lua, Tcl, PowerShell, Shell |
+| Systems, JVM, .NET | `c h` · `cpp cc cxx hpp hh hxx` · `rs` · `go` · `swift` · `java` · `kt kts` · `scala` · `cs` · `groovy gradle` `Jenkinsfile` | code4; `go` codeT (tab); `scala` code2 | C, C++, Rust, Go, Swift, Java, Kotlin, Scala, C#, Groovy |
+| Mobile, functional, Lisp, science, data | `dart` · `hs` · `ml mli` · `elm` · `erl` · `clj cljs edn` · `lisp el` · `scm` · `r` · `jl` · `sql` · `proto` | code2; `elm erl jl` code4 | Dart, Haskell, OCaml, Elm, Erlang, Clojure, Common Lisp, Scheme, R, Julia, SQL, ProtoBuf |
+| Build | `dockerfile` `Dockerfile` `Containerfile` `Dockerfile.*` · `cmake` `CMakeLists.txt` · `Makefile GNUmakefile makefile` `mk` · `Justfile justfile` | code2; make and just codeT (a tab is syntax) | Dockerfile, CMake; make and just plain |
+| View (ADR-0015/0016) | `pdf png jpg jpeg gif webp` | viewer, read-only | none for images (`<img>`); PDF through pdf.js on a canvas with the app's own page/zoom bar and selectable text, no annotation |
+
+Not listed, until someone asks (the plan's §3.3, ADR-0022): media, archives, binaries, databases, lock files, secrets, fonts, cloud stubs, build output including source maps (`map` left the list on 2026-09-20), one-letter and numeric extensions, the ambiguous `m`, template dialects, variant spellings. Dotfiles are hidden by the core. No tree-sitter (WASM per grammar, no maintained CM6 binding). UTF-8 only; a file that is not valid UTF-8 opens read-only with a banner, a file with a NUL in its first 8 KiB opens read-only as binary. The app's New Note dialog creates any text type when the typed name carries its extension (`notes.txt`, `config.json`, `main.go`); any other or no extension gets `.md` (ADR-0014), and the dialog says so. The tree lists only the types in this table (ADR-0015); anything else in the folder is left alone and not drawn.
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
@@ -519,7 +526,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `meta <note>` | `--set k=v`, `--unset k`, `--add-tag`, `--rm-tag`; `--if-match` | `{path,frontmatter,sha256After}` | line-level YAML text edit of named keys, strict parse first, unknown keys preserved (D22) |
 | `mv <from> <to>` | `--no-relink`, `--force`, `--materialize` | `{from,to,relinked:[{path,count}],cardsUpdated:[{board,id}],conflicts:[path],cloudOnlySkipped:[path]}` | `RENAME_EXCL` rename, then relink of all forms; exit 5 if `cloudOnlySkipped` or (`--no-relink` with backlinks) without `--force` |
 | `rm <note>` | `--force`, `--materialize` | `{path,danglingBacklinks:[path],cloudOnly}` | macOS Trash (`NsFileManager`); exit 5 if `danglingBacklinks` non-empty without `--force`; cloud-only → materialize or exit 8 |
-| `search <query>` | `--tag`, `--folder`, `--limit 50`, `--snippets` | `{items:[{path,line,snippet}],truncated,cloudOnlySkipped:N}` | on-demand scan |
+| `search <query>` | `--tag`, `--folder`, `--limit 50`, `--snippets`, `--all-files` | `{items:[{path,line,snippet}],truncated,cloudOnlySkipped:N,notUtf8Skipped:N}` | on-demand scan over notes; `--all-files` every regular file, unfiltered (ADR-0022) |
 | `links <note>` / `links --unresolved` / `links --orphans` | `--backlinks`, `--outgoing` | `{outgoing:[{target,form,line,resolvedPath}],backlinks:[{path,line}],cards:[{board,id,title,column}]}` / `{items:[{target,form,sources:[{path,line}]}]}` / `{items:[path]}` | cache |
 | `tags` | `--limit` | `{items:[{tag,count}]}` | cache |
 | `relink <from> <to>` | `--force`, `--materialize` | `{rewritten:[{path,count}],cardsUpdated,conflicts,cloudOnlySkipped}` | `<from>` is a **literal link target string** (wikilink text or Markdown path, case-insensitive, percent-decoded, not required to resolve); `<to>` must resolve; rewrites `[[from]]`, `[[from\|l]]`, `[[from#h]]`, `[text](from)` and card `notes[]` |
@@ -591,7 +598,7 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Window visible (first paint) after launch | ≤ 300 ms, **provisional**: measured so far is 166–231 ms to the `setup()` callback with a hidden window; Spike C measures first paint with `--exit-after-first-frame` and re-sets this row |
 | Tree interactive, 10k-note vault, warm disk | ≤ 500 ms, independent of the cache |
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
-| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB |
+| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB; the Preview chunk plus its static, non-eager imports ≤ 8 KB gzip (ADR-0022 point 8: it reaches CodeMirror only by `import()`) |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
 | Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string); measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
 | Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on; measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |

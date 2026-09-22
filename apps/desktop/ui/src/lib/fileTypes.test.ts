@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CREATABLE_EXTENSIONS, isSupported, kindOf, MIME, mimeOf, VIEW_EXTENSIONS, viewKind } from "./fileTypes";
+import { isSupported, kindOf, MIME, mimeOf, VIEW_EXTENSIONS, viewKind } from "./fileTypes";
 import { EXTENSION_KINDS } from "./fileTypes.generated";
 
 describe("fileTypes", () => {
@@ -14,8 +14,6 @@ describe("fileTypes", () => {
       .sort();
     expect(Object.keys(VIEW_EXTENSIONS).sort()).toEqual(viewRows);
     expect(Object.keys(MIME).sort()).toEqual(viewRows);
-    expect(CREATABLE_EXTENSIONS).not.toContain("pdf");
-    expect(CREATABLE_EXTENSIONS).toContain("md");
     expect(kindOf("a.md")).toBe("note");
     expect(kindOf("a.markdown")).toBe("text");
     expect(kindOf("Makefile")).toBe("text");
@@ -23,13 +21,52 @@ describe("fileTypes", () => {
     expect(kindOf("a.wav")).toBeNull();
   });
 
+  // The list is the plan's §3.1 (ADR-0022 point 2): its §3.3 names what is
+  // never listed — media, archives, source maps, one-letter and numeric
+  // extensions, the ambiguous `.m` — and stays out until someone asks.
   it("lists the §7.3 text types and the tier-D viewer types, nothing else", () => {
-    for (const path of ["a.md", "notes/b.txt", "c.json", "Notes.TXT", "d.pdf", "e.PNG", "Makefile", "sub/LICENSE"]) {
+    for (const path of [
+      "a.md",
+      "notes/b.txt",
+      "c.json",
+      "Notes.TXT",
+      "d.pdf",
+      "e.PNG",
+      "Makefile",
+      "sub/LICENSE",
+      "README",
+      "docs/CHANGELOG",
+      "main.go",
+      "a.tex",
+      "notes.org",
+      "Gemfile",
+      "build/Dockerfile.dev",
+      "Containerfile",
+      "justfile",
+      "x.diff",
+      "index.php",
+    ]) {
       expect(isSupported(path), path).toBe(true);
     }
-    for (const path of ["song.wav", "clip.mp4", "book.epub", "archive.zip", "README", "x.docx", "constructor", "a.toString"]) {
+    for (const path of [
+      "song.wav",
+      "clip.mp4",
+      "book.epub",
+      "archive.zip",
+      "x.docx",
+      "app.js.map",
+      "matrix.m",
+      "boot.s",
+      "syslog.1",
+      "readme",
+      "Dockerfile.",
+      "Dockerfiles",
+      "constructor",
+      "a.toString",
+    ]) {
       expect(isSupported(path), path).toBe(false);
     }
+    expect(kindOf("Dockerfile.md")).toBe("note");
   });
 
   it("tells the viewer types apart from text", () => {

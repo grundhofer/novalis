@@ -48,6 +48,10 @@ export default defineConfig({
     environment: "jsdom",
     globals: false,
     include: ["src/**/*.test.{ts,tsx}"],
+    // A stylesheet is an empty module here — except read as text (`?raw`),
+    // which a parity test does with the preview's fence rules; vitest would
+    // stub that too.
+    css: { include: [/\.css\?raw$/] },
     setupFiles: ["src/test/setup.ts"],
     restoreMocks: true,
   },

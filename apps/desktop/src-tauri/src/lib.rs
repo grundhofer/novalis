@@ -37,7 +37,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::open_vault_dialog,
             commands::open_vault,
             commands::list_dir,
-            commands::list_notes,
+            commands::list_files,
             commands::read_file,
             commands::read_blob,
             commands::write_blob,
