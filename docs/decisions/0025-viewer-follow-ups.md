@@ -4,8 +4,10 @@ Date: 2026-09-20
 
 ## Status
 
-Accepted; not yet built, each item its own small pull request after the
-ADR-0022 phases, none of them a prerequisite for ADR-0023/0024. Amends
+Accepted; each item its own small pull request after the ADR-0022
+phases, none of them a prerequisite for ADR-0023/0024. Built: item 1
+(`heic heif avif`, checked in `just dev` on 2026-09-22). Not yet built:
+items 2–4. Amends
 ADR-0015 (image types; `svg` "stays XML text"), ADR-0016 ("one page,
 previous/next, zoom, fit width" was the asked scope), ADR-0020 ("a preview
 for anything but Markdown: not built") and ADR-0008 (a `viewer` keymap
@@ -33,7 +35,12 @@ rendered SVG yes, both read-only behind the existing eye glyph.
 1. **Images `heic heif avif`** join tier D once a check in `just dev`
    shows WebKit decodes them in the app's WebView (they are rows in
    `file_types.rs` plus MIME entries; nothing else). `bmp`, `tiff`, `ico`
-   stay out.
+   stay out. *Checked 2026-09-22* in `just dev` (macOS 26): a 640×400 and a
+   4032×3024 HEIC and AVIF written by `sips`, and the same HEIC renamed
+   `.heif`, each show in the image viewer and in the ⌘E preview of a note
+   that embeds them. Only macOS 26 was checked; the app's floor, macOS 14,
+   was not. Attachments (ADR-0017) and CBZ pages (ADR-0023) keep
+   their own five types; this item widens neither.
 2. **PDF (ADR-0016 amendment)**: an outline popover from
    `doc.getOutline()` + `getPageIndex(dest)` — the same popover the EPUB
    reader uses for its table of contents (ADR-0023) — and keyboard paging

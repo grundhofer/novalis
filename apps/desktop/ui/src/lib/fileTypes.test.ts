@@ -48,6 +48,9 @@ describe("fileTypes", () => {
       "books/book.epub",
       "comics/issue.cbz",
       "briefe/brief.docx",
+      "fotos/IMG_0001.HEIC",
+      "still.heif",
+      "cover.avif",
     ]) {
       expect(isSupported(path), path).toBe(true);
     }
@@ -55,6 +58,10 @@ describe("fileTypes", () => {
       "song.wav",
       "clip.mp4",
       "archive.zip",
+      // ADR-0025: these three stay out.
+      "scan.bmp",
+      "scan.tiff",
+      "favicon.ico",
       // Word's lock file beside an open document (ADR-0024).
       "~$brief.docx",
       "briefe/~$brief.docx",
@@ -79,6 +86,8 @@ describe("fileTypes", () => {
     expect(viewKind("a.EPUB")).toBe("epub");
     expect(viewKind("a.cbz")).toBe("cbz");
     expect(viewKind("a.DOCX")).toBe("docx");
+    expect(viewKind("IMG_0001.HEIC")).toBe("image");
+    expect(viewKind("a.avif")).toBe("image");
     expect(viewKind("a.svg")).toBeNull();
     expect(viewKind("a.md")).toBeNull();
     expect(mimeOf("a.pdf")).toBe("application/pdf");
@@ -86,5 +95,8 @@ describe("fileTypes", () => {
     expect(mimeOf("a.epub")).toBe("application/epub+zip");
     expect(mimeOf("a.cbz")).toBe("application/vnd.comicbook+zip");
     expect(mimeOf("a.docx")).toContain("wordprocessingml.document");
+    expect(mimeOf("a.heic")).toBe("image/heic");
+    expect(mimeOf("a.heif")).toBe("image/heif");
+    expect(mimeOf("a.avif")).toBe("image/avif");
   });
 });

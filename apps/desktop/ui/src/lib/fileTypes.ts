@@ -33,6 +33,9 @@ export const VIEW_EXTENSIONS: Readonly<Record<string, ViewKind>> = {
   jpeg: "image",
   gif: "image",
   webp: "image",
+  heic: "image",
+  heif: "image",
+  avif: "image",
 };
 
 /** The MIME type the viewer hands the WebView for a tier-D file. */
@@ -46,6 +49,9 @@ export const MIME: Readonly<Record<string, string>> = {
   jpeg: "image/jpeg",
   gif: "image/gif",
   webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  avif: "image/avif",
 };
 
 /** The table's patterns over the file name (`Dockerfile.dev`), compiled once. */

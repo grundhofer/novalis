@@ -198,7 +198,7 @@ pub const FILE_TYPES: &[FileType] = &[
     name("VERSION", Kind::Text),
     name("TODO", Kind::Text),
     name("CODEOWNERS", Kind::Text),
-    // View (ADR-0015/0016, ADR-0023)
+    // View (ADR-0015/0016, ADR-0023, ADR-0025)
     ext("pdf", Kind::View),
     ext("epub", Kind::View),
     ext("cbz", Kind::View),
@@ -208,6 +208,9 @@ pub const FILE_TYPES: &[FileType] = &[
     ext("jpeg", Kind::View),
     ext("gif", Kind::View),
     ext("webp", Kind::View),
+    ext("heic", Kind::View),
+    ext("heif", Kind::View),
+    ext("avif", Kind::View),
 ];
 
 /// Name prefixes the app never lists, whatever their extension says. Word
