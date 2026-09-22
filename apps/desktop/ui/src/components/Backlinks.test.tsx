@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, unwrap } from "../ipc/client";
 import { deferLine, goToEditorLine, takeDeferredLine } from "../lib/editorBridge";
+import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
+import { useUi } from "../stores/ui";
 import Backlinks from "./Backlinks";
 
 vi.mock("react-i18next", () => ({
@@ -73,6 +75,24 @@ describe("Backlinks", () => {
 
     expect(screen.getByText("Ship the bundle")).toBeTruthy();
     expect(screen.getByText("Plan")).toBeTruthy();
+  });
+
+  // feature-gaps A20: the pane draws `useBoard.board`, which a click that
+  // only showed the pane left at whatever board was loaded last.
+  it("shows the card's board and loads it", async () => {
+    const load = vi.fn().mockResolvedValue(undefined);
+    useBoard.setState({ load });
+    answer({
+      notes: [],
+      cards: [{ board: "plan", boardName: "Plan", id: "c1", title: "Ship the bundle" }],
+      indexed: true,
+    });
+    render(<Backlinks />);
+    await flush();
+
+    fireEvent.click(screen.getByText("Ship the bundle"));
+    expect(useUi.getState().activeBoard).toBe("plan");
+    expect(load).toHaveBeenCalledWith("plan");
   });
 
   it("counts notes and cards separately", async () => {

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useBoard } from "../stores/board";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import BoardPane from "./BoardPane";
@@ -55,6 +56,7 @@ describe("BoardPane", () => {
     });
     useTabs.setState({ active: null, tabs: [] });
     useUi.setState({ prompt: null, boardVisible: true });
+    useFiles.setState({ files: ["Roadmap.md", "Spec.md"], loaded: true });
   });
 
   it("renders every column and card", () => {
@@ -317,5 +319,34 @@ describe("BoardPane", () => {
       render(<BoardPane />);
       expect(screen.queryByRole("status")).toBeNull();
     });
+  });
+
+  // feature-gaps A21: D21 "a card opens its note", per chip — not only the
+  // first — and a chip whose note is gone says so instead of failing.
+  it("opens any linked note from its chip, and dims one that is gone", () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open });
+    useBoard.setState({
+      board: { ...board, cards: [card("c1", "Write the spec", "todo", ["Roadmap.md", "Spec.md", "Gone.md"])] } as never,
+    });
+    render(<BoardPane />);
+
+    fireEvent.click(screen.getByText("Spec"));
+    expect(open).toHaveBeenCalledWith("Spec.md");
+    expect(open).toHaveBeenCalledTimes(1);
+
+    const gone = screen.getByText("Gone");
+    expect(gone.tagName).toBe("SPAN");
+    expect(gone.getAttribute("title")).toBe("board.noteMissing");
+    expect(gone.closest(".card-note")?.className).toContain("missing");
+    fireEvent.click(gone);
+    // The click falls through to the card, which opens its first note.
+    expect(open).not.toHaveBeenCalledWith("Gone.md");
+  });
+
+  it("marks nothing missing before the file list has loaded", () => {
+    useFiles.setState({ files: [], loaded: false });
+    render(<BoardPane />);
+    expect(document.querySelector(".card-note.missing")).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { commands, events, unwrap, type BacklinksDto } from "../ipc/client";
 import { openAt } from "../lib/openAt";
+import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
@@ -85,7 +86,10 @@ export default function Backlinks() {
             type="button"
             key={`${card.board}/${card.id}`}
             onClick={() => {
+              // Showing the pane is not enough: it draws whatever board was
+              // loaded last, under this card's board's name.
               useUi.getState().setActiveBoard(card.board);
+              void useBoard.getState().load(card.board).catch(report);
             }}
           >
             <span className="backlink-glyph card" aria-hidden="true" />
