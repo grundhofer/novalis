@@ -77,11 +77,11 @@ jobs:
       # with rust-toolchain.toml when bumping.
       #
       # The SHA is master's head, not a tag: this action's only tag (`v1`) is
-      # stale. Dependabot cannot map a branch SHA to a version, so this pin is
-      # maintained by hand — re-resolve with
-      # `gh api repos/dtolnay/rust-toolchain/commits/master --jq .sha`.
+      # stale. Dependabot bumps the SHA but cannot annotate it with a version,
+      # so the `master @ date` comment is maintained by hand — check the date with
+      # `gh api repos/dtolnay/rust-toolchain/commits/<sha> --jq .commit.committer.date`.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master @ 2026-08-05
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master @ 2026-09-12
         with:
           toolchain: "1.96.0"
           components: rustfmt, clippy
