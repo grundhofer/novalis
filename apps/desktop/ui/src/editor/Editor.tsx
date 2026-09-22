@@ -89,7 +89,9 @@ export default function Editor({
         }),
       });
       view = created;
-      read = () => created.state.doc.toString();
+      // `sliceDoc()`, not `doc.toString()`: it joins with the file's own line
+      // break (`editor/lineBreak.ts`), which `toString()` always makes `\n`.
+      read = () => created.state.sliceDoc();
       useEditorSave.getState().attach(path, read);
       setActiveView(view);
       view.focus();
