@@ -64,7 +64,9 @@ const BOOK: Record<string, string> = {
       <img src="../images/moon.png" alt="The moon"/>
       <p><a href="ch2.xhtml">Read on</a> or <a href="https://example.com">leave</a>.</p>
     </body></html>`,
-  "OEBPS/text/ch2.xhtml": `<html xmlns="http://www.w3.org/1999/xhtml"><body>
+  "OEBPS/text/ch2.xhtml": `<?xml version="1.0" encoding="UTF-8"?>
+    <html xmlns="http://www.w3.org/1999/xhtml"><head><title/>
+      <link rel="stylesheet" href="epub.css"/></head><body>
       <h1>The second night</h1><p>It rained.</p></body></html>`,
   "OEBPS/images/moon.png": "PNG-BYTES",
 };
@@ -176,6 +178,21 @@ describe("EpubViewer", () => {
     expect(screen.queryByText("The second night")).toBeNull();
   });
 
+  it("closes the contents on Escape and on a click somewhere else", async () => {
+    render(<EpubViewer path="books/moon.epub" />);
+    await flush();
+
+    fireEvent.click(screen.getByText("viewer.epub.contents"));
+    expect(screen.queryByText("The second night")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("The second night")).toBeNull();
+
+    fireEvent.click(screen.getByText("viewer.epub.contents"));
+    expect(screen.queryByText("The second night")).toBeTruthy();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText("The second night")).toBeNull();
+  });
+
   it("numbers the chapters when the book has no table of contents", async () => {
     const withoutToc = { ...BOOK };
     delete withoutToc["OEBPS/nav.xhtml"];
@@ -204,7 +221,32 @@ describe("EpubViewer", () => {
     expect(useUi.getState().toast?.key).toBe("editor.previewExternalLink");
   });
 
-  it("says that a copy-protected book cannot be opened, without a toast", async () => {
+  // An HTML parser reads a self-closing `<title/>` as unclosed RAWTEXT and
+  // swallows the whole chapter into it; the second chapter is written that
+  // way, as real EPUB tools write it.
+  it("reads a chapter as the XHTML it is", async () => {
+    const { container } = render(<EpubViewer path="books/moon.epub" />);
+    await flush();
+    fireEvent.click(screen.getByLabelText("viewer.epub.nextChapter"));
+    await flush();
+
+    expect(chapter(container).textContent).toContain("It rained.");
+  });
+
+  it("still shows the text of a chapter that is not well formed", async () => {
+    const broken = {
+      ...BOOK,
+      "OEBPS/text/ch1.xhtml": "<html><body><p>Unclosed<br>and <b>bold</p></body></html>",
+    };
+    vi.mocked(commands.readPacked).mockImplementation(reply(broken));
+    const { container } = render(<EpubViewer path="books/moon.epub" />);
+    await flush();
+
+    expect(chapter(container).textContent).toContain("Unclosed");
+    expect(chapter(container).textContent).toContain("bold");
+  });
+
+  it("says that a copy-protected book cannot be opened, without a toast", async () =>{
     vi.mocked(commands.readPacked).mockRejectedValue(new FakeError("protected"));
     render(<EpubViewer path="books/drm.epub" />);
     await flush();

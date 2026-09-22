@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
@@ -106,6 +106,23 @@ async function openBook(path: string): Promise<Book | Refusal> {
 }
 
 /**
+ * A chapter's document, parsed inert — no script runs in it, no resource of
+ * it loads.
+ *
+ * As XHTML first, which is what EPUB mandates and what these files are: an
+ * HTML parser reads the `<title/>` that XHTML tools write as an *unclosed*
+ * RAWTEXT element and swallows the rest of the book into it, so a perfectly
+ * good chapter comes out with an empty body. Only when the XML will not
+ * parse is HTML the better answer: a book that is not well formed should
+ * still show its text rather than a parser error.
+ */
+function parseChapter(xhtml: string): Document {
+  const xml = new DOMParser().parseFromString(xhtml, "application/xhtml+xml");
+  if (xml.getElementsByTagName("parsererror").length === 0) return xml;
+  return new DOMParser().parseFromString(xhtml, "text/html");
+}
+
+/**
  * The chapter's prose. The book's own stylesheets are not loaded (they
  * would bring fonts and remote URLs with them), so this is the whole dress
  * the text gets, and it follows the app's tokens in both appearances.
@@ -152,6 +169,8 @@ export default function EpubViewer({ path }: { path: string }) {
   const [contentsOpen, setContentsOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const contents = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
 
   // ---- the book ------------------------------------------------------------
   // Nothing is reset here: `Viewer` keys this component by path, so another
@@ -205,11 +224,8 @@ export default function EpubViewer({ path }: { path: string }) {
       body.className = "body";
 
       if (xhtml !== null) {
-        // `text/html` and not `application/xhtml+xml`: a book whose XHTML is
-        // not well formed would otherwise show a parser error instead of its
-        // text, and the copy below cares about elements, not about syntax.
-        const parsed = new DOMParser().parseFromString(xhtml, "text/html");
-        body.append(sanitizeInto(parsed.body, document));
+        const parsed = parseChapter(xhtml);
+        body.append(sanitizeInto(parsed.body ?? parsed.documentElement, document));
 
         const images = [...body.querySelectorAll<HTMLImageElement>("img[data-src]")];
         const wanted = [
@@ -246,6 +262,28 @@ export default function EpubViewer({ path }: { path: string }) {
     };
   }, [book, chapter, path]);
 
+  // ---- the contents popover ------------------------------------------------
+  // Escape closes it, and so does a click anywhere else — the toggle excepted,
+  // which would otherwise close it on the way down and open it again on the
+  // way up.
+  useEffect(() => {
+    if (!contentsOpen) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setContentsOpen(false);
+    };
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (contents.current?.contains(target) || toggle.current?.contains(target)) return;
+      setContentsOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [contentsOpen]);
+
   const count = book?.spine.length ?? 0;
   const goTo = (next: number) => {
     if (count === 0) return;
@@ -256,7 +294,7 @@ export default function EpubViewer({ path }: { path: string }) {
   // ---- links ---------------------------------------------------------------
   // A click inside the shadow root reaches the host retargeted, so the
   // anchor is found on the composed path and not on the event's target.
-  const onClick = (event: MouseEvent<HTMLDivElement>) => {
+  const onClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     const anchor = event.nativeEvent
       .composedPath()
       .find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
@@ -311,6 +349,7 @@ export default function EpubViewer({ path }: { path: string }) {
         <button
           className={contentsOpen ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
           type="button"
+          ref={toggle}
           aria-expanded={contentsOpen}
           onClick={() => setContentsOpen((open) => !open)}
         >
@@ -343,7 +382,7 @@ export default function EpubViewer({ path }: { path: string }) {
         </button>
       </header>
       {contentsOpen && (
-        <nav className="epub-contents" aria-label={t("viewer.epub.contents")}>
+        <nav className="epub-contents" ref={contents} aria-label={t("viewer.epub.contents")}>
           <ul className="epub-contents-list">
             {rows.map((row) => (
               <li key={row.index}>
