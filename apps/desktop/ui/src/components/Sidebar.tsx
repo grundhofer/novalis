@@ -310,6 +310,14 @@ export default function Sidebar() {
                     {t("tree.cloudOnly")}
                   </span>
                 )}
+                {/* A sync client's conflict copy, findable where it lies; the
+                    tooltip names the note it shadows. Rename or Move to Trash
+                    from the context menu resolves it (PLAN.md §5.3, stage 0). */}
+                {entry.conflictCopyOf && (
+                  <span className="badge badge-conflict" title={entry.conflictCopyOf}>
+                    {t("tree.conflictCopy")}
+                  </span>
+                )}
                 {entry.boardSlug ? (
                   <span className="meta">{t("tree.board")}</span>
                 ) : (
