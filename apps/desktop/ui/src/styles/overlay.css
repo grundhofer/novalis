@@ -157,3 +157,10 @@
   font-size: var(--ds-font-size-mono-sm);
   color: var(--ds-color-fg-muted);
 }
+
+/* The part of a result that matched the query (search, quick-open, the
+   palette): the editor's match colour, as the preview's find marks. */
+.result-label mark.match {
+  background: var(--ds-color-editor-match);
+  color: inherit;
+}
