@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 
+import { folderOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report } from "../stores/ui";
 import { useVault } from "../stores/vault";
@@ -40,6 +42,41 @@ export default function Banner() {
             onClick={() => void store.keepMine(active, vaultKind).catch(report)}
           >
             {t("banner.replacedBySync.restoreMine")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (doc.banner.kind === "deletedOnDisk") {
+    return (
+      <div className="banner banner-warning" role="alert">
+        <span className="banner-title">{t("banner.deletedOnDisk.title")}</span>
+        <div className="banner-actions">
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => {
+              // The buffer goes with the tab: closing saves first, and the
+              // save refuses while this banner stands — the file stays gone.
+              void useTabs.getState().close(active).catch(report);
+            }}
+          >
+            {t("banner.deletedOnDisk.close")}
+          </button>
+          <button
+            className="btn primary"
+            type="button"
+            onClick={() => {
+              // The watcher does not report the app's own writes, so the tree
+              // and the file list learn of the file again from here.
+              void store
+                .restoreDeleted(active)
+                .then(() => Promise.all([useVault.getState().reload(folderOf(active)), useFiles.getState().refresh()]))
+                .catch(report);
+            }}
+          >
+            {t("banner.deletedOnDisk.keepMine")}
           </button>
         </div>
       </div>
