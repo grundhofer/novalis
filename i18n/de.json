@@ -201,7 +201,6 @@
   "menu.window.title": "Fenster",
   "palette.cmd.appearance": "Erscheinungsbild: {{value}}",
   "palette.cmd.downloadCloudOnly": "Alle Nur-Online-Notizen herunterladen",
-  "palette.cmd.filterByTag": "Nach Tag filtern…",
   "palette.cmd.gotoHeading": "Zu Überschrift springen…",
   "palette.cmd.hideBacklinks": "Rückverweise ausblenden",
   "palette.cmd.language": "Sprache: {{value}}",

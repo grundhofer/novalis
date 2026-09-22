@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { commands, unwrap } from "../ipc/client";
 import { dispatchCommand, paletteCommands } from "../lib/commands";
 import { goToEditorLine } from "../lib/editorBridge";
 import { previewKind } from "../lib/fileTypes";
@@ -30,6 +31,7 @@ import Marked from "./Marked";
 
 type Entry =
   | { kind: "file"; path: string }
+  | { kind: "tag"; tag: string; count: number }
   | { kind: "board"; slug: string; name: string }
   | { kind: "command"; id: string; label: string }
   | { kind: "heading"; line: number; text: string };
@@ -39,6 +41,7 @@ const SECTION_KEY: Record<Entry["kind"], string> = {
   board: "palette.section.boards",
   command: "palette.section.commands",
   heading: "palette.section.headings",
+  tag: "palette.section.tags",
 };
 
 /**
@@ -69,6 +72,24 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
   const input = useRef<HTMLInputElement | null>(null);
   const files = useFiles((s) => s.files);
   const boards = useBoard((s) => s.boards);
+  const [tags, setTags] = useState<readonly { tag: string; count: number }[]>([]);
+
+  // The vault's tags, once per palette (they come from the cache): each is an
+  // entry that opens the search filtered by it. Typing `#` narrows to them.
+  useEffect(() => {
+    if (mode !== "palette") return undefined;
+    let live = true;
+    unwrap(commands.tags())
+      .then((list) => {
+        if (live) setTags(list.tags);
+      })
+      .catch(() => {
+        // No cache yet: no tags to offer, nothing to report.
+      });
+    return () => {
+      live = false;
+    };
+  }, [mode]);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => input.current?.focus());
@@ -93,8 +114,9 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
       }),
     );
     if (mode === "settings") return commandEntries;
-    return [...commandEntries, ...headingsOfActiveDocument(), ...fileEntries, ...boardEntries];
-  }, [mode, files, boards, t]);
+    const tagEntries: Entry[] = tags.map((entry) => ({ kind: "tag", tag: entry.tag, count: entry.count }));
+    return [...commandEntries, ...headingsOfActiveDocument(), ...fileEntries, ...boardEntries, ...tagEntries];
+  }, [mode, files, boards, tags, t]);
 
   const label = (entry: Entry): string => {
     switch (entry.kind) {
@@ -106,6 +128,8 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
         return entry.label;
       case "heading":
         return entry.text;
+      case "tag":
+        return `#${entry.tag}`;
     }
   };
 
@@ -139,6 +163,9 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
         if (previewMounted()) goToPreviewLine(entry.line);
         else goToEditorLine(entry.line);
         break;
+      case "tag":
+        useUi.getState().setOverlay({ kind: "search", tag: entry.tag });
+        return;
     }
   };
 
@@ -190,7 +217,9 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
                 <span className="result-meta">
                   {entry.kind === "file"
                     ? folderOf(entry.path) || (isNote(entry.path) ? t(SECTION_KEY.file) : "")
-                    : chord
+                    : entry.kind === "tag"
+                      ? `${t(SECTION_KEY.tag)} · ${entry.count}`
+                      : chord
                       ? glyphsOf(chord)
                       : t(SECTION_KEY[entry.kind])}
                 </span>

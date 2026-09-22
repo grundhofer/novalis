@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { commands, unwrap } from "../ipc/client";
 import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
+import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
 import { report } from "../stores/ui";
 import { setActiveView } from "./commands";
@@ -41,6 +42,19 @@ async function noteText(path: string): Promise<string | null> {
  * count or a completion needs it, and once more here before the view goes
  * (stores/editorSave.ts).
  */
+
+/** The status bar's `Ln, Col` and what is selected (`stores/cursor.ts`). */
+function reportCursor(path: string, state: EditorState): void {
+  const head = state.selection.main.head;
+  const line = state.doc.lineAt(head);
+  useCursor.getState().set({
+    path,
+    line: line.number,
+    column: head - line.from + 1,
+    selected: state.selection.ranges.reduce((sum, range) => sum + (range.to - range.from), 0),
+    cursors: state.selection.ranges.length,
+  });
+}
 
 export interface EditorProps {
   path: string;
@@ -84,7 +98,14 @@ export default function Editor({
       if (cancelled) return;
       let state = EditorState.create({
         doc: useEditorSave.getState().docs[path]?.text ?? doc.text,
-        extensions: [editorTheme, syntaxHighlighting(markdownHighlight), ...extensions],
+        extensions: [
+          editorTheme,
+          syntaxHighlighting(markdownHighlight),
+          ...extensions,
+          EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged) reportCursor(path, update.state);
+          }),
+        ],
       });
       // Back where the reader left it (`lib/positions.ts`): the selection is
       // set before the view exists, so nothing scrolls to it; the text may
@@ -101,6 +122,7 @@ export default function Editor({
         }
       }
       const created = new EditorView({ parent: element, state });
+      reportCursor(path, created.state);
       // The scroll is recorded as it happens, as the first line in view:
       // when the pane goes because the preview takes its place, React has
       // detached it before the cleanup below runs, and a detached scroller
@@ -144,6 +166,7 @@ export default function Editor({
           last: "editor",
         });
         setActiveView(null);
+        useCursor.getState().clear(path);
         view.destroy();
       }
     };

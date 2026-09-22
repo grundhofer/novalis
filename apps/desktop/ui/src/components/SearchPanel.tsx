@@ -43,7 +43,12 @@ export default function SearchPanel() {
   const [query, setQuery] = useState("");
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
-  const [tag, setTag] = useState("");
+  // A tag chosen in the palette arrives as the filter (§4.4 "tags as search
+  // filter / palette").
+  const [tag, setTag] = useState(() => {
+    const overlay = useUi.getState().overlay;
+    return overlay.kind === "search" ? (overlay.tag ?? "") : "";
+  });
   const [folder, setFolder] = useState("");
   const [index, setIndex] = useState(0);
   const files = useFiles((s) => s.files);
