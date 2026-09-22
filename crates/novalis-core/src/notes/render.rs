@@ -103,6 +103,15 @@ mod tests {
         assert!(html.contains(">see</a>"));
     }
 
+    /// A byte-order mark (Notepad, Excel) does not turn the first heading
+    /// into text, and the spans still count it — it is one UTF-16 unit of
+    /// the buffer the preview slices.
+    #[test]
+    fn a_byte_order_mark_keeps_the_heading_and_the_spans() {
+        let html = to_html("\u{feff}# Title\n");
+        assert!(html.contains("<h1 data-pos=\"1-9\">Title</h1>"), "{html}");
+    }
+
     /// The spans count UTF-16 units of the whole text, frontmatter included,
     /// so a JavaScript `slice` of the buffer lands on the block.
     #[test]
