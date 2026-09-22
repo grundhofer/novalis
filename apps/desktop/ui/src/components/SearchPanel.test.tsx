@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, type SearchEventDto } from "../ipc/client";
+import { deferLine, takeDeferredLine } from "../lib/editorBridge";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import SearchPanel from "./SearchPanel";
@@ -32,6 +34,19 @@ vi.mock("../ipc/client", () => ({
 }));
 
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 250)));
+
+/** The results' text, whatever the marks split it into. */
+const labels = () => [...document.querySelectorAll(".result-label")].map((label) => label.textContent);
+
+/** A search answered with `hits`, as the shell streams them. */
+function answer(hits: { path: string; line: number; snippet: string }[]) {
+  vi.mocked(commands.search).mockImplementation(async (_query, channel) => {
+    const box = channel as unknown as { onmessage: (event: SearchEventDto) => void };
+    box.onmessage({ kind: "hits", hits });
+    box.onmessage({ kind: "done", report: REPORT });
+    return { status: "ok", data: REPORT };
+  });
+}
 
 const REPORT = { scanned: 3, cloudOnlySkipped: 0, notUtf8Skipped: 2, matches: 2, truncated: false, cancelled: false };
 
@@ -65,8 +80,7 @@ describe("SearchPanel", () => {
     await settle();
 
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ query: "needle", allFiles: true });
-    expect(screen.getByText("needle in a note")).toBeTruthy();
-    expect(screen.getByText("needle in Go")).toBeTruthy();
+    expect(labels()).toEqual(["needle in a note", "needle in Go"]);
     expect(screen.getByText("editor.search.results=2")).toBeTruthy();
     expect(screen.getByText("editor.search.notUtf8Skipped=2")).toBeTruthy();
     expect(useUi.getState().searchAllFiles).toBe(true);
@@ -83,5 +97,82 @@ describe("SearchPanel", () => {
     fireEvent.click(screen.getByTitle("editor.search.allFiles"));
     await settle();
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ allFiles: true });
+  });
+
+  // docs/research/2026-09-20-feature-gaps.md A3/A12/A29/A13.
+  it("opens a hit at its line", async () => {
+    answer([{ path: "notes/a.md", line: 12, snippet: "the needle" }]);
+    render(<SearchPanel />);
+    fireEvent.change(screen.getByPlaceholderText("editor.search.placeholder"), { target: { value: "needle" } });
+    await settle();
+
+    fireEvent.click(screen.getByText("needle"));
+    expect(useTabs.getState().open).toHaveBeenCalledWith("notes/a.md");
+    // Parked for the editor that mounts for the tab (the backlinks' way).
+    expect(takeDeferredLine()).toEqual({ line: 12, snippet: "the needle" });
+    expect(useUi.getState().overlay.kind).toBe("none");
+    deferLine(null);
+  });
+
+  it("walks the results with the arrows and opens one with Enter", async () => {
+    answer([
+      { path: "a.md", line: 1, snippet: "needle one" },
+      { path: "b.md", line: 2, snippet: "needle two" },
+    ]);
+    render(<SearchPanel />);
+    const field = screen.getByPlaceholderText("editor.search.placeholder");
+    fireEvent.change(field, { target: { value: "needle" } });
+    await settle();
+
+    const active = () => document.querySelector(".result.active .result-label")?.textContent;
+    expect(active()).toBe("needle one");
+    fireEvent.keyDown(field, { key: "ArrowDown" });
+    fireEvent.keyDown(field, { key: "ArrowDown" });
+    expect(active()).toBe("needle two");
+    fireEvent.keyDown(field, { key: "ArrowUp" });
+    fireEvent.keyDown(field, { key: "ArrowDown" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(useTabs.getState().open).toHaveBeenCalledWith("b.md");
+    deferLine(null);
+  });
+
+  it("marks what matched: every occurrence, the case flag and a regex", async () => {
+    answer([{ path: "a.md", line: 1, snippet: "Needle and needle" }]);
+    render(<SearchPanel />);
+    const field = screen.getByPlaceholderText("editor.search.placeholder");
+    fireEvent.change(field, { target: { value: "needle" } });
+    await settle();
+    const marks = () => [...document.querySelectorAll("mark.match")].map((mark) => mark.textContent);
+    expect(marks()).toEqual(["Needle", "needle"]);
+
+    fireEvent.click(screen.getByText("editor.find.caseSensitive"));
+    await settle();
+    expect(marks()).toEqual(["needle"]);
+
+    fireEvent.click(screen.getByText("editor.find.regex"));
+    fireEvent.change(field, { target: { value: "N.edle" } });
+    await settle();
+    expect(marks()).toEqual(["Needle"]);
+    // A pattern JavaScript cannot compile leaves the line unmarked.
+    fireEvent.change(field, { target: { value: "(?i)x[" } });
+    await settle();
+    expect(marks()).toEqual([]);
+  });
+
+  it("narrows to a folder, offering the vault's folders", async () => {
+    answer([]);
+    useFiles.setState({ files: ["notes/a.md", "notes/deep/b.md", "top.md"] });
+    render(<SearchPanel />);
+    const options = [...document.querySelectorAll("#search-folders option")].map((o) => o.getAttribute("value"));
+    expect(options).toEqual(["notes", "notes/deep"]);
+
+    fireEvent.change(screen.getByPlaceholderText("editor.search.placeholder"), { target: { value: "x" } });
+    fireEvent.change(screen.getByLabelText("editor.search.filterFolder"), { target: { value: "notes/deep" } });
+    await settle();
+    expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ folder: "notes/deep" });
+
+    fireEvent.click(screen.getByText("editor.search.clearFilters"));
+    await settle();
+    expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ folder: null, tag: null });
   });
 });

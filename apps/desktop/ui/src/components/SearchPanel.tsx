@@ -1,5 +1,5 @@
 import { Channel } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -11,9 +11,13 @@ import {
   type SearchReportDto,
   type TagCountDto,
 } from "../ipc/client";
-import { useTabs } from "../stores/tabs";
+import { literalRanges, regexRanges } from "../lib/matchRanges";
+import { openAt } from "../lib/openAt";
+import { folderOf } from "../lib/paths";
+import { useFiles } from "../stores/files";
 import { report as reportError, useUi } from "../stores/ui";
 import "../styles/overlay.css";
+import Marked from "./Marked";
 
 /**
  * Vault-wide search (`Shift+Cmd+F`), streamed over a channel.
@@ -22,6 +26,13 @@ import "../styles/overlay.css";
  * screen long before the last folder is read (PLAN.md §11.3: 300 ms p95 to
  * first results on a 10k-note vault). Starting a new search supersedes the old
  * one in the shell; there is nothing to cancel here.
+ *
+ * A hit opens at its line (the §4.3 "per place, jump to the line"), the
+ * arrows and Enter walk the results as in the palette, and the part of the
+ * snippet that matched is marked. The folder filter narrows by path prefix,
+ * as the tag filter narrows by tag; the core and the CLI had both already.
+ * The fields take text as typed: macOS autocorrection capitalised a query
+ * and held the arrow keys and Enter while its suggestion was up.
  */
 
 const DEBOUNCE_MS = 180;
@@ -33,6 +44,14 @@ export default function SearchPanel() {
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [tag, setTag] = useState("");
+  const [folder, setFolder] = useState("");
+  const [index, setIndex] = useState(0);
+  const files = useFiles((s) => s.files);
+  const folders = useMemo(
+    () => [...new Set(files.map(folderOf).filter((f) => f !== ""))].sort(),
+    [files],
+  );
+  const list = useRef<HTMLDivElement | null>(null);
   const [tags, setTags] = useState<TagCountDto[]>([]);
   const [hits, setHits] = useState<SearchHitDto[]>([]);
   const [report, setReport] = useState<SearchReportDto | null>(null);
@@ -70,6 +89,8 @@ export default function SearchPanel() {
     setRunning(true);
     setHits([]);
     setReport(null);
+    // A new search starts at its first hit; hits streaming in keep the place.
+    setIndex(0);
     const channel = new Channel<SearchEventDto>();
     channel.onmessage = (event) => {
       if (event.kind === "hits") {
@@ -87,7 +108,7 @@ export default function SearchPanel() {
             query,
             regex,
             caseSensitive,
-            folder: null,
+            folder: folder.trim() === "" ? null : folder.trim(),
             tag: tag.trim() === "" ? null : tag.trim(),
             limit: MAX_RESULTS,
             allFiles,
@@ -98,14 +119,28 @@ export default function SearchPanel() {
     } finally {
       setRunning(false);
     }
-  }, [query, regex, caseSensitive, tag, allFiles]);
+  }, [query, regex, caseSensitive, folder, tag, allFiles]);
 
   useEffect(() => {
     const timer = setTimeout(() => void run().catch(reportError), DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [run]);
 
+  // The chosen row stays in view while the arrows walk past the edge.
+  useEffect(() => {
+    list.current?.querySelector(".result.active")?.scrollIntoView?.({ block: "nearest" });
+  }, [index]);
+
   const close = () => useUi.getState().setOverlay({ kind: "none" });
+
+  const open = (hit: SearchHitDto | undefined) => {
+    if (!hit) return;
+    close();
+    openAt(hit.path, { line: hit.line, snippet: hit.snippet });
+  };
+
+  const rangesOf = (snippet: string) =>
+    regex ? regexRanges(snippet, query, caseSensitive) : literalRanges(snippet, query, caseSensitive);
 
   return (
     <div className="scrim" onMouseDown={close}>
@@ -114,6 +149,9 @@ export default function SearchPanel() {
           <span className="palette-prompt" aria-hidden="true" />
           <input
             className="palette-text"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             ref={input}
             value={query}
             placeholder={t("editor.search.placeholder")}
@@ -121,6 +159,14 @@ export default function SearchPanel() {
             onKeyDown={(event) => {
               event.stopPropagation();
               if (event.key === "Escape") close();
+              else if (event.key === "Enter") open(hits[index]);
+              else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setIndex((i) => Math.min(i + 1, hits.length - 1));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setIndex((i) => Math.max(i - 1, 0));
+              }
             }}
           />
           <button
@@ -149,6 +195,9 @@ export default function SearchPanel() {
           </button>
           <input
             className="palette-filter"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             list="search-tags"
             value={tag}
             placeholder={t("editor.search.filterTag")}
@@ -164,34 +213,57 @@ export default function SearchPanel() {
               <option key={entry.tag} value={entry.tag} />
             ))}
           </datalist>
-          {tag !== "" && (
+          <input
+            className="palette-filter"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            list="search-folders"
+            value={folder}
+            placeholder={t("editor.search.filterFolder")}
+            aria-label={t("editor.search.filterFolder")}
+            onChange={(event) => setFolder(event.target.value)}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") close();
+            }}
+          />
+          <datalist id="search-folders">
+            {folders.map((path) => (
+              <option key={path} value={path} />
+            ))}
+          </datalist>
+          {(tag !== "" || folder !== "") && (
             <button
               className="kbd"
               type="button"
               title={t("editor.search.clearFilters")}
-              onClick={() => setTag("")}
+              onClick={() => {
+                setTag("");
+                setFolder("");
+              }}
             >
               {t("editor.search.clearFilters")}
             </button>
           )}
         </div>
 
-        <div className="results">
+        <div className="results" ref={list}>
           {running && hits.length === 0 && <div className="result empty">{t("editor.search.searching")}</div>}
           {!running && hits.length === 0 && query.trim() !== "" && (
             <div className="result empty">{t("editor.search.noResults")}</div>
           )}
-          {hits.map((hit) => (
+          {hits.map((hit, position) => (
             <div
-              className="result"
+              className={position === index ? "result active" : "result"}
               key={`${hit.path}:${hit.line}`}
-              onClick={() => {
-                close();
-                void useTabs.getState().open(hit.path).catch(reportError);
-              }}
+              onMouseEnter={() => setIndex(position)}
+              onClick={() => open(hit)}
             >
               <span className="result-glyph" />
-              <span className="result-label">{hit.snippet}</span>
+              <span className="result-label">
+                <Marked text={hit.snippet} ranges={rangesOf(hit.snippet)} />
+              </span>
               <span className="result-meta">{hit.path}</span>
             </div>
           ))}
