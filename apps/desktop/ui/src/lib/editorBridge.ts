@@ -11,15 +11,11 @@
  * a no-op, which is exactly right: with no editor there is nothing to run.
  */
 
-export interface EditorHeading {
-  line: number;
-  text: string;
-}
+import { headingLine } from "./headings";
 
 export interface EditorBridge {
   run: (id: string) => boolean;
   has: (id: string) => boolean;
-  headings: () => EditorHeading[];
   goToLine: (line: number) => void;
 }
 
@@ -35,10 +31,6 @@ export function runEditorCommand(id: string): boolean {
 
 export function isEditorCommand(id: string): boolean {
   return bridge?.has(id) ?? false;
-}
-
-export function editorHeadings(): EditorHeading[] {
-  return bridge?.headings() ?? [];
 }
 
 export function goToEditorLine(line: number): void {
@@ -57,6 +49,11 @@ export interface LineTarget {
   line: number;
   /** The indexed line, trimmed, possibly cut to a window around the link. */
   snippet: string;
+  /**
+   * A heading to land on instead (`[[note#heading]]`, §7.2): its line in the
+   * text the pane shows wins; without it, `line` and `snippet` decide.
+   */
+  heading?: string;
 }
 
 /**
@@ -66,6 +63,10 @@ export interface LineTarget {
  * of it is still a substring of the line it came from.
  */
 export function resolveLine(text: string, target: LineTarget): number {
+  if (target.heading !== undefined) {
+    const found = headingLine(text, target.heading);
+    if (found !== null) return found;
+  }
   const want = target.snippet.replace(/^…/, "");
   if (!want) return target.line;
   const lines = text.split("\n");
