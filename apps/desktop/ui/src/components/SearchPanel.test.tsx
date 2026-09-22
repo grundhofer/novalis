@@ -175,4 +175,16 @@ describe("SearchPanel", () => {
     await settle();
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ folder: null, tag: null });
   });
+
+  // feature-gaps A14: a tag chosen in the palette arrives as the filter.
+  it("starts with the tag the palette handed over", async () => {
+    answer([]);
+    useUi.setState({ overlay: { kind: "search", tag: "project" } });
+    render(<SearchPanel />);
+    expect((screen.getByLabelText("editor.search.filterTag") as HTMLInputElement).value).toBe("project");
+
+    fireEvent.change(screen.getByPlaceholderText("editor.search.placeholder"), { target: { value: "x" } });
+    await settle();
+    expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ tag: "project" });
+  });
 });

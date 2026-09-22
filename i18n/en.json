@@ -198,7 +198,6 @@
   "menu.window.title": "Window",
   "palette.cmd.appearance": "Appearance: {{value}}",
   "palette.cmd.downloadCloudOnly": "Download All Online-Only Notes",
-  "palette.cmd.filterByTag": "Filter by Tag…",
   "palette.cmd.gotoHeading": "Go to Heading…",
   "palette.cmd.hideBacklinks": "Hide Backlinks",
   "palette.cmd.language": "Language: {{value}}",

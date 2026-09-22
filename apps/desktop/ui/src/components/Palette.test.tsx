@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { unwrap } from "../ipc/client";
 import { goToEditorLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
@@ -19,7 +20,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 vi.mock("../ipc/client", () => ({
-  commands: {},
+  commands: { tags: vi.fn() },
   unwrap: vi.fn(),
   NovalisError: class extends Error {},
   errorKey: () => "errors.internal",
@@ -35,6 +36,7 @@ vi.mock("../lib/commands", async (importOriginal) => ({
 
 describe("Palette", () => {
   beforeEach(() => {
+    vi.mocked(unwrap).mockResolvedValue({ tags: [] } as never);
     useFiles.setState({ files: [], notes: [], loaded: true });
     useBoard.setState({ boards: [] });
     useUi.setState({ overlay: { kind: "palette" } });
@@ -158,5 +160,30 @@ describe("Palette", () => {
       fireEvent.change(screen.getByPlaceholderText("palette.placeholder"), { target: { value: "plan" } });
       expect(screen.queryByText(/# Plan/)).toBeNull();
     });
+  });
+
+  // feature-gaps A14 (§4.4 "tags as search filter / palette"): a tag is an
+  // entry with its count, and choosing it opens the search filtered by it.
+  it("offers the vault's tags and opens the search filtered by one", async () => {
+    vi.mocked(unwrap).mockResolvedValue({ tags: [{ tag: "project", count: 4 }, { tag: "idea", count: 1 }] } as never);
+    render(<Palette mode="palette" />);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    const input = screen.getByPlaceholderText("palette.placeholder");
+
+    fireEvent.change(input, { target: { value: "#proj" } });
+    const row = document.querySelector(".result.active");
+    expect(row?.querySelector(".result-label")?.textContent).toBe("#project");
+    expect(row?.querySelector(".result-meta")?.textContent).toBe("palette.section.tags · 4");
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(useUi.getState().overlay).toEqual({ kind: "search", tag: "project" });
+  });
+
+  it("offers no tags in quick-open", async () => {
+    vi.mocked(unwrap).mockResolvedValue({ tags: [{ tag: "project", count: 4 }] } as never);
+    render(<Palette mode="quickOpen" />);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    fireEvent.change(screen.getByPlaceholderText("palette.quickOpenPlaceholder"), { target: { value: "#proj" } });
+    expect(document.querySelector(".result-label")).toBeNull();
   });
 });
