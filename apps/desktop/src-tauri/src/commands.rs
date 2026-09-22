@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use novalis_core::boards::{self, CardChange, Column, NewCard, Position};
 use novalis_core::cache::Cache;
+use novalis_core::migrate;
 use novalis_core::notes::relink::{relink_many, RelinkOptions, RelinkSpec};
 use novalis_core::search::{self, SearchHit};
 use novalis_core::settings::Settings;
@@ -128,6 +129,8 @@ fn scan_vault(root: &Path) -> IpcResult<VaultOpenDto> {
                 .unwrap_or_default(),
             kind: vault_kind(root).into(),
             boards: board_refs,
+            legacy: root.join(migrate::LEGACY_CONFIG).is_file()
+                && migrate::migrated_stamp(root).is_none(),
         },
         tree: visible_entries(root, "")?,
     })
@@ -1202,7 +1205,31 @@ pub async fn state_save(
 
 #[cfg(test)]
 mod tests {
-    use super::{creatable_file_rel, creatable_name};
+    use super::{creatable_file_rel, creatable_name, scan_vault};
+
+    /// feature-gaps A32: the old app's `.novalis/config.json` without a
+    /// `migrated` stamp in `vault.json` is a legacy vault; the stamp ends it.
+    #[test]
+    fn a_vault_the_old_app_wrote_is_legacy_until_migrated() {
+        let root = std::env::temp_dir().join(format!("novalis-legacy-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join(".novalis")).unwrap();
+        assert!(!scan_vault(&root).unwrap().vault.legacy, "a plain folder");
+
+        std::fs::write(root.join(".novalis/config.json"), "{}").unwrap();
+        assert!(
+            scan_vault(&root).unwrap().vault.legacy,
+            "the old app's config"
+        );
+
+        std::fs::write(
+            root.join(".novalis/vault.json"),
+            r#"{"format":1,"migrated":"2026-09-22T12:00:00Z"}"#,
+        )
+        .unwrap();
+        assert!(!scan_vault(&root).unwrap().vault.legacy, "migrated");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     /// ADR-0014: a §7.3 extension is kept, `.md` is normalised, anything
     /// else gets `.md` appended.

@@ -268,6 +268,11 @@ pub struct VaultDto {
     pub name: String,
     pub kind: VaultKindDto,
     pub boards: Vec<BoardRefDto>,
+    /// Written by the old app and not migrated yet: its `.novalis/config.json`
+    /// is there and `vault.json` carries no `migrated` stamp (PLAN.md §10,
+    /// the read-only first-open prompt).
+    #[serde(default)]
+    pub legacy: bool,
 }
 
 /// One tree row. `path` is vault-relative and NFC; the root itself is `""`.
