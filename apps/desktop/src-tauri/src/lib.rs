@@ -17,6 +17,7 @@ mod error;
 mod file_types;
 mod i18n;
 mod menu;
+mod spelling;
 mod state;
 mod watcher;
 mod window;
@@ -112,11 +113,22 @@ pub fn run() {
             let (settings, _load_error) = load_settings(&config_dir.join("settings.json"));
             let catalog = Catalog::load(resolve_locale(settings.language));
             menu::install(&handle, &catalog, &settings, MenuFlags::default())?;
+            // WebKit reads the spelling key once, when the first web view is
+            // made; the window is therefore built here (`"create": false` in
+            // tauri.conf.json), after the key is written (§7.5).
+            spelling::seed(settings.spellcheck);
 
             app.manage(AppState::new(config_dir, settings));
-            if let Some(main) = app.get_webview_window("main") {
-                window::restore(&main, &app.state::<AppState>());
-            }
+            let config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == "main")
+                .cloned()
+                .ok_or("tauri.conf.json has no main window")?;
+            let main = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?.build()?;
+            window::restore(&main, &app.state::<AppState>());
             Ok(())
         })
         // Every menu click becomes one `menu-action` event carrying a
