@@ -411,7 +411,11 @@ pub async fn read_packed(
                 parts: Vec::new(),
             });
         }
-        let parts = archive::read(&abs, &entries)?;
+        // NFC like every path at ingress (§2.3 rule 4): the core spells the
+        // container's own entry names that way, so a caller that composed
+        // its name differently still finds the entry.
+        let wanted: Vec<String> = entries.iter().map(|e| nfc(e)).collect();
+        let parts = archive::read(&abs, &wanted)?;
         let total: u64 = parts.iter().map(|p| p.bytes.len() as u64).sum();
         if total > HUGE_FILE_BYTES {
             return Err(IpcError::bad_request(format!(
