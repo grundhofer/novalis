@@ -41,6 +41,7 @@ import { fenceLanguage } from "./fences";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
+import { lineSeparatorFor } from "./lineBreak";
 import { CodeText, Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -179,6 +180,8 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
     // a tab that is syntax, not style: `make` rejects a recipe line indented
     // with the spaces an `ifeq` block above it may have taught the detector.
     indentUnit.of(options.indent === "\t" ? "\t" : (detectIndent(hooks.text) ?? options.indent)),
+    // CRLF stays CRLF (PLAN.md §5.5); the buffer is read with `sliceDoc()`.
+    lineSeparatorFor(hooks.text),
     search({ top: true }),
     keymap.of([
       ...closeBracketsKeymap,
