@@ -167,3 +167,41 @@ describe("useTabs and the viewer", () => {
     expect(useEditorSave.getState().open).toHaveBeenCalledWith("a.md");
   });
 });
+
+// feature-gaps A7 (PLAN.md §2.3 rule 7): a cloud-only note downloads for up
+// to 30 s on open — the tab shows "loading" meanwhile, and a download that
+// fails or times out takes the tab away again.
+describe("useTabs.open while the file is read", () => {
+  beforeEach(() => {
+    useTabs.setState({ tabs: ["a.md"], active: "a.md", closed: [], history: ["a.md"], historyIndex: 0 });
+    useEditorSave.setState({ save: vi.fn().mockResolvedValue(undefined) });
+    useVault.setState({ reveal: vi.fn().mockResolvedValue(undefined) });
+  });
+
+  it("shows the tab, current, before the read has finished", async () => {
+    let finish: () => void = () => undefined;
+    useEditorSave.setState({ open: vi.fn(() => new Promise<never>((resolve) => (finish = () => resolve(undefined as never)))) });
+
+    const opening = useTabs.getState().open("cloud.md");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useTabs.getState()).toMatchObject({ tabs: ["a.md", "cloud.md"], active: "cloud.md" });
+    finish();
+    await opening;
+  });
+
+  it("takes the tab away and returns to the previous one when the read fails", async () => {
+    useEditorSave.setState({ open: vi.fn().mockRejectedValue(new Error("materialize_timeout")) });
+
+    await expect(useTabs.getState().open("cloud.md")).rejects.toThrow("materialize_timeout");
+    expect(useTabs.getState()).toMatchObject({ tabs: ["a.md"], active: "a.md", history: ["a.md"] });
+  });
+
+  it("keeps a tab that was already open when reading it again fails", async () => {
+    useTabs.setState({ tabs: ["a.md", "cloud.md"] });
+    useEditorSave.setState({ open: vi.fn().mockRejectedValue(new Error("io")) });
+
+    await expect(useTabs.getState().open("cloud.md")).rejects.toThrow("io");
+    expect(useTabs.getState().tabs).toEqual(["a.md", "cloud.md"]);
+  });
+});
+

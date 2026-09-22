@@ -76,10 +76,28 @@ export const useTabs = create<TabsState>((set, get) => ({
   },
 
   open: async (path, options) => {
-    if (!viewKind(path)) await useEditorSave.getState().open(path);
-    set((s) => ({ tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    // The tab is there at once and the pane says "loading" while the file is
+    // read — which for a cloud-only note is a download of up to 30 s (PLAN.md
+    // §2.3 rule 7: a visible state and a timeout). A read that fails takes
+    // the tab away again and leaves the previous one current.
+    const added = !get().tabs.includes(path);
+    const previous = get().active;
+    if (added) set((s) => ({ tabs: [...s.tabs, path] }));
+    try {
+      if (!options?.background) await get().activate(path);
+      if (!viewKind(path)) await useEditorSave.getState().open(path);
+    } catch (error) {
+      if (added) {
+        set((s) => ({
+          tabs: s.tabs.filter((t) => t !== path),
+          active: s.active === path ? previous : s.active,
+          history: s.history.filter((p) => p !== path),
+          historyIndex: Math.min(s.historyIndex, s.history.filter((p) => p !== path).length - 1),
+        }));
+      }
+      throw error;
+    }
     if (options?.background) return;
-    await get().activate(path);
     // Opening from quick-open or a link should show where the note lives.
     useVault.getState().select(path);
     void useVault.getState().reveal(path).catch(report);

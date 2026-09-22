@@ -80,6 +80,20 @@ pub fn materialize(path: &Path) -> CoreResult<()> {
     read_bytes(path).map(|_| ())
 }
 
+/// [`materialize`] with a deadline (PLAN.md §2.3 rule 7: a download only on
+/// an explicit action, with a visible state and a timeout). The blocking
+/// read runs on a thread of its own that is abandoned when the time is up —
+/// the download itself goes on in the File Provider, and the next open finds
+/// it done. `None` when the deadline passed first.
+pub fn materialize_within(path: &Path, timeout: std::time::Duration) -> Option<CoreResult<()>> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let path = path.to_path_buf();
+    std::thread::spawn(move || {
+        let _ = tx.send(materialize(&path));
+    });
+    rx.recv_timeout(timeout).ok()
+}
+
 /// Where a vault lives, which decides the sync hints and conflict handling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -333,6 +347,17 @@ mod tests {
     // guard provably cannot change what this reads back. Linux is built by CI
     // but does not ship (PLAN.md §4.5).
     #[cfg(target_os = "macos")]
+    #[test]
+    fn materialize_within_answers_for_a_file_that_is_already_here() {
+        let dir = std::env::temp_dir().join(format!("novalis-within-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("here.md");
+        std::fs::write(&file, "x").unwrap();
+        let answer = super::materialize_within(&file, std::time::Duration::from_secs(5));
+        assert!(matches!(answer, Some(Ok(()))), "{answer:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn materialize_off_guard_sets_and_restores_thread_policy() {
         std::thread::spawn(|| {

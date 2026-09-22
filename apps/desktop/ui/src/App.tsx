@@ -348,6 +348,10 @@ export default function App() {
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <Viewer path={active} kind={view} />
             </Suspense>
+          ) : active && !doc ? (
+            // A note on its way: read, or downloaded from the cloud (§2.3
+            // rule 7); `tabs.open` removes the tab again if that fails.
+            <div className="pane-loading">{t("editor.loading")}</div>
           ) : active && doc && second ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               {second === "markdown" ? (

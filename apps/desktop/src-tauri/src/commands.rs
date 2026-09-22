@@ -23,7 +23,7 @@ use novalis_core::search::{self, SearchHit};
 use novalis_core::settings::Settings;
 use novalis_core::util::{hostname, local_now};
 use novalis_core::vault::archive;
-use novalis_core::vault::cloud::vault_kind;
+use novalis_core::vault::cloud::{self, vault_kind};
 use novalis_core::vault::fs::{self, DirEntry, EntryKind, Precondition};
 use novalis_core::vault::path::{
     file_name_of, is_hidden, is_note_name, join_rel, nfc, normalize_rel, rel_of, stem_of,
@@ -357,12 +357,31 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> IpcResult<Fi
     blocking(move || {
         let rel = normalize_rel(&path)?;
         let abs = vault_rel(&root, &rel)?;
-        // Explicit open under the default IO policy: a cloud-only note is
-        // downloaded here on purpose (§4.5 "downloaded on open"). A binary
+        // Explicit open: a cloud-only note is downloaded here on purpose
+        // (§4.5 "downloaded on open"), with a deadline (§2.3 rule 7). A binary
         // file is read no further than the NUL that decides it.
+        download_for_open(&abs, &rel)?;
         Ok(FileDto::from_read(rel, fs::read_text(&abs)?))
     })
     .await
+}
+
+/// How long an explicit open waits for a cloud-only file (§2.3 rule 7).
+const OPEN_DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A cloud-only file is downloaded before it is read, for at most
+/// [`OPEN_DOWNLOAD_TIMEOUT`]: the read itself would block on the File
+/// Provider without end, and an offline Mac would leave the click, or the
+/// session restore at launch, waiting forever. The stat decides without
+/// downloading anything.
+fn download_for_open(abs: &Path, rel: &str) -> IpcResult<()> {
+    if !fs::stat(abs)?.cloud_only {
+        return Ok(());
+    }
+    match cloud::materialize_within(abs, OPEN_DOWNLOAD_TIMEOUT) {
+        Some(result) => Ok(result?),
+        None => Err(IpcError::materialize_timeout(rel)),
+    }
 }
 
 /// Read a file the viewer shows as it is — a PDF or an image (ADR-0015).
@@ -377,6 +396,7 @@ pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<Bl
     blocking(move || {
         let rel = normalize_rel(&path)?;
         let abs = vault_rel(&root, &rel)?;
+        download_for_open(&abs, &rel)?;
         let size = fs::stat(&abs)?.size;
         if size > HUGE_FILE_BYTES {
             return Err(IpcError::bad_request(format!(
