@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 
 import { dispatchCommand } from "../lib/commands";
-import { isMarkdownFile, stemOf } from "../lib/paths";
+import { previewKind } from "../lib/fileTypes";
+import { stemOf } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
@@ -64,8 +65,9 @@ export default function TabStrip() {
     {/* The small button the owner asked for (ADR-0020): the same command as
         `Cmd+E`. Outside the scrolling strip, so a row of many tabs never
         pushes it out of sight; a glyph with the state in its tooltip, not a
-        word. Only a note has a rendered form, so it is not there for a PDF. */}
-    {active && isMarkdownFile(active) && (
+        word. Only a file with a second representation has it — a note, a
+        CSV or TSV, an SVG (ADR-0025) — so it is not there for a PDF. */}
+    {active && previewKind(active) && (
       <button
         className={previewing ? "btn ghost tool tab-preview on" : "btn ghost tool tab-preview"}
         type="button"

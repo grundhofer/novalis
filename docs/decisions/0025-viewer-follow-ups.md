@@ -4,10 +4,10 @@ Date: 2026-09-20
 
 ## Status
 
-Accepted; each item its own small pull request after the ADR-0022
-phases, none of them a prerequisite for ADR-0023/0024. Built: item 1
-(`heic heif avif`, checked in `just dev` on 2026-09-22) , item 2 (the
-PDF outline and page keys) and item 3 (image zoom). Not yet built: item 4. Amends
+Accepted, and all four items are built (2026-09-22), each its own small
+pull request: item 1 (`heic heif avif`, checked in `just dev`), item 2
+(the PDF outline and page keys), item 3 (image zoom) and item 4 (the CSV
+table and the SVG picture behind the eye). Amends
 ADR-0015 (image types; `svg` "stays XML text"), ADR-0016 ("one page,
 previous/next, zoom, fit width" was the asked scope), ADR-0020 ("a preview
 for anything but Markdown: not built") and ADR-0008 (a `viewer` keymap
@@ -98,6 +98,20 @@ rendered SVG yes, both read-only behind the existing eye glyph.
    - `svg` rendered as `<img src="blob:" type="image/svg+xml">` — safe by
      construction (no scripts, no external references in SVG-as-image);
      `svg` stays XML text in the editor.
+
+   *Built 2026-09-22* (`TablePreview.tsx`, `SvgPreview.tsx`,
+   `lib/delimited.ts`), with what the record left open: which files have a
+   second representation is `previewKind` in `lib/fileTypes.ts`, not a
+   flag in the presentation module — that module is the editor's chunk,
+   and the tab strip, the command and the pane choice are eager; the CSV
+   parser is lenient where files are (a stray quote inside a cell is kept,
+   a quote that never closes runs to the end, a byte-order mark is
+   dropped); the columns are sized in `ch` by the widest cell of each column
+   over every row (a sample cut the ids past its end), clamped to 4–40, one grid template for all rows so they line
+   up although only a screenful is drawn, and a cut cell shows in full as
+   its tooltip; an empty file is an empty table; an editor chord in the
+   table or the picture returns to the text (neither has a find bar or a
+   selection to mark), as the ones the rendered note cannot place do.
 5. **Not built, and why**: audio and video (ADR-0015: "keine wav, mp4
    etc"; if ever, a custom scheme with `Range`, never base64); HTML files
    rendered (a saved page without its remote resources renders broken by

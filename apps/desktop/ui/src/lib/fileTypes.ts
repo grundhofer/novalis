@@ -5,7 +5,7 @@ import {
   PATTERN_KINDS,
   type FileKind,
 } from "./fileTypes.generated";
-import { extensionOf, fileNameOf } from "./paths";
+import { extensionOf, fileNameOf, isMarkdownFile } from "./paths";
 
 /**
  * The file types the app handles, PLAN.md §7.3: notes and text open in the
@@ -78,6 +78,21 @@ export function kindOf(rel: string): FileKind | null {
 /** How a path opens: in the viewer (tier D), or not at all (`null` = text). */
 export function viewKind(rel: string): ViewKind | null {
   return kindOf(rel) === "view" ? (VIEW_EXTENSIONS[extensionOf(rel)] ?? null) : null;
+}
+
+/**
+ * The second representation behind the eye glyph and `Cmd+E`, or `null` for
+ * a file that has none: a note renders (ADR-0020), a CSV or TSV is a table
+ * and an SVG its picture (ADR-0025). All three are read-only; the text
+ * stays what the editor shows.
+ */
+export type PreviewKind = "markdown" | "csv" | "tsv" | "svg";
+
+export function previewKind(rel: string): PreviewKind | null {
+  if (isMarkdownFile(rel)) return "markdown";
+  const extension = extensionOf(rel);
+  if (extension === "csv" || extension === "tsv" || extension === "svg") return extension;
+  return null;
 }
 
 export function mimeOf(rel: string): string {
