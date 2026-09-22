@@ -265,6 +265,27 @@
   white-space: nowrap;
 }
 
+/* The name opens its note (D21, per chip); as a button it wears nothing of
+   its own. */
+button.card-note-name {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.card-note-name:hover {
+  color: var(--ds-color-fg-default);
+}
+
+/* A linked note that is no longer in the vault opens nothing. */
+.card-note.missing {
+  border-style: dashed;
+  color: var(--ds-color-fg-subtle);
+}
+
 .card-state {
   align-self: flex-start;
   display: inline-flex;
