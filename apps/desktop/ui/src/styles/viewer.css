@@ -8,10 +8,54 @@
   background: var(--ds-color-bg-canvas);
 }
 
-.viewer-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+/* ------------------------------------------------------------------ zoom */
+/* An image with its zoom bar (`ZoomableImage.tsx`, ADR-0025): the image
+   viewer's and each comic page's. The image carries its size inline; the
+   sheet centres it with auto margins, which, unlike centring by the flex
+   container, still lets an image wider than the pane scroll to its left
+   edge. */
+.zoom {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+  height: var(--ds-size-tabstrip);
+  padding: 0 var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-color-border-default);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-mono);
+  color: var(--ds-color-fg-muted);
+}
+
+.zoom-scroll {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.zoom-sheet {
+  margin: auto;
+  padding: var(--ds-space-5);
+}
+
+.zoom-image {
+  display: block;
+  max-width: none;
+  cursor: zoom-in;
+}
+
+.zoom-image.zoomed {
+  cursor: zoom-out;
 }
 
 /* ------------------------------------------------------------------- pdf */
@@ -259,8 +303,8 @@
 }
 
 /* ------------------------------------------------------------------- cbz */
-/* The comic reader (ADR-0023). One page, fitted to the pane; the bar is the
-   PDF's, without the zoom it does not have yet. */
+/* The comic reader (ADR-0023). One page at a time in `ZoomableImage`, whose
+   bar carries the page controls on its left. */
 .cbz {
   display: flex;
   flex: 1;
@@ -270,38 +314,10 @@
   align-self: stretch;
 }
 
-.cbz-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  flex: 0 0 auto;
-  height: var(--ds-size-tabstrip);
-  padding: 0 var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-muted);
-}
-
 .cbz-count {
   min-width: 8em;
   text-align: center;
   font-variant-numeric: tabular-nums;
-}
-
-.cbz-sheet {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-  padding: var(--ds-space-5);
-}
-
-.cbz-page {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
 }
 
 /* ------------------------------------------------------------------ docx */

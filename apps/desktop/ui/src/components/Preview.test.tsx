@@ -211,6 +211,26 @@ describe("Preview", () => {
     expect(revoked).toEqual(["blob:0"]);
   });
 
+  it("opens an image the viewer shows on a click, and leaves a linked image to its link", async () => {
+    const onFollowLink = vi.fn();
+    doc("Notes/n.md", "x");
+    fragment =
+      '<p><img src="attachments/x.png" alt="x"> <img src="icon.svg" alt="svg"> ' +
+      '<a href="other.md"><img src="attachments/y.png" alt="linked"></a></p>';
+    render(<Preview path="Notes/n.md" onFollowLink={onFollowLink} />);
+    await flush();
+
+    // As written: the app's `followLink` resolves it against the note, as
+    // it does a link's destination.
+    fireEvent.click(screen.getByAltText("x"));
+    expect(onFollowLink).toHaveBeenLastCalledWith("attachments/x.png");
+    // An SVG is text to the app; it would open as its XML, not in the viewer.
+    fireEvent.click(screen.getByAltText("svg"));
+    expect(onFollowLink).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByAltText("linked"));
+    expect(onFollowLink).toHaveBeenLastCalledWith("other.md");
+  });
+
   it("reports an image the shell cannot read and leaves the alt text", async () => {
     vi.mocked(commands.readBlob).mockImplementation(() => Promise.reject(new Error("ENOENT")) as never);
     doc("n.md", "x");

@@ -6,8 +6,8 @@ Date: 2026-09-20
 
 Accepted; each item its own small pull request after the ADR-0022
 phases, none of them a prerequisite for ADR-0023/0024. Built: item 1
-(`heic heif avif`, checked in `just dev` on 2026-09-22) and item 2 (the
-PDF outline and page keys). Not yet built: items 3–4. Amends
+(`heic heif avif`, checked in `just dev` on 2026-09-22) , item 2 (the
+PDF outline and page keys) and item 3 (image zoom). Not yet built: item 4. Amends
 ADR-0015 (image types; `svg` "stays XML text"), ADR-0016 ("one page,
 previous/next, zoom, fit width" was the asked scope), ADR-0020 ("a preview
 for anything but Markdown: not built") and ADR-0008 (a `viewer` keymap
@@ -71,6 +71,21 @@ rendered SVG yes, both read-only behind the existing eye glyph.
    must work in every mode) — the viewer never claims them. In the ⌘E
    preview a click on an image opens the file in the viewer (a mouse-
    gesture row in `docs/KEYMAP.md`).
+   *Built 2026-09-22* (`ZoomableImage.tsx`, the image viewer's and each
+   comic page's), with what the record left open: *fit* is fit to the pane,
+   both sides, and never enlarges past 1:1 — so its button reads
+   `viewer.fit` ("Fit" / "Einpassen"), a new string, because "Fit width" /
+   "Seitenbreite" would name a different thing; a plain wheel scrolls and
+   only a `Ctrl`-wheel zooms, around the pointer, as do WebKit's own pinch
+   events (`gesturestart`/`gesturechange`), which are listened to beside
+   the wheel because Safari has reported a trackpad pinch that way rather
+   than as a `Ctrl`-wheel (which of the two this WebView sends was not
+   measured); a comic keeps its zoom as the pages turn, each page
+   starting at its top left; in the preview only an image the viewer shows
+   opens on a click (an SVG is text to the app), and an image inside a link
+   follows the link. Checked in `just dev` for the bar, the click, a
+   synthesized `Ctrl`-wheel and a page turn; a real trackpad pinch could
+   not be synthesized and was not checked.
 4. **A second, read-only representation behind the eye glyph / ⌘E** for two
    text types, so `note.togglePreview` widens from `.md` to "files with a
    second representation" (a `docs/KEYMAP.md` prose line, no new chord):

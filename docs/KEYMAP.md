@@ -107,6 +107,9 @@ it back).
 | Right-click on a row | The row's context menu: Show in Finder, Rename, Move to Trash, New Note, New Folder — a board row Show in Finder only (ADR-0021) | tree |
 | Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
 | `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
+| Click on the image | Toggle between fitting the pane and 1:1, keeping the clicked point under the pointer (ADR-0025) | viewer (image, comic page) |
+| Pinch on the trackpad · `Ctrl`+wheel | Zoom around the pointer; a plain wheel scrolls (ADR-0025) | viewer (image, comic page) |
+| Click on an embedded image | Open the image in the viewer; an image inside a link follows the link, an SVG is not opened (ADR-0025) | preview (`Cmd+E`) |
 
 ## Not listed
 
