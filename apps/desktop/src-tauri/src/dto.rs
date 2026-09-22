@@ -135,6 +135,36 @@ pub struct BlobDto {
     pub size: String,
 }
 
+/// What a container (EPUB, CBZ — ADR-0023) gave back for one `read_packed`
+/// call: the table of contents when the call asked for no entry, otherwise
+/// the entries it asked for. One of the two is always empty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PackedDto {
+    pub path: String,
+    pub entries: Vec<PackedEntryDto>,
+    pub parts: Vec<PackedPartDto>,
+}
+
+/// One row of a container's table of contents.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PackedEntryDto {
+    /// The entry's name inside the container, a relative path with forward
+    /// slashes. This is the name `read_packed` takes.
+    pub name: String,
+    /// Uncompressed byte count as a decimal string (see `EntryDto`).
+    pub size: String,
+}
+
+/// One entry's bytes, base64 for the same reason as `BlobDto`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PackedPartDto {
+    pub name: String,
+    pub base64: String,
+}
+
 // ---------------------------------------------------------------- window state
 
 /// Everything that is persisted but is not a setting (PLAN.md §4.1): it lives

@@ -2206,8 +2206,10 @@ name = "novalis-core"
 version = "1.0.0-alpha.1"
 dependencies = [
  "chrono",
+ "flate2",
  "libc",
  "pulldown-cmark",
+ "rawzip",
  "regex",
  "rusqlite",
  "serde",
@@ -2805,6 +2807,12 @@ name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
+
+[[package]]
+name = "rawzip"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75a2b2577f5fd7e26caabd4aa7bba1ef18653ff32204eea251c1136db1a549f3"
 
 [[package]]
 name = "redox_syscall"

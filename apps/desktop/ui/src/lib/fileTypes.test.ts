@@ -45,13 +45,13 @@ describe("fileTypes", () => {
       "justfile",
       "x.diff",
       "index.php",
+      "books/book.epub",
     ]) {
       expect(isSupported(path), path).toBe(true);
     }
     for (const path of [
       "song.wav",
       "clip.mp4",
-      "book.epub",
       "archive.zip",
       "x.docx",
       "app.js.map",
@@ -72,9 +72,11 @@ describe("fileTypes", () => {
   it("tells the viewer types apart from text", () => {
     expect(viewKind("a.pdf")).toBe("pdf");
     expect(viewKind("a.JPG")).toBe("image");
+    expect(viewKind("a.EPUB")).toBe("epub");
     expect(viewKind("a.svg")).toBeNull();
     expect(viewKind("a.md")).toBeNull();
     expect(mimeOf("a.pdf")).toBe("application/pdf");
     expect(mimeOf("a.jpeg")).toBe("image/jpeg");
+    expect(mimeOf("a.epub")).toBe("application/epub+zip");
   });
 });

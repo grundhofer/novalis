@@ -1,4 +1,4 @@
-//! The whole IPC surface: 27 commands (PLAN.md §2.3 rule 8 caps it at 30).
+//! The whole IPC surface: 28 commands (PLAN.md §2.3 rule 8 caps it at 30).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -22,6 +22,7 @@ use novalis_core::notes::relink::{relink_many, RelinkOptions, RelinkSpec};
 use novalis_core::search::{self, SearchHit};
 use novalis_core::settings::Settings;
 use novalis_core::util::{hostname, local_now};
+use novalis_core::vault::archive;
 use novalis_core::vault::cloud::vault_kind;
 use novalis_core::vault::fs::{self, DirEntry, EntryKind, Precondition};
 use novalis_core::vault::path::{
@@ -371,6 +372,62 @@ pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<Bl
             path: rel,
             base64: base64::engine::general_purpose::STANDARD.encode(bytes),
             size: pre.size.to_string(),
+        })
+    })
+    .await
+}
+
+/// Read inside a container the viewer shows one part at a time — an EPUB or
+/// a CBZ (ADR-0023). With `entries` empty this is the container's table of
+/// contents; otherwise it is those entries' bytes, all of them in this one
+/// call, because a chapter and the twenty images it references are one user
+/// action and rule 8 gives it one round trip, not twenty-one.
+///
+/// Same explicit-open rule as `read_blob`: a cloud-only book is downloaded
+/// here on purpose. The core caps each entry; this caps what one call may
+/// put through the IPC as base64, for the same reason `read_blob` does.
+#[tauri::command]
+#[specta::specta]
+pub async fn read_packed(
+    state: State<'_, AppState>,
+    path: String,
+    entries: Vec<String>,
+) -> IpcResult<PackedDto> {
+    use base64::Engine;
+    let root = state.require_vault()?;
+    blocking(move || {
+        let rel = normalize_rel(&path)?;
+        let abs = vault_rel(&root, &rel)?;
+        if entries.is_empty() {
+            return Ok(PackedDto {
+                path: rel,
+                entries: archive::list(&abs)?
+                    .into_iter()
+                    .map(|e| PackedEntryDto {
+                        name: e.name,
+                        size: e.size.to_string(),
+                    })
+                    .collect(),
+                parts: Vec::new(),
+            });
+        }
+        let parts = archive::read(&abs, &entries)?;
+        let total: u64 = parts.iter().map(|p| p.bytes.len() as u64).sum();
+        if total > HUGE_FILE_BYTES {
+            return Err(IpcError::bad_request(format!(
+                "{rel} would send {total} bytes at once; the viewer stops at {HUGE_FILE_BYTES}"
+            )));
+        }
+        Ok(PackedDto {
+            path: rel,
+            entries: Vec::new(),
+            parts: parts
+                .into_iter()
+                .map(|p| PackedPartDto {
+                    name: p.name,
+                    base64: base64::engine::general_purpose::STANDARD.encode(p.bytes),
+                })
+                .collect(),
         })
     })
     .await

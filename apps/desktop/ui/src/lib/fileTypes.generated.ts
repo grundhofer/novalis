@@ -107,6 +107,7 @@ export const EXTENSION_KINDS: Readonly<Record<string, FileKind>> = {
   "cmake": "text",
   "mk": "text",
   "pdf": "view",
+  "epub": "view",
   "png": "view",
   "jpg": "view",
   "jpeg": "view",

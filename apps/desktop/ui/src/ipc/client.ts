@@ -46,6 +46,7 @@ export function errorKey(error: unknown): string {
     conflict: "errors.precondition",
     ambiguous: "errors.ambiguous",
     cloud_only: "errors.cloudOnly",
+    protected: "errors.protected",
     no_vault: "errors.noVault",
     io: "errors.io",
     parse: "errors.parse",

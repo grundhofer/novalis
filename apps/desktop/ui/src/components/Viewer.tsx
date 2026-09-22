@@ -8,13 +8,18 @@ import { report } from "../stores/ui";
 import "../styles/viewer.css";
 
 /**
- * The read-only pane for a PDF or an image (ADR-0015). The file comes through
- * `read_blob` as base64. An image is shown from a `blob:` URL that lives as
- * long as the tab shows the file; a PDF goes to pdf.js (ADR-0016), which is
- * its own chunk and only ever loads when a PDF is opened.
+ * The read-only pane for a PDF, an image or a book (ADR-0015, ADR-0023).
+ *
+ * A PDF and an image come through `read_blob` as base64: the image is shown
+ * from a `blob:` URL that lives as long as the tab shows the file, the PDF
+ * goes to pdf.js (ADR-0016). An EPUB is not one file but a container, so it
+ * never passes here at all — the reader opens it part by part through
+ * `read_packed`. All three viewers are their own chunk and none of them
+ * loads before a file of its kind is opened.
  */
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
+const EpubViewer = lazy(() => import("./EpubViewer"));
 
 function decode(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
@@ -32,6 +37,8 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
   useEffect(() => {
+    // A book is read inside, not whole: `EpubViewer` does its own reads.
+    if (kind === "epub") return undefined;
     let url: string | null = null;
     let cancelled = false;
     unwrap(commands.readBlob(path))
@@ -48,6 +55,18 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
     };
   }, [path, kind]);
 
+  if (kind === "epub") {
+    return (
+      <section className="viewer">
+        <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+          {/* Keyed by path: another book is another reader, with no state
+              of the last one — the same rule the other two follow through
+              `loaded.path`. */}
+          <EpubViewer key={path} path={path} />
+        </Suspense>
+      </section>
+    );
+  }
   if (loaded?.path !== path) return <div className="pane-loading">{t("editor.loading")}</div>;
   return (
     <section className="viewer">

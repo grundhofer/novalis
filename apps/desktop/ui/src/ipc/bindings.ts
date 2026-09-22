@@ -34,6 +34,18 @@ export const commands = {
 	 */
 	readBlob: (path: string) => typedError<BlobDto, IpcError>(__TAURI_INVOKE("read_blob", { path })),
 	/**
+	 *  Read inside a container the viewer shows one part at a time — an EPUB or
+	 *  a CBZ (ADR-0023). With `entries` empty this is the container's table of
+	 *  contents; otherwise it is those entries' bytes, all of them in this one
+	 *  call, because a chapter and the twenty images it references are one user
+	 *  action and rule 8 gives it one round trip, not twenty-one.
+	 * 
+	 *  Same explicit-open rule as `read_blob`: a cloud-only book is downloaded
+	 *  here on purpose. The core caps each entry; this caps what one call may
+	 *  put through the IPC as base64, for the same reason `read_blob` does.
+	 */
+	readPacked: (path: string, entries: string[]) => typedError<PackedDto, IpcError>(__TAURI_INVOKE("read_packed", { path, entries })),
+	/**
 	 *  Write an image the user pasted or dropped into a note (ADR-0017), under
 	 *  `folder/name`, never over an existing file (`RENAME_EXCL`), parents
 	 *  created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
@@ -422,6 +434,34 @@ export type LanguageDto = "system" | "de" | "en";
  */
 export type MenuAction = {
 	id: string,
+};
+
+/**
+ *  What a container (EPUB, CBZ — ADR-0023) gave back for one `read_packed`
+ *  call: the table of contents when the call asked for no entry, otherwise
+ *  the entries it asked for. One of the two is always empty.
+ */
+export type PackedDto = {
+	path: string,
+	entries: PackedEntryDto[],
+	parts: PackedPartDto[],
+};
+
+/**  One row of a container's table of contents. */
+export type PackedEntryDto = {
+	/**
+	 *  The entry's name inside the container, a relative path with forward
+	 *  slashes. This is the name `read_packed` takes.
+	 */
+	name: string,
+	/**  Uncompressed byte count as a decimal string (see `EntryDto`). */
+	size: string,
+};
+
+/**  One entry's bytes, base64 for the same reason as `BlobDto`. */
+export type PackedPartDto = {
+	name: string,
+	base64: string,
 };
 
 /**  Where a card goes inside its column. */
