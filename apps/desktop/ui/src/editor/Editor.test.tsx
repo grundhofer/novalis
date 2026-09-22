@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deferLine } from "../lib/editorBridge";
 import { forgetPositions, keptPosition } from "../lib/positions";
+import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
 import Editor from "./Editor";
 
@@ -87,5 +88,14 @@ describe("Editor keeps the place", () => {
     const again = await mount("a.md");
     expect(again.view.state.doc.lineAt(again.view.state.selection.main.head).number).toBe(5);
     again.unmount();
+  });
+
+  // feature-gaps A9: the status bar's position, selection and cursors.
+  it("reports where the cursor is, and forgets it when the view goes", async () => {
+    const view = await mount("a.md");
+    view.view.dispatch({ selection: { anchor: 9, head: 14 } });
+    expect(useCursor.getState().cursor).toEqual({ path: "a.md", line: 3, column: 8, selected: 5, cursors: 1 });
+    view.unmount();
+    expect(useCursor.getState().cursor).toBeNull();
   });
 });

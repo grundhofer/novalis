@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
+import { useUi } from "../stores/ui";
 import StatusBar, { countWords } from "./StatusBar";
 
 vi.mock("react-i18next", () => ({
@@ -66,5 +68,43 @@ describe("StatusBar", () => {
     expect(screen.queryByText(/status\.words/)).toBeNull();
     expect(screen.getByText("status.characters:13")).toBeTruthy();
     expect(screen.getByText("status.plainMode")).toBeTruthy();
+  });
+
+  // feature-gaps A9 (PLAN.md §5.3 "words · line:col · cloud state"): the
+  // position always, the selection and the cursors only when they say
+  // something.
+  describe("the cursor", () => {
+    beforeEach(() => {
+      useEditorSave.setState({ docs: { "a.md": doc("one two\n") } });
+      useUi.setState({ previewing: {} });
+      useCursor.setState({ cursor: null });
+    });
+
+    it("shows the line and column, and nothing about a selection when there is none", () => {
+      useCursor.getState().set({ path: "a.md", line: 3, column: 7, selected: 0, cursors: 1 });
+      render(<StatusBar />);
+      expect(screen.getByText("status.position")).toBeTruthy();
+      expect(screen.queryByText(/status\.selected/)).toBeNull();
+      expect(screen.queryByText(/status\.cursors/)).toBeNull();
+    });
+
+    it("counts the selected characters and the cursors when there are some", () => {
+      useCursor.getState().set({ path: "a.md", line: 1, column: 1, selected: 12, cursors: 3 });
+      render(<StatusBar />);
+      expect(screen.getByText("status.selected:12")).toBeTruthy();
+      expect(screen.getByText("status.cursors:3")).toBeTruthy();
+    });
+
+    it("says nothing about another tab's cursor, or while the note is previewed", () => {
+      useCursor.getState().set({ path: "b.md", line: 1, column: 1, selected: 0, cursors: 1 });
+      const { unmount } = render(<StatusBar />);
+      expect(screen.queryByText("status.position")).toBeNull();
+      unmount();
+
+      useCursor.getState().set({ path: "a.md", line: 1, column: 1, selected: 0, cursors: 1 });
+      useUi.setState({ previewing: { "a.md": true } });
+      render(<StatusBar />);
+      expect(screen.queryByText("status.position")).toBeNull();
+    });
   });
 });
