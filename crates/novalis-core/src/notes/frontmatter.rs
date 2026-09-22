@@ -77,11 +77,14 @@ pub fn block_span(text: &str) -> Option<BlockSpan> {
 }
 
 /// The note body: everything after the frontmatter block (the whole text
-/// when there is none).
+/// when there is none), without a leading byte-order mark — a note saved by
+/// Notepad or Excel starts with one, and `# Title` behind it is not a
+/// heading. The mark stays in the file (§2.3 rule 3): the body is a suffix,
+/// so `text.len() - body.len()` still counts it as part of what precedes.
 pub fn body(text: &str) -> &str {
     match block_span(text) {
         Some(span) => &text[span.block_end..],
-        None => text,
+        None => text.strip_prefix('\u{feff}').unwrap_or(text),
     }
 }
 
@@ -519,6 +522,26 @@ mod tests {
         );
         assert_eq!(title("no heading", "stem"), "stem");
         assert_eq!(title("## not h1\n# real\n", "stem"), "real");
+    }
+
+    /// A note from Windows Notepad or Excel starts with a byte-order mark;
+    /// its heading, its tags and its preview are the same as without one.
+    #[test]
+    fn a_byte_order_mark_does_not_hide_the_title() {
+        let text = "\u{feff}# BOM title\n\nbody #tagged\n";
+        assert_eq!(title(text, "stem"), "BOM title");
+        assert_eq!(body(text), "# BOM title\n\nbody #tagged\n");
+        assert_eq!(
+            text.len() - body(text).len(),
+            3,
+            "the mark is before the body, not lost"
+        );
+        assert_eq!(all_tags(text), vec!["tagged"]);
+        // With frontmatter the block already stepped over it.
+        assert_eq!(
+            title("\u{feff}---\ntags: [a]\n---\n# Front\n", "stem"),
+            "Front"
+        );
     }
 
     #[test]
