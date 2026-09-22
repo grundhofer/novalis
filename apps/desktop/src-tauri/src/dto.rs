@@ -193,6 +193,22 @@ pub struct UiStateDto {
     /// written to `state.json` (`state_save` drops the key).
     #[serde(default)]
     pub quit: bool,
+    /// Where the window was and how large (PLAN.md §4.1: state, not a
+    /// setting). The shell keeps it and fills it in on every save; the UI
+    /// never sets it.
+    #[serde(default)]
+    pub window: Option<WindowRectDto>,
+}
+
+/// The window's outer top-left corner and inner size, in physical pixels of
+/// the screen it was on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowRectDto {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Default for UiStateDto {
@@ -208,6 +224,7 @@ impl Default for UiStateDto {
             backlinks_visible: false,
             cloud_hint_shown: false,
             quit: false,
+            window: None,
         }
     }
 }

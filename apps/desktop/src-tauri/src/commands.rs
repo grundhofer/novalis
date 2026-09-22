@@ -154,7 +154,7 @@ fn attach_vault(app: &AppHandle, state: &AppState, root: PathBuf) -> IpcResult<(
     Ok(())
 }
 
-fn read_ui_state(path: &Path) -> UiStateDto {
+pub(crate) fn read_ui_state(path: &Path) -> UiStateDto {
     let Ok(text) = std::fs::read_to_string(path) else {
         return UiStateDto::default();
     };
@@ -176,6 +176,22 @@ fn read_ui_state(path: &Path) -> UiStateDto {
         }
     }
     serde_json::from_value(value).unwrap_or_default()
+}
+
+/// Write `state.json` atomically. `quit` is a request, not state: it never
+/// reaches the file.
+pub(crate) fn write_ui_state(path: &Path, ui_state: &UiStateDto) -> Result<(), CoreError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| CoreError::from_io(parent, e))?;
+    }
+    let mut value = serde_json::to_value(ui_state).map_err(CoreError::from)?;
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("quit");
+    }
+    let mut bytes = serde_json::to_vec_pretty(&value).map_err(CoreError::from)?;
+    bytes.push(b'\n');
+    fs::write_atomic(path, &bytes, None)?;
+    Ok(())
 }
 
 /// Rebuild the native menu, but only when something it shows has changed.
@@ -1166,28 +1182,16 @@ pub async fn settings_set(
 pub async fn state_save(
     app: AppHandle,
     state: State<'_, AppState>,
-    ui_state: UiStateDto,
+    mut ui_state: UiStateDto,
 ) -> IpcResult<()> {
     let quit = ui_state.quit;
+    // The window's place is the shell's to know (`window.rs`).
+    ui_state.window = state.window().or(ui_state.window);
     if !quit {
         refresh_menu(&app, &state, &state.settings(), &ui_state);
     }
     let path = state.ui_state_path();
-    let written = blocking(move || {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| CoreError::from_io(parent, e))?;
-        }
-        // `quit` is a request, not state: it never reaches the file.
-        let mut value = serde_json::to_value(&ui_state).map_err(CoreError::from)?;
-        if let Some(fields) = value.as_object_mut() {
-            fields.remove("quit");
-        }
-        let mut bytes = serde_json::to_vec_pretty(&value).map_err(CoreError::from)?;
-        bytes.push(b'\n');
-        fs::write_atomic(&path, &bytes, None)?;
-        Ok(())
-    })
-    .await;
+    let written = blocking(move || Ok(write_ui_state(&path, &ui_state)?)).await;
     // The UI's last word before quitting (D19): the buffers are on disk, and
     // a state file that could not be written is no reason to stay open.
     if quit {

@@ -17,6 +17,7 @@ use novalis_core::settings::{Appearance, Language, Settings};
 use novalis_core::vault::fs::Precondition;
 
 use crate::cache::CacheHandle;
+use crate::dto::WindowRectDto;
 use crate::error::{IpcError, IpcResult};
 use crate::watcher::WatcherHandle;
 
@@ -109,6 +110,9 @@ pub struct AppState {
     /// Set by the first quit request (⌘Q, the menu, the window's close
     /// button); the ones after it only wait for the same exit.
     quitting: AtomicBool,
+    /// The window's last place and size, tracked from its move and resize
+    /// events; written into every save of `state.json`.
+    window: Mutex<Option<WindowRectDto>>,
     config_dir: PathBuf,
 }
 
@@ -127,6 +131,7 @@ impl AppState {
             own_writes: Arc::new(Mutex::new(OwnWrites::default())),
             search_generation: Arc::new(AtomicU64::new(0)),
             quitting: AtomicBool::new(false),
+            window: Mutex::new(None),
             config_dir,
         }
     }
@@ -135,6 +140,14 @@ impl AppState {
     /// another flush or another fallback timer.
     pub fn begin_quit(&self) -> bool {
         !self.quitting.swap(true, Ordering::SeqCst)
+    }
+
+    pub fn window(&self) -> Option<WindowRectDto> {
+        *self.window.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn set_window(&self, rect: WindowRectDto) {
+        *self.window.lock().unwrap_or_else(|e| e.into_inner()) = Some(rect);
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {

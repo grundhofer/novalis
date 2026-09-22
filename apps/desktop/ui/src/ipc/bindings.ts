@@ -598,6 +598,12 @@ export type UiStateDto = {
 	 *  written to `state.json` (`state_save` drops the key).
 	 */
 	quit?: boolean,
+	/**
+	 *  Where the window was and how large (PLAN.md §4.1: state, not a
+	 *  setting). The shell keeps it and fills it in on every save; the UI
+	 *  never sets it.
+	 */
+	window?: WindowRectDto | null,
 };
 
 export type VaultDto = {
@@ -618,6 +624,17 @@ export type VaultKindDto = "fileProvider" | "mirrored" | "local";
 export type VaultOpenDto = {
 	vault: VaultDto,
 	tree: EntryDto[],
+};
+
+/**
+ *  The window's outer top-left corner and inner size, in physical pixels of
+ *  the screen it was on.
+ */
+export type WindowRectDto = {
+	x: number,
+	y: number,
+	width: number,
+	height: number,
 };
 
 /* Tauri Specta runtime */

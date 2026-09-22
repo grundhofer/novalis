@@ -19,6 +19,7 @@ mod i18n;
 mod menu;
 mod state;
 mod watcher;
+mod window;
 
 use tauri::Manager;
 use tauri_specta::{collect_commands, collect_events, Builder};
@@ -113,6 +114,9 @@ pub fn run() {
             menu::install(&handle, &catalog, &settings, MenuFlags::default())?;
 
             app.manage(AppState::new(config_dir, settings));
+            if let Some(main) = app.get_webview_window("main") {
+                window::restore(&main, &app.state::<AppState>());
+            }
             Ok(())
         })
         // Every menu click becomes one `menu-action` event carrying a
@@ -121,12 +125,21 @@ pub fn run() {
         .on_menu_event(|app, event| menu::dispatch(app, event.id().as_ref()))
         // Closing the one window quits the app: the same save-first path as
         // ⌘Q, so it cannot drop the last second of typing either (D19).
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 menu::request_quit(window.app_handle());
             }
+            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+                window::track(window, &window.state::<AppState>());
+            }
+            _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("run the novalis desktop app");
+        .build(tauri::generate_context!())
+        .expect("build the novalis desktop app")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                window::persist(&app.state::<AppState>());
+            }
+        });
 }
