@@ -157,6 +157,20 @@ export default function App() {
       for (const entry of batch.modified) {
         if (openDocs[entry.path]) void useEditorSave.getState().externalChange(entry.path).catch(report);
       }
+      // A file gone under an open tab (feature-gaps A17): a clean buffer's tab
+      // closes, unsaved text waits under the deleted-on-disk banner. A viewer
+      // tab has no buffer; it closes.
+      for (const path of batch.removed) {
+        if (openDocs[path]) {
+          void useEditorSave
+            .getState()
+            .deletedOnDisk(path)
+            .then((outcome) => (outcome === "gone" ? useTabs.getState().close(path) : undefined))
+            .catch(report);
+        } else if (useTabs.getState().tabs.includes(path) && viewKind(path)) {
+          void useTabs.getState().close(path).catch(report);
+        }
+      }
       for (const rename of batch.renamed) {
         if (openDocs[rename.from]) {
           // The doc map is re-keyed first: the tab rename switches what the

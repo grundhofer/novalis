@@ -3,6 +3,7 @@ import { create } from "zustand";
 import {
   commands,
   isConflict,
+  NovalisError,
   unwrap,
   type FileDto,
   type PreconditionDto,
@@ -49,6 +50,8 @@ const MERGE_MAX_BYTES = 1_000_000;
 
 export type Banner =
   | { kind: "changedOnDisk" }
+  /** The file went away under unsaved text (feature-gaps A17). */
+  | { kind: "deletedOnDisk" }
   | { kind: "replacedBySync" }
   | { kind: "binary" }
   | { kind: "notUtf8" }
@@ -94,6 +97,15 @@ interface EditorSaveState {
   save: (path: string) => Promise<void>;
   flushAll: () => Promise<void>;
   externalChange: (path: string) => Promise<void>;
+  /**
+   * The watcher saw `path` go. `"gone"` when it is still gone and the buffer
+   * held nothing unsaved — the caller closes the tab; `"kept"` when the
+   * banner now holds the unsaved text, or the file was back by the time it
+   * was looked at.
+   */
+  deletedOnDisk: (path: string) => Promise<"gone" | "kept">;
+  /** "Keep mine" on the deleted-on-disk banner: write the buffer as the file again. */
+  restoreDeleted: (path: string) => Promise<void>;
   dismissBanner: (path: string) => void;
   reloadFromDisk: (path: string) => Promise<void>;
   keepMine: (path: string, vaultKind: VaultKindDto) => Promise<void>;
@@ -104,6 +116,17 @@ interface EditorSaveState {
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const readers = new Map<string, () => string>();
 const pending = new Set<string>();
+
+/** Whether `path` is not on disk (any other read failure is thrown). */
+async function isGone(path: string): Promise<boolean> {
+  try {
+    await unwrap(commands.readFile(path));
+    return false;
+  } catch (error) {
+    if (error instanceof NovalisError && error.code === "not_found") return true;
+    throw error;
+  }
+}
 
 function cancelTimer(path: string): void {
   const timer = timers.get(path);
@@ -274,6 +297,10 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
     get().flush(path);
     const doc = get().docs[path];
     if (!doc || !doc.dirty || doc.readOnly || doc.saving) return;
+    // The file was deleted under this buffer: nothing is written until the
+    // banner is answered — an autosave would recreate it behind the user's
+    // back, or end as a conflict copy nobody asked for.
+    if (doc.banner?.kind === "deletedOnDisk") return;
     const text = doc.text;
     // A conflict copy is ours alone: no precondition, and no way for it to
     // conflict in turn.
@@ -318,6 +345,18 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
         });
         throw error;
       }
+      // A conflict because the file is gone is a deletion, not a change (the
+      // autosave can reach it before the watcher reports it): the text waits
+      // under the deleted-on-disk banner instead of in a conflict copy.
+      if (await isGone(path)) {
+        set((s) => {
+          const current = s.docs[path];
+          return current
+            ? { docs: { ...s.docs, [path]: { ...current, saving: false, banner: { kind: "deletedOnDisk" } } } }
+            : s;
+        });
+        return;
+      }
       // §5.3 step 3: the buffer goes to a conflict copy immediately and keeps
       // autosaving there. Nothing is lost and nothing is clobbered.
       const copy = await unwrap(commands.writeConflictCopy(path, text));
@@ -345,6 +384,53 @@ export const useEditorSave = create<EditorSaveState>((set, get) => ({
 
   flushAll: async () => {
     await Promise.all(Object.keys(get().docs).map((path) => get().save(path)));
+  },
+
+  deletedOnDisk: async (path) => {
+    // A save by delete-and-recreate (some editors, some sync clients) is not
+    // a deletion: if the file is back, it is an ordinary change.
+    if (!(await isGone(path))) {
+      await get().externalChange(path);
+      return "kept";
+    }
+    cancelTimer(path);
+    const text = get().flush(path);
+    const doc = get().docs[path];
+    if (!doc) return "gone";
+    if (!doc.dirty && text === doc.savedText) return "gone";
+    set((s) => {
+      const current = s.docs[path];
+      return current ? { docs: { ...s.docs, [path]: { ...current, banner: { kind: "deletedOnDisk" } } } } : s;
+    });
+    return "kept";
+  },
+
+  restoreDeleted: async (path) => {
+    const text = get().flush(path);
+    const doc = get().docs[path];
+    if (!doc || text === undefined) return;
+    const precondition = await unwrap(commands.writeFile(path, text, null));
+    useVault.getState().touch(path, precondition);
+    const latest = get().flush(path) ?? text;
+    set((s) => {
+      const current = s.docs[path];
+      if (!current) return s;
+      return {
+        docs: {
+          ...s.docs,
+          [path]: {
+            ...current,
+            writePath: path,
+            precondition,
+            lastWriteHash: precondition.hash,
+            savedText: text,
+            dirty: latest !== text,
+            banner: null,
+          },
+        },
+      };
+    });
+    if (latest !== text && get().docs[path]) armAutosave(path, get().save);
   },
 
   externalChange: async (path) => {
