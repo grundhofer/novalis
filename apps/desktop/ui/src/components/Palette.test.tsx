@@ -1,5 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { goToEditorLine } from "../lib/editorBridge";
+import { setPreviewBridge } from "../lib/previewBridge";
+import { useEditorSave } from "../stores/editorSave";
 
 import { dispatchCommand } from "../lib/commands";
 import { useBoard } from "../stores/board";
@@ -22,8 +25,8 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
-// No editor chunk loads in jsdom: no headings to list, nothing to jump to.
-vi.mock("../lib/editorBridge", () => ({ editorHeadings: () => [], goToEditorLine: vi.fn() }));
+// No editor chunk loads in jsdom: the jump is observed, not made.
+vi.mock("../lib/editorBridge", () => ({ goToEditorLine: vi.fn() }));
 // The command list is the real one; only what Enter dispatches is observed.
 vi.mock("../lib/commands", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/commands")>()),
@@ -110,5 +113,50 @@ describe("Palette", () => {
 
     fireEvent.keyDown(input, { key: "Enter" });
     expect(dispatchCommand).not.toHaveBeenCalled();
+  });
+
+  // feature-gaps A10: the headings come from the note's text, so the jump
+  // works in the preview as in the editor; a code file has none.
+  describe("the heading jump", () => {
+    const text = "# Plan\n\n## Open questions\n```sh\n# not one\n```\n";
+    beforeEach(() => {
+      vi.mocked(goToEditorLine).mockClear();
+      useEditorSave.setState({ docs: { "n.md": { path: "n.md", text } as never, "run.sh": { path: "run.sh", text } as never } });
+    });
+
+    it("lists the note's headings and goes to one in the editor", () => {
+      useTabs.setState({ active: "n.md" });
+      render(<Palette mode="palette" />);
+      const input = screen.getByPlaceholderText("palette.placeholder");
+      fireEvent.change(input, { target: { value: "open q" } });
+      expect(document.querySelector(".result.active .result-label")?.textContent).toBe("## Open questions");
+      expect(screen.queryByText("# not one")).toBeNull();
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(goToEditorLine).toHaveBeenCalledWith(3);
+    });
+
+    it("goes to it in the preview when the preview shows the note", () => {
+      const goToLine = vi.fn();
+      setPreviewBridge({ find: vi.fn(), findNext: vi.fn(), findPrevious: vi.fn(), mark: vi.fn(), goToLine });
+      try {
+        useTabs.setState({ active: "n.md" });
+        render(<Palette mode="palette" />);
+        const input = screen.getByPlaceholderText("palette.placeholder");
+        fireEvent.change(input, { target: { value: "open q" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+        expect(goToLine).toHaveBeenCalledWith(3);
+        expect(goToEditorLine).not.toHaveBeenCalled();
+      } finally {
+        setPreviewBridge(null);
+      }
+    });
+
+    it("has no headings for a file that is not Markdown", () => {
+      useTabs.setState({ active: "run.sh" });
+      render(<Palette mode="palette" />);
+      fireEvent.change(screen.getByPlaceholderText("palette.placeholder"), { target: { value: "plan" } });
+      expect(screen.queryByText(/# Plan/)).toBeNull();
+    });
   });
 });

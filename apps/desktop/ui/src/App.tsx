@@ -15,6 +15,7 @@ import { dispatchCommand } from "./lib/commands";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
+import { openAt } from "./lib/openAt";
 import { uiStateNow } from "./lib/uiState";
 import { useBoard } from "./stores/board";
 import { useEditorSave } from "./stores/editorSave";
@@ -261,14 +262,19 @@ export default function App() {
       void useTabs.getState().open(destination).catch(report);
       return;
     }
-    const clean = target
+    const [name = "", heading] = target
       .replace(/^\[\[/, "")
       .replace(/\]\]$/, "")
       .split("|")[0]!
-      .split("#")[0]!
-      .trim();
-    const hit = resolveWikiTarget(clean, useFiles.getState().notes);
-    if (hit) void useTabs.getState().open(hit).catch(report);
+      .split("#")
+      .map((part) => part.trim());
+    // `[[#Heading]]` is a heading of the note it is written in.
+    const hit = name === "" ? useTabs.getState().active : resolveWikiTarget(name, useFiles.getState().notes);
+    if (!hit) return;
+    // `[[note#heading]]` lands on the heading (§7.2); the pane settles it
+    // against the text it shows, like a backlink's line.
+    if (heading) openAt(hit, { line: 1, snippet: "", heading });
+    else void useTabs.getState().open(hit).catch(report);
   }, []);
 
   const notePaths = useCallback(() => useFiles.getState().notes, []);
