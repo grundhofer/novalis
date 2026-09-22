@@ -294,6 +294,7 @@
   "viewer.epub.previousChapter": "Previous chapter",
   "viewer.epub.protected": "This book is copy-protected and cannot be opened.",
   "viewer.epub.unreadable": "This book could not be read.",
+  "viewer.fit": "Fit",
   "viewer.fitWidth": "Fit width",
   "viewer.nextPage": "Next page",
   "viewer.outline": "Contents",

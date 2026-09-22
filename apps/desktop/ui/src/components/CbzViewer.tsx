@@ -5,6 +5,7 @@ import { commands, NovalisError, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { extensionOf, fileNameOf } from "../lib/paths";
 import { report } from "../stores/ui";
+import ZoomableImage from "./ZoomableImage";
 
 /**
  * The comic reader (ADR-0023) — the second reader on the same primitive as
@@ -17,8 +18,8 @@ import { report } from "../stores/ui";
  * page frees what is now two pages back, so a 500 MB comic costs two pages
  * of memory, never more.
  *
- * Zoom is not here: the page fits the pane. It arrives with the image zoom
- * of ADR-0025, which the whole viewer gets at once or not at all.
+ * The page is a `ZoomableImage` (ADR-0025), the image viewer's: it fits the
+ * pane until zoomed, and a zoom stays as the pages turn.
  */
 
 /** Where the reader stopped when a comic will not open, and what it says. */
@@ -162,7 +163,7 @@ export default function CbzViewer({ path }: { path: string }) {
 
   return (
     <div className="cbz">
-      <header className="cbz-bar">
+      <ZoomableImage src={src} alt={label}>
         <button
           className="btn ghost pdf-tool"
           type="button"
@@ -184,9 +185,7 @@ export default function CbzViewer({ path }: { path: string }) {
         >
           &#8250;
         </button>
-        <span className="pdf-spacer" />
-      </header>
-      <div className="cbz-sheet">{src && <img className="cbz-page" src={src} alt={label} />}</div>
+      </ZoomableImage>
     </div>
   );
 }

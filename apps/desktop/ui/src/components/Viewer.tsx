@@ -6,6 +6,7 @@ import { mimeOf, type ViewKind } from "../lib/fileTypes";
 import { stemOf } from "../lib/paths";
 import { report } from "../stores/ui";
 import "../styles/viewer.css";
+import ZoomableImage from "./ZoomableImage";
 
 /**
  * The read-only pane for a PDF, an image, a book, a comic or a Word
@@ -88,7 +89,7 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
           )}
         </Suspense>
       ) : (
-        <img className="viewer-image" src={loaded.url ?? undefined} alt={stemOf(path)} />
+        <ZoomableImage src={loaded.url} alt={stemOf(path)} />
       )}
     </section>
   );

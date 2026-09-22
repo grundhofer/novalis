@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import type { Mermaid } from "mermaid";
 
 import { commands, unwrap } from "../ipc/client";
-import { mimeOf } from "../lib/fileTypes";
+import { mimeOf, viewKind } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
 import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
@@ -319,9 +319,13 @@ export default function Preview({
     // come through `read_blob` like the viewer's. Until they arrive the alt
     // text shows, not a broken image for a URL nothing could serve.
     for (const img of host.querySelectorAll("img")) {
-      const target = resolveDestination(rendered.path, img.getAttribute("src") ?? "");
+      const source = img.getAttribute("src") ?? "";
+      const target = resolveDestination(rendered.path, source);
       if (!target) continue;
       img.removeAttribute("src");
+      // A click opens it in the viewer (ADR-0025) — an image the viewer
+      // shows, that is: an SVG would open as its XML.
+      if (viewKind(target) === "image") img.dataset.open = source;
       unwrap(commands.readBlob(target))
         .then((blob) => {
           if (cancelled) return;
@@ -462,6 +466,12 @@ export default function Preview({
   // ---- links ---------------------------------------------------------------
   const onClick = (event: MouseEvent<HTMLDivElement>) => {
     const anchor = (event.target as Element | null)?.closest("a[href]");
+    // An image inside a link is the link's.
+    const image = (event.target as Element | null)?.closest<HTMLElement>("img[data-open]");
+    if (!anchor && image?.dataset.open) {
+      onFollowLink(image.dataset.open);
+      return;
+    }
     if (!anchor) return;
     // Nothing navigates the webview: a link is the app's business or nobody's.
     event.preventDefault();
