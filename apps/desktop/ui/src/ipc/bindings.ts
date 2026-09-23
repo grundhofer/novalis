@@ -179,6 +179,7 @@ export const events = {
 	cacheUpdated: makeEvent<CacheUpdated>("cache-updated"),
 	fsBatch: makeEvent<FsBatch>("fs-batch"),
 	menuAction: makeEvent<MenuAction>("menu-action"),
+	openRequested: makeEvent<OpenRequested>("open-requested"),
 };
 
 /* Types */
@@ -303,6 +304,11 @@ export type BootstrapDto = {
 	 *  PLAN.md §11.3 numbers to the console (`ui/src/lib/perf.ts`).
 	 */
 	perf: string | null,
+	/**
+	 *  Files and `novalis://` links macOS handed to the app before the page
+	 *  was up — a launch by Open With or a Dock drop (ADR-0045).
+	 */
+	pendingOpen: OpenRequestDto[],
 };
 
 /**
@@ -455,6 +461,21 @@ export type LanguageDto = "system" | "de" | "en";
  */
 export type MenuAction = {
 	id: string,
+};
+
+/**
+ *  One thing to open. The UI decides what it means: a file inside the open
+ *  vault becomes a tab, anything else is said in a toast.
+ */
+export type OpenRequestDto = 
+/**  An absolute file path. */
+{ kind: "file"; path: string } | 
+/**  A `novalis://` link, as it came. */
+{ kind: "link"; url: string };
+
+/**  Requests that arrived while the UI was running. */
+export type OpenRequested = {
+	items: OpenRequestDto[],
 };
 
 /**

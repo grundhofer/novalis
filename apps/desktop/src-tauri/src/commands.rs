@@ -283,6 +283,7 @@ pub async fn bootstrap(app: AppHandle, state: State<'_, AppState>) -> IpcResult<
         last_open: ui_state,
         locale,
         perf: std::env::var("NOVALIS_PERF").ok().filter(|v| !v.is_empty()),
+        pending_open: crate::opening::take_pending(),
     })
 }
 

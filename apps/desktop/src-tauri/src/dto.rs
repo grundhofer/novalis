@@ -816,6 +816,9 @@ pub struct BootstrapDto {
     /// probe (`1`) or a self-typing burst (`type:<n>`) and prints the
     /// PLAN.md §11.3 numbers to the console (`ui/src/lib/perf.ts`).
     pub perf: Option<String>,
+    /// Files and `novalis://` links macOS handed to the app before the page
+    /// was up — a launch by Open With or a Dock drop (ADR-0045).
+    pub pending_open: Vec<crate::opening::OpenRequestDto>,
 }
 
 /// The result of opening a different vault: the same two fields `bootstrap`
