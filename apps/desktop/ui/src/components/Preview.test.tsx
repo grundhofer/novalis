@@ -92,6 +92,30 @@ describe("Preview", () => {
     useEditorSave.setState({ setText });
   });
 
+  // ADR-0039: a task box in the preview flips its `[ ]` in the source; the
+  // box itself is not toggled by the click, the re-render shows the new text.
+  it("flips a task box in the source when it is clicked, and not in a read-only note", async () => {
+    const text = "# T\n\n- [ ] one\n- [x] two\n";
+    doc("t.md", text);
+    fragment =
+      '<h1 data-pos="0-3">T</h1><ul><li data-pos="5-15"><input disabled="" type="checkbox"/>one</li>' +
+      '<li data-pos="15-25"><input disabled="" type="checkbox" checked=""/>two</li></ul>';
+    const spy = vi.fn();
+    useEditorSave.setState({ setText: spy });
+    const { container } = render(<Preview path="t.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    const boxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    expect(boxes[0]!.disabled).toBe(false);
+    fireEvent.click(boxes[1]!);
+    expect(spy).toHaveBeenCalledWith("t.md", "# T\n\n- [ ] one\n- [ ] two\n");
+
+    spy.mockClear();
+    useEditorSave.setState({ docs: { "t.md": { path: "t.md", text, readOnly: true } as never } });
+    fireEvent.click(boxes[0]!);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("shows the fragment the core rendered from the buffer", async () => {
     doc("n.md", "# Hi");
     fragment = "<h1>Hi</h1>";

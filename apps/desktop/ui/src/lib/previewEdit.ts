@@ -55,6 +55,21 @@ export function toggleMarkInSource(
   return `${text.slice(0, from)}${marker}${trimmed}${marker}${text.slice(to)}`;
 }
 
+/**
+ * The note text with the task box of the list item at `block` flipped —
+ * `[ ]` ⇄ `[x]`, on the item's first line, the rule the editor's box and
+ * `Cmd+Enter` use (ADR-0039) — or `null` when that line is no task.
+ */
+export function toggleTaskInSource(text: string, block: BlockSpan): string | null {
+  if (block.end > text.length) return null;
+  const lineEnd = text.indexOf("\n", block.start);
+  const line = text.slice(block.start, lineEnd < 0 || lineEnd > block.end ? block.end : lineEnd);
+  const match = /^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\])/.exec(line);
+  if (!match) return null;
+  const at = block.start + (match[1] as string).length;
+  return `${text.slice(0, at)}${match[2] === " " ? "x" : " "}${text.slice(at + 1)}`;
+}
+
 /** The UTF-16 offset at which 1-based `line` starts, or `null` past the end. */
 export function offsetOfLine(text: string, line: number): number | null {
   if (line < 1) return null;

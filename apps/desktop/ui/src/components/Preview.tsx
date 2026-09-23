@@ -16,7 +16,7 @@ import { resolveDestination } from "../lib/links";
 import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition } from "../lib/positions";
 import { setPreviewBridge } from "../lib/previewBridge";
-import { blockForLine, parseBlockSpan, toggleMarkInSource } from "../lib/previewEdit";
+import { blockForLine, parseBlockSpan, toggleMarkInSource, toggleTaskInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
 import { report, useUi } from "../stores/ui";
 import "../styles/preview.css";
@@ -331,6 +331,13 @@ export default function Preview({
     }
     positioned.current = rendered.path;
 
+    // A task box in a list item is the one thing here that writes (ADR-0039):
+    // the renderer draws it disabled, which also keeps it from receiving the
+    // click that `onClick` turns into the source edit.
+    for (const box of host.querySelectorAll<HTMLInputElement>('li[data-pos] > input[type="checkbox"]')) {
+      box.disabled = false;
+    }
+
     // A relative `src` is a vault path the webview cannot reach; the bytes
     // come through `read_blob` like the viewer's. Until they arrive the alt
     // text shows, not a broken image for a URL nothing could serve.
@@ -481,6 +488,19 @@ export default function Preview({
 
   // ---- links ---------------------------------------------------------------
   const onClick = (event: MouseEvent<HTMLDivElement>) => {
+    // A task box flips its `[ ]` in the source (ADR-0039); the pane renders
+    // the new text, so the box's own toggle is not kept.
+    const box = (event.target as Element | null)?.closest<HTMLInputElement>('input[type="checkbox"]');
+    if (box) {
+      event.preventDefault();
+      const span = parseBlockSpan(box.closest("li[data-pos]")?.getAttribute("data-pos"));
+      const notePath = pathRef.current;
+      const doc = useEditorSave.getState().docs[notePath];
+      if (!span || !doc || doc.readOnly) return;
+      const next = toggleTaskInSource(doc.text, span);
+      if (next !== null) useEditorSave.getState().setText(notePath, next);
+      return;
+    }
     const anchor = (event.target as Element | null)?.closest("a[href]");
     // An image inside a link is the link's.
     const image = (event.target as Element | null)?.closest<HTMLElement>("img[data-open]");
