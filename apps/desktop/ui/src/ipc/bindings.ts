@@ -97,12 +97,13 @@ export const commands = {
 	 */
 	trash: (path: string) => typedError<null, IpcError>(__TAURI_INVOKE("trash", { path })),
 	/**
-	 *  Hand a vault file to macOS's own opener, `/usr/bin/open` — no plugin,
-	 *  and nothing leaves the machine from novalis (docs/PRIVACY.md):
-	 *  `reveal` shows it selected in the Finder (ADR-0021), `default` opens it in
-	 *  the app macOS picks for its type (ADR-0043). The path is checked against
+	 *  Hand something to macOS's own opener, `/usr/bin/open` — no plugin, and
+	 *  novalis itself opens no connection (docs/PRIVACY.md): `reveal` shows a
+	 *  vault file selected in the Finder (ADR-0021), `default` opens it in the
+	 *  app macOS picks for its type (ADR-0043), `url` opens a web or mail link
+	 *  in the default browser or mail app (ADR-0044). A path is checked against
 	 *  the vault like every other and is absolute, so it can never be read as an
-	 *  option. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
+	 *  option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
 	 *  with an error.
 	 */
 	systemOpen: (target: SystemOpenDto) => typedError<null, IpcError>(__TAURI_INVOKE("system_open", { target })),
@@ -574,7 +575,9 @@ export type SystemOpenDto =
 /**  Show the file selected in the Finder (`open -R`). */
 { kind: "reveal"; path: string } | 
 /**  Open it in the app macOS picks for its type (`open`). */
-{ kind: "default"; path: string };
+{ kind: "default"; path: string } | 
+/**  A web or mail link, in the default browser or mail app (ADR-0044). */
+{ kind: "url"; url: string };
 
 export type TagCountDto = {
 	tag: string,

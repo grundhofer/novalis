@@ -13,6 +13,12 @@ only mode in v1) the table is empty on purpose:
 |---|---|---|
 | — | — | — |
 
+A web or mail link you click in the preview, or `Cmd`-click in the editor,
+is handed to macOS (`/usr/bin/open`), which opens it in your default
+browser or mail app; that app makes the connection, novalis does not
+(ADR-0044). Only `http`, `https` and `mailto` links are handed on; nothing
+is opened without your click.
+
 Sync works by putting the vault into the OneDrive or Google Drive folder. The
 vendor's own client moves the bytes; novalis only reads and writes local files
 and never talks to a server. Fonts are bundled, never loaded from a CDN.

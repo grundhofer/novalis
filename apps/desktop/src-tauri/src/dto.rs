@@ -725,6 +725,8 @@ pub enum SystemOpenDto {
     Reveal { path: String },
     /// Open it in the app macOS picks for its type (`open`).
     Default { path: String },
+    /// A web or mail link, in the default browser or mail app (ADR-0044).
+    Url { url: String },
 }
 
 /// Which native context menu to pop at the pointer (ADR-0021, ADR-0032).

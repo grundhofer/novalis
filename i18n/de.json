@@ -78,6 +78,7 @@
   "editor.completion.tags": "Tags",
   "editor.edit": "Bearbeiten",
   "editor.emptyState": "Öffne eine Notiz in der Seitenleiste oder drücke {{chord}}.",
+  "editor.externalLinkRefused": "Außerhalb von novalis öffnen sich nur Web- und Mail-Links.",
   "editor.find.all": "alle",
   "editor.find.byWord": "ganzes Wort",
   "editor.find.caseSensitive": "Groß-/Kleinschreibung",

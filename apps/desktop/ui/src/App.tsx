@@ -15,6 +15,7 @@ import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand, newNote } from "./lib/commands";
+import { openExternal, SCHEME } from "./lib/external";
 import { folderOf } from "./lib/paths";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
@@ -287,6 +288,11 @@ export default function App() {
   ]);
 
   const followLink = useCallback((target: string) => {
+    // A web or mail link leaves the vault through macOS (ADR-0044).
+    if (SCHEME.test(target.trim().replace(/^<|>$/g, ""))) {
+      openExternal(target.trim().replace(/^<|>$/g, ""));
+      return;
+    }
     // A Markdown destination is a path relative to the note (PLAN.md §7.2):
     // a `.md` opens in the editor, an image or PDF in the viewer (ADR-0017).
     const destination = resolveDestination(useTabs.getState().active, target);

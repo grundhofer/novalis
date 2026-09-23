@@ -16,7 +16,7 @@ vi.mock("react-i18next", () => ({
 // The fragment comes from the core and the image bytes from the shell; here
 // both answer with the value itself and `unwrap` passes it on (ADR-0011).
 vi.mock("../ipc/client", () => ({
-  commands: { renderMarkdown: vi.fn(), readBlob: vi.fn() },
+  commands: { renderMarkdown: vi.fn(), readBlob: vi.fn(), systemOpen: vi.fn() },
   unwrap: vi.fn(),
   NovalisError: class extends Error {},
   errorKey: () => "errors.internal",
@@ -162,16 +162,21 @@ describe("Preview", () => {
 
   // Mode 1 opens nothing outside the vault (docs/PRIVACY.md): the click is
   // swallowed and the toast says why, so it does not look broken.
-  it("does not follow an external link, and says so", async () => {
+  // ADR-0044: a web or mail link opens outside through macOS; any other
+  // scheme is refused, and said so; neither is followed inside the vault.
+  it("hands a web link to the system, and refuses another scheme", async () => {
     const onFollowLink = vi.fn();
     doc("n.md", "x");
-    fragment = '<p><a href="https://example.com/">out</a></p>';
+    fragment = '<p><a href="https://example.com/">out</a> <a href="file:///etc/hosts">file</a></p>';
     render(<Preview path="n.md" onFollowLink={onFollowLink} />);
     await flush();
 
     fireEvent.click(screen.getByText("out"));
+    expect(commands.systemOpen).toHaveBeenCalledWith({ kind: "url", url: "https://example.com/" });
+    fireEvent.click(screen.getByText("file"));
+    expect(commands.systemOpen).toHaveBeenCalledTimes(1);
+    expect(useUi.getState().toast?.key).toBe("editor.externalLinkRefused");
     expect(onFollowLink).not.toHaveBeenCalled();
-    expect(useUi.getState().toast?.key).toBe("editor.previewExternalLink");
   });
 
   it("replaces a mermaid fence with the diagram it renders", async () => {
