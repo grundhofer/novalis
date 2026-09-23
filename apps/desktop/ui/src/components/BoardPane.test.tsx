@@ -24,6 +24,7 @@ const card = (id: string, title: string, column: string, notes: string[] = []) =
   created: "2026-09-08T10:00:00.000Z",
   updated: "2026-09-08T10:00:00.000Z",
   description: null,
+  descriptionHtml: null,
 });
 
 const board = {
@@ -103,18 +104,32 @@ describe("BoardPane", () => {
     });
   });
 
-  // ADR-0013: the description is plain text on the card and a textarea in the
-  // same dialog as the rename; the store never sees a value that did not change.
+  // ADR-0013: the description is edited as text in the same dialog as the
+  // rename; the store never sees a value that did not change. ADR-0033: the
+  // card shows it rendered, inert.
   describe("description", () => {
     const described = {
       ...board,
-      cards: [{ ...card("c1", "Write the spec", "todo"), description: "First the *why*." }],
+      cards: [
+        {
+          ...card("c1", "Write the spec", "todo", ["Roadmap.md"]),
+          description: "First the *why*. [x](https://example.org)",
+          descriptionHtml: '<p>First the <em>why</em>. <a href="https://example.org">x</a></p>',
+        },
+      ],
     };
 
-    it("shows a card's description as plain text", () => {
+    it("shows a card's description rendered, and a click on a link in it is the card's", () => {
+      const open = vi.fn().mockResolvedValue(undefined);
+      useTabs.setState({ open } as never);
       useBoard.setState({ board: described as never });
       render(<BoardPane />);
-      expect(screen.getByText("First the *why*.")).toBeTruthy();
+      expect(screen.getByText("why").tagName).toBe("EM");
+
+      const followed = fireEvent.click(screen.getByText("x"));
+
+      expect(followed).toBe(false);
+      expect(open).toHaveBeenCalledWith("Roadmap.md");
     });
 
     it("edits it in a multi-line dialog that starts from the current text", () => {
@@ -125,7 +140,7 @@ describe("BoardPane", () => {
 
       const prompt = useUi.getState().prompt;
       expect(prompt?.multiline).toBe(true);
-      expect(prompt?.initial).toBe("First the *why*.");
+      expect(prompt?.initial).toBe("First the *why*. [x](https://example.org)");
     });
 
     it("writes the new text through the dialog", async () => {
@@ -147,7 +162,7 @@ describe("BoardPane", () => {
       render(<BoardPane />);
 
       fireEvent.click(screen.getByLabelText("board.editDescription"));
-      await useUi.getState().prompt!.submit("First the *why*.");
+      await useUi.getState().prompt!.submit("First the *why*. [x](https://example.org)");
 
       expect(useBoard.getState().apply).not.toHaveBeenCalled();
     });

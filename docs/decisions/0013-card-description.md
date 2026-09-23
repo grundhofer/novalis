@@ -67,3 +67,7 @@ Dialog als Mehrzeiler (Cmd+Enter speichert). CLI: card add/set
 - What this does not add: rendering of the Markdown, a second field, a
   card detail view, search over descriptions. Each would be its own
   decision.
+
+**Amended 2026-09-23** — ADR-0033: the description is rendered on the card
+(the preview's renderer, links and boxes inert, still three lines). "No
+Markdown rendering in v1" above is superseded; the rest stands.
