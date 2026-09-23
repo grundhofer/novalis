@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
-import { dispatchCommand, paletteCommands } from "../lib/commands";
+import { createNoteNamed, dispatchCommand, paletteCommands } from "../lib/commands";
+import { resolveWikiTarget } from "../lib/links";
 import { goToEditorLine } from "../lib/editorBridge";
 import { previewKind } from "../lib/fileTypes";
 import { rank } from "../lib/fuzzy";
@@ -31,6 +32,7 @@ import Marked from "./Marked";
 
 type Entry =
   | { kind: "file"; path: string }
+  | { kind: "create"; name: string; text: string }
   | { kind: "tag"; tag: string; count: number }
   | { kind: "board"; slug: string; name: string }
   | { kind: "command"; id: string; label: string }
@@ -38,6 +40,7 @@ type Entry =
 
 const SECTION_KEY: Record<Entry["kind"], string> = {
   file: "palette.section.notes",
+  create: "palette.section.notes",
   board: "palette.section.boards",
   command: "palette.section.commands",
   heading: "palette.section.headings",
@@ -166,6 +169,8 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
         return entry.name;
       case "command":
         return entry.label;
+      case "create":
+        return entry.text;
       case "heading":
         return entry.text;
       case "tag":
@@ -174,7 +179,17 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
   };
 
   const matched = headingQuery(mode, query) ?? query;
-  const results = useMemo(() => rank(matched, pool, label, 60), [matched, pool]);
+  const ranked = useMemo(() => rank(matched, pool, label, 60), [matched, pool]);
+  // A name no note has (ADR-0038): quick-open offers to create it, last.
+  const results = useMemo(() => {
+    const name = query.trim();
+    // Not for a name a `[[link]]` could not name (`#`, `|`, brackets, `^`).
+    if (mode !== "quickOpen" || !name || /[@#|[\]^]/.test(name) || resolveWikiTarget(name, notes)) {
+      return ranked;
+    }
+    const create: Entry = { kind: "create", name, text: t("editor.completion.newNote", { name }) };
+    return [...ranked, { item: create, match: { score: 0, positions: [] } }];
+  }, [ranked, mode, query, notes, t]);
   const current = useTabs.getState().active;
   const recentShown = new Set(
     query === "" && mode === "quickOpen" ? recent.filter((path) => path !== current) : [],
@@ -207,6 +222,9 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
         break;
       case "command":
         dispatchCommand(entry.id);
+        break;
+      case "create":
+        void createNoteNamed(entry.name).catch(report);
         break;
       case "heading":
         if (previewMounted()) goToPreviewLine(entry.line);

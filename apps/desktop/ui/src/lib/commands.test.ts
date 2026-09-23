@@ -628,3 +628,20 @@ describe("search seeded from the selection", () => {
     expect(useUi.getState().overlay).toEqual({ kind: "headings" });
   });
 });
+
+// ADR-0038: a link to no note opens New Note with its name, nothing written
+// before OK.
+describe("newNote with a name", () => {
+  it("opens the dialog in the given folder with the name filled in", async () => {
+    const stores = stubStores();
+    const { newNote } = await import("./commands");
+    vi.mocked(unwrap).mockResolvedValue(entry("Notes/Missing.md", false) as never);
+    newNote("Notes", "Missing");
+    const prompt = useUi.getState().prompt;
+    expect(prompt?.initial).toBe("Missing");
+    expect(commands.createNote).not.toHaveBeenCalled();
+    await prompt!.submit("Missing");
+    expect(commands.createNote).toHaveBeenCalledWith("Notes", "Missing");
+    expect(stores.open).toHaveBeenCalledWith("Notes/Missing.md");
+  });
+});

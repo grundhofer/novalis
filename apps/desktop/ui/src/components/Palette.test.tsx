@@ -5,7 +5,7 @@ import { goToEditorLine } from "../lib/editorBridge";
 import { setPreviewBridge } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
 
-import { dispatchCommand } from "../lib/commands";
+import { createNoteNamed, dispatchCommand } from "../lib/commands";
 import { useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
@@ -32,6 +32,7 @@ vi.mock("../lib/editorBridge", () => ({ goToEditorLine: vi.fn() }));
 vi.mock("../lib/commands", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/commands")>()),
   dispatchCommand: vi.fn(),
+  createNoteNamed: vi.fn(async () => undefined),
 }));
 
 describe("Palette", () => {
@@ -111,10 +112,13 @@ describe("Palette", () => {
 
     fireEvent.change(input, { target: { value: "dark" } });
     expect(screen.queryByText("palette.cmd.appearance:settings.appearance.dark")).toBeNull();
-    expect(screen.getByText("palette.noResults")).toBeTruthy();
+    // ADR-0038: a name no note has is offered for creation, nothing else.
+    const labels = [...document.querySelectorAll(".result-label")].map((el) => el.textContent);
+    expect(labels).toEqual(["editor.completion.newNote"]);
 
     fireEvent.keyDown(input, { key: "Enter" });
     expect(dispatchCommand).not.toHaveBeenCalled();
+    expect(createNoteNamed).toHaveBeenCalledWith("dark");
   });
 
   // feature-gaps A10: the headings come from the note's text, so the jump
@@ -235,5 +239,20 @@ describe("Palette recent files and headings", () => {
     });
     const labels = [...document.querySelectorAll(".result-label")].map((el) => el.textContent);
     expect(labels).toEqual(["## Beta part"]);
+  });
+});
+
+// ADR-0038: quick-open offers "Create …" only for a name no note has.
+describe("Palette create row", () => {
+  it("offers to create a missing name, and not an existing one in another case", () => {
+    vi.mocked(unwrap).mockResolvedValue({ tags: [] } as never);
+    useFiles.setState({ files: ["Ideas.md"], notes: ["Ideas.md"], loaded: true });
+    useTabs.setState({ recent: [], active: null });
+    render(<Palette mode="quickOpen" />);
+    const input = screen.getByPlaceholderText("palette.quickOpenPlaceholder");
+    fireEvent.change(input, { target: { value: "ideas" } });
+    expect(screen.queryByText("editor.completion.newNote")).toBeNull();
+    fireEvent.change(input, { target: { value: "Ideas 2" } });
+    expect(screen.getByText("editor.completion.newNote")).toBeTruthy();
   });
 });

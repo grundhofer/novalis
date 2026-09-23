@@ -58,6 +58,12 @@ export const editorTheme = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ds-color-fg-muted)" },
   ".cm-foldPlaceholder": { backgroundColor: "var(--ds-color-bg-fill)", border: "none" },
   ".cm-searchMatch": { backgroundColor: "var(--ds-color-editor-match)" },
+  // A `[[link]]` to no note (ADR-0038): dimmed and dashed, over the link
+  // colour the highlighter gives its parts.
+  ".nv-link-unresolved, .nv-link-unresolved span": {
+    color: "var(--ds-color-fg-subtle)",
+    textDecoration: "underline dashed var(--ds-color-fg-subtle)",
+  },
   // Invisibles (ADR-0029): CodeMirror's defaults hard-code #aaa, #888 in an
   // SVG and #ff332255; a space is a token-coloured dot, a tab a thin rule
   // across its width, trailing whitespace the warning fill.
