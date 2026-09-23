@@ -132,3 +132,9 @@ look, never bytes. No new dependency, string key, command id or chord;
 **Amended 2026-09-23** — ADR-0039: a task box in a list item of the preview
 is clickable and flips its `[ ]` / `[x]` in the note's source, the same
 single write the editor's box makes. Nothing else in the preview writes.
+
+**Amended 2026-09-23 (2)** — ADR-0044: an external web or mail link in the
+preview is no longer refused; a click hands it to macOS, which opens it in
+the default browser or mail app. "Not opened — there is no opener plugin
+and no outbound anything" above is superseded for those two schemes;
+novalis itself still opens no connection.

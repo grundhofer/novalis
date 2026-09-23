@@ -740,24 +740,28 @@ pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
     .await
 }
 
-/// Hand a vault file to macOS's own opener, `/usr/bin/open` — no plugin,
-/// and nothing leaves the machine from novalis (docs/PRIVACY.md):
-/// `reveal` shows it selected in the Finder (ADR-0021), `default` opens it in
-/// the app macOS picks for its type (ADR-0043). The path is checked against
+/// Hand something to macOS's own opener, `/usr/bin/open` — no plugin, and
+/// novalis itself opens no connection (docs/PRIVACY.md): `reveal` shows a
+/// vault file selected in the Finder (ADR-0021), `default` opens it in the
+/// app macOS picks for its type (ADR-0043), `url` opens a web or mail link
+/// in the default browser or mail app (ADR-0044). A path is checked against
 /// the vault like every other and is absolute, so it can never be read as an
-/// option. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
+/// option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
 /// with an error.
 #[tauri::command]
 #[specta::specta]
 pub async fn system_open(state: State<'_, AppState>, target: SystemOpenDto) -> IpcResult<()> {
-    let root = state.require_vault()?;
+    // A path is the vault's; a URL is checked on its own (ADR-0044).
+    let arg: std::ffi::OsString = match &target {
+        SystemOpenDto::Reveal { path } | SystemOpenDto::Default { path } => {
+            let root = state.require_vault()?;
+            let rel = normalize_rel(path)?;
+            vault_rel(&root, &rel)?.into_os_string()
+        }
+        SystemOpenDto::Url { url } => external_url(url)?.into(),
+    };
+    let reveal = matches!(target, SystemOpenDto::Reveal { .. });
     blocking(move || {
-        let (path, reveal) = match &target {
-            SystemOpenDto::Reveal { path } => (path, true),
-            SystemOpenDto::Default { path } => (path, false),
-        };
-        let rel = normalize_rel(path)?;
-        let abs = vault_rel(&root, &rel)?;
         #[cfg(target_os = "macos")]
         {
             let mut open = std::process::Command::new("/usr/bin/open");
@@ -765,9 +769,9 @@ pub async fn system_open(state: State<'_, AppState>, target: SystemOpenDto) -> I
                 open.arg("-R");
             }
             let status = open
-                .arg(&abs)
+                .arg(&arg)
                 .status()
-                .map_err(|e| CoreError::from_io(&abs, e))?;
+                .map_err(|e| CoreError::internal(format!("open: {e}")))?;
             if !status.success() {
                 return Err(CoreError::internal(format!("open exited with {status}")).into());
             }
@@ -775,11 +779,26 @@ pub async fn system_open(state: State<'_, AppState>, target: SystemOpenDto) -> I
         }
         #[cfg(not(target_os = "macos"))]
         {
-            let _ = (abs, reveal);
+            let _ = (arg, reveal);
             Err(CoreError::internal("opening with the system is macOS only").into())
         }
     })
     .await
+}
+
+/// A link novalis hands to the browser or the mail app (ADR-0044): `http`,
+/// `https` or `mailto`, nothing else, and nothing `open` could read as an
+/// option or a second argument.
+fn external_url(url: &str) -> IpcResult<String> {
+    let url = url.trim();
+    let scheme = url.split_once(':').map(|(s, _)| s.to_ascii_lowercase());
+    let allowed = matches!(scheme.as_deref(), Some("http" | "https" | "mailto"));
+    if !allowed || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err(IpcError::bad_request(format!(
+            "not a web or mail link: {url}"
+        )));
+    }
+    Ok(url.to_string())
 }
 
 /// A native context menu popped at the pointer (ADR-0021, ADR-0032). The
@@ -1260,6 +1279,27 @@ pub async fn state_save(
 
 #[cfg(test)]
 mod tests {
+
+    // ADR-0044: only web and mail links reach `open`, and never as an option.
+    #[test]
+    fn only_web_and_mail_links_are_opened() {
+        assert_eq!(
+            super::external_url(" https://example.org/a?b=c ").unwrap(),
+            "https://example.org/a?b=c"
+        );
+        assert!(super::external_url("mailto:me@example.org").is_ok());
+        assert!(super::external_url("HTTP://EXAMPLE.ORG").is_ok());
+        for bad in [
+            "file:///etc/passwd",
+            "javascript:alert(1)",
+            "-a Calculator",
+            "https://x.org/a b",
+            "novalis://today",
+            "",
+        ] {
+            assert!(super::external_url(bad).is_err(), "{bad:?}");
+        }
+    }
     use super::{creatable_file_rel, creatable_name, scan_vault};
 
     /// feature-gaps A32: the old app's `.novalis/config.json` without a

@@ -78,6 +78,7 @@
   "editor.completion.tags": "Tags",
   "editor.edit": "Edit",
   "editor.emptyState": "Open a note from the sidebar or press {{chord}}.",
+  "editor.externalLinkRefused": "novalis opens only web and mail links outside itself.",
   "editor.find.all": "all",
   "editor.find.byWord": "by word",
   "editor.find.caseSensitive": "Match Case",

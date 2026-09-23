@@ -16,9 +16,10 @@ import { resolveDestination } from "../lib/links";
 import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition } from "../lib/positions";
 import { setPreviewBridge } from "../lib/previewBridge";
+import { openExternal, SCHEME } from "../lib/external";
 import { blockForLine, parseBlockSpan, toggleMarkInSource, toggleTaskInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
-import { report, useUi } from "../stores/ui";
+import { report } from "../stores/ui";
 import "../styles/preview.css";
 
 /**
@@ -47,7 +48,6 @@ const RENDER_DEBOUNCE_MS = 150;
 const TARGET_LIT_MS = 1200;
 
 /** `https:`, `mailto:` and the like — the test `lib/links.ts` uses. */
-const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /** The same lines as Viewer.tsx: base64 from `read_blob` to bytes. */
 function decode(base64: string): Uint8Array<ArrayBuffer> {
@@ -524,9 +524,8 @@ export default function Preview({
       return;
     }
     if (SCHEME.test(href)) {
-      // Mode 1 opens nothing outside the vault (docs/PRIVACY.md); the toast
-      // says so rather than letting the click look broken.
-      useUi.getState().showToast("editor.previewExternalLink");
+      // A web or mail link opens in the browser or mail app (ADR-0044).
+      openExternal(href);
       return;
     }
     onFollowLink(decodeHref(href));

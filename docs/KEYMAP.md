@@ -99,7 +99,7 @@ it back).
 | Gesture | Effect | Scope |
 |---|---|---|
 | `Alt`-click | Add a cursor at the click position | editor |
-| `Cmd`-click on a link | Follow the wikilink or Markdown link; a `[[link]]` to no note (drawn dimmed and dashed) opens New Note with its name (ADR-0038) | editor:markdown |
+| `Cmd`-click on a link | Follow the wikilink or Markdown link — a web or mail link opens in the default browser or mail app (ADR-0044); a `[[link]]` to no note (drawn dimmed and dashed) opens New Note with its name (ADR-0038) | editor:markdown |
 | `Cmd`-click on a `#tag` chip | Open the vault search filtered by that tag (ADR-0037) | editor:markdown |
 | Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown, preview (`Cmd+E`, ADR-0039) |
 | Click on a card | Open the linked note in a tab (D21); a card without a note opens its description (ADR-0030) | board |
