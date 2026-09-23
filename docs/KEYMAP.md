@@ -106,7 +106,7 @@ it back).
 | Click on a board item in the tree | Show the board pane | tree |
 | Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
 | Drag a board row after another board row or onto the tree's empty space | Reorder the boards (writes `order` to `board.json`, ADR-0019) | tree |
-| Right-click on a row | The row's context menu: Show in Finder, Rename, Move to Trash, New Note, New Folder — a board row Show in Finder only (ADR-0021) | tree |
+| Right-click on a row | The row's context menu: Show in Finder, Open in Default App (ADR-0043), Rename, Move to Trash, New Note, New Folder — a board row Show in Finder only (ADR-0021) | tree |
 | Drag a tab onto another tab or the strip's empty end | Put it in that tab's place, or last; the order `Cmd+1…9` counts (ADR-0028) | tab strip |
 | Drag a file row from the tree into a note | Insert a link where it lands: `[[note]]` for a note, `![](path)` for an image, `[name](path)` otherwise, relative to the note (ADR-0040) | editor:markdown |
 | Drag a note row from the tree onto a column or a card | A new card titled by the note and linked to it, last in the column or after the card (ADR-0030) | board |
@@ -180,3 +180,7 @@ it back).
   before. `palette.gotoHeading` (Go to Heading…) has no chord: a palette
   entry for a Markdown file; `@` as the first character in `Cmd+P` or
   `Shift+Cmd+P` does the same.
+- `tree.openDefault` (Open in Default App), `file.copyPath` (Copy Path) and
+  `file.copyLink` (Copy Link to Note), ADR-0043, have no chord: palette
+  entries, the first also in the tree's context menu. `backlinks.toggle`
+  is also View ▸ Show/Hide Backlinks, without a chord.

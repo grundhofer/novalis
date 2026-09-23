@@ -210,6 +210,7 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
         spellcheck: settings.spellcheck,
         sidebar_visible: ui_state.sidebar_visible,
         board_visible: ui_state.board_visible,
+        backlinks_visible: ui_state.backlinks_visible,
     };
     if !state.menu_needs_rebuild(shape) {
         return;
@@ -219,6 +220,7 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
     let flags = menu::MenuFlags {
         sidebar_visible: ui_state.sidebar_visible,
         board_visible: ui_state.board_visible,
+        backlinks_visible: ui_state.backlinks_visible,
     };
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
@@ -738,33 +740,43 @@ pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
     .await
 }
 
-/// Show `path` in the Finder, selected in its folder (ADR-0021): `open -R`,
-/// the system's own opener, no plugin and nothing leaves the machine. The
-/// path is checked against the vault like every other; macOS only, as the
-/// app is (PLAN.md §4.5) — the Linux build answers with an error.
+/// Hand a vault file to macOS's own opener, `/usr/bin/open` — no plugin,
+/// and nothing leaves the machine from novalis (docs/PRIVACY.md):
+/// `reveal` shows it selected in the Finder (ADR-0021), `default` opens it in
+/// the app macOS picks for its type (ADR-0043). The path is checked against
+/// the vault like every other and is absolute, so it can never be read as an
+/// option. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
+/// with an error.
 #[tauri::command]
 #[specta::specta]
-pub async fn reveal(state: State<'_, AppState>, path: String) -> IpcResult<()> {
+pub async fn system_open(state: State<'_, AppState>, target: SystemOpenDto) -> IpcResult<()> {
     let root = state.require_vault()?;
     blocking(move || {
-        let rel = normalize_rel(&path)?;
+        let (path, reveal) = match &target {
+            SystemOpenDto::Reveal { path } => (path, true),
+            SystemOpenDto::Default { path } => (path, false),
+        };
+        let rel = normalize_rel(path)?;
         let abs = vault_rel(&root, &rel)?;
         #[cfg(target_os = "macos")]
         {
-            let status = std::process::Command::new("/usr/bin/open")
-                .arg("-R")
+            let mut open = std::process::Command::new("/usr/bin/open");
+            if reveal {
+                open.arg("-R");
+            }
+            let status = open
                 .arg(&abs)
                 .status()
                 .map_err(|e| CoreError::from_io(&abs, e))?;
             if !status.success() {
-                return Err(CoreError::internal(format!("open -R exited with {status}")).into());
+                return Err(CoreError::internal(format!("open exited with {status}")).into());
             }
             Ok(())
         }
         #[cfg(not(target_os = "macos"))]
         {
-            let _ = abs;
-            Err(CoreError::internal("reveal is macOS only").into())
+            let _ = (abs, reveal);
+            Err(CoreError::internal("opening with the system is macOS only").into())
         }
     })
     .await

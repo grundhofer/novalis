@@ -15,7 +15,7 @@ import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
 import { localIsoDay } from "./localTime";
-import { resolveWikiTarget } from "./links";
+import { resolveWikiTarget, wikiLinkFor } from "./links";
 import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 import { uiStateNow } from "./uiState";
 
@@ -380,6 +380,36 @@ function searchSeed(): string | undefined {
   return seed && !/[\r\n]/.test(seed) && seed.length <= 100 ? seed : undefined;
 }
 
+/** A board's tree row (`boards/<slug>`), which is no file to hand anywhere. */
+function isBoardPath(path: string): boolean {
+  return useBoard.getState().boards.some((b) => `boards/${b.slug}` === path);
+}
+
+/**
+ * Copy Path / Copy Link to Note (ADR-0043), from the palette, whose Enter
+ * or click is the user's gesture the clipboard needs. What was copied is
+ * said, since nothing else shows it.
+ */
+async function copyText(text: string): Promise<void> {
+  await navigator.clipboard.writeText(text);
+  useUi.getState().showToast("palette.copied", { text });
+}
+
+/** The selected row's, else the active tab's, absolute path. */
+function copyPath(): Promise<void> | void {
+  const path = targetPath();
+  const root = useVault.getState().vault?.root;
+  if (!path || !root || isBoardPath(path)) return;
+  return copyText(`${root}/${path}`);
+}
+
+/** The `[[…]]` a note is linked by — the form a drop inserts (ADR-0040). */
+function copyLink(): Promise<void> | void {
+  const path = targetPath();
+  if (!path || !isNote(path)) return;
+  return copyText(wikiLinkFor(path, useFiles.getState().notes));
+}
+
 async function newBoard(): Promise<void> {
   useUi.getState().ask({
     titleKey: "board.newBoard",
@@ -506,8 +536,17 @@ const REGISTRY: Record<string, () => CommandResult> = {
   },
   "tree.reveal": () => {
     const path = targetPath();
-    if (path) return unwrap(commands.reveal(path)).then(() => undefined);
+    if (path) return unwrap(commands.systemOpen({ kind: "reveal", path })).then(() => undefined);
   },
+  // Open in Default App (ADR-0043): the file, in the app macOS picks.
+  "tree.openDefault": () => {
+    const path = targetPath();
+    if (path && !isBoardPath(path)) {
+      return unwrap(commands.systemOpen({ kind: "default", path })).then(() => undefined);
+    }
+  },
+  "file.copyPath": () => copyPath(),
+  "file.copyLink": () => copyLink(),
   "settings.appearance.system": () => useUi.getState().setAppearance("system"),
   "settings.appearance.light": () => useUi.getState().setAppearance("light"),
   "settings.appearance.dark": () => useUi.getState().setAppearance("dark"),
@@ -606,6 +645,9 @@ export function paletteCommands(): readonly {
   { id: "tree.rename", labelKey: "menu.file.rename" },
   { id: "tree.trash", labelKey: "menu.file.moveToTrash" },
   { id: "tree.reveal", labelKey: "menu.file.revealInFinder" },
+  { id: "tree.openDefault", labelKey: "menu.file.openInDefaultApp" },
+  { id: "file.copyPath", labelKey: "palette.cmd.copyPath" },
+  { id: "file.copyLink", labelKey: "palette.cmd.copyLink" },
   { id: "sidebar.toggle", labelKey: "palette.cmd.toggleSidebar" },
   { id: "board.toggle", labelKey: "palette.cmd.toggleBoard" },
   { id: "note.togglePreview", labelKey: "menu.view.togglePreview" },

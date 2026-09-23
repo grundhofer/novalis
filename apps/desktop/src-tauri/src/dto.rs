@@ -717,6 +717,16 @@ impl BoardDto {
     }
 }
 
+/// What `system_open` hands to macOS's opener (ADR-0021, ADR-0043).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum SystemOpenDto {
+    /// Show the file selected in the Finder (`open -R`).
+    Reveal { path: String },
+    /// Open it in the app macOS picks for its type (`open`).
+    Default { path: String },
+}
+
 /// Which native context menu to pop at the pointer (ADR-0021, ADR-0032).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", tag = "kind")]
