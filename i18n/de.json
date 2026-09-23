@@ -49,7 +49,6 @@
   "board.editDescription": "Beschreibung bearbeiten",
   "board.empty": "Noch keine Karten.",
   "board.linkNote": "Notiz verknüpfen…",
-  "board.linkNoteNeedsNote": "Öffne zuerst eine Notiz, um sie mit dieser Karte zu verknüpfen.",
   "board.moveColumnLeft": "Nach links",
   "board.moveColumnRight": "Nach rechts",
   "board.newBoard": "Neues Board",

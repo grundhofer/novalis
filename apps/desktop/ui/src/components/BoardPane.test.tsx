@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useBoard } from "../stores/board";
@@ -161,20 +161,70 @@ describe("BoardPane", () => {
     });
   });
 
-  it("links the note that is open, and offers nothing when none is", () => {
+  // ADR-0030: Link Note… opens the note picker, which leaves out the notes
+  // the card already links; the pick is the write. It used to link the
+  // active tab or be disabled.
+  it("links a note chosen in the picker, offering none the card already links", async () => {
     render(<BoardPane />);
-    // No active note: the control is there but refuses.
     const link = screen.getAllByLabelText("board.linkNote")[0] as HTMLButtonElement;
-    expect(link.disabled).toBe(true);
+    expect(link.disabled).toBe(false);
 
-    useTabs.setState({ active: "Spike.md" });
-    render(<BoardPane />);
-    fireEvent.click(screen.getAllByLabelText("board.linkNote")[0]!);
+    fireEvent.click(link);
 
+    const overlay = useUi.getState().overlay;
+    expect(overlay.kind).toBe("pickNote");
+    if (overlay.kind !== "pickNote") return;
+    expect(overlay.exclude).toEqual(["Roadmap.md"]);
+    await overlay.onPick("Spec.md");
     expect(useBoard.getState().apply).toHaveBeenCalledWith({
       kind: "linkNote",
       id: "c1",
-      path: "Spike.md",
+      path: "Spec.md",
+    });
+  });
+
+  // ADR-0030: a card with no note opens its description on a click; one with
+  // a note keeps D21 (the next test).
+  it("opens the description of a card that links no note", () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open } as never);
+    render(<BoardPane />);
+
+    fireEvent.click(screen.getByText("Ship it"));
+
+    expect(open).not.toHaveBeenCalled();
+    expect(useUi.getState().prompt?.titleKey).toBe("board.editDescription");
+  });
+
+  // ADR-0030: a note dragged from the tree onto a column becomes a card
+  // titled by its stem and linked to it; anything else makes no card.
+  describe("a note dropped from the tree", () => {
+    const drop = (path: string, types = ["text/plain"]) => {
+      const column = screen.getByText("Doing").closest(".column")!;
+      fireEvent.drop(column, { dataTransfer: { types, getData: () => path } });
+    };
+
+    beforeEach(() => {
+      render(<BoardPane />);
+    });
+
+    it("makes a card linked to the note, last in the column", () => {
+      drop("Spec.md");
+      expect(useBoard.getState().apply).toHaveBeenCalledWith({
+        kind: "add",
+        title: "Spec",
+        column: "doing",
+        notes: ["Spec.md"],
+        position: { kind: "last" },
+      });
+    });
+
+    it("makes none for a file that is not a note, a path not listed, or a tab", () => {
+      act(() => useFiles.setState({ files: ["Roadmap.md", "Spec.md", "clip.pdf"] }));
+      drop("clip.pdf");
+      drop("Gone.md");
+      drop("Spec.md", ["application/x-novalis-tab"]);
+      expect(useBoard.getState().apply).not.toHaveBeenCalled();
     });
   });
 

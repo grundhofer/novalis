@@ -49,7 +49,6 @@
   "board.editDescription": "Edit Description",
   "board.empty": "No cards yet.",
   "board.linkNote": "Link Note…",
-  "board.linkNoteNeedsNote": "Open a note first, then link it to this card.",
   "board.moveColumnLeft": "Move Left",
   "board.moveColumnRight": "Move Right",
   "board.newBoard": "New Board",

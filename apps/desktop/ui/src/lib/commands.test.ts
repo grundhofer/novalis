@@ -465,3 +465,21 @@ describe("app.quit", () => {
     expect(commands.stateSave).toHaveBeenCalledTimes(1);
   });
 });
+
+// ADR-0030: New Card is offered only where there is a board to put it on.
+describe("board.newCard in the palette", () => {
+  it("is listed for an active board or a single one, and not without", async () => {
+    const { paletteCommands } = await import("./commands");
+    const { useBoard } = await import("../stores/board");
+    const ids = () => paletteCommands().map((c) => c.id);
+    useUi.setState({ activeBoard: null });
+    useBoard.setState({ boards: [] });
+    expect(ids()).not.toContain("board.newCard");
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never });
+    expect(ids()).toContain("board.newCard");
+    useBoard.setState({ boards: [{ slug: "a" }, { slug: "b" }] as never });
+    expect(ids()).not.toContain("board.newCard");
+    useUi.setState({ activeBoard: "b" });
+    expect(ids()).toContain("board.newCard");
+  });
+});

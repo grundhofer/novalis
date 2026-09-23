@@ -179,6 +179,46 @@ async function openVault(): Promise<void> {
   await useFiles.getState().refresh();
 }
 
+/**
+ * The board a card command acts on (ADR-0030): the one the pane last showed,
+ * or the only board there is.
+ */
+function cardBoard(): string | null {
+  const boards = useBoard.getState().boards;
+  return useUi.getState().activeBoard ?? (boards.length === 1 ? (boards[0]?.slug ?? null) : null);
+}
+
+/**
+ * New Card from the palette (ADR-0030): the column button's dialog, the card
+ * last in the first column, the pane left as it is. A board without columns
+ * is shown instead, since it has nowhere to put a card.
+ */
+async function newCard(): Promise<void> {
+  const slug = cardBoard();
+  if (!slug) return;
+  const board = useBoard.getState();
+  if (board.slug !== slug || !board.board) await board.load(slug);
+  const column = useBoard.getState().board?.columns[0];
+  if (!column) {
+    useUi.getState().setActiveBoard(slug);
+    return;
+  }
+  useUi.getState().ask({
+    titleKey: "board.newCard",
+    placeholderKey: "board.cardTitlePlaceholder",
+    initial: "",
+    submit: async (title) => {
+      await useBoard.getState().apply({
+        kind: "add",
+        title,
+        column: column.id,
+        notes: [],
+        position: { kind: "last" },
+      });
+    },
+  });
+}
+
 async function newBoard(): Promise<void> {
   useUi.getState().ask({
     titleKey: "board.newBoard",
@@ -277,6 +317,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "view.toggleInvisibles": () => useUi.getState().toggleInvisibles(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
+  "board.newCard": () => newCard(),
   "note.togglePreview": () => {
     // Markdown renders (ADR-0020; `.markdown` too, ADR-0022 point 6), a
     // CSV or TSV is a table and an SVG its picture (ADR-0025); a PDF or an
@@ -380,6 +421,8 @@ export function paletteCommands(): readonly {
   { id: "journal.nextDay", labelKey: "palette.cmd.nextDay" },
   { id: "tree.newFolder", labelKey: "menu.file.newFolder" },
   { id: "board.new", labelKey: "menu.file.newBoard" },
+  // Only where there is a board to put the card on (ADR-0030).
+  ...(cardBoard() ? [{ id: "board.newCard", labelKey: "board.newCard" }] : []),
   { id: "settings.open", labelKey: "palette.cmd.settings" },
   { id: "vault.open", labelKey: "menu.file.openVault" },
   { id: "file.save", labelKey: "menu.file.save" },
