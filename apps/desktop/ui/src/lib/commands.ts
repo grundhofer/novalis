@@ -1,5 +1,10 @@
 import { menuCardNow, runCardMenuAction } from "./cardActions";
-import { editorSelectionOrLine, isEditorCommand, runEditorCommand } from "./editorBridge";
+import {
+  editorSelection,
+  editorSelectionOrLine,
+  isEditorCommand,
+  runEditorCommand,
+} from "./editorBridge";
 import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
 import { commands, NovalisError, unwrap, type CardDto } from "../ipc/client";
 import { useBoard } from "../stores/board";
@@ -205,6 +210,8 @@ async function openVault(): Promise<void> {
   // at the next start against a vault that may not have it.
   useUi.getState().setActiveBoard(null);
   useTabs.getState().restore([], null);
+  // The recent files were the previous vault's (ADR-0037).
+  useTabs.setState({ recent: [] });
   await useFiles.getState().refresh();
 }
 
@@ -328,6 +335,17 @@ async function cardFromSelection(): Promise<void> {
   useUi.getState().showToast("board.cardAdded", { board: loaded.name });
 }
 
+/**
+ * What ⇧⌘F starts with (ADR-0037): the selection — the editor's, or the
+ * rendered note's — when it is one line of at most 100 characters; else
+ * nothing, as before.
+ */
+function searchSeed(): string | undefined {
+  const text = (previewMounted() ? window.getSelection()?.toString() : editorSelection()) ?? "";
+  const seed = text.trim();
+  return seed && !/[\r\n]/.test(seed) && seed.length <= 100 ? seed : undefined;
+}
+
 async function newBoard(): Promise<void> {
   useUi.getState().ask({
     titleKey: "board.newBoard",
@@ -420,7 +438,8 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "quickOpen.open": () => useUi.getState().setOverlay({ kind: "quickOpen" }),
   "palette.open": () => useUi.getState().setOverlay({ kind: "palette" }),
   "settings.open": () => useUi.getState().setOverlay({ kind: "settings" }),
-  "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
+  "search.vault": () => useUi.getState().setOverlay({ kind: "search", query: searchSeed() }),
+  "palette.gotoHeading": () => useUi.getState().setOverlay({ kind: "headings" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
   "backlinks.toggle": () => useUi.getState().toggleBacklinks(),
   "view.toggleInvisibles": () => useUi.getState().toggleInvisibles(),
@@ -569,6 +588,10 @@ export function paletteCommands(): readonly {
       : "palette.cmd.showInvisibles",
   },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
+  // The open note's headings alone (ADR-0037); `@` in ⌘P does the same.
+  ...(previewKind(useTabs.getState().active ?? "") === "markdown"
+    ? [{ id: "palette.gotoHeading", labelKey: "palette.cmd.gotoHeading" }]
+    : []),
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },
   { id: "markdown.bold", labelKey: "menu.edit.bold" },

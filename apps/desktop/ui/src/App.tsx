@@ -133,6 +133,7 @@ export default function App() {
       if (boot.vault) {
         void useFiles.getState().refresh().catch(report);
         const { boardVisible: boardWasVisible, activeBoard } = boot.lastOpen;
+        useTabs.setState({ recent: boot.lastOpen.recentFiles ?? [] });
         await useTabs.getState().reopen(boot.lastOpen.openTabs ?? [], boot.lastOpen.activeTab ?? null);
         // Making the tab current hid the board (stores/tabs.ts); one that was
         // showing when the app quit comes back over it.
@@ -257,6 +258,7 @@ export default function App() {
 
   // ---- persist the disposable half of the state --------------------------
   const tabs = useTabs((s) => s.tabs);
+  const recent = useTabs((s) => s.recent);
   const activeBoard = useUi((s) => s.activeBoard);
   const treeSort = useUi((s) => s.treeSort);
   useEffect(() => {
@@ -273,6 +275,7 @@ export default function App() {
     ready,
     tabs,
     active,
+    recent,
     sidebarVisible,
     sidebarWidth,
     boardVisible,
@@ -407,6 +410,11 @@ export default function App() {
       {overlay.kind === "settings" && (
         <Suspense fallback={null}>
           <Palette mode="settings" />
+        </Suspense>
+      )}
+      {overlay.kind === "headings" && (
+        <Suspense fallback={null}>
+          <Palette mode="headings" />
         </Suspense>
       )}
       {overlay.kind === "pickNote" && (

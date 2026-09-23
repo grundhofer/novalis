@@ -253,3 +253,26 @@ describe("useTabs.move, closeOthers and closeAll", () => {
     expect(close).toHaveBeenCalledTimes(4);
   });
 });
+
+// ADR-0037: the files made current, newest first, unique, ten at most — what
+// an empty quick-open lists first and state.json keeps.
+describe("useTabs.recent", () => {
+  beforeEach(() => {
+    useTabs.setState({ tabs: [], active: null, closed: [], history: [], historyIndex: -1, recent: [] });
+    useEditorSave.setState({
+      open: vi.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
+    });
+    useVault.setState({ reveal: vi.fn().mockResolvedValue(undefined) });
+  });
+
+  it("keeps the last ten current files, newest first, once each, and follows a rename", async () => {
+    for (let n = 0; n < 12; n += 1) await useTabs.getState().open(`n${n}.md`);
+    await useTabs.getState().activate("n5.md");
+    const { recent } = useTabs.getState();
+    expect(recent).toHaveLength(10);
+    expect(recent.slice(0, 3)).toEqual(["n5.md", "n11.md", "n10.md"]);
+    useTabs.getState().rename("n5.md", "renamed.md");
+    expect(useTabs.getState().recent[0]).toBe("renamed.md");
+  });
+});

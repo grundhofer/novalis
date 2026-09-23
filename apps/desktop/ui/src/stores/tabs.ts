@@ -15,6 +15,8 @@ import { useVault } from "./vault";
  */
 
 const MAX_CLOSED = 20;
+/** How many recently current files an empty quick-open lists first (ADR-0037). */
+export const MAX_RECENT = 10;
 const MAX_HISTORY = 100;
 
 interface TabsState {
@@ -23,6 +25,8 @@ interface TabsState {
   closed: string[];
   history: string[];
   historyIndex: number;
+  /** Files made current, newest first, unique; kept in `state.json` (ADR-0037). */
+  recent: string[];
 
   restore: (tabs: string[], active: string | null) => void;
   reopen: (paths: string[], active: string | null) => Promise<void>;
@@ -42,12 +46,18 @@ interface TabsState {
   rename: (from: string, to: string) => void;
 }
 
+/** `path` first in `recent`, once, at most [`MAX_RECENT`]. */
+function remember(recent: string[], path: string): string[] {
+  return [path, ...recent.filter((p) => p !== path)].slice(0, MAX_RECENT);
+}
+
 export const useTabs = create<TabsState>((set, get) => ({
   tabs: [],
   active: null,
   closed: [],
   history: [],
   historyIndex: -1,
+  recent: [],
 
   restore: (tabs, active) => set({ tabs, active, history: active ? [active] : [], historyIndex: active ? 0 : -1 }),
 
@@ -110,9 +120,10 @@ export const useTabs = create<TabsState>((set, get) => ({
     const previous = get().active;
     if (previous && previous !== path) await useEditorSave.getState().save(previous);
     set((s) => {
-      if (s.active === path) return s;
+      const recent = remember(s.recent, path);
+      if (s.active === path) return { recent };
       const history = [...s.history.slice(0, s.historyIndex + 1), path].slice(-MAX_HISTORY);
-      return { active: path, history, historyIndex: history.length - 1 };
+      return { active: path, history, historyIndex: history.length - 1, recent };
     });
     // The board pane covers the editor while it is visible, so a note made
     // current from the tree, quick-open, a new note or a tab click stayed
@@ -202,7 +213,11 @@ export const useTabs = create<TabsState>((set, get) => ({
     if (!path) return;
     set({ historyIndex: historyIndex - 1 });
     if (!viewKind(path)) await useEditorSave.getState().open(path);
-    set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    set((s) => ({
+      active: path,
+      tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path],
+      recent: remember(s.recent, path),
+    }));
     useUi.getState().hideBoard();
   },
 
@@ -213,7 +228,11 @@ export const useTabs = create<TabsState>((set, get) => ({
     if (!path) return;
     set({ historyIndex: historyIndex + 1 });
     if (!viewKind(path)) await useEditorSave.getState().open(path);
-    set((s) => ({ active: path, tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path] }));
+    set((s) => ({
+      active: path,
+      tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path],
+      recent: remember(s.recent, path),
+    }));
     useUi.getState().hideBoard();
   },
 
@@ -222,5 +241,6 @@ export const useTabs = create<TabsState>((set, get) => ({
       tabs: s.tabs.map((t) => (t === from ? to : t)),
       active: s.active === from ? to : s.active,
       history: s.history.map((t) => (t === from ? to : t)),
+      recent: s.recent.map((t) => (t === from ? to : t)),
     })),
 }));

@@ -28,8 +28,13 @@ export type Overlay =
   | { kind: "quickOpen" }
   | { kind: "palette" }
   | { kind: "settings" }
-  /** `tag` presets the search's tag filter (a tag chosen in the palette). */
-  | { kind: "search"; tag?: string }
+  /**
+   * `tag` presets the search's tag filter (a tag chosen in the palette or
+   * ⌘-clicked in a note), `query` its text (the selection, ADR-0037).
+   */
+  | { kind: "search"; tag?: string; query?: string }
+  /** Go to Heading… (ADR-0037): the palette on the open note's headings. */
+  | { kind: "headings" }
   /**
    * The note picker (ADR-0030): quick-open over the notes minus `exclude`,
    * the active note first; the chosen path goes to `onPick`.

@@ -40,7 +40,12 @@ const MAX_RESULTS = 400;
 
 export default function SearchPanel() {
   const { t } = useTranslation();
-  const [query, setQuery] = useState("");
+  // ⇧⌘F over a selection starts with it (ADR-0037), selected, so typing
+  // replaces it.
+  const [query, setQuery] = useState(() => {
+    const overlay = useUi.getState().overlay;
+    return overlay.kind === "search" ? (overlay.query ?? "") : "";
+  });
   const [regex, setRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
   // A tag chosen in the palette arrives as the filter (§4.4 "tags as search
@@ -68,7 +73,10 @@ export default function SearchPanel() {
   const input = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => input.current?.focus());
+    const id = requestAnimationFrame(() => {
+      input.current?.focus();
+      input.current?.select();
+    });
     return () => cancelAnimationFrame(id);
   }, []);
 

@@ -193,6 +193,19 @@ export function wrapSelection(marker: string): StateCommand {
   };
 }
 
+/** The `#tag` chip at `pos`, without its `#`, if any (ADR-0037). */
+export function tagAt(state: EditorState, pos: number): string | null {
+  let found: string | null = null;
+  syntaxTree(state).iterate({
+    from: pos,
+    to: pos,
+    enter: (node) => {
+      if (node.name === "TagRef") found = state.sliceDoc(node.from, node.to).replace(/^#/, "");
+    },
+  });
+  return found;
+}
+
 /** The node at `pos` that is a link, if any, and its raw text. */
 export function linkAt(state: EditorState, pos: number): string | null {
   let found: string | null = null;

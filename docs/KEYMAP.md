@@ -100,6 +100,7 @@ it back).
 |---|---|---|
 | `Alt`-click | Add a cursor at the click position | editor |
 | `Cmd`-click on a link | Follow the wikilink or Markdown link | editor:markdown |
+| `Cmd`-click on a `#tag` chip | Open the vault search filtered by that tag (ADR-0037) | editor:markdown |
 | Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown |
 | Click on a card | Open the linked note in a tab (D21); a card without a note opens its description (ADR-0030) | board |
 | Click on a board item in the tree | Show the board pane | tree |
@@ -172,3 +173,8 @@ it back).
   does (Finder). Like the palette's arrows they are the widget's, not app
   chords, and the parity table does not list them; `Enter` and
   `Cmd+Delete` in the table stay rename and trash.
+- `Shift+Cmd+F` over a one-line selection of at most 100 characters opens
+  the vault search with it, selected (ADR-0037); otherwise empty, as
+  before. `palette.gotoHeading` (Go to Heading…) has no chord: a palette
+  entry for a Markdown file; `@` as the first character in `Cmd+P` or
+  `Shift+Cmd+P` does the same.

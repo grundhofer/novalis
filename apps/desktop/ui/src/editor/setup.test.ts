@@ -25,6 +25,7 @@ async function stateFor(
   const hooks: EditorHooks = {
     onChange: () => undefined,
     onFollowLink: () => undefined,
+    onFollowTag: () => undefined,
     onSave: () => undefined,
     notePaths: () => [],
     noteText: async () => null,
@@ -183,5 +184,13 @@ describe("buildExtensions", () => {
       },
     });
     expect(dashes).toEqual([String(t.processingInstruction), String(t.processingInstruction)]);
+  });
+
+  // ADR-0037: a `#tag` chip is found where a ⌘-click lands, and a link is not a tag.
+  it("finds the tag chip under a position", async () => {
+    const { tagAt } = await import("./decorations");
+    const state = await stateFor("a.md", "see #atlas and [x](#anchor)\n");
+    expect(tagAt(state, 6)).toBe("atlas");
+    expect(tagAt(state, 20)).toBeNull();
   });
 });
