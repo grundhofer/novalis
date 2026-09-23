@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
@@ -19,6 +19,7 @@ vi.mock("@tanstack/react-virtual", () => ({
     getTotalSize: () => count * 28,
     getVirtualItems: () =>
       Array.from({ length: count }, (_, index) => ({ index, key: index, size: 28, start: index * 28 })),
+    scrollToIndex: () => undefined,
   }),
 }));
 vi.mock("../ipc/client", () => ({
@@ -437,5 +438,60 @@ describe("Sidebar", () => {
     expect(badges[0]?.closest("[role=treeitem]")?.querySelector(".name")?.textContent).toBe("a-MacBook.md");
     expect(badges[0]?.getAttribute("title")).toBe("a.md");
   });
-});
 
+  // The tree's own keys (a defect by the 2026-09-20 record: rows could only
+  // be clicked). They act on the selection and never leave the tree.
+  describe("keyboard", () => {
+    const toggleFolder = vi.fn(async () => undefined);
+    const open = vi.fn(async () => undefined);
+
+    beforeEach(() => {
+      toggleFolder.mockClear();
+      open.mockClear();
+      useVault.setState({
+        children: {
+          "": [entry("Notes", true), entry("Other", true), entry("a.md", false)],
+          Notes: [entry("Notes/b.md", false), entry("Notes/c.md", false)],
+        },
+        expanded: { Notes: true },
+        selected: "Notes",
+        toggleFolder,
+      });
+      useTabs.setState({ active: null, open } as never);
+    });
+
+    const press = (key: string, meta = false) =>
+      fireEvent.keyDown(document.querySelector(".tree")!, { key, metaKey: meta });
+
+    it("moves the selection down and up through the drawn rows", () => {
+      render(<Sidebar />);
+      press("ArrowDown");
+      expect(useVault.getState().selected).toBe("Notes/b.md");
+      press("ArrowDown");
+      press("ArrowDown");
+      expect(useVault.getState().selected).toBe("Other");
+      press("ArrowUp");
+      expect(useVault.getState().selected).toBe("Notes/c.md");
+    });
+
+    it("steps into an open folder, closes it, and goes up to the parent", () => {
+      render(<Sidebar />);
+      press("ArrowRight");
+      expect(useVault.getState().selected).toBe("Notes/b.md");
+      press("ArrowLeft");
+      expect(useVault.getState().selected).toBe("Notes");
+      press("ArrowLeft");
+      expect(toggleFolder).toHaveBeenCalledWith("Notes");
+    });
+
+    it("opens a closed folder with → and a file with ⌘↓", () => {
+      useVault.setState({ selected: "Other" });
+      render(<Sidebar />);
+      press("ArrowRight");
+      expect(toggleFolder).toHaveBeenCalledWith("Other");
+      act(() => useVault.setState({ selected: "a.md" }));
+      press("ArrowDown", true);
+      expect(open).toHaveBeenCalledWith("a.md");
+    });
+  });
+});
