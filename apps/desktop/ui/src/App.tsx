@@ -16,6 +16,7 @@ import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
 import { dispatchCommand, newNote } from "./lib/commands";
 import { openExternal, SCHEME } from "./lib/external";
+import { handleOpenRequests } from "./lib/opening";
 import { folderOf } from "./lib/paths";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
@@ -105,6 +106,14 @@ export default function App() {
     dispatchCommand(id);
   }, []);
 
+  // ---- files and links macOS hands over while running (ADR-0045) ----------
+  // Subscribed before the boot below asks for the queue, so a request that
+  // arrives between the two is not lost.
+  useEffect(() => {
+    const unlisten = events.openRequested.listen((event) => handleOpenRequests(event.payload.items));
+    return () => void unlisten.then((stop) => stop()).catch(report);
+  }, []);
+
   // ---- boot: one call, then paint (PLAN.md §2.3 rules 1 and 8) ------------
   useEffect(() => {
     // Development mounts twice (StrictMode) and there is no cancelling a
@@ -147,6 +156,13 @@ export default function App() {
         if (activeBoard) {
           void useBoard.getState().load(activeBoard).catch(report);
         }
+      }
+      // What macOS handed over before the page was up — a launch by Open
+      // With, a Dock drop, a `novalis://` link (ADR-0045): once the file list
+      // is known, since that is what decides whether a file is the vault's.
+      if (boot.pendingOpen.length > 0) {
+        if (boot.vault) await useFiles.getState().refresh().catch(report);
+        handleOpenRequests(boot.pendingOpen);
       }
       // Anything thrown before `ready` would otherwise leave an empty window
       // with no way to find out why (Rule 5: fail loud).

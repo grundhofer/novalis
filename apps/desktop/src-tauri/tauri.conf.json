@@ -47,6 +47,27 @@
     ],
     "macOS": {
       "minimumSystemVersion": "14.0"
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown",
+        "role": "Editor",
+        "rank": "Alternate",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": [
+          "txt"
+        ],
+        "name": "Plain Text",
+        "role": "Editor",
+        "rank": "Alternate",
+        "mimeType": "text/plain"
+      }
+    ]
   }
 }

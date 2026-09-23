@@ -17,6 +17,7 @@ mod error;
 mod file_types;
 mod i18n;
 mod menu;
+mod opening;
 mod spelling;
 mod state;
 mod watcher;
@@ -28,6 +29,7 @@ use tauri_specta::{collect_commands, collect_events, Builder};
 use crate::cache::CacheUpdated;
 use crate::i18n::{resolve_locale, Catalog};
 use crate::menu::{MenuAction, MenuFlags};
+use crate::opening::OpenRequested;
 use crate::state::{load_settings, AppState};
 use crate::watcher::FsBatch;
 
@@ -64,7 +66,12 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::settings_set,
             commands::state_save,
         ])
-        .events(collect_events![FsBatch, MenuAction, CacheUpdated])
+        .events(collect_events![
+            FsBatch,
+            MenuAction,
+            CacheUpdated,
+            OpenRequested
+        ])
 }
 
 /// Regenerate `ui/src/ipc/bindings.ts` from the command and event surface,
@@ -149,9 +156,12 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("build the novalis desktop app")
-        .run(|app, event| {
-            if let tauri::RunEvent::Exit = event {
-                window::persist(&app.state::<AppState>());
-            }
+        .run(|app, event| match event {
+            tauri::RunEvent::Exit => window::persist(&app.state::<AppState>()),
+            // Open With, a drop on the Dock icon, `open -a`, a `novalis://`
+            // link (ADR-0045).
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Opened { urls } => opening::opened(app, &urls),
+            _ => {}
         });
 }

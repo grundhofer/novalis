@@ -5,6 +5,8 @@
   "app.confirmTrash.title": "In den Papierkorb verschieben?",
   "app.name": "novalis",
   "app.ok": "OK",
+  "app.openLinkRefused": "novalis kann {{url}} nicht öffnen.",
+  "app.openOutsideVault": "{{path}} liegt nicht im geöffneten Vault oder ist keine Datei, die novalis anzeigt.",
   "app.openVault.body": "Ein Vault ist ein Ordner mit Markdown-Dateien. Lege ihn in deinen OneDrive- oder Google-Drive-Ordner, um ihn zwischen Geräten zu synchronisieren.",
   "app.openVault.button": "Vault öffnen…",
   "app.openVault.title": "Vault öffnen",
