@@ -7,6 +7,7 @@ import CloudHint from "./components/CloudHint";
 import LegacyHint from "./components/LegacyHint";
 import Prompt from "./components/Prompt";
 import Sidebar from "./components/Sidebar";
+import SidebarResize from "./components/SidebarResize";
 import StatusBar from "./components/StatusBar";
 import TabStrip from "./components/TabStrip";
 import TitleBar from "./components/TitleBar";
@@ -337,6 +338,7 @@ export default function App() {
         {sidebarVisible && (
           <div className="sidebar-host" style={{ width: `${sidebarWidth}px` }}>
             <Sidebar />
+            <SidebarResize />
           </div>
         )}
         <main className="main">
