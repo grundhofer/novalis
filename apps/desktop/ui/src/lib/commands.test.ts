@@ -144,6 +144,68 @@ describe("file.todayNote", () => {
   });
 });
 
+// ADR-0026: the neighbour among the day notes that exist; from any other tab
+// the step starts at today, and going forward never skips today.
+describe("journal.previousDay / journal.nextDay", () => {
+  let stores: ReturnType<typeof stubStores>;
+
+  beforeEach(() => {
+    stores = stubStores();
+    useVault.setState({ children: { "": [entry("journal", true)] } });
+    useFiles.setState({
+      notes: [
+        "journal/2026-09-12.md",
+        "journal/2026-09-10.md",
+        "journal/2026-09-11 retro.md",
+        "Notes/2026-09-13.md",
+        "a.md",
+      ],
+    });
+    vi.setSystemTime(new Date(2026, 8, 14, 0, 30));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function step(id: string, active: string | null): Promise<void> {
+    useTabs.setState({ active });
+    dispatchCommand(id);
+    await flush();
+  }
+
+  it("goes to the nearest earlier day that exists, skipping gaps and other files", async () => {
+    await step("journal.previousDay", "journal/2026-09-12.md");
+    expect(stores.open).toHaveBeenCalledWith("journal/2026-09-10.md");
+  });
+
+  it("goes to the nearest later day that exists", async () => {
+    await step("journal.nextDay", "journal/2026-09-10.md");
+    expect(stores.open).toHaveBeenCalledWith("journal/2026-09-12.md");
+  });
+
+  it("goes forward from the last earlier day to today, creating it", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(entry("journal/2026-09-14.md", false));
+    await step("journal.nextDay", "journal/2026-09-12.md");
+    expect(commands.createNote).toHaveBeenCalledWith("journal", "2026-09-14");
+    expect(stores.open).toHaveBeenCalledWith("journal/2026-09-14.md");
+  });
+
+  it("counts from today when the active tab is not a day note", async () => {
+    await step("journal.previousDay", "Notes/2026-09-13.md");
+    expect(stores.open).toHaveBeenCalledWith("journal/2026-09-12.md");
+  });
+
+  it("does nothing past the first day or past today", async () => {
+    await step("journal.previousDay", "journal/2026-09-10.md");
+    await step("journal.nextDay", "journal/2026-09-14.md");
+    await step("journal.nextDay", null);
+    expect(stores.open).not.toHaveBeenCalled();
+    expect(commands.createNote).not.toHaveBeenCalled();
+    expect(useUi.getState().toast).toBeNull();
+  });
+});
+
 // The defect: `Cmd+N` created beside a selected folder while `Shift+Cmd+N`
 // created inside it, and the latter told a folder from a file by the `.md`
 // extension, so a selected `.wav` was taken for a folder. One rule now, for

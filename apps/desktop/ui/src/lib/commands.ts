@@ -8,6 +8,7 @@ import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
+import { localIsoDay } from "./localTime";
 import { fileNameOf, folderOf, joinRel } from "./paths";
 import { uiStateNow } from "./uiState";
 
@@ -57,14 +58,8 @@ async function newFolder(folder: string): Promise<void> {
  */
 const JOURNAL_FOLDER = "journal";
 
-/**
- * Today as `YYYY-MM-DD` in local time, never `toISOString()`: that is UTC,
- * and a note written at 23:30 belongs to that day.
- */
-function localIsoDay(now = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+/** A day note: `journal/YYYY-MM-DD.md`, the day captured (ADR-0012). */
+const DAY_NOTE = /^journal\/(\d{4}-\d{2}-\d{2})\.md$/;
 
 async function todayNote(): Promise<void> {
   const stem = localIsoDay();
@@ -83,6 +78,30 @@ async function todayNote(): Promise<void> {
     if (!(error instanceof NovalisError && error.code === "already_exists")) throw error;
   }
   await useTabs.getState().open(path);
+}
+
+/**
+ * Previous / next day (ADR-0026): the neighbour among the day notes that
+ * exist, seen from the active tab's day — or from today when the active tab
+ * is not a day note. Going forward never skips today: past the last earlier
+ * day lies today, created like the Today row. Nothing to go to is no error.
+ */
+async function stepDay(direction: -1 | 1): Promise<void> {
+  const today = localIsoDay();
+  const active = useTabs.getState().active;
+  const from = (active ? DAY_NOTE.exec(active)?.[1] : undefined) ?? today;
+  const days = useFiles
+    .getState()
+    .notes.flatMap((path) => DAY_NOTE.exec(path)?.[1] ?? [])
+    .sort();
+  let day: string | undefined;
+  if (direction < 0) {
+    day = days.filter((d) => d < from).pop();
+  } else {
+    day = days.find((d) => d > from);
+    if (from < today && (!day || day > today)) return todayNote();
+  }
+  if (day) await useTabs.getState().open(joinRel(JOURNAL_FOLDER, `${day}.md`));
 }
 
 /**
@@ -238,6 +257,8 @@ const REGISTRY: Record<string, () => CommandResult> = {
   },
   "file.newNote": () => newNote(targetFolder()),
   "file.todayNote": () => todayNote(),
+  "journal.previousDay": () => stepDay(-1),
+  "journal.nextDay": () => stepDay(1),
   "vault.open": () => openVault(),
   "tab.close": () => useTabs.getState().closeActive(),
   "tab.reopenClosed": () => useTabs.getState().reopenClosed(),
@@ -352,6 +373,8 @@ export function paletteCommands(): readonly {
   { id: "search.vault", labelKey: "menu.edit.findInVault" },
   { id: "file.newNote", labelKey: "menu.file.newNote" },
   { id: "file.todayNote", labelKey: "tree.todayNote" },
+  { id: "journal.previousDay", labelKey: "palette.cmd.previousDay" },
+  { id: "journal.nextDay", labelKey: "palette.cmd.nextDay" },
   { id: "tree.newFolder", labelKey: "menu.file.newFolder" },
   { id: "board.new", labelKey: "menu.file.newBoard" },
   { id: "settings.open", labelKey: "palette.cmd.settings" },
@@ -376,6 +399,7 @@ export function paletteCommands(): readonly {
   { id: "markdown.italic", labelKey: "menu.edit.italic" },
   { id: "markdown.link", labelKey: "menu.edit.insertLink" },
   { id: "markdown.toggleCheckbox", labelKey: "menu.edit.toggleCheckbox" },
+  { id: "editor.insertDateTime", labelKey: "palette.cmd.insertDateTime" },
   { id: "view.fontLarger", labelKey: "menu.view.fontLarger", settings: true },
   { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller", settings: true },
   { id: "view.fontReset", labelKey: "menu.view.fontReset", settings: true },

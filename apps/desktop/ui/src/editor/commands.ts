@@ -19,6 +19,7 @@ import { EditorSelection, type StateCommand } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 
 import { setEditorBridge } from "../lib/editorBridge";
+import { localIsoMinute } from "../lib/localTime";
 import { toggleCheckbox, wrapSelection } from "./decorations";
 
 /**
@@ -100,6 +101,20 @@ const insertLink: StateCommand = ({ state, dispatch }) => {
   return true;
 };
 
+/**
+ * Insert date and time (ADR-0026): local `YYYY-MM-DD HH:MM` at every cursor,
+ * replacing a selection, the way typing it would.
+ */
+const insertDateTime: StateCommand = ({ state, dispatch }) => {
+  dispatch(
+    state.update(state.replaceSelection(localIsoMinute()), {
+      scrollIntoView: true,
+      userEvent: "input.dateTime",
+    }),
+  );
+  return true;
+};
+
 const REGISTRY: Record<string, Command> = {
   "edit.undo": undo,
   "edit.redo": redo,
@@ -123,6 +138,7 @@ const REGISTRY: Record<string, Command> = {
   "markdown.italic": wrapSelection("_"),
   "markdown.link": insertLink,
   "markdown.toggleCheckbox": toggleCheckbox,
+  "editor.insertDateTime": insertDateTime,
 };
 
 // Registering here rather than exporting is what keeps CodeMirror out of the

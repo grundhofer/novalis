@@ -85,6 +85,7 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.go.title",
     "menu.go.quickOpen",
     "menu.go.commandPalette",
+    "menu.go.todayNote",
     "menu.go.back",
     "menu.go.forward",
     "menu.go.previousTab",
@@ -478,6 +479,12 @@ pub fn build(
             "palette.open",
             cat.t("menu.go.commandPalette"),
             "Shift+CmdOrCtrl+KeyP",
+        )?)
+        .item(&item(
+            app,
+            "file.todayNote",
+            cat.t("menu.go.todayNote"),
+            "CmdOrCtrl+KeyJ",
         )?)
         .separator()
         .item(&item(
