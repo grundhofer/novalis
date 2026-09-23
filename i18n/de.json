@@ -262,6 +262,7 @@
   "settings.language.en": "English",
   "settings.language.system": "System",
   "settings.spellcheck": "Rechtschreibprüfung",
+  "sidebar.resize": "Seitenleiste anpassen",
   "status.characters_one": "{{count}} Zeichen",
   "status.characters_other": "{{count}} Zeichen",
   "status.cloud.cloudOnly_one": "{{count}} nur online",
