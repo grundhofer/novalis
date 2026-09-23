@@ -127,7 +127,9 @@ impl Command {
         match self {
             Command::Index(a) => a.rebuild,
             // `board` and `card` are like `index`: the subcommand decides.
-            Command::Board(a) => matches!(a.command, BoardCommand::Columns(_)),
+            Command::Board(a) => {
+                matches!(a.command, BoardCommand::Columns(_) | BoardCommand::New(_))
+            }
             Command::Card(a) => !matches!(a.command, CardCommand::Ls(_)),
             other => always_mutates(other.name()),
         }
@@ -419,10 +421,21 @@ pub struct BoardArgs {
 pub enum BoardCommand {
     /// List the boards of the vault.
     Ls,
+    /// Create a board with no columns; `columns --set` adds them.
+    New(BoardNewArgs),
     /// Show one board with its columns and its live cards.
     Show(BoardShowArgs),
     /// Replace the column list of a board.
     Columns(BoardColumnsArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct BoardNewArgs {
+    /// The board slug, the folder name under `boards/`.
+    pub board: String,
+    /// The display name. Defaults to the slug.
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Args)]
