@@ -229,12 +229,15 @@ cloudOnlySkipped}`. Exit 5 on cloud-only skips unless `--force`.
 ### `board` — Status: harness
 
 `<b>` is the board **slug**, the folder name under `boards/`. A board that is
-not there is exit 3. There is no `board new`: the app creates boards, and so
-does `migrate --import-columns`.
+not there is exit 3.
 
 - `board ls` → `{items:[{slug, name, path, columns:[{id,name}], cards}],
   truncated, cloudOnlySkipped}`. `path` is the board folder, `cards` is how
   many live cards it holds.
+- `board new <b> [--name N]` creates `boards/<b>/board.json` with no columns,
+  exactly as the app's New Board does, and answers in the `board show` shape.
+  The name defaults to the slug. A slug that is not one visible path segment
+  is exit 2; an existing board is exit 4. Add columns with `board columns`.
 - `board show <b>` → `{slug, name, path, columns, cards:[…], orphanCards,
   cloudOnlySkipped, updated}`, `cards[]` sorted by `(column order, order,
   id)`. Tombstoned cards are left out.
