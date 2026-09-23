@@ -53,8 +53,9 @@ export function attachments(notePath: string): Extension {
     paste(event, view) {
       // A read-only buffer (not UTF-8) takes no edits, so no file either.
       if (view.state.readOnly) return false;
+      // An image or a PDF (ADR-0017, ADR-0041); anything else pastes as usual.
       const item = [...(event.clipboardData?.items ?? [])].find(
-        (i) => i.type.startsWith("image/") && extensionForMime(i.type) !== null,
+        (i) => i.kind === "file" && extensionForMime(i.type) !== null,
       );
       const file = item?.getAsFile();
       if (!item || !file) return false;

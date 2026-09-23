@@ -27,6 +27,8 @@ const EXTENSION_FOR_MIME: Readonly<Record<string, string>> = {
   "image/jpeg": "jpg",
   "image/gif": "gif",
   "image/webp": "webp",
+  // ADR-0041: a PDF is linked, not embedded, and opens in the viewer.
+  "application/pdf": "pdf",
 };
 
 export function extensionForMime(mime: string): string | null {
@@ -58,6 +60,8 @@ export function attachmentLink(name: string): string {
   const segment = encodeURIComponent(name).replace(/[()]/g, (c) =>
     `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
   );
+  // A picture is shown in the note; a PDF is a link to open (ADR-0041).
+  if (name.toLowerCase().endsWith(".pdf")) return `[${name}](${ATTACHMENTS_FOLDER}/${segment})`;
   return `![](${ATTACHMENTS_FOLDER}/${segment})`;
 }
 
@@ -123,4 +127,27 @@ export async function saveAttachment(
   const listed = vault.children[noteFolder];
   if (listed && !listed.some((e) => e.path === folder)) await vault.reload(noteFolder);
   return attachmentLink(name);
+}
+
+/**
+ * A file dropped from the Finder on a folder of the tree (ADR-0041): copied
+ * there under its own name — ` 2`, ` 3` … before the extension when the
+ * name is taken, never over a file — if it is an image or a PDF. Returns
+ * the vault path written, or `null` for a type the app does not take.
+ */
+export async function copyIntoFolder(folder: string, file: File): Promise<string | null> {
+  const ext = extensionForMime(file.type);
+  if (!ext) return null;
+  const dot = file.name.lastIndexOf(".");
+  const base = dot > 0 ? file.name.slice(0, dot) : file.name;
+  const base64 = toBase64(new Uint8Array(await file.arrayBuffer()));
+  for (let attempt = 0; ; attempt += 1) {
+    const name = `${base}${attempt > 0 ? ` ${attempt + 1}` : ""}.${ext}`;
+    try {
+      return (await unwrap(commands.writeBlob(folder, name, base64))).path;
+    } catch (error) {
+      const taken = error instanceof NovalisError && error.code === "already_exists";
+      if (!taken || attempt + 1 >= MAX_ATTEMPTS) throw error;
+    }
+  }
 }

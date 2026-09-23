@@ -104,7 +104,8 @@ interface UiState {
   invisibles: boolean;
   overlay: Overlay;
   prompt: PromptRequest | null;
-  toast: { key: string; values: Record<string, string> } | null;
+  /** Numbers matter in `values`, as in a prompt's: i18next selects plurals on them. */
+  toast: { key: string; values: Record<string, string | number> } | null;
 
   hydrate: (settings: SettingsDto, state: UiStateDto, locale: string) => void;
   setOverlay: (overlay: Overlay) => void;
@@ -127,7 +128,7 @@ interface UiState {
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
   changeFontSize: (delta: number | "reset") => Promise<void>;
-  showToast: (key: string, values?: Record<string, string>) => void;
+  showToast: (key: string, values?: Record<string, string | number>) => void;
   clearToast: () => void;
 }
 

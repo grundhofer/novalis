@@ -282,6 +282,8 @@
   "tree.columnName": "Name",
   "tree.conflictCopy": "conflict copy",
   "tree.download": "Download",
+  "tree.dropRefused_one": "{{count}} file was not copied: only images and PDFs can be dropped here.",
+  "tree.dropRefused_other": "{{count}} files were not copied: only images and PDFs can be dropped here.",
   "tree.empty": "This vault has no files yet.",
   "tree.folderItems_one": "{{count}} item",
   "tree.folderItems_other": "{{count}} items",

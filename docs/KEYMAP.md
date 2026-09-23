@@ -112,7 +112,8 @@ it back).
 | Drag a note row from the tree onto a column or a card | A new card titled by the note and linked to it, last in the column or after the card (ADR-0030) | board |
 | Right-click on a card | The card's context menu: Open Note (with a note), Rename, Edit Description, Delete Card, Create Note from Card (ADR-0035), Move to Column ▸ the board's other columns (ADR-0032) | board |
 | Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
-| `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
+| `Cmd+V` with an image or a PDF on the clipboard · drop image or PDF files onto the editor | Save it under `attachments/` next to the note and insert `![](…)` — for a PDF a plain `[name](…)` link (ADR-0017, ADR-0041) | editor:markdown |
+| Drop image or PDF files from the Finder on a folder row or the tree's empty space | Copy them there under their own names, never over a file; other types are refused with a note (ADR-0041) | tree |
 | Click on the image | Toggle between fitting the pane and 1:1, keeping the clicked point under the pointer (ADR-0025) | viewer (image, comic page) |
 | Pinch on the trackpad · `Ctrl`+wheel | Zoom around the pointer; a plain wheel scrolls (ADR-0025) | viewer (image, comic page) |
 | Click on an embedded image | Open the image in the viewer; an image inside a link follows the link, an SVG is not opened (ADR-0025) | preview (`Cmd+E`) |
