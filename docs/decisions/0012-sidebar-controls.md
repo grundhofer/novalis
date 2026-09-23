@@ -120,3 +120,8 @@ ermöglichen". A button in the sidebar foot opens the command palette on the
 four settings alone (`settings.open`); no window, `Cmd+,` stays unbound. The
 "not selected" above is superseded by that sentence; `docs/DECISIONS.md`
 carries the day's record.
+
+**Amended 2026-09-23** — ADR-0026: Today's Note is also Go ▸ Today's Note
+with `Cmd+J`, and the palette gains Previous Day / Next Day, on the owner's
+yes of 2026-09-20. "No new chord, no new menu item" above describes what
+this ADR shipped.

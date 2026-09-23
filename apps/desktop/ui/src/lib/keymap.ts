@@ -40,6 +40,7 @@ export const KEYMAP: readonly Binding[] = [
   { chord: "Cmd+S", command: "file.save", scope: "global" },
   { chord: "Cmd+N", command: "file.newNote", scope: "global" },
   { chord: "Cmd+O", command: "vault.open", scope: "global" },
+  { chord: "Cmd+J", command: "file.todayNote", scope: "global" },
   { chord: "Cmd+Q", command: "app.quit", scope: "global" },
   { chord: "Cmd+W", command: "tab.close", scope: "global" },
   { chord: "Cmd+B", command: "markdown.bold", scope: "editor:markdown" },

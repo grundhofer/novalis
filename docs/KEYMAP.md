@@ -39,6 +39,7 @@ it back).
 | `Shift+Cmd+G` | ⇧⌘G | `find.previous` | editor | Apple standard |
 | `Cmd+S` | ⌘S | `file.save` | global | Apple standard (flushes autosave now, D19) |
 | `Cmd+N` | ⌘N | `file.newNote` | global | Apple standard |
+| `Cmd+J` | ⌘J | `file.todayNote` | global | Go ▸ Today's Note (ADR-0026) |
 | `Cmd+O` | ⌘O | `vault.open` | global | Apple standard |
 | `Cmd+W` | ⌘W | `tab.close` | global | Apple standard (never blocks, D19) |
 | `Cmd+Q` | ⌘Q | `app.quit` | global | Apple standard; saves every open buffer first, then quits — never blocks: after 2 s it quits anyway (D19) |
