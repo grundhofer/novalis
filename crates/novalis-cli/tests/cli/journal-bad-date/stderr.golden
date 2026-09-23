@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": null,
+    "message": "--date \"14.09.2026\" is not YYYY-MM-DD, today or yesterday",
+    "path": null
+  }
+}

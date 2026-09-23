@@ -67,6 +67,19 @@ pub fn local_now() -> NaiveDateTime {
     DateTime::<Utc>::from(now).naive_utc()
 }
 
+/// A local day as `YYYY-MM-DD`: `offset` days from today (`-1` is
+/// yesterday), by [`local_now`] — never the UTC date.
+pub fn local_iso_day(offset: i64) -> String {
+    let day = local_now().date() + chrono::TimeDelta::days(offset);
+    day.format("%Y-%m-%d").to_string()
+}
+
+/// Whether `s` is exactly a real calendar day written `YYYY-MM-DD`.
+pub fn is_iso_day(s: &str) -> bool {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .is_ok_and(|d| d.format("%Y-%m-%d").to_string() == s)
+}
+
 /// The machine's short host name (up to the first `.`), or `host` when it
 /// cannot be determined.
 pub fn hostname() -> String {
@@ -180,6 +193,16 @@ mod tests {
         let h = hostname();
         assert!(!h.is_empty());
         assert!(!h.contains('.'));
+    }
+
+    #[test]
+    fn iso_days_are_exact_and_local() {
+        assert!(is_iso_day("2026-09-14"));
+        for bad in ["2026-9-14", "14.09.2026", "2026-02-30", "2026-09-14 ", ""] {
+            assert!(!is_iso_day(bad), "{bad:?}");
+        }
+        assert!(is_iso_day(&local_iso_day(0)));
+        assert!(local_iso_day(-1) < local_iso_day(0));
     }
 
     #[test]
