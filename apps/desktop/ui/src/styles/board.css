@@ -146,7 +146,8 @@
 }
 
 .col-action.danger:hover,
-.card-action.danger:hover {
+.card-action.danger:hover,
+.board-head .danger:hover {
   border-color: var(--ds-color-warning-line);
   color: var(--ds-color-warning-text);
 }

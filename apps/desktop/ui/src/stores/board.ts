@@ -81,6 +81,8 @@ interface BoardState {
    * re-read without the card; the target is read when it is opened.
    */
   moveCardToBoard: (id: string, board: string) => Promise<void>;
+  /** A board that went (ADR-0034): off the list, and out of the pane if shown. */
+  forget: (slug: string) => void;
 }
 
 export const useBoard = create<BoardState>((set, get) => ({
@@ -201,6 +203,12 @@ export const useBoard = create<BoardState>((set, get) => ({
     // Vault… is about a list that is no longer shown.
     await get().refreshList();
   },
+
+  forget: (slug) =>
+    set((s) => ({
+      boards: s.boards.filter((b) => b.slug !== slug),
+      ...(s.slug === slug ? { slug: null, board: null } : {}),
+    })),
 
   moveCardToBoard: async (id, board) => {
     const from = get().slug;

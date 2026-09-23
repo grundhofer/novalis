@@ -41,6 +41,8 @@
   "board.columns_other": "{{count}} Spalten",
   "board.conflictNotice_one": "Board {{board}}: {{count}} Karte hatte widersprüchliche Änderungen, die neuere wurde behalten; ältere Kopie unter conflicts/",
   "board.conflictNotice_other": "Board {{board}}: {{count}} Karten hatten widersprüchliche Änderungen, die neueren wurden behalten; ältere Kopien unter conflicts/",
+  "board.deleteBoard": "Board löschen",
+  "board.deleteBoardBody": "Das Board {{name}} kommt mit allen Karten in den Papierkorb. Die verknüpften Notizen bleiben unberührt.",
   "board.deleteCard": "Karte löschen",
   "board.deleteCardBody": "Entfernt die Karte. Die verknüpften Notizen bleiben unberührt.",
   "board.deleteColumn": "Spalte löschen",
