@@ -10,7 +10,7 @@ use novalis_core::CoreError;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::cli::{BoardArgs, BoardColumnsArgs, BoardCommand};
+use crate::cli::{BoardArgs, BoardColumnsArgs, BoardCommand, BoardNewArgs};
 use crate::ctx::Ctx;
 use crate::error::CliError;
 use crate::ops::card::{card_view, CardView};
@@ -185,6 +185,7 @@ fn skipped_paths(slug: &str, names: &[String]) -> Vec<String> {
 pub fn run(ctx: &Ctx, args: BoardArgs) -> Result<BoardOut, CliError> {
     match args.command {
         BoardCommand::Ls => list(ctx),
+        BoardCommand::New(a) => new(ctx, a),
         BoardCommand::Show(a) => {
             let board = read_board(ctx, &a.board)?;
             detail(ctx, &a.board, &board, false)
@@ -213,6 +214,42 @@ fn list(ctx: &Ctx) -> Result<BoardOut, CliError> {
         truncated: false,
         cloud_only_skipped,
     }))
+}
+
+/// `board new` (ADR-0031): what the app's New Board does — an empty column
+/// list, `board.json` created exclusively, so an existing board is exit 4.
+fn new(ctx: &Ctx, args: BoardNewArgs) -> Result<BoardOut, CliError> {
+    let slug = boards::validate_slug(&args.board)?;
+    let name = args
+        .name
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or(&slug)
+        .to_string();
+    if name.is_empty() {
+        return Err(CliError::usage("--name is empty"));
+    }
+    if ctx.dry_run {
+        let marker = format!("{}/board.json", board_path(&slug));
+        if ctx.abs(&marker).exists() {
+            return Err(CliError::from_core(CoreError::AlreadyExists {
+                path: marker,
+            }));
+        }
+        return Ok(BoardOut::Board(BoardDetailOut {
+            path: board_path(&slug),
+            slug,
+            name,
+            columns: Vec::new(),
+            cards: Vec::new(),
+            orphan_cards: Vec::new(),
+            cloud_only_skipped: Vec::new(),
+            updated: novalis_core::util::now_rfc3339_ms(),
+            dry_run: true,
+        }));
+    }
+    let board = boards::create_board(&ctx.vault, &slug, &name, Vec::new())?;
+    detail(ctx, &slug, &board, false)
 }
 
 fn columns(ctx: &Ctx, args: BoardColumnsArgs) -> Result<BoardOut, CliError> {

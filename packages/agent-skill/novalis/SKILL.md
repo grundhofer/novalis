@@ -81,13 +81,13 @@ Available now (the core harness):
 | `meta <note> [--set k=v] [--unset k] [--add-tag T] [--rm-tag T] [--if-match S]` | line-level frontmatter edit; unknown keys preserved |
 | `migrate [--apply] [--rename-to-title[=BOOL]] [--import-columns] [--force] [--materialize]` | one-time upgrade of a vault written by the old app; dry run unless `--apply` |
 | `help --json` | the command tree and the exit-code table |
-| `board ls` · `board show <b>` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
+| `board ls` · `board show <b>` · `board new <b> [--name N]` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
 | `card ls [--board B] [--note N] [--column C]` | which cards reference a note; tombstones are never listed |
 | `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
 | `card mv <id> …` · `card set <id> [--title T] [--description TEXT] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
 
-There is no command that creates a board: the app does that, and so does
-`migrate --import-columns`. Never write a board or card file by hand.
+`board new` creates a board with no columns; give it columns with
+`board columns --set`. Never write a board or card file by hand.
 
 ## Safety
 

@@ -195,7 +195,9 @@ pub fn is_ulid(s: &str) -> bool {
     ulid::Ulid::from_string(s).is_ok()
 }
 
-fn validate_slug(slug: &str) -> CoreResult<String> {
+/// A board slug is one visible path segment under `boards/`; the normalized
+/// form, or `InvalidPath`.
+pub fn validate_slug(slug: &str) -> CoreResult<String> {
     let s = normalize_rel(slug)?;
     if s.is_empty() || s.contains('/') || is_hidden(&s) {
         return Err(CoreError::InvalidPath {

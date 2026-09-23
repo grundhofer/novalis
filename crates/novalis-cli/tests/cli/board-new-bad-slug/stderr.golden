@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "invalid_path",
+    "hint": null,
+    "message": "invalid path: .hidden (Empty)",
+    "path": ".hidden"
+  }
+}
