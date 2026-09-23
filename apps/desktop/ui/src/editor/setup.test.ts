@@ -16,7 +16,12 @@ vi.mock("../ipc/client", () => ({
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
 
-async function stateFor(path: string, text: string, spellcheck = false): Promise<EditorState> {
+async function stateFor(
+  path: string,
+  text: string,
+  spellcheck = false,
+  invisibles = false,
+): Promise<EditorState> {
   const hooks: EditorHooks = {
     onChange: () => undefined,
     onFollowLink: () => undefined,
@@ -27,6 +32,7 @@ async function stateFor(path: string, text: string, spellcheck = false): Promise
     readOnly: false,
     plainMode: false,
     spellcheck,
+    invisibles,
   };
   return EditorState.create({ doc: text, extensions: await buildExtensions(path, hooks) });
 }
@@ -112,6 +118,25 @@ describe("buildExtensions", () => {
   // parse hides the outer node from the highlighter — reads in mono like a
   // plain one; the node keeps its colour on a tag of its own, and inline
   // code keeps `monospace`.
+  // ADR-0029: drawn only while the toggle is on, and never trimmed.
+  it("marks spaces, tabs and trailing whitespace only while invisibles are on", async () => {
+    const text = "a b\n\tc  \n";
+    const marks = async (invisibles: boolean) => {
+      const view = new EditorView({
+        state: await stateFor("a.txt", text, false, invisibles),
+        parent: document.body,
+      });
+      const found = ["cm-highlightSpace", "cm-highlightTab", "cm-trailingSpace"].map(
+        (name) => view.dom.querySelectorAll(`.${name}`).length > 0,
+      );
+      expect(view.state.doc.toString()).toBe(text);
+      view.destroy();
+      return found;
+    };
+    expect(await marks(true)).toEqual([true, true, true]);
+    expect(await marks(false)).toEqual([false, false, false]);
+  });
+
   it("puts the code face on a block's lines, with or without a grammar", async () => {
     await fenceLanguage("py")?.load();
     const text = "`a`\n\n```py\nx = 1\n```\n\n```text\n\\x\n```\n";

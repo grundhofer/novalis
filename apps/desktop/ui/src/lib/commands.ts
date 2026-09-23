@@ -274,6 +274,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "search.vault": () => useUi.getState().setOverlay({ kind: "search" }),
   "sidebar.toggle": () => useUi.getState().toggleSidebar(),
   "backlinks.toggle": () => useUi.getState().toggleBacklinks(),
+  "view.toggleInvisibles": () => useUi.getState().toggleInvisibles(),
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "note.togglePreview": () => {
@@ -396,6 +397,12 @@ export function paletteCommands(): readonly {
       ? "palette.cmd.hideBacklinks"
       : "palette.cmd.showBacklinks",
   },
+  {
+    id: "view.toggleInvisibles",
+    labelKey: useUi.getState().invisibles
+      ? "palette.cmd.hideInvisibles"
+      : "palette.cmd.showInvisibles",
+  },
   { id: "editor.gotoLine", labelKey: "menu.edit.gotoLine" },
   { id: "find.open", labelKey: "menu.edit.find" },
   { id: "find.replace", labelKey: "menu.edit.findAndReplace" },
@@ -404,6 +411,8 @@ export function paletteCommands(): readonly {
   { id: "markdown.link", labelKey: "menu.edit.insertLink" },
   { id: "markdown.toggleCheckbox", labelKey: "menu.edit.toggleCheckbox" },
   { id: "editor.insertDateTime", labelKey: "palette.cmd.insertDateTime" },
+  { id: "editor.sortLines", labelKey: "palette.cmd.sortLines" },
+  { id: "editor.joinLines", labelKey: "palette.cmd.joinLines" },
   { id: "view.fontLarger", labelKey: "menu.view.fontLarger", settings: true },
   { id: "view.fontSmaller", labelKey: "menu.view.fontSmaller", settings: true },
   { id: "view.fontReset", labelKey: "menu.view.fontReset", settings: true },

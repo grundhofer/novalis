@@ -28,6 +28,8 @@ import {
   EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
+  highlightTrailingWhitespace,
+  highlightWhitespace,
   keymap,
   lineNumbers,
   rectangularSelection,
@@ -68,6 +70,8 @@ export interface EditorHooks {
   readOnly: boolean;
   plainMode: boolean;
   spellcheck: boolean;
+  /** Draw spaces, tabs and trailing whitespace (ADR-0029). */
+  invisibles: boolean;
 }
 
 /**
@@ -208,6 +212,9 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
   ];
 
   if (options.wrap) base.push(EditorView.lineWrapping);
+  // Shown, never changed: two trailing spaces are a Markdown line break, so
+  // nothing here trims (ADR-0029). The looks are the theme's, in tokens.
+  if (hooks.invisibles) base.push(highlightWhitespace(), highlightTrailingWhitespace());
   if (options.numbers) base.push(lineNumbers(), highlightActiveLineGutter());
   // The code dress (ADR-0022): the class the theme keys its mono rules on,
   // and indentation guides (PLAN.md §4.3).

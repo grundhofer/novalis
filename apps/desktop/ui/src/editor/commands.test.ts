@@ -40,3 +40,50 @@ describe("editor.insertDateTime", () => {
     v.destroy();
   });
 });
+
+// ADR-0029: the lines a selection covers, or the whole note for sort.
+describe("editor.sortLines", () => {
+  it("sorts the whole note when nothing is selected, ignoring case, numbers by value", () => {
+    const v = view("b\nA\nitem 10\nitem 9\na", EditorSelection.single(0));
+    expect(runEditorCommand("editor.sortLines")).toBe(true);
+    expect(v.state.doc.toString()).toBe("A\na\nb\nitem 9\nitem 10");
+    v.destroy();
+  });
+
+  it("sorts only the lines a selection covers, not the line it ends at the start of", () => {
+    const doc = "z\nc\nb\na\ny";
+    const v = view(doc, EditorSelection.single(2, doc.indexOf("a")));
+    runEditorCommand("editor.sortLines");
+    expect(v.state.doc.toString()).toBe("z\nb\nc\na\ny");
+    v.destroy();
+  });
+
+  it("does nothing on sorted lines", () => {
+    const v = view("a\nb", EditorSelection.single(0));
+    expect(runEditorCommand("editor.sortLines")).toBe(false);
+    v.destroy();
+  });
+});
+
+describe("editor.joinLines", () => {
+  it("joins a cursor's line with the next, dropping its indentation", () => {
+    const v = view("- item\n    continued\nnext", EditorSelection.single(1));
+    runEditorCommand("editor.joinLines");
+    expect(v.state.doc.toString()).toBe("- item continued\nnext");
+    v.destroy();
+  });
+
+  it("joins every line of a selection, one space between, none for an empty line", () => {
+    const doc = "a\n\n b  \nc\nd";
+    const v = view(doc, EditorSelection.single(0, doc.indexOf("c") + 1));
+    runEditorCommand("editor.joinLines");
+    expect(v.state.doc.toString()).toBe("a b c\nd");
+    v.destroy();
+  });
+
+  it("does nothing on the last line", () => {
+    const v = view("a\nb", EditorSelection.single(3));
+    expect(runEditorCommand("editor.joinLines")).toBe(false);
+    v.destroy();
+  });
+});

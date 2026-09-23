@@ -87,6 +87,11 @@ interface UiState {
    * state like `previewing`: it outlives the panel, not the app.
    */
   searchAllFiles: boolean;
+  /**
+   * Spaces, tabs and trailing whitespace drawn in the editor (ADR-0029).
+   * Session state: a restart shows the text plain again.
+   */
+  invisibles: boolean;
   overlay: Overlay;
   prompt: PromptRequest | null;
   toast: { key: string; values: Record<string, string> } | null;
@@ -107,6 +112,7 @@ interface UiState {
   togglePreview: (path: string) => void;
   endPreview: (path: string) => void;
   toggleSearchAllFiles: () => void;
+  toggleInvisibles: () => void;
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
@@ -160,6 +166,7 @@ export const useUi = create<UiState>((set, get) => ({
   treeSort: "name",
   previewing: {},
   searchAllFiles: false,
+  invisibles: false,
   overlay: { kind: "none" },
   prompt: null,
   toast: null,
@@ -192,6 +199,7 @@ export const useUi = create<UiState>((set, get) => ({
   setActiveBoard: (slug) => set({ activeBoard: slug, boardVisible: slug !== null }),
   setTreeSort: (treeSort) => set({ treeSort }),
   toggleSearchAllFiles: () => set((s) => ({ searchAllFiles: !s.searchAllFiles })),
+  toggleInvisibles: () => set((s) => ({ invisibles: !s.invisibles })),
 
   togglePreview: (path) =>
     set((s) => {
