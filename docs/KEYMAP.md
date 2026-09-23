@@ -155,3 +155,7 @@ it back).
 - `tab.closeOthers` and `tab.closeAll` (Close Other Tabs, Close All Tabs,
   ADR-0028) have no chord and no menu item: they are palette entries.
   "Others" keeps the current tab.
+- `editor.sortLines`, `editor.joinLines` and `view.toggleInvisibles` (Sort
+  Lines, Join Lines, Show/Hide Invisibles, ADR-0029) have no chord and no
+  menu item: they are palette entries. Sublime's `Cmd+J` is Today's Note
+  here (ADR-0026).

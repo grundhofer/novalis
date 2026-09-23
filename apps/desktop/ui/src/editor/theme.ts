@@ -58,6 +58,22 @@ export const editorTheme = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ds-color-fg-muted)" },
   ".cm-foldPlaceholder": { backgroundColor: "var(--ds-color-bg-fill)", border: "none" },
   ".cm-searchMatch": { backgroundColor: "var(--ds-color-editor-match)" },
+  // Invisibles (ADR-0029): CodeMirror's defaults hard-code #aaa, #888 in an
+  // SVG and #ff332255; a space is a token-coloured dot, a tab a thin rule
+  // across its width, trailing whitespace the warning fill.
+  ".cm-highlightSpace": {
+    background:
+      "radial-gradient(circle at 50% 55%, var(--ds-color-fg-subtle) 20%, transparent 0) no-repeat",
+    backgroundSize: ".4em",
+    backgroundPosition: "calc(min(50%, 0px)) center",
+  },
+  ".cm-highlightTab": {
+    backgroundImage: "linear-gradient(var(--ds-color-fg-subtle), var(--ds-color-fg-subtle))",
+    backgroundSize: "calc(100% - 0.3em) 1px",
+    backgroundPosition: "left center",
+    backgroundRepeat: "no-repeat",
+  },
+  ".cm-trailingSpace": { backgroundColor: "var(--ds-color-warning-fill)" },
   ".cm-searchMatch.cm-searchMatch-selected": {
     backgroundColor: "var(--ds-color-accent-fill)",
     outline: "1px solid var(--ds-color-accent-line)",

@@ -93,6 +93,7 @@ export default function App() {
   const cloudHintShown = useUi((s) => s.cloudHintShown);
   const overlay = useUi((s) => s.overlay);
   const spellcheck = useUi((s) => s.settings?.spellcheck ?? true);
+  const invisibles = useUi((s) => s.invisibles);
 
   const dispatch = useCallback((id: string) => {
     const now = Date.now();
@@ -370,6 +371,7 @@ export default function App() {
                 path={active}
                 revision={doc.revision}
                 spellcheck={spellcheck}
+                invisibles={invisibles}
                 onFollowLink={followLink}
                 notePaths={notePaths}
               />

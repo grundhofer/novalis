@@ -36,7 +36,7 @@ function doc(path: string, text: string) {
 /** Mount the editor for `path` and wait until CodeMirror has its view. */
 async function mount(path: string, revision = 0) {
   const rendered = render(
-    <Editor path={path} revision={revision} spellcheck={false} onFollowLink={() => undefined} notePaths={() => []} />,
+    <Editor path={path} revision={revision} spellcheck={false} invisibles={false} onFollowLink={() => undefined} notePaths={() => []} />,
   );
   let view: EditorView | null = null;
   for (let i = 0; i < 50 && !view; i += 1) {
@@ -109,7 +109,7 @@ describe("Editor keeps the place", () => {
     view.unmount();
 
     const rendered = render(
-      <Editor path="a.md" revision={0} spellcheck onFollowLink={() => undefined} notePaths={() => []} />,
+      <Editor path="a.md" revision={0} spellcheck invisibles={false} onFollowLink={() => undefined} notePaths={() => []} />,
     );
     let dom: HTMLElement | null = null;
     for (let i = 0; i < 50 && !dom; i += 1) {

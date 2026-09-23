@@ -15,7 +15,7 @@ import {
   selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
-import { EditorSelection, type StateCommand } from "@codemirror/state";
+import { EditorSelection, type EditorState, type StateCommand } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 
 import { setEditorBridge } from "../lib/editorBridge";
@@ -115,6 +115,83 @@ const insertDateTime: StateCommand = ({ state, dispatch }) => {
   return true;
 };
 
+/**
+ * The line spans the selection covers, one per range, merged where they
+ * share a line: `[first line number, last line number]`, in document order.
+ */
+function lineSpans(state: EditorState): [number, number][] {
+  const spans: [number, number][] = [];
+  for (const range of state.selection.ranges) {
+    const first = state.doc.lineAt(range.from).number;
+    // A selection that ends at a line's start does not take that line.
+    const end = state.doc.lineAt(range.to);
+    const last = range.to > range.from && end.from === range.to ? end.number - 1 : end.number;
+    spans.push([first, Math.max(first, last)]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const span of spans) {
+    const previous = merged[merged.length - 1];
+    if (previous && span[0] <= previous[1]) previous[1] = Math.max(previous[1], span[1]);
+    else merged.push([...span]);
+  }
+  return merged;
+}
+
+const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+
+/**
+ * Sort Lines (ADR-0029): the lines a selection covers, ignoring case and
+ * accents, numbers by value — the whole document when nothing is selected.
+ * Stable, so equal lines keep their order.
+ */
+const sortLines: StateCommand = ({ state, dispatch }) => {
+  const spans = state.selection.ranges.every((r) => r.empty)
+    ? [[1, state.doc.lines] as [number, number]]
+    : lineSpans(state);
+  const changes = [];
+  for (const [first, last] of spans) {
+    if (first === last) continue;
+    const from = state.doc.line(first).from;
+    const to = state.doc.line(last).to;
+    const lines: string[] = [];
+    for (let n = first; n <= last; n += 1) lines.push(state.doc.line(n).text);
+    const sorted = [...lines].sort(collator.compare);
+    if (sorted.every((line, i) => line === lines[i])) continue;
+    changes.push({ from, to, insert: sorted.join(state.lineBreak) });
+  }
+  if (changes.length === 0) return false;
+  dispatch(state.update({ changes, scrollIntoView: true, userEvent: "input.sort" }));
+  return true;
+};
+
+/**
+ * Join Lines (ADR-0029): the lines a selection covers become one, or a
+ * cursor's line takes the next one. The first line keeps its indentation,
+ * the last its trailing whitespace (a Markdown line break); in between,
+ * each part is trimmed, empty ones go, and one space separates the rest.
+ */
+const joinLines: StateCommand = ({ state, dispatch }) => {
+  const changes = [];
+  for (const [first, span] of lineSpans(state)) {
+    const last = span === first ? first + 1 : span;
+    if (last > state.doc.lines) continue;
+    const texts: string[] = [];
+    for (let n = first; n <= last; n += 1) texts.push(state.doc.line(n).text);
+    const indent = /^\s*/.exec(texts[0] ?? "")?.[0] ?? "";
+    const trailing = /\S(\s*)$/.exec(texts[texts.length - 1] ?? "")?.[1] ?? "";
+    const parts = texts.map((text) => text.trim()).filter((text) => text !== "");
+    changes.push({
+      from: state.doc.line(first).from,
+      to: state.doc.line(last).to,
+      insert: indent + parts.join(" ") + (parts.length > 0 ? trailing : ""),
+    });
+  }
+  if (changes.length === 0) return false;
+  dispatch(state.update({ changes, scrollIntoView: true, userEvent: "input.join" }));
+  return true;
+};
+
 const REGISTRY: Record<string, Command> = {
   "edit.undo": undo,
   "edit.redo": redo,
@@ -139,6 +216,8 @@ const REGISTRY: Record<string, Command> = {
   "markdown.link": insertLink,
   "markdown.toggleCheckbox": toggleCheckbox,
   "editor.insertDateTime": insertDateTime,
+  "editor.sortLines": sortLines,
+  "editor.joinLines": joinLines,
 };
 
 // Registering here rather than exporting is what keeps CodeMirror out of the

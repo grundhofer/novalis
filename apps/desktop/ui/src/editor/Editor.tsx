@@ -84,6 +84,7 @@ export interface EditorProps {
   path: string;
   revision: number;
   spellcheck: boolean;
+  invisibles: boolean;
   onFollowLink: (target: string) => void;
   notePaths: () => string[];
 }
@@ -92,6 +93,7 @@ export default function Editor({
   path,
   revision,
   spellcheck,
+  invisibles,
   onFollowLink,
   notePaths,
 }: EditorProps) {
@@ -118,6 +120,7 @@ export default function Editor({
         readOnly: doc.readOnly,
         plainMode: doc.plainMode,
         spellcheck,
+        invisibles,
       });
       if (cancelled) return;
       let state = EditorState.create({
@@ -195,7 +198,7 @@ export default function Editor({
         view.destroy();
       }
     };
-  }, [path, revision, spellcheck, onFollowLink, notePaths]);
+  }, [path, revision, spellcheck, invisibles, onFollowLink, notePaths]);
 
   return <div className="editor" ref={host} />;
 }
