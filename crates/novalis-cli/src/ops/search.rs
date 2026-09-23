@@ -36,14 +36,21 @@ pub fn run(ctx: &Ctx, args: SearchArgs) -> Result<SearchOut, CliError> {
     if args.query.trim().is_empty() {
         return Err(CliError::usage("empty search query"));
     }
+    // A pattern that does not compile is the caller's mistake (exit 2), not
+    // a failure of the scan, which is what the core's parse error maps to.
+    if args.regex {
+        if let Err(e) = regex::Regex::new(&args.query) {
+            return Err(CliError::usage(format!("--regex: {e}")));
+        }
+    }
     let folder = match args.folder.as_deref() {
         Some(f) => Some(normalize_rel(f)?),
         None => None,
     };
     let query = SearchQuery {
         query: args.query.clone(),
-        regex: false,
-        case_sensitive: false,
+        regex: args.regex,
+        case_sensitive: args.case_sensitive,
         folder,
         tag: args.tag.clone(),
         // Deliberately no core limit: the scan's workers stop in an arbitrary

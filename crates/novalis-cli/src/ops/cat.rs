@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::cli::CatArgs;
 use crate::ctx::Ctx;
 use crate::error::CliError;
-use crate::note::{load, parse_duration};
+use crate::note::{load, load_text, parse_duration};
 use crate::output::Render;
 use crate::text::line_range;
 
@@ -90,8 +90,18 @@ pub fn run(ctx: &Ctx, args: CatArgs) -> Result<CatOut, CliError> {
     let stems = ctx.stem_index()?;
     let mut items = Vec::with_capacity(args.notes.len());
     for reference in &args.notes {
-        let path = ctx.resolve_note(reference)?;
-        let content = load(ctx, &path, args.materialize, timeout)?;
+        // An existing file that is not a note, named by its exact path, is
+        // read as text (ADR-0036); every other argument is a note reference.
+        let file = ctx.exact_non_note(reference);
+        let path = match &file {
+            Some(rel) => rel.clone(),
+            None => ctx.resolve_note(reference)?,
+        };
+        let content = if file.is_some() {
+            load_text(ctx, &path, args.materialize, timeout)?
+        } else {
+            load(ctx, &path, args.materialize, timeout)?
+        };
         let text = &content.text;
         let stem = novalis_core::vault::path::stem_of(&path).to_string();
         let full_body = frontmatter::body(text);
@@ -114,6 +124,32 @@ pub fn run(ctx: &Ctx, args: CatArgs) -> Result<CatOut, CliError> {
         } else {
             text.clone()
         };
+
+        if file.is_some() {
+            // Not a note: no frontmatter, no links, named by its file name
+            // and linked by its path, as a Markdown link would.
+            let name = novalis_core::vault::path::file_name_of(&path).to_string();
+            items.push(CatItem {
+                title: name,
+                link_target: path.clone(),
+                frontmatter: FrontmatterOut {
+                    title: None,
+                    tags: Vec::new(),
+                    keys: Vec::new(),
+                },
+                body: body_of_file(text, args.lines.as_deref())?,
+                sha256: content.hash.clone(),
+                utf8: content.utf8,
+                links: Vec::new(),
+                plain: if args.frontmatter {
+                    String::new()
+                } else {
+                    body_of_file(text, args.lines.as_deref())?
+                },
+                path,
+            });
+            continue;
+        }
 
         let links = extract(text)
             .into_iter()
@@ -141,6 +177,19 @@ pub fn run(ctx: &Ctx, args: CatArgs) -> Result<CatOut, CliError> {
         items,
         truncated: false,
     })
+}
+
+/// A file's whole text, or `--lines` of it; a file has no frontmatter.
+fn body_of_file(text: &str, lines: Option<&str>) -> Result<String, CliError> {
+    match lines {
+        None => Ok(text.to_string()),
+        Some(spec) => {
+            let (a, b) = line_range(text, spec).ok_or_else(|| {
+                CliError::usage(format!("cannot read `{spec}` as a line range (try 10:40)"))
+            })?;
+            Ok(text[a..b].to_string())
+        }
+    }
 }
 
 impl Render for CatOut {

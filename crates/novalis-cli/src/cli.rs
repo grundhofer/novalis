@@ -341,6 +341,12 @@ pub struct SearchArgs {
     pub folder: Option<String>,
     #[arg(long, value_name = "N", default_value_t = 50)]
     pub limit: usize,
+    /// Read the query as a regular expression (Rust `regex` syntax).
+    #[arg(long)]
+    pub regex: bool,
+    /// Match case exactly; the default ignores it.
+    #[arg(long)]
+    pub case_sensitive: bool,
     /// Every regular file in the vault, not only notes; a file that is not
     /// UTF-8 text is counted in notUtf8Skipped, never read past 8 KiB.
     /// With --tag the scan stays notes-only (the tag index knows notes).

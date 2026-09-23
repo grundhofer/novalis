@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 use novalis_core::cache::{Cache, WATCHER_MAX_AGE};
 use novalis_core::notes::links::{Resolution, StemIndex};
-use novalis_core::vault::path::{nfc, normalize_rel, vault_note_rel};
+use novalis_core::vault::path::{
+    file_name_of, is_note_name, nfc, normalize_rel, vault_note_rel, vault_rel,
+};
 use novalis_core::vault::walk::walk_notes;
 use novalis_core::CoreError;
 
@@ -151,6 +153,22 @@ impl Ctx {
             })),
             Resolution::Unresolved => Err(CliError::from_core(CoreError::NotFound { path: arg })),
         }
+    }
+
+    /// `cat`'s exact-path reading (ADR-0036): an argument that is the
+    /// vault-relative path of an existing regular file that is not a note.
+    /// Anything else — a note, a stem, a missing path — is `None`, and note
+    /// addressing applies as before.
+    pub fn exact_non_note(&self, arg: &str) -> Option<String> {
+        let rel = normalize_rel(&nfc(arg.trim())).ok()?;
+        if rel.is_empty() || is_note_name(file_name_of(&rel)) {
+            return None;
+        }
+        let abs = vault_rel(&self.vault, &rel).ok()?;
+        std::fs::symlink_metadata(&abs)
+            .ok()
+            .filter(|m| m.is_file())
+            .map(|_| rel)
     }
 
     /// Every note of the vault, indexed for stem resolution and for the

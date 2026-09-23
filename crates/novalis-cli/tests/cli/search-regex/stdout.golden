@@ -1,0 +1,22 @@
+{
+  "cloudOnlySkipped": 0,
+  "items": [
+    {
+      "line": 16,
+      "path": "projects/Atlas Decisions Log.md",
+      "snippet": "app; running on an old phone on a train might. Detail in [[Atlas Rendering Spec]]."
+    },
+    {
+      "line": 20,
+      "path": "projects/Atlas Decisions Log.md",
+      "snippet": "button and no new failure modes. See [[Atlas Offline Bundles]]."
+    },
+    {
+      "line": 16,
+      "path": "projects/Atlas Field Test Notes.md",
+      "snippet": "almost certainly the eviction pass described in [[Atlas Rendering Spec]]. Nobody would call it"
+    }
+  ],
+  "notUtf8Skipped": 0,
+  "truncated": true
+}
