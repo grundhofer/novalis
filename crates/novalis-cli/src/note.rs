@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use novalis_core::vault::cloud;
-use novalis_core::vault::fs::{read_file, stat, FileContent};
+use novalis_core::vault::fs::{read_file, read_text, stat, FileContent, TextRead};
 use novalis_core::CoreError;
 
 use crate::ctx::Ctx;
@@ -19,6 +19,37 @@ pub fn load(
     materialize: bool,
     timeout: Duration,
 ) -> Result<FileContent, CliError> {
+    let abs = hydrated(ctx, rel, materialize, timeout)?;
+    let content = read_file(&abs)?;
+    Ok(content)
+}
+
+/// [`load`] for a file that is not a note (ADR-0036): the same cloud rules,
+/// then the binary verdict of the head, so a binary file is refused without
+/// being read (exit 2) rather than printed as a lossy mess.
+pub fn load_text(
+    ctx: &Ctx,
+    rel: &str,
+    materialize: bool,
+    timeout: Duration,
+) -> Result<FileContent, CliError> {
+    let abs = hydrated(ctx, rel, materialize, timeout)?;
+    match read_text(&abs)? {
+        TextRead::Text(content) => Ok(content),
+        TextRead::Binary { .. } => {
+            Err(CliError::usage(format!("{rel} is a binary file; cat reads text")).with_path(rel))
+        }
+    }
+}
+
+/// The absolute path of `rel`, downloaded first when it is a placeholder and
+/// `materialize` allows it; exit 8 when it does not.
+fn hydrated(
+    ctx: &Ctx,
+    rel: &str,
+    materialize: bool,
+    timeout: Duration,
+) -> Result<std::path::PathBuf, CliError> {
     let abs = ctx.abs(rel);
     let st = stat(&abs)?;
     if st.cloud_only {
@@ -29,8 +60,7 @@ pub fn load(
         }
         materialize_within(&abs, timeout).map_err(|e| e.with_path(rel))?;
     }
-    let content = read_file(&abs)?;
-    Ok(content)
+    Ok(abs)
 }
 
 /// Read a note that is about to be rewritten: cloud-only and non-UTF-8 files
