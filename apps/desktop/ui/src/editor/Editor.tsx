@@ -2,6 +2,7 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
 import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
@@ -98,6 +99,10 @@ export default function Editor({
   notePaths,
 }: EditorProps) {
   const host = useRef<HTMLDivElement | null>(null);
+  // CodeMirror's own words follow the language (editor/phrases.ts); a view
+  // takes them when it is built, so a change of language rebuilds it.
+  const { i18n } = useTranslation();
+  const language = i18n.language;
 
   useEffect(() => {
     const element = host.current;
@@ -198,7 +203,7 @@ export default function Editor({
         view.destroy();
       }
     };
-  }, [path, revision, spellcheck, invisibles, onFollowLink, notePaths]);
+  }, [path, revision, spellcheck, invisibles, language, onFollowLink, notePaths]);
 
   return <div className="editor" ref={host} />;
 }
