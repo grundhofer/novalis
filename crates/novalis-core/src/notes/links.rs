@@ -375,6 +375,11 @@ impl StemIndex {
         self.by_path.contains_key(&fold(path))
     }
 
+    /// The indexed spelling of `path`, matched as [`Self::contains`] matches.
+    pub fn get(&self, path: &str) -> Option<&str> {
+        self.by_path.get(&fold(path)).map(String::as_str)
+    }
+
     pub fn len(&self) -> usize {
         self.by_path.len()
     }
@@ -618,6 +623,16 @@ mod tests {
         let idx = StemIndex::build(["index.md", "reading/index.md"]);
         assert_eq!(idx.link_target_for("index.md"), "index");
         assert_eq!(idx.link_target_for("reading/index.md"), "reading/index");
+    }
+
+    #[test]
+    fn get_returns_the_indexed_spelling_of_an_exact_path() {
+        let idx = StemIndex::build(["index.md", "reading/index.md", "Über.md"]);
+        assert_eq!(idx.get("index.md"), Some("index.md"));
+        assert_eq!(idx.get("Reading/Index.md"), Some("reading/index.md"));
+        assert_eq!(idx.get("u\u{308}ber.md"), Some("Über.md"));
+        assert_eq!(idx.get("index"), None);
+        assert_eq!(idx.get("walden.md"), None);
     }
 
     #[test]

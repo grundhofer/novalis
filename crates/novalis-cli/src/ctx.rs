@@ -145,6 +145,15 @@ impl Ctx {
             return Err(CliError::usage("empty note reference"));
         }
         let stems = self.stem_index()?;
+        // A vault-relative path names its note even where the stem is shared:
+        // `index.md` is the root note, `index` the ambiguous stem.
+        if let Ok(rel) = normalize_rel(&arg) {
+            if is_note_name(file_name_of(&rel)) {
+                if let Some(p) = stems.get(&rel) {
+                    return Ok(p.to_string());
+                }
+            }
+        }
         match stems.resolve_wiki(&arg) {
             Resolution::Resolved(p) => Ok(p),
             Resolution::Ambiguous(candidates) => Err(CliError::from_core(CoreError::Ambiguous {
