@@ -44,6 +44,7 @@ import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
 import { lineSeparatorFor } from "./lineBreak";
+import { editorPhrases } from "./phrases";
 import { CodeText, Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -187,6 +188,7 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
     // CRLF stays CRLF (PLAN.md §5.5); the buffer is read with `sliceDoc()`.
     lineSeparatorFor(hooks.text),
     search({ top: true }),
+    editorPhrases(),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,

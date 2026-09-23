@@ -100,6 +100,37 @@ export const editorTheme = EditorView.theme({
     color: "var(--ds-color-fg-default)",
     borderTop: "1px solid var(--ds-color-border-strong)",
   },
+  // The find and Go to Line panels: CodeMirror's own buttons and fields are a
+  // light-grey gradient with #888 borders, unreadable under the dark theme's
+  // text colour; they wear the app's controls instead.
+  // The find panel sits on top; CodeMirror draws its edge in #ddd.
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--ds-color-border-strong)" },
+  ".cm-panels .cm-button": {
+    backgroundImage: "none",
+    backgroundColor: "var(--ds-color-bg-fill)",
+    border: "1px solid var(--ds-color-border-control)",
+    borderRadius: "var(--ds-radius-chip)",
+    color: "var(--ds-color-fg-default)",
+    fontSize: "var(--ds-font-size-ui-sm)",
+  },
+  ".cm-panels .cm-button:active": {
+    backgroundImage: "none",
+    backgroundColor: "var(--ds-color-bg-fill-strong)",
+  },
+  ".cm-panels .cm-textfield": {
+    backgroundColor: "var(--ds-color-bg-canvas)",
+    border: "1px solid var(--ds-color-border-control)",
+    borderRadius: "var(--ds-radius-chip)",
+    color: "var(--ds-color-fg-default)",
+    fontSize: "var(--ds-font-size-ui-sm)",
+  },
+  ".cm-panels .cm-textfield:focus": {
+    outline: "1px solid var(--ds-color-accent-line)",
+  },
+  ".cm-panels label": {
+    color: "var(--ds-color-fg-muted)",
+    fontSize: "var(--ds-font-size-ui-sm)",
+  },
   // Decorated source mode: line-level classes the plugin adds.
   ".cm-line.nv-heading-1": { fontSize: "1.55em", letterSpacing: "var(--ds-letter-spacing-title)" },
   ".cm-line.nv-heading-2": { fontSize: "1.24em", letterSpacing: "-0.02em" },
