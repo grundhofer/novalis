@@ -83,6 +83,11 @@ export function openCardContextMenu(card: CardDto, board: BoardDto): Promise<voi
 
 const MOVE_TO_COLUMN = "card.moveToColumn:";
 
+/** The card the last context menu was opened on, as the board has it now. */
+export function menuCardNow(): CardDto | undefined {
+  return useBoard.getState().board?.cards.find((c) => c.id === menuCard);
+}
+
 /**
  * A card menu's `MenuAction`, or `false` for any other id. The card is looked
  * up again in the board as it is now: a card deleted or moved to another
@@ -90,7 +95,7 @@ const MOVE_TO_COLUMN = "card.moveToColumn:";
  */
 export function runCardMenuAction(id: string): boolean {
   if (!id.startsWith("card.")) return false;
-  const card = useBoard.getState().board?.cards.find((c) => c.id === menuCard);
+  const card = menuCardNow();
   if (!card) return true;
   if (id.startsWith(MOVE_TO_COLUMN)) {
     const column = id.slice(MOVE_TO_COLUMN.length);

@@ -17,6 +17,8 @@ export interface EditorBridge {
   run: (id: string) => boolean;
   has: (id: string) => boolean;
   goToLine: (line: number) => void;
+  /** The main selection's text, or the cursor's line when nothing is selected. */
+  selectionOrLine: () => string | null;
 }
 
 let bridge: EditorBridge | null = null;
@@ -35,6 +37,10 @@ export function isEditorCommand(id: string): boolean {
 
 export function goToEditorLine(line: number): void {
   bridge?.goToLine(line);
+}
+
+export function editorSelectionOrLine(): string | null {
+  return bridge?.selectionOrLine() ?? null;
 }
 
 /**

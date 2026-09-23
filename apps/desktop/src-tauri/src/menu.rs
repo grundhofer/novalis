@@ -95,6 +95,7 @@ pub const MENU_KEYS: &[&str] = &[
     "board.editDescription",
     "board.deleteCard",
     "board.moveToColumn",
+    "board.createNote",
     "settings.appearance.system",
     "settings.appearance.light",
     "settings.appearance.dark",
@@ -587,7 +588,14 @@ pub fn card_context(
             cat.t("board.editDescription"),
             "",
         )?)
-        .item(&item(app, "card.delete", cat.t("board.deleteCard"), "")?);
+        .item(&item(app, "card.delete", cat.t("board.deleteCard"), "")?)
+        .separator()
+        .item(&item(
+            app,
+            "card.createNote",
+            cat.t("board.createNote"),
+            "",
+        )?);
     if columns.len() > 1 {
         let mut move_to = SubmenuBuilder::new(app, cat.t("board.moveToColumn"));
         for (id, name) in columns {

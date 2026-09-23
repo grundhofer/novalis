@@ -1,7 +1,7 @@
-import { runCardMenuAction } from "./cardActions";
-import { isEditorCommand, runEditorCommand } from "./editorBridge";
+import { menuCardNow, runCardMenuAction } from "./cardActions";
+import { editorSelectionOrLine, isEditorCommand, runEditorCommand } from "./editorBridge";
 import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
-import { commands, NovalisError, unwrap } from "../ipc/client";
+import { commands, NovalisError, unwrap, type CardDto } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
@@ -10,7 +10,7 @@ import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
 import { localIsoDay } from "./localTime";
-import { fileNameOf, folderOf, joinRel } from "./paths";
+import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 import { uiStateNow } from "./uiState";
 
 /**
@@ -248,6 +248,86 @@ async function newCard(): Promise<void> {
   });
 }
 
+/**
+ * A card's title as a note name (ADR-0035): the separators a path or macOS
+ * would read go, and a leading dot, which would hide the file.
+ */
+export function noteNameOfTitle(title: string): string {
+  return title
+    .replace(/[/\\:]+/g, "-")
+    .replace(/^[.\s]+/, "")
+    .trim();
+}
+
+/**
+ * Create Note from Card (ADR-0035): an empty note named by the card's title
+ * — its title is its name (D22) — linked to the card and opened. It lands
+ * where `Cmd+N` would put it, except never among the boards; a note of that
+ * name already there is linked instead of a second one being made.
+ */
+async function createNoteFromCard(card: CardDto): Promise<void> {
+  const name = noteNameOfTitle(card.title);
+  if (!name) return;
+  const target = targetFolder();
+  const folder = target === "boards" || target.startsWith("boards/") ? "" : target;
+  let path = joinRel(folder, `${name}.md`);
+  try {
+    path = (await unwrap(commands.createNote(folder, name))).path;
+    await useVault.getState().reload(folder);
+    await useFiles.getState().refresh();
+  } catch (error) {
+    if (!(error instanceof NovalisError && error.code === "already_exists")) throw error;
+  }
+  if (!card.notes.includes(path)) {
+    await useBoard.getState().apply({ kind: "linkNote", id: card.id, path });
+  }
+  await useTabs.getState().open(path);
+}
+
+/**
+ * The first line of a text as a card title (ADR-0035): a list marker, a task
+ * box or a heading's hashes are Markdown, not the title.
+ */
+export function cardTitleOfLine(text: string): string {
+  const line = text.split(/\r?\n/).find((l) => l.trim() !== "") ?? "";
+  return line
+    .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, "")
+    .replace(/^\s*#{1,6}\s+/, "")
+    .trim();
+}
+
+/**
+ * New Card from Selection (ADR-0035): the selected text's first line — or the
+ * cursor's line — as a card on the active board, linked to the note it came
+ * from; last in the first column. A one-time copy: the note is not written,
+ * and nothing ties the text to the card afterwards (§2.3 rule 10, D18).
+ */
+async function cardFromSelection(): Promise<void> {
+  const note = useTabs.getState().active;
+  const slug = cardBoard();
+  if (!note || !isNote(note) || !slug) return;
+  // The rendered note has no editor; its selection is the document's.
+  const text = previewMounted() ? (window.getSelection()?.toString() ?? "") : editorSelectionOrLine();
+  const title = cardTitleOfLine(text ?? "");
+  if (!title) return;
+  const board = useBoard.getState();
+  if (board.slug !== slug || !board.board) await board.load(slug);
+  const loaded = useBoard.getState().board;
+  const column = loaded?.columns[0];
+  if (!loaded || !column) {
+    useUi.getState().setActiveBoard(slug);
+    return;
+  }
+  await useBoard.getState().apply({
+    kind: "add",
+    title,
+    column: column.id,
+    notes: [note],
+    position: { kind: "last" },
+  });
+  useUi.getState().showToast("board.cardAdded", { board: loaded.name });
+}
+
 async function newBoard(): Promise<void> {
   useUi.getState().ask({
     titleKey: "board.newBoard",
@@ -347,6 +427,7 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "board.toggle": () => useUi.getState().toggleBoard(),
   "board.new": () => newBoard(),
   "board.newCard": () => newCard(),
+  "board.cardFromSelection": () => cardFromSelection(),
   "note.togglePreview": () => {
     // Markdown renders (ADR-0020; `.markdown` too, ADR-0022 point 6), a
     // CSV or TSV is a table and an SVG its picture (ADR-0025); a PDF or an
@@ -392,6 +473,11 @@ for (let n = 1; n <= 9; n += 1) {
 export function dispatchCommand(id: string): void {
   // A card's context menu (ADR-0032): its ids carry no chord and no palette
   // entry, only a card the menu was opened on.
+  if (id === "card.createNote") {
+    const card = menuCardNow();
+    if (card) void createNoteFromCard(card).catch(report);
+    return;
+  }
   if (runCardMenuAction(id)) return;
   const command = REGISTRY[id];
   if (command) {
@@ -455,6 +541,10 @@ export function paletteCommands(): readonly {
   { id: "board.new", labelKey: "menu.file.newBoard" },
   // Only where there is a board to put the card on (ADR-0030).
   ...(cardBoard() ? [{ id: "board.newCard", labelKey: "board.newCard" }] : []),
+  // From the note being read, onto the active board (ADR-0035).
+  ...(cardBoard() && isNote(useTabs.getState().active ?? "")
+    ? [{ id: "board.cardFromSelection", labelKey: "palette.cmd.cardFromSelection" }]
+    : []),
   { id: "settings.open", labelKey: "palette.cmd.settings" },
   { id: "vault.open", labelKey: "menu.file.openVault" },
   { id: "file.save", labelKey: "menu.file.save" },
