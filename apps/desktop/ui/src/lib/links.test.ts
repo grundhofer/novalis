@@ -33,3 +33,13 @@ describe("resolveDestination", () => {
     expect(resolveDestination("notes/x.md", "mailto:a@b.de")).toBeNull();
   });
 });
+
+// ADR-0040: the link a note dropped into another becomes.
+describe("wikiLinkFor", () => {
+  it("links by stem, by path when another note shares the stem", async () => {
+    const { wikiLinkFor } = await import("./links");
+    const notes = ["a/Plan.md", "b/plan.md", "Ideas.md"];
+    expect(wikiLinkFor("Ideas.md", notes)).toBe("[[Ideas]]");
+    expect(wikiLinkFor("a/Plan.md", notes)).toBe("[[a/Plan]]");
+  });
+});

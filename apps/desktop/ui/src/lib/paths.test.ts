@@ -16,3 +16,13 @@ describe("providerOf", () => {
     expect(providerOf("/Users/x/Google Drive/My Drive/v")).toBeNull();
   });
 });
+
+// ADR-0040: a relative Markdown destination, encoded per segment.
+describe("relativeLink", () => {
+  it("walks up and down from the note's folder and escapes each segment", async () => {
+    const { relativeLink } = await import("./paths");
+    expect(relativeLink("notes", "notes/att/a b.pdf")).toBe("att/a%20b.pdf");
+    expect(relativeLink("notes/deep", "docs/x (1).png")).toBe("../../docs/x%20%281%29.png");
+    expect(relativeLink("", "docs/y.pdf")).toBe("docs/y.pdf");
+  });
+});

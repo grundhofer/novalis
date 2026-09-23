@@ -6,7 +6,7 @@ import { formatDay } from "../i18n";
 import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
 import { folderOf, nsToMs } from "../lib/paths";
-import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
+import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, ENTRY_DRAG_TYPE, useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
@@ -310,7 +310,12 @@ export default function Sidebar() {
                   draggable
                     ? (event) => {
                         if (entry.boardSlug) event.dataTransfer.setData(BOARD_DRAG_TYPE, entry.boardSlug);
-                        else event.dataTransfer.setData("text/plain", entry.path);
+                        else {
+                          event.dataTransfer.setData("text/plain", entry.path);
+                          // The editor's drop reads this (ADR-0040): a tree
+                          // row, not text that happens to look like a path.
+                          event.dataTransfer.setData(ENTRY_DRAG_TYPE, entry.path);
+                        }
                         event.dataTransfer.effectAllowed = "move";
                       }
                     : undefined
