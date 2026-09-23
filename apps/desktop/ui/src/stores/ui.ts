@@ -29,7 +29,12 @@ export type Overlay =
   | { kind: "palette" }
   | { kind: "settings" }
   /** `tag` presets the search's tag filter (a tag chosen in the palette). */
-  | { kind: "search"; tag?: string };
+  | { kind: "search"; tag?: string }
+  /**
+   * The note picker (ADR-0030): quick-open over the notes minus `exclude`,
+   * the active note first; the chosen path goes to `onPick`.
+   */
+  | { kind: "pickNote"; exclude: readonly string[]; onPick: (path: string) => Promise<void> };
 
 /**
  * A one-line question. The app has no preferences window and no modal stack:

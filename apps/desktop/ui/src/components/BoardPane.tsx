@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { DragEvent } from "react";
+
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
-import { stemOf } from "../lib/paths";
+import { isNote, stemOf } from "../lib/paths";
 import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
@@ -29,7 +31,6 @@ export default function BoardPane() {
   const boards = useBoard((s) => s.boards);
   const busy = useBoard((s) => s.busy);
   const notice = useBoard((s) => (s.board ? s.notices[s.board.slug] : undefined));
-  const activeNote = useTabs((s) => s.active);
   const fileList = useFiles((s) => s.files);
   const filesLoaded = useFiles((s) => s.loaded);
   const files = useMemo(() => new Set(fileList), [fileList]);
@@ -71,7 +72,9 @@ export default function BoardPane() {
 
   const openCardNote = (card: CardDto) => {
     const note = card.notes[0];
-    if (!note) return;
+    // A card without a note opens what it has, its description (ADR-0030);
+    // D21 decided the click only for a card that links one.
+    if (!note) return editDescription(card);
     void useTabs.getState().open(note).catch(report);
   };
 
@@ -142,8 +145,32 @@ export default function BoardPane() {
     });
   };
 
-  const drop = (column: string) => {
-    if (!drag) return;
+  const drop = (column: string, event: DragEvent) => {
+    if (!drag) {
+      // A note dragged from the tree (ADR-0030): a new card titled by its
+      // stem and linked to it, where it was dropped. The tree's rows carry
+      // the path as `text/plain`; a card carries its own type too, and
+      // anything else — a tab, a folder, a PDF — makes no card.
+      const { types } = event.dataTransfer;
+      const path =
+        types.includes("text/plain") && !types.includes(CARD_DRAG_TYPE)
+          ? event.dataTransfer.getData("text/plain")
+          : "";
+      const beforeCardId = over?.column === column ? over.beforeCardId : null;
+      setOver(null);
+      if (!isNote(path) || !files.has(path)) return;
+      void useBoard
+        .getState()
+        .apply({
+          kind: "add",
+          title: stemOf(path),
+          column,
+          notes: [path],
+          position: beforeCardId ? { kind: "after", id: beforeCardId } : { kind: "last" },
+        })
+        .catch(report);
+      return;
+    }
     const beforeCardId = over?.column === column ? over.beforeCardId : null;
     // Dropped on a card: after it. Dropped on the column's empty space: last.
     const position: PositionDto = beforeCardId
@@ -257,7 +284,7 @@ export default function BoardPane() {
                 event.dataTransfer.dropEffect = "move";
                 if (!over || over.column !== column.id) setOver({ column: column.id, beforeCardId: null });
               }}
-              onDrop={() => drop(column.id)}
+              onDrop={(event) => drop(column.id, event)}
             >
               <header className="col-head">
                 <span className="col-name">{column.name}</span>
@@ -381,20 +408,21 @@ export default function BoardPane() {
                       >
                         &#8801;
                       </button>
+                      {/* The note picker (ADR-0030): any note, the open one
+                          first; it used to link the active tab or nothing. */}
                       <button
                         className="btn ghost card-action"
                         type="button"
-                        title={activeNote ? t("board.linkNote") : t("board.linkNoteNeedsNote")}
+                        title={t("board.linkNote")}
                         aria-label={t("board.linkNote")}
-                        disabled={!activeNote || card.notes.includes(activeNote)}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (activeNote) {
-                            void useBoard
-                              .getState()
-                              .apply({ kind: "linkNote", id: card.id, path: activeNote })
-                              .catch(report);
-                          }
+                          useUi.getState().setOverlay({
+                            kind: "pickNote",
+                            exclude: card.notes,
+                            onPick: (path) =>
+                              useBoard.getState().apply({ kind: "linkNote", id: card.id, path }),
+                          });
                         }}
                       >
                         {t("board.linkNote")}

@@ -57,20 +57,28 @@ function headingsOfActiveDocument(): Entry[] {
   return headingsOf(text).map((h) => ({ kind: "heading", line: h.line, text: h.text }));
 }
 
-export type PaletteMode = "quickOpen" | "palette" | "settings";
+export type PaletteMode = "quickOpen" | "palette" | "settings" | "pickNote";
 
 const PLACEHOLDER_KEY: Record<PaletteMode, string> = {
   quickOpen: "palette.quickOpenPlaceholder",
   palette: "palette.placeholder",
   settings: "palette.settingsPlaceholder",
+  pickNote: "board.linkNote",
 };
 
-export default function Palette({ mode }: { mode: PaletteMode }) {
+/** What the note picker (ADR-0030) leaves out and where the choice goes. */
+export interface PickRequest {
+  exclude: readonly string[];
+  onPick: (path: string) => Promise<void>;
+}
+
+export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: PickRequest }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement | null>(null);
   const files = useFiles((s) => s.files);
+  const notes = useFiles((s) => s.notes);
   const boards = useBoard((s) => s.boards);
   const [tags, setTags] = useState<readonly { tag: string; count: number }[]>([]);
 
@@ -97,6 +105,14 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
   }, []);
 
   const pool: Entry[] = useMemo(() => {
+    if (mode === "pickNote") {
+      // The note being read is the likeliest one to link: first, so an
+      // empty query and Enter link it, as the button did before.
+      const active = useTabs.getState().active;
+      const skip = new Set(pick?.exclude ?? []);
+      const ordered = active && notes.includes(active) ? [active, ...notes.filter((n) => n !== active)] : notes;
+      return ordered.filter((path) => !skip.has(path)).map((path) => ({ kind: "file", path }));
+    }
     // Every listed file, not only notes (ADR-0022); a note shows its stem,
     // anything else its name with the extension.
     const fileEntries: Entry[] = files.map((path) => ({ kind: "file", path }));
@@ -116,7 +132,7 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
     if (mode === "settings") return commandEntries;
     const tagEntries: Entry[] = tags.map((entry) => ({ kind: "tag", tag: entry.tag, count: entry.count }));
     return [...commandEntries, ...headingsOfActiveDocument(), ...fileEntries, ...boardEntries, ...tagEntries];
-  }, [mode, files, boards, tags, t]);
+  }, [mode, files, notes, boards, tags, t, pick]);
 
   const label = (entry: Entry): string => {
     switch (entry.kind) {
@@ -148,6 +164,10 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
   const run = (entry: Entry | undefined) => {
     if (!entry) return;
     close();
+    if (mode === "pickNote") {
+      if (entry.kind === "file" && pick) void pick.onPick(entry.path).catch(report);
+      return;
+    }
     switch (entry.kind) {
       case "file":
         void useTabs.getState().open(entry.path).catch(report);
@@ -230,7 +250,7 @@ export default function Palette({ mode }: { mode: PaletteMode }) {
 
         <div className="palette-foot">
           <span>{t("palette.foot.navigate")}</span>
-          <span>{t(mode === "quickOpen" ? "palette.foot.open" : "palette.foot.run")}</span>
+          <span>{t(mode === "palette" || mode === "settings" ? "palette.foot.run" : "palette.foot.open")}</span>
           <span>{t("palette.foot.close")}</span>
         </div>
       </div>

@@ -187,3 +187,21 @@ describe("Palette", () => {
     expect(document.querySelector(".result-label")).toBeNull();
   });
 });
+
+// ADR-0030: the note picker behind a card's Link Note… — notes only, the
+// open one first, the card's own links left out, the choice handed back.
+describe("Palette in pickNote mode", () => {
+  it("offers the notes minus the excluded ones, the active note first, and hands the pick back", () => {
+    useFiles.setState({ files: ["a.md", "b.md", "c.md", "x.pdf"], notes: ["a.md", "b.md", "c.md"], loaded: true });
+    useTabs.setState({ active: "c.md" });
+    const onPick = vi.fn().mockResolvedValue(undefined);
+    render(<Palette mode="pickNote" pick={{ exclude: ["a.md"], onPick }} />);
+
+    const labels = [...document.querySelectorAll(".result-label")].map((el) => el.textContent);
+    expect(labels).toEqual(["c", "b"]);
+
+    fireEvent.keyDown(screen.getByPlaceholderText("board.linkNote"), { key: "Enter" });
+    expect(onPick).toHaveBeenCalledWith("c.md");
+    expect(dispatchCommand).not.toHaveBeenCalledWith(expect.anything());
+  });
+});
