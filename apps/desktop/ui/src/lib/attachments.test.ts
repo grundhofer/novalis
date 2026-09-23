@@ -185,3 +185,29 @@ describe("saveAttachment", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 });
+
+// ADR-0041: a PDF is an attachment too — linked, not embedded — and a file
+// from the Finder is copied under its own name, never over another.
+describe("PDF attachments and Finder copies", () => {
+  it("links a PDF and embeds an image", () => {
+    expect(extensionForMime("application/pdf")).toBe("pdf");
+    expect(attachmentLink("Spec-20260914-003005.pdf")).toBe(
+      "[Spec-20260914-003005.pdf](attachments/Spec-20260914-003005.pdf)",
+    );
+    expect(attachmentLink("a.png")).toBe("![](attachments/a.png)");
+  });
+
+  it("copies a dropped file under its name, then ' 2', and refuses another type", async () => {
+    const { copyIntoFolder } = await import("./attachments");
+    (unwrap as Mock)
+      .mockRejectedValueOnce(failure("already_exists"))
+      .mockResolvedValueOnce(entry("docs/Scan 2.pdf", false));
+    const file = new File([bytes], "Scan.pdf", { type: "application/pdf" });
+    expect(await copyIntoFolder("docs", file)).toBe("docs/Scan 2.pdf");
+    const names = (commands.writeBlob as Mock).mock.calls.map((call) => call[1]);
+    expect(names.slice(-2)).toEqual(["Scan.pdf", "Scan 2.pdf"]);
+
+    const text = new File([bytes], "notes.txt", { type: "text/plain" });
+    expect(await copyIntoFolder("docs", text)).toBeNull();
+  });
+});

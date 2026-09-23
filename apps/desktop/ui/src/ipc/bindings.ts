@@ -46,7 +46,8 @@ export const commands = {
 	 */
 	readPacked: (path: string, entries: string[]) => typedError<PackedDto, IpcError>(__TAURI_INVOKE("read_packed", { path, entries })),
 	/**
-	 *  Write an image the user pasted or dropped into a note (ADR-0017), under
+	 *  Write an image or PDF the user pasted or dropped into a note (ADR-0017,
+	 *  ADR-0041) or dropped on the tree from the Finder, under
 	 *  `folder/name`, never over an existing file (`RENAME_EXCL`), parents
 	 *  created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
 	 */

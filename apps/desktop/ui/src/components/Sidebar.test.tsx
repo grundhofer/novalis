@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { useBoard } from "../stores/board";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
@@ -36,6 +37,14 @@ vi.mock("../lib/commands", () => ({
   dispatchCommand: vi.fn(),
   moveEntry: vi.fn(async () => undefined),
   openTreeContextMenu: vi.fn(async () => undefined),
+}));
+
+// A Finder drop copies through `lib/attachments` (ADR-0041); what the copy
+// writes is that module's business.
+vi.mock("../lib/attachments", () => ({
+  copyIntoFolder: vi.fn(async (folder: string, file: File) =>
+    file.type === "application/pdf" ? `${folder}/${file.name}` : null,
+  ),
 }));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -493,5 +502,34 @@ describe("Sidebar", () => {
       press("ArrowDown", true);
       expect(open).toHaveBeenCalledWith("a.md");
     });
+  });
+
+  // ADR-0041: files from the Finder dropped on a folder are copied into it;
+  // what the app cannot take is said once, not copied.
+  it("copies Finder files dropped on a folder and says how many it refused", async () => {
+    const { copyIntoFolder } = await import("../lib/attachments");
+    const reload = vi.fn(async () => undefined);
+    useVault.setState({
+      children: { "": [entry("Docs", true)] },
+      expanded: {},
+      reload,
+    });
+    useFiles.setState({ refresh: vi.fn(async () => undefined) });
+    useUi.setState({ toast: null });
+    render(<Sidebar />);
+    const pdf = new File(["x"], "Scan.pdf", { type: "application/pdf" });
+    const txt = new File(["x"], "a.txt", { type: "text/plain" });
+    const row = screen.getByText("Docs").closest(".tree-row")!;
+    const dataTransfer = { types: ["Files"], files: [pdf, txt], dropEffect: "" };
+    fireEvent.dragOver(row, { dataTransfer });
+    fireEvent.drop(row, { dataTransfer });
+    await flush();
+    await flush();
+    expect(vi.mocked(copyIntoFolder).mock.calls.map(([folder, file]) => [folder, file.name])).toEqual([
+      ["Docs", "Scan.pdf"],
+      ["Docs", "a.txt"],
+    ]);
+    expect(reload).toHaveBeenCalledWith("Docs");
+    expect(useUi.getState().toast).toEqual({ key: "tree.dropRefused", values: { count: 1 } });
   });
 });

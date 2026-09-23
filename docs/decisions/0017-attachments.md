@@ -73,3 +73,8 @@ are.
   names as open.
 - Not added: pasting non-image files, inline images in the editor, resizing
   or conversion, the `![[…]]` embed syntax, a configurable folder.
+
+**Amended 2026-09-23** — ADR-0041: PDF joins the image types as an
+attachment (linked, not embedded), and images and PDFs from the Finder can
+be dropped on the tree's folders. "Only the §7.3 image types" above now
+reads "the §7.3 image types and PDF".

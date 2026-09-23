@@ -5,8 +5,10 @@ import { useTranslation } from "react-i18next";
 import { formatDay } from "../i18n";
 import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
+import { copyIntoFolder } from "../lib/attachments";
 import { folderOf, nsToMs } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, ENTRY_DRAG_TYPE, useBoard } from "../stores/board";
+import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
@@ -39,7 +41,7 @@ import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
 
 const ROW_HEIGHT = 28;
 
-type DragKind = "file" | "board" | "card";
+type DragKind = "file" | "board" | "card" | "finder";
 
 /** What a drag carries, by the types it declares. */
 function dragKind(dataTransfer: DataTransfer): DragKind | null {
@@ -48,6 +50,8 @@ function dragKind(dataTransfer: DataTransfer): DragKind | null {
   if (types.includes(CARD_DRAG_TYPE)) return "card";
   if (types.includes(BOARD_DRAG_TYPE)) return "board";
   if (types.includes("text/plain")) return "file";
+  // Files from the Finder (ADR-0041): copied, never moved.
+  if (types.includes("Files")) return "finder";
   return null;
 }
 
@@ -150,6 +154,25 @@ export default function Sidebar() {
     // The row that had focus may be scrolled out and unmounted; the tree
     // itself keeps it, so the next key still arrives here.
     scroller.current?.focus({ preventScroll: true });
+  };
+
+  /**
+   * Images and PDFs dropped from the Finder on a folder (ADR-0041): copied
+   * there, never over a file. Anything else is said once, not copied.
+   */
+  const dropFinder = (event: DragEvent<HTMLDivElement>, toFolder: string) => {
+    event.preventDefault();
+    setOverPath(null);
+    const files = [...event.dataTransfer.files];
+    void (async () => {
+      let refused = 0;
+      for (const file of files) {
+        if ((await copyIntoFolder(toFolder, file)) === null) refused += 1;
+      }
+      await useVault.getState().reload(toFolder);
+      await useFiles.getState().refresh();
+      if (refused > 0) useUi.getState().showToast("tree.dropRefused", { count: refused });
+    })().catch(report);
   };
 
   const dropInto = (event: DragEvent<HTMLDivElement>, toFolder: string) => {
@@ -256,15 +279,16 @@ export default function Sidebar() {
           // place in the tree's space either.
           if (!overTreeSpace(event)) return;
           const kind = dragKind(event.dataTransfer);
-          if (kind !== "file" && kind !== "board") return;
+          if (kind !== "file" && kind !== "board" && kind !== "finder") return;
           event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
+          event.dataTransfer.dropEffect = kind === "finder" ? "copy" : "move";
         }}
         onDrop={(event) => {
           if (!overTreeSpace(event)) return;
           const kind = dragKind(event.dataTransfer);
           if (kind === "file") dropInto(event, "");
           else if (kind === "board") dropBoard(event, null);
+          else if (kind === "finder") dropFinder(event, "");
         }}
       >
         <div className="tree-inner" style={{ height: `${virtualizer.getTotalSize()}px` }}>
@@ -276,7 +300,7 @@ export default function Sidebar() {
             const isBoard = !!entry.boardSlug;
             const draggable = !entry.dir || isBoard;
             // A folder takes a file; a board takes a board or a card.
-            const accepts: DragKind[] = isBoard ? ["board", "card"] : entry.dir ? ["file"] : [];
+            const accepts: DragKind[] = isBoard ? ["board", "card"] : entry.dir ? ["file", "finder"] : [];
             const dropTarget = accepts.length > 0;
             const classes = ["tree-row"];
             if (entry.dir) classes.push("folder");
@@ -328,7 +352,7 @@ export default function Sidebar() {
                         if (!kind || !accepts.includes(kind)) return;
                         event.preventDefault();
                         event.stopPropagation();
-                        event.dataTransfer.dropEffect = "move";
+                        event.dataTransfer.dropEffect = kind === "finder" ? "copy" : "move";
                         if (overPath !== entry.path) setOverPath(entry.path);
                       }
                     : undefined
@@ -351,6 +375,7 @@ export default function Sidebar() {
                         if (!kind || !accepts.includes(kind)) return;
                         event.stopPropagation();
                         if (kind === "file") dropInto(event, entry.path);
+                        else if (kind === "finder") dropFinder(event, entry.path);
                         else if (kind === "board") dropBoard(event, entry.boardSlug);
                         else if (entry.boardSlug) dropCard(event, entry.boardSlug);
                       }

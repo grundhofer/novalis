@@ -485,11 +485,13 @@ pub async fn render_markdown(text: String) -> IpcResult<String> {
     blocking(move || Ok(novalis_core::notes::render::to_html(&text))).await
 }
 
-/// The image types a pasted or dropped attachment may have (ADR-0017): the
-/// tier-D image types of PLAN.md §7.3, lower-case.
-const ATTACHMENT_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
+/// The types a pasted or dropped attachment may have: the tier-D image types
+/// of PLAN.md §7.3 (ADR-0017) and PDF (ADR-0041), lower-case — what the app
+/// opens read-only itself.
+const ATTACHMENT_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 
-/// Write an image the user pasted or dropped into a note (ADR-0017), under
+/// Write an image or PDF the user pasted or dropped into a note (ADR-0017,
+/// ADR-0041) or dropped on the tree from the Finder, under
 /// `folder/name`, never over an existing file (`RENAME_EXCL`), parents
 /// created. Only the §7.3 image types, and nothing above [`HUGE_FILE_BYTES`].
 #[tauri::command]
@@ -510,7 +512,9 @@ pub async fn write_blob(
             .map(|i| name[i + 1..].to_ascii_lowercase())
             .unwrap_or_default();
         if !ATTACHMENT_EXTENSIONS.contains(&ext.as_str()) {
-            return Err(IpcError::bad_request(format!("{name}: not an image type")));
+            return Err(IpcError::bad_request(format!(
+                "{name}: not an attachment type"
+            )));
         }
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(base64)

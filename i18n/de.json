@@ -283,6 +283,8 @@
   "tree.columnName": "Name",
   "tree.conflictCopy": "Konfliktkopie",
   "tree.download": "Herunterladen",
+  "tree.dropRefused_one": "{{count}} Datei wurde nicht kopiert: Hier lassen sich nur Bilder und PDFs ablegen.",
+  "tree.dropRefused_other": "{{count}} Dateien wurden nicht kopiert: Hier lassen sich nur Bilder und PDFs ablegen.",
   "tree.empty": "Dieser Vault enthält noch keine Dateien.",
   "tree.folderItems_one": "{{count}} Eintrag",
   "tree.folderItems_other": "{{count}} Einträge",
