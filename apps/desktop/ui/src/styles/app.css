@@ -147,9 +147,29 @@ button {
 
 /* --------------------------------------------------------------- sidebar */
 .sidebar-host {
+  position: relative;
   flex: 0 0 auto;
   min-width: var(--ds-size-sidebar-min);
   max-width: var(--ds-size-sidebar-max);
+}
+
+/* The sidebar's right edge, dragged to resize it: a strip wider than it
+   looks, the accent line only while hovered, dragged or focused. */
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.sidebar-resize:hover,
+.sidebar-resize:active,
+.sidebar-resize:focus-visible {
+  outline: none;
+  background: linear-gradient(var(--ds-color-accent-line), var(--ds-color-accent-line)) center / 1px 100% no-repeat;
 }
 
 .sidebar {
