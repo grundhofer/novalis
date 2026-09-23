@@ -49,3 +49,16 @@ export function resolveWikiTarget(target: string, paths: readonly string[]): str
     null
   );
 }
+
+/**
+ * The `[[…]]` a note is linked by (ADR-0040): its stem, or its path without
+ * `.md` when another note has the same stem in any case — the form
+ * `resolveWikiTarget` reads back to exactly this note.
+ */
+export function wikiLinkFor(path: string, notes: readonly string[]): string {
+  const stem = (p: string) => (p.split("/").pop() ?? p).replace(/\.md$/i, "").toLowerCase();
+  const own = stem(path);
+  const clash = notes.some((other) => other !== path && stem(other) === own);
+  const target = clash ? path.replace(/\.md$/i, "") : (path.split("/").pop() ?? path).replace(/\.md$/i, "");
+  return `[[${target}]]`;
+}

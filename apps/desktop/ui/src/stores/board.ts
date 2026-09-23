@@ -35,6 +35,11 @@ import { useVault } from "./vault";
  */
 export const BOARD_DRAG_TYPE = "application/x-novalis-board";
 export const CARD_DRAG_TYPE = "application/x-novalis-card";
+/**
+ * A file row of the tree, beside its `text/plain` path (ADR-0040): dropped
+ * on a note, it becomes a link there.
+ */
+export const ENTRY_DRAG_TYPE = "application/x-novalis-entry";
 
 export interface BoardNotice {
   cards: number;

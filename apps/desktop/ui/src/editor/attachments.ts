@@ -2,7 +2,11 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { extensionForMime, saveAttachment } from "../lib/attachments";
-import { isMarkdownFile } from "../lib/paths";
+import { viewKind } from "../lib/fileTypes";
+import { wikiLinkFor } from "../lib/links";
+import { fileNameOf, folderOf, isMarkdownFile, isNote, relativeLink } from "../lib/paths";
+import { ENTRY_DRAG_TYPE } from "../stores/board";
+import { useFiles } from "../stores/files";
 import { report } from "../stores/ui";
 
 /**
@@ -32,6 +36,13 @@ function insert(view: EditorView, text: string, at?: number): void {
   view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } });
 }
 
+/** The link a tree row dropped on `notePath` becomes (ADR-0040). */
+export function linkTo(notePath: string, entry: string): string {
+  if (isNote(entry)) return wikiLinkFor(entry, useFiles.getState().notes);
+  const target = relativeLink(folderOf(notePath), entry);
+  return viewKind(entry) === "image" ? `![](${target})` : `[${fileNameOf(entry)}](${target})`;
+}
+
 async function bytesOf(file: File): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer());
 }
@@ -57,6 +68,18 @@ export function attachments(notePath: string): Extension {
 
     drop(event, view) {
       if (view.state.readOnly) return false;
+      // A file dragged from the tree becomes a link to it where it lands
+      // (ADR-0040): `[[note]]` for a note, a relative Markdown link — an
+      // image embedded — for anything else. CodeMirror would otherwise
+      // insert the path as text.
+      const entry = event.dataTransfer?.getData(ENTRY_DRAG_TYPE);
+      if (entry) {
+        event.preventDefault();
+        if (entry === notePath) return true;
+        const at = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+        insert(view, linkTo(notePath, entry), at);
+        return true;
+      }
       const files = [...(event.dataTransfer?.files ?? [])].filter((f) => extensionForMime(f.type) !== null);
       if (files.length === 0) return false;
       event.preventDefault();

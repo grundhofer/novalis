@@ -32,6 +32,24 @@ export function joinRel(folder: string, name: string): string {
   return folder ? `${folder}/${name}` : name;
 }
 
+/**
+ * `to` as a path relative to the folder `from` (both vault-relative), each
+ * segment percent-encoded so a space or a parenthesis cannot end a Markdown
+ * link's destination (ADR-0040; `followLink` decodes it).
+ */
+export function relativeLink(from: string, to: string): string {
+  const base = from === "" ? [] : from.split("/");
+  const target = to.split("/");
+  let shared = 0;
+  while (shared < base.length && shared < target.length - 1 && base[shared] === target[shared]) shared += 1;
+  const up = base.slice(shared).map(() => "..");
+  return [...up, ...target.slice(shared)]
+    .map((segment) =>
+      segment === ".." ? segment : encodeURIComponent(segment).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`),
+    )
+    .join("/");
+}
+
 export function isNote(rel: string): boolean {
   return extensionOf(rel) === "md";
 }
