@@ -515,3 +515,85 @@ describe("deleting a board", () => {
     expect(reload).toHaveBeenCalledWith("boards");
   });
 });
+
+// ADR-0035: card and note made from each other.
+describe("card ↔ note", () => {
+  const card = {
+    id: "c1",
+    title: "Ship: v2/beta",
+    column: "todo",
+    order: "a0",
+    notes: [],
+    created: "",
+    updated: "",
+    description: null,
+    descriptionHtml: null,
+  };
+
+  async function boardWith(cards: unknown[]) {
+    const { useBoard } = await import("../stores/board");
+    const apply = vi.fn().mockResolvedValue(undefined);
+    useBoard.setState({
+      boards: [{ slug: "plan", name: "Plan", order: null }] as never,
+      slug: "plan",
+      board: { slug: "plan", name: "Plan", columns: [{ id: "todo", name: "To do" }], cards } as never,
+      apply,
+      load: vi.fn().mockResolvedValue(undefined),
+    });
+    return apply;
+  }
+
+  it("names a note after a card and a card after a line, without the Markdown", async () => {
+    const { noteNameOfTitle, cardTitleOfLine } = await import("./commands");
+    expect(noteNameOfTitle("Ship: v2/beta")).toBe("Ship- v2-beta");
+    expect(noteNameOfTitle(".hidden plan")).toBe("hidden plan");
+    expect(cardTitleOfLine("\n  - [ ] Call the shop\nmore")).toBe("Call the shop");
+    expect(cardTitleOfLine("## Next steps")).toBe("Next steps");
+    expect(cardTitleOfLine("3. third")).toBe("third");
+  });
+
+  it("creates a note from the card the menu was opened on, links it and opens it", async () => {
+    const stores = stubStores();
+    const apply = await boardWith([card]);
+    const { openCardContextMenu } = await import("./cardActions");
+    vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
+    vi.mocked(commands.contextMenu).mockResolvedValue(undefined as never);
+    await openCardContextMenu(card as never, { columns: [], cards: [card] } as never);
+    vi.mocked(commands.createNote).mockResolvedValue(entry("Ship- v2-beta.md", false) as never);
+
+    dispatchCommand("card.createNote");
+    await flush();
+    await flush();
+
+    expect(commands.createNote).toHaveBeenCalledWith("", "Ship- v2-beta");
+    expect(apply).toHaveBeenCalledWith({ kind: "linkNote", id: "c1", path: "Ship- v2-beta.md" });
+    expect(stores.open).toHaveBeenCalledWith("Ship- v2-beta.md");
+  });
+
+  it("makes a card from the selected line, linked to the note, and says where", async () => {
+    stubStores();
+    const apply = await boardWith([]);
+    useUi.setState({ activeBoard: "plan", toast: null });
+    useTabs.setState({ active: "Notes/a.md" });
+    const { setEditorBridge } = await import("./editorBridge");
+    setEditorBridge({
+      run: () => false,
+      has: () => false,
+      goToLine: () => undefined,
+      selectionOrLine: () => "- [ ] Call the shop\nsecond line",
+    });
+
+    dispatchCommand("board.cardFromSelection");
+    await flush();
+
+    expect(apply).toHaveBeenCalledWith({
+      kind: "add",
+      title: "Call the shop",
+      column: "todo",
+      notes: ["Notes/a.md"],
+      position: { kind: "last" },
+    });
+    expect(useUi.getState().toast).toEqual({ key: "board.cardAdded", values: { board: "Plan" } });
+    setEditorBridge(null);
+  });
+});

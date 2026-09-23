@@ -108,7 +108,7 @@ it back).
 | Right-click on a row | The row's context menu: Show in Finder, Rename, Move to Trash, New Note, New Folder — a board row Show in Finder only (ADR-0021) | tree |
 | Drag a tab onto another tab or the strip's empty end | Put it in that tab's place, or last; the order `Cmd+1…9` counts (ADR-0028) | tab strip |
 | Drag a note row from the tree onto a column or a card | A new card titled by the note and linked to it, last in the column or after the card (ADR-0030) | board |
-| Right-click on a card | The card's context menu: Open Note (with a note), Rename, Edit Description, Delete Card, Move to Column ▸ the board's other columns (ADR-0032) | board |
+| Right-click on a card | The card's context menu: Open Note (with a note), Rename, Edit Description, Delete Card, Create Note from Card (ADR-0035), Move to Column ▸ the board's other columns (ADR-0032) | board |
 | Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
 | `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
 | Click on the image | Toggle between fitting the pane and 1:1, keeping the clicked point under the pointer (ADR-0025) | viewer (image, comic page) |
@@ -163,3 +163,6 @@ it back).
   here (ADR-0026).
 - `board.newCard` (New Card, ADR-0030) has no chord: it is a palette entry,
   listed only while a board is active or the vault has exactly one.
+- `board.cardFromSelection` (New Card from Selection, ADR-0035) has no
+  chord: a palette entry, listed while a note is open and a board is
+  active or the only one.
