@@ -10,7 +10,7 @@ members = [
 # the four stamps `just bump` writes and `scripts/check-versions.mjs` guards;
 # never edit it by hand.
 [workspace.package]
-version = "1.0.0-alpha.1"
+version = "1.0.0-alpha.2"
 edition = "2021"
 license = "AGPL-3.0-only"
 authors = ["Sebastian Grundhöfer"]
