@@ -130,6 +130,10 @@ Exactly one edit flag per call:
 | `--find <text> --replace <text> [--regex] [--expect N]` | replace every match; with `--expect N` the edit is refused (exit 4) unless exactly N matches exist; default `--expect 1` |
 | `--set-body -` | replace the whole body from stdin; frontmatter kept |
 
+Text values may start with `-` (`--append "- [ ] task"` is text, not a
+flag); so a flag written directly after a text flag, with no text between,
+becomes that text. `-` alone reads stdin.
+
 Common flags: `--if-match <sha256>` (exit 4 on mismatch, nothing written),
 `--nth N` (choose among duplicate headings; without it a duplicate heading
 exits 4 with `candidates` giving line numbers), `--dry-run`.
