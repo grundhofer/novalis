@@ -106,6 +106,7 @@ it back).
 | Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
 | Drag a board row after another board row or onto the tree's empty space | Reorder the boards (writes `order` to `board.json`, ADR-0019) | tree |
 | Right-click on a row | The row's context menu: Show in Finder, Rename, Move to Trash, New Note, New Folder — a board row Show in Finder only (ADR-0021) | tree |
+| Drag a tab onto another tab or the strip's empty end | Put it in that tab's place, or last; the order `Cmd+1…9` counts (ADR-0028) | tab strip |
 | Drag a card from the board pane onto a board row | Move the card to that board, last in its first column (ADR-0019) | board |
 | `Cmd+V` with an image on the clipboard · drop image files onto the editor | Save the image under `attachments/` next to the note and insert `![](…)` (ADR-0017) | editor:markdown |
 | Click on the image | Toggle between fitting the pane and 1:1, keeping the clicked point under the pointer (ADR-0025) | viewer (image, comic page) |
@@ -151,3 +152,6 @@ it back).
 - `tree.reveal` (Show in Finder, ADR-0021) has no chord: it is a File menu
   item, a palette entry and a context-menu entry, and acts on the selected
   row or, with none, the active tab.
+- `tab.closeOthers` and `tab.closeAll` (Close Other Tabs, Close All Tabs,
+  ADR-0028) have no chord and no menu item: they are palette entries.
+  "Others" keeps the current tab.

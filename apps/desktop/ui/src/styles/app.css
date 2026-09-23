@@ -562,6 +562,12 @@ button {
   border-bottom-color: transparent;
 }
 
+/* Where a dragged tab lands (ADR-0028): the tab it takes the place of. */
+.tab.drop,
+.tab-spacer.drop {
+  background: var(--ds-color-accent-fill);
+}
+
 .tab-name {
   overflow: hidden;
   text-overflow: ellipsis;

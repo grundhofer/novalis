@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { dispatchCommand } from "../lib/commands";
@@ -7,9 +8,20 @@ import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 
+/**
+ * A tab's drag payload (ADR-0028): its own type, so the tree — which reads
+ * `text/plain` as a file and the ADR-0019 types as a board or card — and the
+ * editor ignore a tab dropped on them. WebKit abandons a drag whose data
+ * store is empty when dragstart returns, so the path goes in as the data.
+ */
+const TAB_DRAG_TYPE = "application/x-novalis-tab";
+
+const isTabDrag = (event: DragEvent) => event.dataTransfer.types.includes(TAB_DRAG_TYPE);
+
 /** The tab strip (layout L2, the decided layout — docs/DECISIONS.md §4.6). */
 export default function TabStrip() {
   const { t } = useTranslation();
+  const [dropAt, setDropAt] = useState<number | null>(null);
   const tabs = useTabs((s) => s.tabs);
   const active = useTabs((s) => s.active);
   const docs = useEditorSave((s) => s.docs);
@@ -27,16 +39,36 @@ export default function TabStrip() {
 
   return (
     <div className="tabbar">
-    <div className="tabs" role="tablist">
-      {tabs.map((path) => {
+    <div className="tabs" role="tablist" onDragLeave={() => setDropAt(null)}>
+      {tabs.map((path, index) => {
         const doc = docs[path];
         return (
           <div
-            className={path === active ? "tab active" : "tab"}
+            className={
+              (path === active ? "tab active" : "tab") + (dropAt === index ? " drop" : "")
+            }
             key={path}
             role="tab"
             aria-selected={path === active}
             tabIndex={-1}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData(TAB_DRAG_TYPE, path);
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(event) => {
+              if (!isTabDrag(event)) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDropAt(index);
+            }}
+            onDrop={(event) => {
+              if (!isTabDrag(event)) return;
+              event.preventDefault();
+              setDropAt(null);
+              useTabs.getState().move(event.dataTransfer.getData(TAB_DRAG_TYPE), index);
+            }}
+            onDragEnd={() => setDropAt(null)}
             onMouseDown={(event) => {
               if (event.button === 1) {
                 event.preventDefault();
@@ -60,7 +92,21 @@ export default function TabStrip() {
           </div>
         );
       })}
-      <div className="tab-spacer" />
+      <div
+        className={dropAt === tabs.length ? "tab-spacer drop" : "tab-spacer"}
+        onDragOver={(event) => {
+          if (!isTabDrag(event)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDropAt(tabs.length);
+        }}
+        onDrop={(event) => {
+          if (!isTabDrag(event)) return;
+          event.preventDefault();
+          setDropAt(null);
+          useTabs.getState().move(event.dataTransfer.getData(TAB_DRAG_TYPE), tabs.length);
+        }}
+      />
     </div>
     {/* The small button the owner asked for (ADR-0020): the same command as
         `Cmd+E`. Outside the scrolling strip, so a row of many tabs never

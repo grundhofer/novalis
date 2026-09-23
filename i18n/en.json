@@ -195,6 +195,8 @@
   "menu.view.togglePreview": "Toggle Preview",
   "menu.window.title": "Window",
   "palette.cmd.appearance": "Appearance: {{value}}",
+  "palette.cmd.closeAllTabs": "Close All Tabs",
+  "palette.cmd.closeOtherTabs": "Close Other Tabs",
   "palette.cmd.downloadCloudOnly": "Download All Online-Only Notes",
   "palette.cmd.gotoHeading": "Go to Heading…",
   "palette.cmd.hideBacklinks": "Hide Backlinks",
