@@ -166,3 +166,9 @@ it back).
 - `board.cardFromSelection` (New Card from Selection, ADR-0035) has no
   chord: a palette entry, listed while a note is open and a board is
   active or the only one.
+- The tree's own keys, when it has focus (a row was clicked): `Up`/`Down`
+  move the selection, `Right` opens a folder or steps into it, `Left`
+  closes it or steps to its parent, `Cmd+Down` opens the row as a click
+  does (Finder). Like the palette's arrows they are the widget's, not app
+  chords, and the parity table does not list them; `Enter` and
+  `Cmd+Delete` in the table stay rename and trash.

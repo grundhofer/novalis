@@ -1,11 +1,11 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDay } from "../i18n";
 import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands";
 import { bindingFor, glyphsOf } from "../lib/keymap";
-import { nsToMs } from "../lib/paths";
+import { folderOf, nsToMs } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
@@ -105,6 +105,53 @@ export default function Sidebar() {
     void useTabs.getState().open(entry.path).catch(report);
   };
 
+  /**
+   * The tree's own keys — keys inside a widget, like the palette's arrows,
+   * not app chords (docs/KEYMAP.md "Not listed"): ↑/↓ move the selection,
+   * → opens a folder or steps into it, ← closes it or steps to its parent,
+   * ⌘↓ opens the row as a click does (Finder). Enter and ⌘⌫ stay the
+   * keymap's rename and trash.
+   */
+  const onTreeKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const { key, metaKey, altKey, ctrlKey, shiftKey } = event;
+    if (altKey || ctrlKey || shiftKey) return;
+    if (metaKey && key !== "ArrowDown") return;
+    const current = rows.findIndex((r) => r.entry.path === (selected ?? activeTab));
+    const row = rows[current];
+    const move = (index: number) => {
+      const target = rows[Math.max(0, Math.min(index, rows.length - 1))];
+      if (!target) return;
+      useVault.getState().select(target.entry.path);
+      virtualizer.scrollToIndex(rows.indexOf(target));
+    };
+    const isFolder = (r: TreeRow | undefined) => !!r && r.entry.dir && !r.entry.boardSlug;
+    if (metaKey) {
+      if (row) openRow(row);
+    } else if (key === "ArrowDown") {
+      move(current < 0 ? 0 : current + 1);
+    } else if (key === "ArrowUp") {
+      move(current < 0 ? 0 : current - 1);
+    } else if (key === "ArrowRight") {
+      if (!row || !isFolder(row)) return;
+      if (!row.expanded) void useVault.getState().toggleFolder(row.entry.path).catch(report);
+      else if (rows[current + 1]?.depth === row.depth + 1) move(current + 1);
+    } else if (key === "ArrowLeft") {
+      if (!row) return;
+      if (isFolder(row) && row.expanded) {
+        void useVault.getState().toggleFolder(row.entry.path).catch(report);
+      } else if (row.depth > 0) {
+        const parent = folderOf(row.entry.path);
+        move(rows.findIndex((r) => r.entry.path === parent));
+      }
+    } else {
+      return;
+    }
+    event.preventDefault();
+    // The row that had focus may be scrolled out and unmounted; the tree
+    // itself keeps it, so the next key still arrives here.
+    scroller.current?.focus({ preventScroll: true });
+  };
+
   const dropInto = (event: DragEvent<HTMLDivElement>, toFolder: string) => {
     const path = event.dataTransfer.getData("text/plain");
     setOverPath(null);
@@ -200,6 +247,9 @@ export default function Sidebar() {
       <div
         className="tree"
         ref={scroller}
+        role="tree"
+        tabIndex={0}
+        onKeyDown={onTreeKey}
         onDragOver={(event) => {
           // A row that is not a target lets the event through; refusing it
           // here keeps a file row from reading as a target. A card has no
