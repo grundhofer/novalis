@@ -96,6 +96,7 @@ pub struct MenuShape {
     pub spellcheck: bool,
     pub sidebar_visible: bool,
     pub board_visible: bool,
+    pub backlinks_visible: bool,
 }
 
 /// Managed state, one per app.

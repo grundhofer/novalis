@@ -33,7 +33,7 @@ vi.mock("../ipc/client", () => {
       listDir: vi.fn(),
       listFiles: vi.fn(),
       rename: vi.fn(),
-      reveal: vi.fn(),
+      systemOpen: vi.fn(),
       trash: vi.fn(),
       contextMenu: vi.fn(),
       stateSave: vi.fn(),
@@ -406,7 +406,7 @@ describe("tree context menu and reveal", () => {
     stubStores();
     vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
     vi.mocked(commands.contextMenu).mockClear();
-    vi.mocked(commands.reveal).mockClear();
+    vi.mocked(commands.systemOpen).mockClear();
   });
 
   it("selects the row, then asks the shell for the menu — a board row for its short form", async () => {
@@ -423,16 +423,47 @@ describe("tree context menu and reveal", () => {
     useVault.setState({ selected: "Notes" });
     useTabs.setState({ active: "Notes/a.md" });
     await dispatchCommand("tree.reveal");
-    expect(commands.reveal).toHaveBeenLastCalledWith("Notes");
+    expect(commands.systemOpen).toHaveBeenLastCalledWith({ kind: "reveal", path: "Notes" });
 
     useVault.setState({ selected: null });
     await dispatchCommand("tree.reveal");
-    expect(commands.reveal).toHaveBeenLastCalledWith("Notes/a.md");
+    expect(commands.systemOpen).toHaveBeenLastCalledWith({ kind: "reveal", path: "Notes/a.md" });
 
     useTabs.setState({ active: null });
-    vi.mocked(commands.reveal).mockClear();
+    vi.mocked(commands.systemOpen).mockClear();
     await dispatchCommand("tree.reveal");
-    expect(commands.reveal).not.toHaveBeenCalled();
+    expect(commands.systemOpen).not.toHaveBeenCalled();
+  });
+
+  // ADR-0043: the file in its default app; a board row is no file.
+  it("opens the target in the default app, never a board row", async () => {
+    const { useBoard } = await import("../stores/board");
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never });
+    useVault.setState({ selected: "Notes/a.md" });
+    await dispatchCommand("tree.openDefault");
+    expect(commands.systemOpen).toHaveBeenLastCalledWith({ kind: "default", path: "Notes/a.md" });
+    vi.mocked(commands.systemOpen).mockClear();
+    useVault.setState({ selected: "boards/plan" });
+    await dispatchCommand("tree.openDefault");
+    expect(commands.systemOpen).not.toHaveBeenCalled();
+  });
+});
+
+// ADR-0043: the copy commands write the clipboard and say what they copied.
+describe("copy path and link", () => {
+  it("copies the absolute path, and a note's [[link]]", async () => {
+    stubStores();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    useVault.setState({ vault: { root: "/Users/me/Vault" } as never, selected: "Notes/a.md" });
+    useFiles.setState({ notes: ["Notes/a.md", "Other/a.md"] });
+    dispatchCommand("file.copyPath");
+    await flush();
+    expect(writeText).toHaveBeenLastCalledWith("/Users/me/Vault/Notes/a.md");
+    dispatchCommand("file.copyLink");
+    await flush();
+    expect(writeText).toHaveBeenLastCalledWith("[[Notes/a]]");
+    expect(useUi.getState().toast).toEqual({ key: "palette.copied", values: { text: "[[Notes/a]]" } });
   });
 });
 

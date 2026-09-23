@@ -51,7 +51,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::create_folder,
             commands::rename,
             commands::trash,
-            commands::reveal,
+            commands::system_open,
             commands::context_menu,
             commands::search,
             commands::tags,

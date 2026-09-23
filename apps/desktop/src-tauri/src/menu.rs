@@ -77,6 +77,9 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.view.hideSidebar",
     "menu.view.showBoard",
     "menu.view.hideBoard",
+    "menu.view.showBacklinks",
+    "menu.view.hideBacklinks",
+    "menu.file.openInDefaultApp",
     "menu.view.fontLarger",
     "menu.view.fontSmaller",
     "menu.view.fontReset",
@@ -110,6 +113,8 @@ pub const MENU_KEYS: &[&str] = &[
 pub struct MenuFlags {
     pub sidebar_visible: bool,
     pub board_visible: bool,
+    /// The backlinks pane (ADR-0043): View ▸ Show/Hide Backlinks.
+    pub backlinks_visible: bool,
 }
 
 impl Default for MenuFlags {
@@ -117,6 +122,7 @@ impl Default for MenuFlags {
         MenuFlags {
             sidebar_visible: true,
             board_visible: false,
+            backlinks_visible: false,
         }
     }
 }
@@ -432,6 +438,11 @@ pub fn build(
     } else {
         cat.t("menu.view.showBoard")
     };
+    let backlinks_label = if flags.backlinks_visible {
+        cat.t("menu.view.hideBacklinks")
+    } else {
+        cat.t("menu.view.showBacklinks")
+    };
 
     let view = SubmenuBuilder::new(app, cat.t("menu.view.title"))
         .item(&item(
@@ -446,6 +457,7 @@ pub fn build(
             board_label,
             "Shift+CmdOrCtrl+KeyB",
         )?)
+        .item(&item(app, "backlinks.toggle", backlinks_label, "")?)
         .separator()
         .item(&item(
             app,
@@ -543,6 +555,12 @@ pub fn tree_context(app: &AppHandle, cat: &Catalog, board: bool) -> tauri::Resul
     )?);
     if !board {
         menu = menu
+            .item(&item(
+                app,
+                "tree.openDefault",
+                cat.t("menu.file.openInDefaultApp"),
+                "",
+            )?)
             .item(&item(app, "tree.rename", cat.t("menu.file.rename"), "")?)
             .item(&item(
                 app,
