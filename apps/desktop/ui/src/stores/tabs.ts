@@ -30,6 +30,9 @@ interface TabsState {
   activate: (path: string) => Promise<void>;
   close: (path: string) => Promise<void>;
   closeActive: () => Promise<void>;
+  closeOthers: () => Promise<void>;
+  closeAll: () => Promise<void>;
+  move: (path: string, to: number) => void;
   reopenClosed: () => Promise<void>;
   next: () => Promise<void>;
   previous: () => Promise<void>;
@@ -142,6 +145,29 @@ export const useTabs = create<TabsState>((set, get) => ({
     const active = get().active;
     if (active) await get().close(active);
   },
+
+  // Close Other Tabs / Close All Tabs (ADR-0028): one `close` per tab, so
+  // each buffer is flushed the way `Cmd+W` flushes it, and each lands on the
+  // reopen-closed stack.
+  closeOthers: async () => {
+    const keep = get().active;
+    for (const path of get().tabs.filter((t) => t !== keep)) await get().close(path);
+  },
+
+  closeAll: async () => {
+    for (const path of [...get().tabs]) await get().close(path);
+  },
+
+  // A tab dragged onto another takes that tab's place (ADR-0028); `to` past
+  // the end puts it last. The order is the array `state.json` keeps.
+  move: (path, to) =>
+    set((s) => {
+      const from = s.tabs.indexOf(path);
+      if (from < 0) return s;
+      const tabs = s.tabs.filter((t) => t !== path);
+      tabs.splice(Math.min(Math.max(to, 0), tabs.length), 0, path);
+      return tabs.every((t, i) => t === s.tabs[i]) ? s : { tabs };
+    }),
 
   reopenClosed: async () => {
     const [path, ...rest] = get().closed;

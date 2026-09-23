@@ -205,3 +205,51 @@ describe("useTabs.open while the file is read", () => {
   });
 });
 
+
+// ADR-0028: tab order by drag, and closing all or all but the current one.
+describe("useTabs.move, closeOthers and closeAll", () => {
+  let close: ReturnType<typeof vi.fn<(path: string) => Promise<void>>>;
+
+  beforeEach(() => {
+    close = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined);
+    useEditorSave.setState({ close, save: vi.fn().mockResolvedValue(undefined) });
+    useTabs.setState({
+      tabs: ["a.md", "b.md", "c.md", "d.md"],
+      active: "b.md",
+      closed: [],
+      history: ["b.md"],
+      historyIndex: 0,
+    });
+  });
+
+  it("puts a dragged tab in the place of the tab it is dropped on", () => {
+    useTabs.getState().move("a.md", 2);
+    expect(useTabs.getState().tabs).toEqual(["b.md", "c.md", "a.md", "d.md"]);
+    useTabs.getState().move("d.md", 0);
+    expect(useTabs.getState().tabs).toEqual(["d.md", "b.md", "c.md", "a.md"]);
+  });
+
+  it("puts it last past the end, and ignores a path that is not a tab", () => {
+    useTabs.getState().move("a.md", 4);
+    expect(useTabs.getState().tabs).toEqual(["b.md", "c.md", "d.md", "a.md"]);
+    const before = useTabs.getState().tabs;
+    useTabs.getState().move("x.md", 0);
+    expect(useTabs.getState().tabs).toBe(before);
+    expect(useTabs.getState().active).toBe("b.md");
+  });
+
+  it("closes every tab but the current one, each through the buffer's close", async () => {
+    await useTabs.getState().closeOthers();
+    expect(useTabs.getState().tabs).toEqual(["b.md"]);
+    expect(useTabs.getState().active).toBe("b.md");
+    expect(close.mock.calls.map(([p]) => p)).toEqual(["a.md", "c.md", "d.md"]);
+    expect(useTabs.getState().closed).toEqual(["d.md", "c.md", "a.md"]);
+  });
+
+  it("closes every tab, leaving nothing current", async () => {
+    await useTabs.getState().closeAll();
+    expect(useTabs.getState().tabs).toEqual([]);
+    expect(useTabs.getState().active).toBeNull();
+    expect(close).toHaveBeenCalledTimes(4);
+  });
+});

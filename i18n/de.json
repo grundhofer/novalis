@@ -195,6 +195,8 @@
   "menu.view.togglePreview": "Vorschau umschalten",
   "menu.window.title": "Fenster",
   "palette.cmd.appearance": "Erscheinungsbild: {{value}}",
+  "palette.cmd.closeAllTabs": "Alle Tabs schließen",
+  "palette.cmd.closeOtherTabs": "Andere Tabs schließen",
   "palette.cmd.downloadCloudOnly": "Alle Nur-Online-Notizen herunterladen",
   "palette.cmd.gotoHeading": "Zu Überschrift springen…",
   "palette.cmd.hideBacklinks": "Rückverweise ausblenden",
