@@ -108,6 +108,14 @@ Exit 8 for a cloud-only note without `--materialize`. `utf8: false` means the
 file is not valid UTF-8 and `body` is a lossy reading: never write it back
 (`edit` refuses such a file).
 
+An argument that is the exact vault-relative path of an existing file that
+is not a note (`notes/todo.txt`) reads that file as text (ADR-0036): `title`
+is its file name, `linkTarget` its path, `frontmatter` empty, `links` empty,
+`body` the whole text (or `--lines`). Everything else is a note reference as
+before, so `todo` is still `todo.md`. A binary file (a NUL in its first
+8 KiB) is exit 2 and is not read further. `new`, `edit`, `mv` and `rm` stay
+notes-only.
+
 ### `new <path>` — Status: harness
 
 Flags: `--tag T` (repeatable; writes a `tags:` key), `--content <text|->`
@@ -189,8 +197,9 @@ exit 8 for a cloud-only note unless `--materialize`.
 
 ### `search <query>` — Status: harness
 
-Flags: `--tag T`, `--folder F`, `--limit 50`, `--snippets`, `--all-files`.
-Case-insensitive substring search over note bodies and titles by an on-demand
+Flags: `--tag T`, `--folder F`, `--limit 50`, `--snippets`, `--all-files`,
+`--regex` (the query is a Rust `regex` pattern; one that does not compile is
+exit 2), `--case-sensitive`. By default a case-insensitive substring search over note bodies and titles by an on-demand
 scan; cloud-only notes are never read. With `--all-files` the scan covers
 every regular file in the vault (unfiltered — the app keeps to what its tree
 lists); a file that is not UTF-8 text, or binary (a NUL in its first 8 KiB),

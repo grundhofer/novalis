@@ -1,0 +1,9 @@
+{
+  "error": {
+    "candidates": [],
+    "code": "usage",
+    "hint": null,
+    "message": "--regex: regex parse error:\n    (unclosed\n    ^\nerror: unclosed group",
+    "path": null
+  }
+}

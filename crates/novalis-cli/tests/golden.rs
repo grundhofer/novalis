@@ -543,3 +543,55 @@ fn the_environment_variable_is_a_vault_source() {
     let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("json");
     assert_eq!(value["items"].as_array().expect("items").len(), 1);
 }
+
+/// `cat` on the exact path of a file that is not a note (ADR-0036): read as
+/// text with the note shape, while a stem still means the note — the demo
+/// vault has no such file, so this builds one next to a note of the same
+/// stem.
+#[test]
+fn cat_reads_an_exact_non_note_path_and_refuses_a_binary() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::write(vault.join("todo.txt"), "- buy [[paper]]\nsecond\n").expect("todo.txt");
+    std::fs::write(vault.join("todo.md"), "# the note\n").expect("todo.md");
+    std::fs::write(vault.join("pic.png"), b"\x89PNG\r\n\x1a\n\0\0\0").expect("pic.png");
+
+    let run = |args: &[&str]| {
+        let out = Command::new(BIN)
+            .arg("--vault")
+            .arg(&vault)
+            .args(args)
+            .env("HOME", &root)
+            .env_remove("NOVALIS_VAULT")
+            .output()
+            .expect("run novalis");
+        let value: serde_json::Value = serde_json::from_slice(if out.status.success() {
+            &out.stdout
+        } else {
+            &out.stderr
+        })
+        .expect("JSON");
+        (value, out.status.code().unwrap_or(-1))
+    };
+
+    let (file, code) = run(&["cat", "todo.txt", "--json"]);
+    assert_eq!(code, 0, "{file}");
+    let item = &file["items"][0];
+    assert_eq!(item["path"], "todo.txt");
+    assert_eq!(item["title"], "todo.txt");
+    assert_eq!(item["linkTarget"], "todo.txt");
+    assert_eq!(item["body"], "- buy [[paper]]\nsecond\n");
+    assert_eq!(item["links"].as_array().map(Vec::len), Some(0));
+
+    let (lines, _) = run(&["cat", "todo.txt", "--lines", "2:2", "--json"]);
+    assert_eq!(lines["items"][0]["body"], "second\n");
+
+    let (note, _) = run(&["cat", "todo", "--json"]);
+    assert_eq!(note["items"][0]["path"], "todo.md");
+
+    let (binary, code) = run(&["cat", "pic.png", "--json"]);
+    assert_eq!(code, 2, "{binary}");
+    assert_eq!(binary["error"]["path"], "pic.png");
+}
