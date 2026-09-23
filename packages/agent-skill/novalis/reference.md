@@ -142,6 +142,18 @@ Output `{path, sha256Before, sha256After, changed}` plus `diff` (unified) in
 dry runs. Frontmatter is never touched by `edit`. Line endings of the file are
 preserved.
 
+### `journal` — Status: available
+
+The day note `journal/YYYY-MM-DD.md` (ADR-0027). `--date` takes
+`YYYY-MM-DD`, `today` or `yesterday` and defaults to today in the machine's
+**local** time — use it instead of computing the date, which is the UTC day
+after 22:00 in Europe. A missing note is created empty (the folder too); an
+existing one is left alone. `--append <text|->` adds at the end like
+`edit --append`, creating the note first if needed; a value starting with
+`-` is taken as text. Output `{path, stem, linkTarget, existing, sha256}`
+plus `appended: true`; `sha256` is the note's hash after the call. Exit 2
+for a malformed `--date`, 8 for a cloud-only note without `--materialize`.
+
 ### `meta <note>` — Status: harness
 
 Flags: `--set k=v` (repeatable), `--unset k`, `--add-tag T`, `--rm-tag T`,

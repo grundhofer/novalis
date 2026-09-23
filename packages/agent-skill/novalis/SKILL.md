@@ -66,6 +66,7 @@ Available now (the core harness):
 | `cat <note>… [--body\|--frontmatter] [--lines A:B] [--materialize]` | read notes; `links[]` carries `resolvedPath`; exit 8 if cloud-only |
 | `new <path> [--tag T]… [--content <text\|->] [--exist-ok]` | create; title = stem; exit 4 if it exists |
 | `edit <note> <one edit flag> [--nth N] [--if-match S]` | one atomic text edit (`--append`, `--prepend`, `--replace-section`, `--insert-after-section`, `--find/--replace`, `--set-body -`); frontmatter untouched |
+| `journal [--date YYYY-MM-DD\|today\|yesterday] [--append <text\|->]` | today's (local) `journal/<date>.md`, created when missing, optionally appended to — never compute the date yourself |
 | `mv <from> <to> [--no-relink] [--force] [--materialize]` | rename or move, then rewrite every link form and card reference |
 | `rm <note> [--force] [--materialize]` | macOS Trash; exit 5 while backlinks point here |
 | `search <query> [--tag T] [--folder F] [--limit 50] [--snippets] [--all-files]` | on-demand scan over notes, or with `--all-files` over every regular file in the vault; `cloudOnlySkipped` and `notUtf8Skipped` count what was not searched |

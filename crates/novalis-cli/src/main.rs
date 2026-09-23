@@ -98,6 +98,7 @@ fn run() -> Result<i32, CliError> {
         }
         Command::New(args) => finish(&ctx, ops::new::run(&ctx, args)?, &[]),
         Command::Edit(args) => finish(&ctx, ops::edit::run(&ctx, args)?, &[]),
+        Command::Journal(args) => finish(&ctx, ops::journal::run(&ctx, args)?, &[]),
         Command::Meta(args) => finish(&ctx, ops::meta::run(&ctx, args)?, &[]),
         Command::Mv(args) => finish(&ctx, ops::mv::run(&ctx, args)?, &[]),
         Command::Rm(args) => finish(&ctx, ops::rm::run(&ctx, args)?, &[]),
