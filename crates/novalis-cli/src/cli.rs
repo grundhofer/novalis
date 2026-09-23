@@ -57,6 +57,8 @@ pub enum Command {
     New(NewArgs),
     /// Rewrite a note's body atomically.
     Edit(EditArgs),
+    /// Open or create the day note journal/YYYY-MM-DD.md, local date.
+    Journal(JournalArgs),
     /// Set, unset or retag frontmatter keys as line-level text edits.
     Meta(MetaArgs),
     /// Rename a note and rewrite every link and card reference to it.
@@ -99,6 +101,7 @@ impl Command {
             Command::Cat(_) => "cat",
             Command::New(_) => "new",
             Command::Edit(_) => "edit",
+            Command::Journal(_) => "journal",
             Command::Meta(_) => "meta",
             Command::Mv(_) => "mv",
             Command::Rm(_) => "rm",
@@ -142,7 +145,7 @@ impl Command {
 pub fn always_mutates(name: &str) -> bool {
     matches!(
         name,
-        "new" | "edit" | "meta" | "mv" | "rm" | "relink" | "init"
+        "new" | "edit" | "journal" | "meta" | "mv" | "rm" | "relink" | "init"
     )
 }
 
@@ -252,6 +255,18 @@ pub struct EditArgs {
     /// The sha256 the note must still have.
     #[arg(long, value_name = "SHA256")]
     pub if_match: Option<String>,
+    #[arg(long)]
+    pub materialize: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct JournalArgs {
+    /// The day: YYYY-MM-DD, today or yesterday. Defaults to today.
+    #[arg(long, value_name = "YYYY-MM-DD|today|yesterday")]
+    pub date: Option<String>,
+    /// Append to the day note, creating it first. `-` reads stdin.
+    #[arg(long, value_name = "TEXT|-", allow_hyphen_values = true)]
+    pub append: Option<String>,
     #[arg(long)]
     pub materialize: bool,
 }

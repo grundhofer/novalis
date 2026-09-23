@@ -11,6 +11,7 @@ pub mod edit;
 pub mod help;
 pub mod index;
 pub mod init;
+pub mod journal;
 pub mod links;
 pub mod ls;
 pub mod meta;
@@ -34,6 +35,7 @@ pub fn output_schema(command: &str) -> Option<serde_json::Value> {
         "cat" => schema_for!(cat::CatOut),
         "new" => schema_for!(new::NewOut),
         "edit" => schema_for!(edit::EditOut),
+        "journal" => schema_for!(journal::JournalOut),
         "meta" => schema_for!(meta::MetaOut),
         "mv" => schema_for!(mv::MvOut),
         "rm" => schema_for!(rm::RmOut),
@@ -62,8 +64,9 @@ mod tests {
     #[test]
     fn every_built_command_publishes_a_schema() {
         for name in [
-            "ls", "cat", "new", "edit", "meta", "migrate", "mv", "rm", "search", "links", "tags",
-            "relink", "board", "card", "index", "init", "doctor", "help", "sync", "skill",
+            "ls", "cat", "new", "edit", "journal", "meta", "migrate", "mv", "rm", "search",
+            "links", "tags", "relink", "board", "card", "index", "init", "doctor", "help", "sync",
+            "skill",
         ] {
             let schema = output_schema(name).unwrap_or_else(|| panic!("{name} has no schema"));
             assert!(schema.is_object(), "{name}");

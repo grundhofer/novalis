@@ -187,3 +187,9 @@ printf '# Daily 2026-09-05\n\n- Reviewed [[%s]]\n' "$T" | novalis new "journal/2
 
 `--exist-ok` returns `existing: true` instead of failing; append to an
 existing daily note with `edit --append` instead.
+
+For today's note, `journal` does both steps and picks the local date itself:
+
+```sh
+novalis journal --append "- Reviewed [[$T]]" --json
+```
