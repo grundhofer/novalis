@@ -107,7 +107,8 @@
   border-top: 1px solid var(--ds-color-border-default);
 }
 
-/* Task lists: the core writes the boxes `disabled`; the preview is read-only. */
+/* Task lists: the core writes the boxes `disabled`; a list item's box is
+   enabled and clickable, the one write the preview makes (ADR-0039). */
 .preview-body input[type="checkbox"] {
   margin: 0 0.4em 0 0;
   vertical-align: -0.08em;

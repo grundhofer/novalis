@@ -128,3 +128,7 @@ and a mark lands only where the selected text occurs exactly once in the
 block's source, so a disagreement between the two parsers still costs a
 look, never bytes. No new dependency, string key, command id or chord;
 `docs/KEYMAP.md` "Not listed" says which chords the preview answers.
+
+**Amended 2026-09-23** — ADR-0039: a task box in a list item of the preview
+is clickable and flips its `[ ]` / `[x]` in the note's source, the same
+single write the editor's box makes. Nothing else in the preview writes.

@@ -82,3 +82,15 @@ describe("blockForLine", () => {
     expect(blockForLine(spans, text, 40)).toBeNull();
   });
 });
+
+// ADR-0039: the list item's own line decides, by the editor's task rule.
+describe("toggleTaskInSource", () => {
+  it("flips the box on the item's first line, both ways", async () => {
+    const { toggleTaskInSource } = await import("./previewEdit");
+    const text = "- [ ] a\n  1. [X] b\n- plain\n";
+    expect(toggleTaskInSource(text, { start: 0, end: 8 })).toBe("- [x] a\n  1. [X] b\n- plain\n");
+    expect(toggleTaskInSource(text, { start: 8, end: 19 })).toBe("- [ ] a\n  1. [ ] b\n- plain\n");
+    expect(toggleTaskInSource(text, { start: 19, end: 27 })).toBeNull();
+    expect(toggleTaskInSource(text, { start: 0, end: 99 })).toBeNull();
+  });
+});
