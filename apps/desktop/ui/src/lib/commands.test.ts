@@ -34,6 +34,7 @@ vi.mock("../ipc/client", () => {
       listFiles: vi.fn(),
       rename: vi.fn(),
       reveal: vi.fn(),
+      trash: vi.fn(),
       contextMenu: vi.fn(),
       stateSave: vi.fn(),
     },
@@ -481,5 +482,36 @@ describe("board.newCard in the palette", () => {
     expect(ids()).not.toContain("board.newCard");
     useUi.setState({ activeBoard: "b" });
     expect(ids()).toContain("board.newCard");
+  });
+});
+
+// ADR-0034: a board is deleted by its own confirmation, from the pane or from
+// Move to Trash on its tree row, and nothing of it outlives the delete.
+describe("deleting a board", () => {
+  it("routes Move to Trash on a board row to the board's confirmation, then cleans up", async () => {
+    const { useBoard } = await import("../stores/board");
+    const reload = vi.fn().mockResolvedValue(undefined);
+    useVault.setState({ reload, selected: "boards/plan" });
+    useTabs.setState({ active: null });
+    useUi.setState({ prompt: null, activeBoard: "plan" });
+    useBoard.setState({
+      boards: [{ slug: "plan", name: "Plan", order: null }, { slug: "ideas", name: "Ideas", order: null }] as never,
+      slug: "plan",
+      board: { slug: "plan" } as never,
+    });
+    vi.mocked(unwrap).mockResolvedValue(undefined as never);
+
+    dispatchCommand("tree.trash");
+    const prompt = useUi.getState().prompt;
+    expect(prompt?.titleKey).toBe("board.deleteBoard");
+    expect(prompt?.confirm?.values).toEqual({ name: "Plan" });
+    expect(commands.trash).not.toHaveBeenCalled();
+
+    await prompt!.submit("");
+    expect(commands.trash).toHaveBeenCalledWith("boards/plan");
+    expect(useBoard.getState().boards.map((b) => b.slug)).toEqual(["ideas"]);
+    expect(useBoard.getState().board).toBeNull();
+    expect(useUi.getState().activeBoard).toBeNull();
+    expect(reload).toHaveBeenCalledWith("boards");
   });
 });

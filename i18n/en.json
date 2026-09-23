@@ -41,6 +41,8 @@
   "board.columns_other": "{{count}} columns",
   "board.conflictNotice_one": "Board {{board}}: {{count}} card had conflicting changes; the newer one was kept; the older copy is under conflicts/",
   "board.conflictNotice_other": "Board {{board}}: {{count}} cards had conflicting changes; the newer ones were kept; the older copies are under conflicts/",
+  "board.deleteBoard": "Delete Board",
+  "board.deleteBoardBody": "Board {{name}} goes to the Trash with all its cards. The notes they link to are not touched.",
   "board.deleteCard": "Delete Card",
   "board.deleteCardBody": "Removes the card. The notes it links to are not touched.",
   "board.deleteColumn": "Delete Column",

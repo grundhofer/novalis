@@ -11,6 +11,7 @@ import {
   openCardNote,
   renameCard,
 } from "../lib/cardActions";
+import { deleteBoard } from "../lib/commands";
 import { isNote, stemOf } from "../lib/paths";
 import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
@@ -181,6 +182,13 @@ export default function BoardPane() {
             ))}
           </select>
         )}
+        <button
+          className="btn ghost danger"
+          type="button"
+          onClick={() => deleteBoard(board.slug)}
+        >
+          {t("board.deleteBoard")}
+        </button>
         <button
           className="btn ghost"
           type="button"

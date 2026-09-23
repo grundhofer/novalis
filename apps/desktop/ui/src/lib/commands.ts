@@ -146,7 +146,35 @@ export async function moveEntry(from: string, toFolder: string): Promise<void> {
   await renameTo(from, joinRel(toFolder, fileNameOf(from)));
 }
 
+/**
+ * Delete a board (ADR-0034): its folder goes to the Trash — board.json, the
+ * cards, `conflicts/` — after a confirmation that says what a board is; the
+ * notes its cards link to stay. The Trash is the undo. One path for the
+ * board pane's button and for Move to Trash on the board's tree row.
+ */
+export function deleteBoard(slug: string): void {
+  const name = useBoard.getState().boards.find((b) => b.slug === slug)?.name ?? slug;
+  useUi.getState().ask({
+    titleKey: "board.deleteBoard",
+    confirm: {
+      bodyKey: "board.deleteBoardBody",
+      values: { name },
+      confirmKey: "board.deleteBoard",
+    },
+    submit: async () => {
+      await unwrap(commands.trash(`boards/${slug}`));
+      useBoard.getState().forget(slug);
+      if (useUi.getState().activeBoard === slug) useUi.getState().setActiveBoard(null);
+      await useVault.getState().reload("boards");
+    },
+  });
+}
+
 async function trashPath(path: string): Promise<void> {
+  // A board row in the tree is `boards/<slug>`: it gets the board's own
+  // confirmation and clean-up, not the file's (ADR-0034).
+  const board = useBoard.getState().boards.find((b) => `boards/${b.slug}` === path);
+  if (board) return deleteBoard(board.slug);
   // Cmd-Delete reaches here from anywhere focus is not inside the editor, so
   // the one destructive command in the app asks first.
   useUi.getState().ask({
