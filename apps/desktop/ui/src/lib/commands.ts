@@ -1,3 +1,4 @@
+import { runCardMenuAction } from "./cardActions";
 import { isEditorCommand, runEditorCommand } from "./editorBridge";
 import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
 import { commands, NovalisError, unwrap } from "../ipc/client";
@@ -246,7 +247,7 @@ async function newBoard(): Promise<void> {
  */
 export function openTreeContextMenu(path: string, board: boolean): Promise<void> {
   useVault.getState().select(path);
-  return unwrap(commands.treeContextMenu(board)).then(() => undefined);
+  return unwrap(commands.contextMenu({ kind: "tree", board })).then(() => undefined);
 }
 
 function targetPath(): string | null {
@@ -361,6 +362,9 @@ for (let n = 1; n <= 9; n += 1) {
 
 /** Run a command by id. Unknown ids are ignored, not thrown. */
 export function dispatchCommand(id: string): void {
+  // A card's context menu (ADR-0032): its ids carry no chord and no palette
+  // entry, only a card the menu was opened on.
+  if (runCardMenuAction(id)) return;
   const command = REGISTRY[id];
   if (command) {
     try {

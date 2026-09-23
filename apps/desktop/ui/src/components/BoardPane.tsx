@@ -4,6 +4,13 @@ import { useTranslation } from "react-i18next";
 import type { DragEvent } from "react";
 
 import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
+import {
+  deleteCard,
+  editDescription,
+  openCardContextMenu,
+  openCardNote,
+  renameCard,
+} from "../lib/cardActions";
 import { isNote, stemOf } from "../lib/paths";
 import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
@@ -69,55 +76,6 @@ export default function BoardPane() {
    * would look missing.
    */
   const missing = (note: string) => filesLoaded && !files.has(note);
-
-  const openCardNote = (card: CardDto) => {
-    const note = card.notes[0];
-    // A card without a note opens what it has, its description (ADR-0030);
-    // D21 decided the click only for a card that links one.
-    if (!note) return editDescription(card);
-    void useTabs.getState().open(note).catch(report);
-  };
-
-  const renameCard = (card: CardDto) => {
-    useUi.getState().ask({
-      titleKey: "menu.file.rename",
-      placeholderKey: "board.cardTitlePlaceholder",
-      initial: card.title,
-      submit: async (title) => {
-        if (title === card.title) return;
-        await useBoard.getState().apply({ kind: "retitle", id: card.id, title });
-      },
-    });
-  };
-
-  // The same dialog as the rename, grown to a textarea (ADR-0013). An emptied
-  // field is the way to clear the text, so it is submitted like any other.
-  const editDescription = (card: CardDto) => {
-    useUi.getState().ask({
-      titleKey: "board.editDescription",
-      placeholderKey: "board.cardDescriptionPlaceholder",
-      initial: card.description ?? "",
-      multiline: true,
-      submit: async (description) => {
-        if (description === (card.description ?? "")) return;
-        await useBoard.getState().apply({ kind: "setDescription", id: card.id, description });
-      },
-    });
-  };
-
-  const deleteCard = (card: CardDto) => {
-    useUi.getState().ask({
-      titleKey: "board.deleteCard",
-      confirm: {
-        bodyKey: "board.deleteCardBody",
-        values: { title: card.title },
-        confirmKey: "board.deleteCard",
-      },
-      submit: async () => {
-        await useBoard.getState().apply({ kind: "remove", id: card.id });
-      },
-    });
-  };
 
   const moveColumn = (index: number, delta: number) => {
     const target = index + delta;
@@ -372,6 +330,10 @@ export default function BoardPane() {
                       setOver({ column: column.id, beforeCardId: card.id });
                     }}
                     onClick={() => openCardNote(card)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      void openCardContextMenu(card, board).catch(report);
+                    }}
                   >
                     <span className="card-title">{card.title}</span>
                     {/* Plain text on the card: rendering the Markdown would be

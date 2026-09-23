@@ -705,6 +705,22 @@ impl BoardDto {
     }
 }
 
+/// Which native context menu to pop at the pointer (ADR-0021, ADR-0032).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum ContextMenuDto {
+    /// A tree row; a board row gets "Show in Finder" only.
+    Tree { board: bool },
+    /// A card of the open board: its actions and the board's columns, the
+    /// card's own one shown but not offered.
+    #[serde(rename_all = "camelCase")]
+    Card {
+        columns: Vec<ColumnDto>,
+        column: String,
+        has_note: bool,
+    },
+}
+
 /// Where a card goes inside its column.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", tag = "kind")]
