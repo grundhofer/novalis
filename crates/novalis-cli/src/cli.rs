@@ -204,7 +204,7 @@ pub struct NewArgs {
     #[arg(long = "tag", value_name = "TAG")]
     pub tags: Vec<String>,
     /// The body. `-` reads stdin.
-    #[arg(long, value_name = "TEXT|-")]
+    #[arg(long, value_name = "TEXT|-", allow_hyphen_values = true)]
     pub content: Option<String>,
     /// An existing note is success with `existing: true`.
     #[arg(long)]
@@ -221,10 +221,20 @@ pub struct NewArgs {
 pub struct EditArgs {
     pub note: String,
     /// Append to the end of the body. `-` reads stdin.
-    #[arg(long, value_name = "TEXT|-", group = "mode")]
+    #[arg(
+        long,
+        value_name = "TEXT|-",
+        allow_hyphen_values = true,
+        group = "mode"
+    )]
     pub append: Option<String>,
     /// Insert directly after the frontmatter block. `-` reads stdin.
-    #[arg(long, value_name = "TEXT|-", group = "mode")]
+    #[arg(
+        long,
+        value_name = "TEXT|-",
+        allow_hyphen_values = true,
+        group = "mode"
+    )]
     pub prepend: Option<String>,
     /// Replace the body of the named section; needs --content.
     #[arg(long, value_name = "HEADING", group = "mode")]
@@ -233,12 +243,17 @@ pub struct EditArgs {
     #[arg(long, value_name = "HEADING", group = "mode")]
     pub insert_after_section: Option<String>,
     /// Replace the whole body, keeping the frontmatter. `-` reads stdin.
-    #[arg(long, value_name = "TEXT|-", group = "mode")]
+    #[arg(
+        long,
+        value_name = "TEXT|-",
+        allow_hyphen_values = true,
+        group = "mode"
+    )]
     pub set_body: Option<String>,
     /// Literal search text, or a regex with --regex; needs --replace.
-    #[arg(long, value_name = "TEXT", group = "mode")]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true, group = "mode")]
     pub find: Option<String>,
-    #[arg(long, value_name = "TEXT")]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true)]
     pub replace: Option<String>,
     /// Treat --find as a regular expression.
     #[arg(long)]
@@ -247,7 +262,7 @@ pub struct EditArgs {
     #[arg(long, value_name = "N")]
     pub expect: Option<usize>,
     /// The text for --replace-section / --insert-after-section. `-` reads stdin.
-    #[arg(long, value_name = "TEXT|-")]
+    #[arg(long, value_name = "TEXT|-", allow_hyphen_values = true)]
     pub content: Option<String>,
     /// Which of several identical headings to use, 1-based.
     #[arg(long, value_name = "N")]
@@ -482,10 +497,10 @@ pub struct CardLsArgs {
 pub struct CardAddArgs {
     /// The board slug, the folder name under `boards/`.
     pub board: String,
-    #[arg(long, value_name = "TEXT", required = true)]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true, required = true)]
     pub title: String,
     /// Text under the title, Markdown.
-    #[arg(long, value_name = "TEXT")]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true)]
     pub description: Option<String>,
     /// A column id, or a column name when it is unambiguous. Defaults to the
     /// first column of the board.
@@ -516,10 +531,10 @@ pub struct CardMvArgs {
 pub struct CardSetArgs {
     /// The card id (ULID). The board is found from it.
     pub id: String,
-    #[arg(long, value_name = "TEXT")]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true)]
     pub title: Option<String>,
     /// Replace the description; an empty string clears it.
-    #[arg(long, value_name = "TEXT")]
+    #[arg(long, value_name = "TEXT", allow_hyphen_values = true)]
     pub description: Option<String>,
     /// Add a note reference. Repeatable.
     #[arg(long = "add-note", value_name = "NOTE")]
