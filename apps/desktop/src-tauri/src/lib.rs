@@ -52,7 +52,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::rename,
             commands::trash,
             commands::reveal,
-            commands::tree_context_menu,
+            commands::context_menu,
             commands::search,
             commands::tags,
             commands::backlinks,

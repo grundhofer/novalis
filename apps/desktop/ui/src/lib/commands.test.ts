@@ -34,7 +34,7 @@ vi.mock("../ipc/client", () => {
       listFiles: vi.fn(),
       rename: vi.fn(),
       reveal: vi.fn(),
-      treeContextMenu: vi.fn(),
+      contextMenu: vi.fn(),
       stateSave: vi.fn(),
     },
     unwrap: vi.fn(),
@@ -384,18 +384,18 @@ describe("tree context menu and reveal", () => {
   beforeEach(() => {
     stubStores();
     vi.mocked(unwrap).mockImplementation((call) => Promise.resolve(call as never));
-    vi.mocked(commands.treeContextMenu).mockClear();
+    vi.mocked(commands.contextMenu).mockClear();
     vi.mocked(commands.reveal).mockClear();
   });
 
   it("selects the row, then asks the shell for the menu — a board row for its short form", async () => {
     await openTreeContextMenu("Notes/a.md", false);
     expect(useVault.getState().selected).toBe("Notes/a.md");
-    expect(commands.treeContextMenu).toHaveBeenLastCalledWith(false);
+    expect(commands.contextMenu).toHaveBeenLastCalledWith({ kind: "tree", board: false });
 
     await openTreeContextMenu("boards/atlas", true);
     expect(useVault.getState().selected).toBe("boards/atlas");
-    expect(commands.treeContextMenu).toHaveBeenLastCalledWith(true);
+    expect(commands.contextMenu).toHaveBeenLastCalledWith({ kind: "tree", board: true });
   });
 
   it("reveals the selected row, else the active tab, else nothing", async () => {

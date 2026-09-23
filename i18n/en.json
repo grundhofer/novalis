@@ -51,6 +51,7 @@
   "board.linkNote": "Link Note…",
   "board.moveColumnLeft": "Move Left",
   "board.moveColumnRight": "Move Right",
+  "board.moveToColumn": "Move to Column",
   "board.newBoard": "New Board",
   "board.newCard": "New Card",
   "board.noteMissing": "note not found",

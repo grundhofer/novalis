@@ -103,13 +103,14 @@ export const commands = {
 	 */
 	reveal: (path: string) => typedError<null, IpcError>(__TAURI_INVOKE("reveal", { path })),
 	/**
-	 *  The tree's context menu (ADR-0021), popped at the pointer. Its entries
-	 *  are File menu items with the File menu's ids, so a click arrives in the
-	 *  UI as the same `MenuAction` a menu-bar click does and runs the same
-	 *  command against the row the UI selected before asking. A board row gets
-	 *  "Show in Finder" only: its rename and delete live in the board pane.
+	 *  A native context menu popped at the pointer (ADR-0021, ADR-0032). The
+	 *  tree's entries are File menu items with the File menu's ids, so a click
+	 *  arrives in the UI as the same `MenuAction` a menu-bar click does and runs
+	 *  the same command against the row the UI selected before asking; a board
+	 *  row gets "Show in Finder" only. A card's entries act on the card the UI
+	 *  remembered before asking.
 	 */
-	treeContextMenu: (board: boolean) => typedError<null, IpcError>(__TAURI_INVOKE("tree_context_menu", { board })),
+	contextMenu: (target: ContextMenuDto) => typedError<null, IpcError>(__TAURI_INVOKE("context_menu", { target })),
 	/**
 	 *  Vault-wide search, streamed over a channel. A newer search supersedes an
 	 *  older one: the running scan sees the generation change and stops, so there
@@ -341,6 +342,16 @@ export type ColumnDto = {
 	id: string,
 	name: string,
 };
+
+/**  Which native context menu to pop at the pointer (ADR-0021, ADR-0032). */
+export type ContextMenuDto = 
+/**  A tree row; a board row gets "Show in Finder" only. */
+{ kind: "tree"; board: boolean } | 
+/**
+ *  A card of the open board: its actions and the board's columns, the
+ *  card's own one shown but not offered.
+ */
+{ kind: "card"; columns: ColumnDto[]; column: string; hasNote: boolean };
 
 export type EditorSettingsDto = {
 	fontSize: number,

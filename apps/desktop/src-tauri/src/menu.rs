@@ -91,6 +91,10 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.go.previousTab",
     "menu.go.nextTab",
     "menu.window.title",
+    "board.openNote",
+    "board.editDescription",
+    "board.deleteCard",
+    "board.moveToColumn",
     "settings.appearance.system",
     "settings.appearance.light",
     "settings.appearance.dark",
@@ -553,6 +557,47 @@ pub fn tree_context(app: &AppHandle, cat: &Catalog, board: bool) -> tauri::Resul
                 cat.t("menu.file.newFolder"),
                 "",
             )?);
+    }
+    menu.build()
+}
+
+/// The prefix of a card menu's column items (ADR-0032): the rest of the id is
+/// the column id, which the UI reads back off the `MenuAction`.
+pub const MOVE_TO_COLUMN: &str = "card.moveToColumn:";
+
+/// A card's context menu (ADR-0032): the card's hover actions, then its
+/// board's columns. The UI remembers which card was right-clicked; the ids
+/// say only what to do with it.
+pub fn card_context(
+    app: &AppHandle,
+    cat: &Catalog,
+    columns: &[(String, String)],
+    current: &str,
+    has_note: bool,
+) -> tauri::Result<Menu<Wry>> {
+    let mut menu = MenuBuilder::new(app);
+    if has_note {
+        menu = menu.item(&item(app, "card.openNote", cat.t("board.openNote"), "")?);
+    }
+    menu = menu
+        .item(&item(app, "card.rename", cat.t("menu.file.rename"), "")?)
+        .item(&item(
+            app,
+            "card.editDescription",
+            cat.t("board.editDescription"),
+            "",
+        )?)
+        .item(&item(app, "card.delete", cat.t("board.deleteCard"), "")?);
+    if columns.len() > 1 {
+        let mut move_to = SubmenuBuilder::new(app, cat.t("board.moveToColumn"));
+        for (id, name) in columns {
+            move_to = move_to.item(
+                &MenuItemBuilder::with_id(format!("{MOVE_TO_COLUMN}{id}"), name)
+                    .enabled(id != current)
+                    .build(app)?,
+            );
+        }
+        menu = menu.separator().item(&move_to.build()?);
     }
     menu.build()
 }

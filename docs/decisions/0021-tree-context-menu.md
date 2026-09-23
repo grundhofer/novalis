@@ -71,3 +71,7 @@ Asked where "Im Finder zeigen" should also be reachable:
   AppKit call; if the path is ever wanted without a subprocess,
   `NSWorkspace.activateFileViewerSelecting` is the replacement and this ADR
   the place to say so.
+
+**Amended 2026-09-23** — ADR-0032: `tree_context_menu(board)` became
+`context_menu(target)`, one command for the tree's menu and the card's; the
+count stays where it was.

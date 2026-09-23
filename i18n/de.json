@@ -51,6 +51,7 @@
   "board.linkNote": "Notiz verknüpfen…",
   "board.moveColumnLeft": "Nach links",
   "board.moveColumnRight": "Nach rechts",
+  "board.moveToColumn": "In Spalte verschieben",
   "board.newBoard": "Neues Board",
   "board.newCard": "Neue Karte",
   "board.noteMissing": "Notiz nicht gefunden",

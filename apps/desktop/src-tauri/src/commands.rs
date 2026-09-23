@@ -766,18 +766,19 @@ pub async fn reveal(state: State<'_, AppState>, path: String) -> IpcResult<()> {
     .await
 }
 
-/// The tree's context menu (ADR-0021), popped at the pointer. Its entries
-/// are File menu items with the File menu's ids, so a click arrives in the
-/// UI as the same `MenuAction` a menu-bar click does and runs the same
-/// command against the row the UI selected before asking. A board row gets
-/// "Show in Finder" only: its rename and delete live in the board pane.
+/// A native context menu popped at the pointer (ADR-0021, ADR-0032). The
+/// tree's entries are File menu items with the File menu's ids, so a click
+/// arrives in the UI as the same `MenuAction` a menu-bar click does and runs
+/// the same command against the row the UI selected before asking; a board
+/// row gets "Show in Finder" only. A card's entries act on the card the UI
+/// remembered before asking.
 #[tauri::command]
 #[specta::specta]
-pub async fn tree_context_menu(
+pub async fn context_menu(
     app: AppHandle,
     window: tauri::Window,
     state: State<'_, AppState>,
-    board: bool,
+    target: ContextMenuDto,
 ) -> IpcResult<()> {
     let settings = state.settings();
     let catalog = Catalog::load(resolve_locale(settings.language));
@@ -785,9 +786,23 @@ pub async fn tree_context_menu(
     // does for the menu bar.
     let handle = app.clone();
     app.run_on_main_thread(move || {
-        if let Ok(menu) = menu::tree_context(&handle, &catalog, board) {
+        let built = match &target {
+            ContextMenuDto::Tree { board } => menu::tree_context(&handle, &catalog, *board),
+            ContextMenuDto::Card {
+                columns,
+                column,
+                has_note,
+            } => {
+                let columns: Vec<(String, String)> = columns
+                    .iter()
+                    .map(|c| (c.id.clone(), c.name.clone()))
+                    .collect();
+                menu::card_context(&handle, &catalog, &columns, column, *has_note)
+            }
+        };
+        if let Ok(built) = built {
             use tauri::menu::ContextMenu;
-            let _ = menu.popup(window);
+            let _ = built.popup(window);
         }
     })
     .map_err(|e| CoreError::internal(e.to_string()))?;
