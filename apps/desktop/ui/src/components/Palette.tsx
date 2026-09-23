@@ -57,14 +57,25 @@ function headingsOfActiveDocument(): Entry[] {
   return headingsOf(text).map((h) => ({ kind: "heading", line: h.line, text: h.text }));
 }
 
-export type PaletteMode = "quickOpen" | "palette" | "settings" | "pickNote";
+export type PaletteMode = "quickOpen" | "palette" | "settings" | "pickNote" | "headings";
 
 const PLACEHOLDER_KEY: Record<PaletteMode, string> = {
   quickOpen: "palette.quickOpenPlaceholder",
   palette: "palette.placeholder",
   settings: "palette.settingsPlaceholder",
   pickNote: "board.linkNote",
+  headings: "palette.cmd.gotoHeading",
 };
+
+/**
+ * `@` first in ⌘P or ⇧⌘P narrows to the open note's headings (ADR-0037), as
+ * Go to Heading… does; the `@` is not part of what is matched.
+ */
+function headingQuery(mode: PaletteMode, query: string): string | null {
+  if (mode === "headings") return query;
+  if ((mode === "quickOpen" || mode === "palette") && query.startsWith("@")) return query.slice(1);
+  return null;
+}
 
 /** What the note picker (ADR-0030) leaves out and where the choice goes. */
 export interface PickRequest {
@@ -79,6 +90,7 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
   const input = useRef<HTMLInputElement | null>(null);
   const files = useFiles((s) => s.files);
   const notes = useFiles((s) => s.notes);
+  const recent = useTabs((s) => s.recent);
   const boards = useBoard((s) => s.boards);
   const [tags, setTags] = useState<readonly { tag: string; count: number }[]>([]);
 
@@ -104,7 +116,10 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
     return () => cancelAnimationFrame(id);
   }, []);
 
+  const headingsOnly = headingQuery(mode, query) !== null;
+
   const pool: Entry[] = useMemo(() => {
+    if (headingsOnly) return headingsOfActiveDocument();
     if (mode === "pickNote") {
       // The note being read is the likeliest one to link: first, so an
       // empty query and Enter link it, as the button did before.
@@ -114,8 +129,17 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
       return ordered.filter((path) => !skip.has(path)).map((path) => ({ kind: "file", path }));
     }
     // Every listed file, not only notes (ADR-0022); a note shows its stem,
-    // anything else its name with the extension.
-    const fileEntries: Entry[] = files.map((path) => ({ kind: "file", path }));
+    // anything else its name with the extension. The recently current ones
+    // come first (ADR-0037), so an empty query lists them at the top.
+    // The file already current is not among them: Enter on the first row
+    // should go somewhere else.
+    const listed = new Set(files);
+    const current = useTabs.getState().active;
+    const recentListed = recent.filter((path) => listed.has(path) && path !== current);
+    const firsts = new Set(recentListed);
+    const fileEntries: Entry[] = [...recentListed, ...files.filter((path) => !firsts.has(path))].map(
+      (path) => ({ kind: "file", path }),
+    );
     const boardEntries: Entry[] = boards.map((b) => ({
       kind: "board",
       slug: b.slug,
@@ -132,7 +156,7 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
     if (mode === "settings") return commandEntries;
     const tagEntries: Entry[] = tags.map((entry) => ({ kind: "tag", tag: entry.tag, count: entry.count }));
     return [...commandEntries, ...headingsOfActiveDocument(), ...fileEntries, ...boardEntries, ...tagEntries];
-  }, [mode, files, notes, boards, tags, t, pick]);
+  }, [mode, files, notes, recent, boards, tags, t, pick, headingsOnly]);
 
   const label = (entry: Entry): string => {
     switch (entry.kind) {
@@ -149,7 +173,12 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
     }
   };
 
-  const results = useMemo(() => rank(query, pool, label, 60), [query, pool]);
+  const matched = headingQuery(mode, query) ?? query;
+  const results = useMemo(() => rank(matched, pool, label, 60), [matched, pool]);
+  const current = useTabs.getState().active;
+  const recentShown = new Set(
+    query === "" && mode === "quickOpen" ? recent.filter((path) => path !== current) : [],
+  );
 
   // Adjusting state during render is the documented way to derive from props
   // or from other state; an effect here would cost an extra render per key.
@@ -235,7 +264,9 @@ export default function Palette({ mode, pick }: { mode: PaletteMode; pick?: Pick
                   <Marked text={label(entry)} ranges={positionRanges(ranked.match.positions)} />
                 </span>
                 <span className="result-meta">
-                  {entry.kind === "file"
+                  {entry.kind === "file" && recentShown.has(entry.path)
+                    ? t("palette.section.recent")
+                    : entry.kind === "file"
                     ? folderOf(entry.path) || (isNote(entry.path) ? t(SECTION_KEY.file) : "")
                     : entry.kind === "tag"
                       ? `${t(SECTION_KEY.tag)} · ${entry.count}`

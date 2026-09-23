@@ -188,6 +188,10 @@ pub struct UiStateDto {
     /// dismissed; state, not a setting (ADR-0004).
     #[serde(default)]
     pub cloud_hint_shown: bool,
+    /// The ten files most recently made current, newest first, for an empty
+    /// quick-open (ADR-0037); state, not a setting.
+    #[serde(default)]
+    pub recent_files: Vec<String>,
     /// Set only on the UI's last save before quitting, once every open
     /// buffer is on disk (D19): the shell writes the state and exits. Never
     /// written to `state.json` (`state_save` drops the key).
@@ -223,6 +227,7 @@ impl Default for UiStateDto {
             tree_sort: TreeSortDto::Name,
             backlinks_visible: false,
             cloud_hint_shown: false,
+            recent_files: Vec::new(),
             quit: false,
             window: None,
         }

@@ -38,7 +38,7 @@ import {
 import { grammarNameOf, presentationOf, PRESETS } from "../lib/fileTypes.presentation";
 import { resolveWikiTarget } from "../lib/links";
 import { attachments } from "./attachments";
-import { decorations, linkAt, toggleCheckbox, wrapSelection } from "./decorations";
+import { decorations, linkAt, tagAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { fenceLanguage } from "./fences";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
@@ -61,6 +61,8 @@ export interface EditorHooks {
   /** The buffer changed. No text: the store reads it once, when it needs it. */
   onChange: () => void;
   onFollowLink: (target: string) => void;
+  /** `Cmd`-click on a `#tag` chip (ADR-0037): the tag, without its `#`. */
+  onFollowTag: (tag: string) => void;
   onSave: () => void;
   /** Every note in the vault, for `[[` completion. */
   notePaths: () => string[];
@@ -245,6 +247,12 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
           if (!event.metaKey && !event.ctrlKey) return false;
           const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
           if (pos === null) return false;
+          const tag = tagAt(view.state, pos);
+          if (tag) {
+            hooks.onFollowTag(tag);
+            event.preventDefault();
+            return true;
+          }
           const target = linkAt(view.state, pos);
           if (!target) return false;
           hooks.onFollowLink(target);

@@ -237,6 +237,11 @@ setEditorBridge({
     active.dispatch({ selection: { anchor: target.from }, scrollIntoView: true });
     active.focus();
   },
+  selection: () => {
+    if (!active) return "";
+    const main = active.state.selection.main;
+    return active.state.sliceDoc(main.from, main.to);
+  },
   selectionOrLine: () => {
     if (!active) return null;
     const { state } = active;

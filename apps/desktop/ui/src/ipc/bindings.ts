@@ -609,6 +609,11 @@ export type UiStateDto = {
 	 */
 	cloudHintShown?: boolean,
 	/**
+	 *  The ten files most recently made current, newest first, for an empty
+	 *  quick-open (ADR-0037); state, not a setting.
+	 */
+	recentFiles?: string[],
+	/**
 	 *  Set only on the UI's last save before quitting, once every open
 	 *  buffer is on disk (D19): the shell writes the state and exits. Never
 	 *  written to `state.json` (`state_save` drops the key).

@@ -9,7 +9,7 @@ import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBrid
 import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
 import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
-import { report } from "../stores/ui";
+import { report, useUi } from "../stores/ui";
 import { setActiveView } from "./commands";
 import { buildExtensions } from "./setup";
 import { editorTheme, markdownHighlight } from "./theme";
@@ -118,6 +118,8 @@ export default function Editor({
       const extensions = await buildExtensions(path, {
         onChange: () => useEditorSave.getState().touch(path),
         onFollowLink,
+        // The chip opens the vault search filtered by its tag (ADR-0037).
+        onFollowTag: (tag) => useUi.getState().setOverlay({ kind: "search", tag }),
         onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
         noteText,

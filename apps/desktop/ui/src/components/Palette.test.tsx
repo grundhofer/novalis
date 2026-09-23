@@ -205,3 +205,35 @@ describe("Palette in pickNote mode", () => {
     expect(dispatchCommand).not.toHaveBeenCalledWith(expect.anything());
   });
 });
+
+// ADR-0037: an empty quick-open lists the recent files first, marked; `@`
+// narrows ⌘P to the open note's headings, as Go to Heading… does.
+describe("Palette recent files and headings", () => {
+  beforeEach(() => {
+    vi.mocked(unwrap).mockResolvedValue({ tags: [] } as never);
+    useBoard.setState({ boards: [] });
+  });
+
+  it("lists the recent files first in an empty quick-open, skipping one no longer listed", () => {
+    useFiles.setState({ files: ["a.md", "b.md", "c.md"], notes: ["a.md", "b.md", "c.md"], loaded: true });
+    useTabs.setState({ active: "a.md", recent: ["a.md", "c.md", "gone.md", "b.md"] });
+    render(<Palette mode="quickOpen" />);
+    const labels = [...document.querySelectorAll(".result-label")].map((el) => el.textContent);
+    // The current file is not first: Enter goes to the one before it.
+    expect(labels).toEqual(["c", "b", "a"]);
+    const metas = [...document.querySelectorAll(".result-meta")].map((el) => el.textContent);
+    expect(metas).toEqual(["palette.section.recent", "palette.section.recent", "palette.section.notes"]);
+  });
+
+  it("narrows to the headings with @ and in the headings mode", () => {
+    useFiles.setState({ files: ["a.md"], notes: ["a.md"], loaded: true });
+    useTabs.setState({ active: "a.md", recent: [] });
+    useEditorSave.setState({ flush: () => "# Alpha\n\n## Beta part\ntext\n" } as never);
+    render(<Palette mode="quickOpen" />);
+    fireEvent.change(screen.getByPlaceholderText("palette.quickOpenPlaceholder"), {
+      target: { value: "@beta" },
+    });
+    const labels = [...document.querySelectorAll(".result-label")].map((el) => el.textContent);
+    expect(labels).toEqual(["## Beta part"]);
+  });
+});

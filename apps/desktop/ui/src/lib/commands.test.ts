@@ -581,6 +581,7 @@ describe("card ↔ note", () => {
       has: () => false,
       goToLine: () => undefined,
       selectionOrLine: () => "- [ ] Call the shop\nsecond line",
+      selection: () => "",
     });
 
     dispatchCommand("board.cardFromSelection");
@@ -595,5 +596,35 @@ describe("card ↔ note", () => {
     });
     expect(useUi.getState().toast).toEqual({ key: "board.cardAdded", values: { board: "Plan" } });
     setEditorBridge(null);
+  });
+});
+
+// ADR-0037: ⇧⌘F starts from a one-line selection, and Go to Heading opens
+// the palette on the headings.
+describe("search seeded from the selection", () => {
+  it("passes a short one-line selection, and nothing for a long or multi-line one", async () => {
+    const { setEditorBridge } = await import("./editorBridge");
+    let selected = "  Rendering Spec ";
+    setEditorBridge({
+      run: () => false,
+      has: () => false,
+      goToLine: () => undefined,
+      selectionOrLine: () => null,
+      selection: () => selected,
+    });
+    dispatchCommand("search.vault");
+    expect(useUi.getState().overlay).toEqual({ kind: "search", query: "Rendering Spec" });
+    selected = "one\ntwo";
+    dispatchCommand("search.vault");
+    expect(useUi.getState().overlay).toEqual({ kind: "search", query: undefined });
+    selected = "x".repeat(101);
+    dispatchCommand("search.vault");
+    expect(useUi.getState().overlay).toEqual({ kind: "search", query: undefined });
+    setEditorBridge(null);
+  });
+
+  it("opens Go to Heading as its own palette", () => {
+    dispatchCommand("palette.gotoHeading");
+    expect(useUi.getState().overlay).toEqual({ kind: "headings" });
   });
 });

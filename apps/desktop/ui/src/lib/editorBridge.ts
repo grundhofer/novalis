@@ -19,6 +19,8 @@ export interface EditorBridge {
   goToLine: (line: number) => void;
   /** The main selection's text, or the cursor's line when nothing is selected. */
   selectionOrLine: () => string | null;
+  /** The main selection's text; empty when nothing is selected. */
+  selection: () => string;
 }
 
 let bridge: EditorBridge | null = null;
@@ -41,6 +43,10 @@ export function goToEditorLine(line: number): void {
 
 export function editorSelectionOrLine(): string | null {
   return bridge?.selectionOrLine() ?? null;
+}
+
+export function editorSelection(): string {
+  return bridge?.selection() ?? "";
 }
 
 /**
