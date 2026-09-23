@@ -363,6 +363,16 @@ button {
   padding-top: var(--ds-space-3);
 }
 
+/* The tree takes keys (↑↓←→, ⌘↓); the selected row shows where they act,
+   so the container draws no ring of its own. */
+.tree:focus {
+  outline: none;
+}
+
+.tree-row:focus {
+  outline: none;
+}
+
 .tree-inner {
   position: relative;
   width: 100%;
