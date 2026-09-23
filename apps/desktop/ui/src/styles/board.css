@@ -227,12 +227,46 @@
   font-size: var(--ds-font-size-ui-sm);
   line-height: var(--ds-line-height-ui);
   color: var(--ds-color-fg-muted);
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  /* Three lines (ADR-0013). WebKit's -webkit-line-clamp collapses block
+     children, which the rendered description has (ADR-0033). */
+  max-height: 3lh;
   overflow: hidden;
+  /* Inert (ADR-0033): links and task boxes are drawn, not followed or
+     toggled; a click lands on the card. */
+  pointer-events: none;
+}
+
+/* The rendered description (ADR-0033) at the card's own size: blocks without
+   their document margins, headings as strong text, no pictures. */
+.card-body :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6, table) {
+  margin: 0;
+}
+
+.card-body :is(h1, h2, h3, h4, h5, h6) {
+  font-size: inherit;
+  font-weight: var(--ds-font-weight-strong);
+}
+
+.card-body :is(ul, ol) {
+  padding-left: 1.2em;
+}
+
+.card-body li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+
+.card-body a {
+  color: var(--ds-color-syntax-link);
+  text-decoration: none;
+}
+
+.card-body code {
+  font-family: var(--ds-font-mono);
+}
+
+.card-body img {
+  display: none;
 }
 
 .card-note {

@@ -323,6 +323,11 @@ export type CardDto = {
 	updated: string,
 	/**  Markdown text under the title (ADR-0013); `None` when the card has none. */
 	description: string | null,
+	/**
+	 *  The description rendered by the preview's renderer (ADR-0033), raw
+	 *  HTML in it escaped; `None` with the description.
+	 */
+	descriptionHtml: string | null,
 };
 
 /**

@@ -336,9 +336,17 @@ export default function BoardPane() {
                     }}
                   >
                     <span className="card-title">{card.title}</span>
-                    {/* Plain text on the card: rendering the Markdown would be
-                        a dependency, and its own ADR. */}
-                    {card.description && <p className="card-body">{card.description}</p>}
+                    {/* The description rendered by the shell (ADR-0033): the
+                        preview's renderer, raw HTML escaped. Inert — a
+                        link or a box in it is not a target (board.css);
+                        the click is the card's. */}
+                    {card.descriptionHtml && (
+                      <div
+                        className="card-body"
+                        onClick={(event) => event.preventDefault()}
+                        dangerouslySetInnerHTML={{ __html: card.descriptionHtml }}
+                      />
+                    )}
 
                     {/* draggable=false: without it a press on a control
                         starts the card drag instead of clicking. */}

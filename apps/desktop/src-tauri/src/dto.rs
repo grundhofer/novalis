@@ -631,6 +631,9 @@ pub struct CardDto {
     pub updated: String,
     /// Markdown text under the title (ADR-0013); `None` when the card has none.
     pub description: Option<String>,
+    /// The description rendered by the preview's renderer (ADR-0033), raw
+    /// HTML in it escaped; `None` with the description.
+    pub description_html: Option<String>,
 }
 
 impl From<&Card> for CardDto {
@@ -644,6 +647,10 @@ impl From<&Card> for CardDto {
             created: card.created.clone(),
             updated: card.updated.clone(),
             description: card.description.clone(),
+            description_html: card
+                .description
+                .as_deref()
+                .map(novalis_core::notes::render::to_html),
         }
     }
 }
@@ -801,4 +808,27 @@ pub struct BootstrapDto {
 pub struct VaultOpenDto {
     pub vault: VaultDto,
     pub tree: Vec<EntryDto>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ADR-0033: the card carries its description rendered, and raw HTML in
+    // the text stays text, as in the preview.
+    #[test]
+    fn a_card_description_arrives_rendered_with_raw_html_escaped() {
+        let json = r#"{"id":"01K4G9Z2Q7M3N8RSTV5WXY6ZAB","title":"T","column":"todo","order":"a0","notes":[],"created":"2026-09-01T07:12:03.010Z","updated":"2026-09-01T07:12:03.010Z","description":"**bold** <b>raw</b>\n\n- [ ] task"}"#;
+        let card: Card = serde_json::from_str(json).expect("a card");
+        let html = CardDto::from(&card).description_html.expect("rendered");
+        assert!(html.contains("<strong>bold</strong>"), "{html}");
+        assert!(!html.contains("<b>raw</b>"), "{html}");
+        assert!(html.contains("checkbox"), "{html}");
+
+        let plain: Card = serde_json::from_str(
+            &json.replace(r#","description":"**bold** <b>raw</b>\n\n- [ ] task""#, ""),
+        )
+        .expect("a card");
+        assert_eq!(CardDto::from(&plain).description_html, None);
+    }
 }
