@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::boards::{self, CardChange};
 use crate::error::{CoreError, CoreResult};
-use crate::notes::links::{extract, Link, LinkForm, Resolution, StemIndex};
+use crate::notes::links::{extract, extract_destinations, Link, LinkForm, Resolution, StemIndex};
 use crate::util::percent_encode_path;
 use crate::vault::cloud::MaterializeOff;
 use crate::vault::fs::{read_text, write_atomic, TextRead};
@@ -230,6 +230,48 @@ fn rewrite_text(text: &str, note_path: &str, m: &Matcher<'_>) -> Option<(String,
     Some((out, lines))
 }
 
+/// A moved note's own relative destinations — attachments, other notes,
+/// any file — re-expressed from its new folder so they still reach what
+/// they reached from the old one (ADR-0042). A destination that climbs out
+/// of the vault is left alone. `None` when nothing changes.
+fn rebase_destinations(
+    text: &str,
+    old_folder: &str,
+    new_folder: &str,
+) -> Option<(String, BTreeSet<usize>)> {
+    let mut edits: Vec<(std::ops::Range<usize>, usize, String)> = Vec::new();
+    for link in extract_destinations(text) {
+        let Some(target) = resolve_relative(old_folder, &link.target) else {
+            continue;
+        };
+        let after = percent_encode_path(&relative_from(new_folder, &target));
+        if text[link.span.clone()] != after {
+            edits.push((link.span.clone(), link.line, after));
+        }
+    }
+    if edits.is_empty() {
+        return None;
+    }
+    let mut out = text.to_string();
+    let mut lines = BTreeSet::new();
+    for (span, line, after) in edits.iter().rev() {
+        out.replace_range(span.clone(), after);
+        lines.insert(*line);
+    }
+    Some((out, lines))
+}
+
+/// Record `count` changed lines in `path`, adding to an entry already there.
+fn note_rewritten(report: &mut RelinkReport, path: &str, count: usize) {
+    match report.rewritten.iter_mut().find(|f| f.path == path) {
+        Some(f) => f.count += count,
+        None => report.rewritten.push(RewrittenFile {
+            path: path.to_string(),
+            count,
+        }),
+    }
+}
+
 /// Rewrite links for one `(old → new)` pair. See [`relink_many`].
 pub fn relink(vault: &Path, spec: &RelinkSpec, opts: &RelinkOptions) -> CoreResult<RelinkReport> {
     relink_many(vault, std::slice::from_ref(spec), opts)
@@ -268,6 +310,64 @@ pub fn relink_many(
         }
     }
     let _guard = MaterializeOff::new()?;
+
+    // A note that changed folder: its own relative links first (ADR-0042),
+    // so the pass below reads them as seen from where the note is now.
+    for s in &specs {
+        let Some(old_path) = s.old_path.as_deref() else {
+            continue;
+        };
+        let (old_folder, new_folder) = (folder_of(old_path), folder_of(&s.new_path));
+        if old_folder == new_folder {
+            continue;
+        }
+        // A dry run has not moved the note yet: it is read where it is.
+        let at = if vault.join(&s.new_path).exists() {
+            s.new_path.as_str()
+        } else {
+            old_path
+        };
+        let abs = vault.join(at);
+        let content = match read_text(&abs) {
+            Ok(TextRead::Text(c)) if c.utf8 => c,
+            Ok(_) => {
+                report.skipped.push(at.to_string());
+                continue;
+            }
+            Err(CoreError::CloudOnly { .. }) => {
+                report.cloud_only_skipped.push(at.to_string());
+                continue;
+            }
+            Err(CoreError::NotFound { .. }) => continue,
+            Err(e) => return Err(e),
+        };
+        let Some((new_text, lines)) = rebase_destinations(&content.text, old_folder, new_folder)
+        else {
+            continue;
+        };
+        let before: Vec<&str> = content.text.lines().collect();
+        let after: Vec<&str> = new_text.lines().collect();
+        for &line in &lines {
+            report.changes.push(Change {
+                path: s.new_path.clone(),
+                line,
+                before: before.get(line - 1).unwrap_or(&"").to_string(),
+                after: after.get(line - 1).unwrap_or(&"").to_string(),
+            });
+        }
+        if !opts.dry_run {
+            match write_atomic(&abs, new_text.as_bytes(), Some(&content.precondition())) {
+                Ok(_) => {}
+                Err(CoreError::Conflict { .. }) => {
+                    report.conflicts.push(s.new_path.clone());
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        note_rewritten(&mut report, &s.new_path, lines.len());
+    }
+
     let notes = walk_notes(vault)?;
     let note_paths: Vec<String> = notes.iter().map(|n| n.path.clone()).collect();
     let matcher = Matcher::build(&specs, &note_paths);
@@ -320,10 +420,7 @@ pub fn relink_many(
                 Err(e) => return Err(e),
             }
         }
-        report.rewritten.push(RewrittenFile {
-            path: note.path.clone(),
-            count: lines.len(),
-        });
+        note_rewritten(&mut report, &note.path, lines.len());
     }
 
     if !matcher.paths.is_empty() {
@@ -405,6 +502,63 @@ mod tests {
     }
 
     const REF: &str = "---\ntitle: Ref\n---\nSee [[Old Note]], [[old note|Label]] and [[Old Note#Sec]].\n\nAlso [link](../Old%20Note.md) and [[Unrelated]].\n\n```\n[[Old Note]] in a fence\n```\n`[[Old Note]]` in code\n";
+
+    // ADR-0042: a note that changes folder keeps what its relative links
+    // reached — attachments, other notes, any file — and nothing else moves.
+    #[test]
+    fn a_moved_note_keeps_its_relative_destinations() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let text = "# Trip\n\n![](attachments/a%20b.png) [plan](../docs/Plan.md) [pdf](<scan.pdf>)\n[web](https://x.org/a.png) [top](#trip) [[Other]]\n\n```\n![](attachments/in-fence.png)\n```\n";
+        write(root, "notes/Trip.md", text);
+        write(root, "notes/attachments/a b.png", "x");
+        write(root, "docs/Plan.md", "# Plan\n");
+        write(root, "Other.md", "see [t](notes/Trip.md)\n");
+        rename(
+            &root.join("notes/Trip.md"),
+            &root.join("projects/deep/Trip.md"),
+        )
+        .unwrap();
+        let spec = RelinkSpec::new("Trip", "projects/deep/Trip.md").with_old_path("notes/Trip.md");
+
+        let report = relink(root, &spec, &RelinkOptions { dry_run: false }).unwrap();
+
+        let moved = read(root, "projects/deep/Trip.md");
+        assert!(
+            moved.contains("![](../../notes/attachments/a%20b.png)"),
+            "{moved}"
+        );
+        assert!(moved.contains("[plan](../../docs/Plan.md)"), "{moved}");
+        assert!(moved.contains("[pdf](<../../notes/scan.pdf>)"), "{moved}");
+        assert!(
+            moved.contains("[web](https://x.org/a.png) [top](#trip) [[Other]]"),
+            "{moved}"
+        );
+        assert!(moved.contains("![](attachments/in-fence.png)"), "{moved}");
+        assert_eq!(read(root, "Other.md"), "see [t](projects/deep/Trip.md)\n");
+        let paths: Vec<&str> = report.rewritten.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(
+            paths
+                .iter()
+                .filter(|p| **p == "projects/deep/Trip.md")
+                .count(),
+            1
+        );
+
+        // Idempotent, and a rename inside one folder rebases nothing.
+        let again = relink(root, &spec, &RelinkOptions { dry_run: false }).unwrap();
+        assert!(again.rewritten.is_empty(), "{again:?}");
+        rename(
+            &root.join("projects/deep/Trip.md"),
+            &root.join("projects/deep/Voyage.md"),
+        )
+        .unwrap();
+        let same = RelinkSpec::new("Trip", "projects/deep/Voyage.md")
+            .with_old_path("projects/deep/Trip.md");
+        relink(root, &same, &RelinkOptions { dry_run: false }).unwrap();
+        assert!(read(root, "projects/deep/Voyage.md")
+            .contains("![](../../notes/attachments/a%20b.png)"));
+    }
 
     #[test]
     fn rewrites_every_form_and_is_idempotent() {

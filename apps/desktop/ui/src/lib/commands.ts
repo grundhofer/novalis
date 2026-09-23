@@ -144,9 +144,17 @@ async function stepDay(direction: -1 | 1): Promise<void> {
 async function renameTo(from: string, target: string): Promise<void> {
   if (target === from) return;
   await useEditorSave.getState().save(from);
-  await unwrap(commands.rename(from, target));
+  const result = await unwrap(commands.rename(from, target));
   useEditorSave.getState().rename(from, target);
   useTabs.getState().rename(from, target);
+  // The shell rewrote links in these files — the moved note's own relative
+  // ones among them (ADR-0042). An open buffer with nothing unsaved takes
+  // the new text now; left alone, the watcher would take the shell's write
+  // for someone else's and raise the sync banner.
+  for (const path of result?.rewritten ?? []) {
+    const doc = useEditorSave.getState().docs[path];
+    if (doc && !doc.dirty) await useEditorSave.getState().reloadFromDisk(path);
+  }
   const vault = useVault.getState();
   const fromFolder = folderOf(from);
   const toFolder = folderOf(target);

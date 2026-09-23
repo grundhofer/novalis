@@ -537,7 +537,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
 | `index --rebuild` / `--status` | | `{vault,cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |
 | `sync status` | | `{vaultKind:"fileProvider"\|"mirrored"\|"local",cloudOnly:[path],conflictCopies:[path]}` | Mode 1 read-only |
-| `doctor` | | `{ok,checks:[{id,status,detail}]}` | vault marker, cache opens, app/CLI version skew, frontmatter parse failures, unresolved links, duplicate stems, unlinkable stems (`#`/`\|`), notes under board folders, conflict copies, cloud-only notes with unindexed links, legacy `@due/@status` count |
+| `doctor` | | `{ok,checks:[{id,status,detail,paths?}]}` | vault marker, cache opens, app/CLI version skew, frontmatter parse failures, unresolved links, duplicate stems, unlinkable stems (`#`/`\|`), notes under board folders, conflict copies, cloud-only notes with unindexed links, legacy `@due/@status` count, missing and unlinked attachments (ADR-0042) |
 | `migrate` | `--dry-run` (default), `--apply`, `--rename-to-title`, `--import-columns`, `--import-status` (needs yes), `--materialize` | `{renames:[{from,to,reason}],linksRewritten:[{path,count}],unlinkable:[…],columns,legacyTokens,cloudOnlySkipped}` | §10 |
 | `init <dir>` · `help --json` · `skill --path` | | | `init` writes `.novalis/vault.json` (idempotent) |
 

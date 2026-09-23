@@ -176,7 +176,10 @@ frontmatter block is created. Output `{path, frontmatter, sha256After}`.
 
 Rename first (`RENAME_EXCL`, so an existing target is never overwritten: exit
 4), then rewrite every link form and card `notes[]` entry that pointed at the
-old note, each affected file under its scan-time precondition.
+old note, each affected file under its scan-time precondition. A note that
+changes folder also has its own relative Markdown destinations rebased —
+attachments, other notes, any file — so they reach what they reached before
+(ADR-0042); it is listed in `relinked` like any other rewritten file.
 
 ```json
 {"from":"…","to":"…","relinked":[{"path":"…","count":2}],
@@ -310,11 +313,14 @@ would pull; `mirrored` is not detected yet and reads as `local`.
 
 ### `doctor` — Status: harness
 
-`{ok, checks:[{id, status, detail}]}` with `status` in `ok | warn | fail`.
-Checks: vault marker, cache opens, app/CLI version skew, frontmatter parse
-failures, unresolved links, duplicate stems, unlinkable stems (`#`, `|`),
-notes under board folders, conflict copies, cloud-only notes with unindexed
-links, legacy `@due`/`@status` token count. Read-only; there is no `--fix`.
+`{ok, checks:[{id, status, detail, paths?}]}` with `status` in
+`ok | warn | fail`. Checks: vault marker, cache opens, app/CLI version skew,
+frontmatter parse failures, unresolved links, duplicate stems, unlinkable
+stems (`#`, `|`), notes under board folders, conflict copies, cloud-only
+notes with unindexed links, legacy `@due`/`@status` token count, and
+`attachments` (ADR-0042): links to an image or PDF that is not on disk
+(`paths` entries `note → target`) and files in an `attachments/` folder no
+note links to. Read-only; there is no `--fix`.
 
 ### `migrate` — Status: harness
 
