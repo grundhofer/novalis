@@ -6,8 +6,11 @@ use std::io::Write;
 
 use novalis_core::boards;
 use novalis_core::migrate::{self, MigrateOptions};
+use novalis_core::notes::links::extract_destinations;
 use novalis_core::vault::cloud;
-use novalis_core::vault::walk::walk_notes;
+use novalis_core::vault::fs::{read_text, TextRead};
+use novalis_core::vault::path::{fold, folder_of, resolve_relative};
+use novalis_core::vault::walk::{walk_files, walk_notes};
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -29,6 +32,9 @@ pub struct Check {
     pub id: String,
     pub status: Status,
     pub detail: String,
+    /// The vault paths behind a count, where a check names them (ADR-0042).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -42,6 +48,7 @@ fn check(id: &str, status: Status, detail: impl Into<String>) -> Check {
         id: id.to_string(),
         status,
         detail: detail.into(),
+        paths: Vec::new(),
     }
 }
 
@@ -187,8 +194,71 @@ pub fn run(ctx: &Ctx, _args: ()) -> Result<DoctorOut, CliError> {
         ),
     ));
 
+    let (dead, orphans) = attachments(ctx)?;
+    let mut attachment_check = count(
+        "attachments",
+        dead.len() + orphans.len(),
+        format!(
+            "{} link(s) to a missing attachment, {} attachment(s) no note links",
+            dead.len(),
+            orphans.len()
+        ),
+    );
+    attachment_check.paths = dead.into_iter().chain(orphans).collect();
+    checks.push(attachment_check);
+
     let ok = checks.iter().all(|c| c.status == Status::Ok);
     Ok(DoctorOut { ok, checks })
+}
+
+/// The file types a note carries as attachments (ADR-0017, ADR-0041).
+const ATTACHMENT_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "pdf"];
+
+fn is_attachment(path: &str) -> bool {
+    path.rsplit_once('.')
+        .is_some_and(|(_, ext)| ATTACHMENT_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+}
+
+/// The attachment check (ADR-0042): links from notes to an attachment type
+/// that is not on disk (`note → target`), and files in an `attachments/`
+/// folder that no note links to. Every readable note is read — the cache
+/// indexes only note links — and cloud-only notes are not: an attachment
+/// only they link to counts as unlinked, which the detail cannot tell apart.
+fn attachments(ctx: &Ctx) -> Result<(Vec<String>, Vec<String>), CliError> {
+    let _guard = novalis_core::vault::cloud::MaterializeOff::new()?;
+    let mut linked = std::collections::BTreeSet::new();
+    let mut dead = Vec::new();
+    for note in walk_notes(&ctx.vault)? {
+        if note.cloud_only {
+            continue;
+        }
+        let Ok(TextRead::Text(content)) = read_text(&ctx.vault.join(&note.path)) else {
+            continue;
+        };
+        for link in extract_destinations(&content.text) {
+            if !is_attachment(&link.target) {
+                continue;
+            }
+            let Some(target) = resolve_relative(folder_of(&note.path), &link.target) else {
+                continue;
+            };
+            if ctx.vault.join(&target).exists() {
+                linked.insert(fold(&target));
+            } else {
+                dead.push(format!("{} → {}", note.path, target));
+            }
+        }
+    }
+    let orphans = walk_files(&ctx.vault)?
+        .into_iter()
+        .filter(|f| {
+            is_attachment(&f.path)
+                && f.path.split('/').rev().nth(1) == Some("attachments")
+                && !linked.contains(&fold(&f.path))
+        })
+        .map(|f| f.path)
+        .collect();
+    Ok((dead, orphans))
 }
 
 /// `.md` files that sit inside a folder holding a valid `board.json`. Other
@@ -219,6 +289,9 @@ impl Render for DoctorOut {
                 Status::Fail => "fail",
             };
             writeln!(w, "{mark} {:<18} {}", c.id, c.detail)?;
+            for path in &c.paths {
+                writeln!(w, "       {path}")?;
+            }
         }
         writeln!(w, "{}", if self.ok { "ok" } else { "needs attention" })
     }

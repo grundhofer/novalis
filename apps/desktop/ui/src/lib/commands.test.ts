@@ -298,6 +298,26 @@ describe("moveEntry", () => {
     expect(stores.refresh).toHaveBeenCalled();
   });
 
+  // ADR-0042: the shell rewrote the moved note's own relative links; its
+  // open, unchanged buffer takes the disk's text, a changed one is left be.
+  it("reloads the open, unchanged buffers the shell rewrote", async () => {
+    const reloadFromDisk = vi.fn().mockResolvedValue(undefined);
+    useEditorSave.setState({
+      save: vi.fn().mockResolvedValue(undefined),
+      rename: vi.fn(),
+      reloadFromDisk,
+      docs: {
+        "Archive/a.md": { path: "Archive/a.md", dirty: false } as never,
+        "Other.md": { path: "Other.md", dirty: true } as never,
+      },
+    });
+    vi.mocked(unwrap).mockResolvedValueOnce({ path: "Archive/a.md", rewritten: ["Archive/a.md", "Other.md"] } as never);
+
+    await moveEntry("Notes/a.md", "Archive");
+
+    expect(reloadFromDisk.mock.calls).toEqual([["Archive/a.md"]]);
+  });
+
   it("does nothing when the file is dropped on the folder it is in", async () => {
     await moveEntry("Notes/a.md", "Notes");
 

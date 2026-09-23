@@ -118,6 +118,21 @@ fn is_fence(line: &str) -> bool {
 /// Extract every link in `text` (frontmatter, fenced code and inline code
 /// skipped), in document order.
 pub fn extract(text: &str) -> Vec<Link> {
+    scan(text, false)
+}
+
+/// Every relative Markdown destination in `text` — `[text](dest)` and
+/// `![alt](dest)`, whatever the file type, not only notes — skipping the
+/// same code and frontmatter [`extract`] skips (ADR-0042). URLs, `mailto:`
+/// and `#anchors` are not destinations.
+pub fn extract_destinations(text: &str) -> Vec<Link> {
+    scan(text, true)
+        .into_iter()
+        .filter(|l| l.form == LinkForm::Markdown)
+        .collect()
+}
+
+fn scan(text: &str, every_destination: bool) -> Vec<Link> {
     let body_start = match frontmatter::block_span(text) {
         Some(span) => span.block_end,
         None => 0,
@@ -138,7 +153,7 @@ pub fn extract(text: &str) -> Vec<Link> {
         if !in_fence {
             let masked = mask_inline_code(line);
             extract_wiki(&masked, offset, line_no, &mut out);
-            extract_markdown(&masked, offset, line_no, &mut out);
+            extract_markdown(&masked, offset, line_no, every_destination, &mut out);
         }
         offset += raw_line.len();
     }
@@ -190,7 +205,13 @@ fn extract_wiki(line: &str, offset: usize, line_no: usize, out: &mut Vec<Link>) 
     }
 }
 
-fn extract_markdown(line: &str, offset: usize, line_no: usize, out: &mut Vec<Link>) {
+fn extract_markdown(
+    line: &str,
+    offset: usize,
+    line_no: usize,
+    every_destination: bool,
+    out: &mut Vec<Link>,
+) {
     let bytes = line.as_bytes();
     let mut from = 0;
     while let Some(rel) = line[from..].find("](") {
@@ -216,8 +237,8 @@ fn extract_markdown(line: &str, offset: usize, line_no: usize, out: &mut Vec<Lin
             }
         }
         let Some(open) = open else { continue };
-        if open > 0 && bytes[open - 1] == b'!' {
-            continue; // image
+        if !every_destination && open > 0 && bytes[open - 1] == b'!' {
+            continue; // an image is not a link to a note
         }
         if open > 0 && bytes[open - 1] == b'[' {
             continue; // part of a wikilink
@@ -265,7 +286,7 @@ fn extract_markdown(line: &str, offset: usize, line_no: usize, out: &mut Vec<Lin
             None => (dest, None),
         };
         let decoded = percent_decode(path_part);
-        if !decoded.to_lowercase().ends_with(".md") {
+        if !every_destination && !decoded.to_lowercase().ends_with(".md") {
             continue;
         }
         let span_start = offset + dest_start + dest_off;

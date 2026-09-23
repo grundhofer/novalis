@@ -54,6 +54,11 @@
       "detail": "63 @due( and 67 @status( token(s) from the old app, left as text",
       "id": "legacy_tokens",
       "status": "warn"
+    },
+    {
+      "detail": "0 link(s) to a missing attachment, 0 attachment(s) no note links",
+      "id": "attachments",
+      "status": "ok"
     }
   ],
   "ok": false

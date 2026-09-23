@@ -64,3 +64,7 @@ Ordnerzeile oder Wurzel; Links werden umgeschrieben wie bei Umbenennen)?":
 - Open: folder drag, once the core has a directory-aware relink; it gets its
   own record when built. Dropping onto a board row, reordering rows, dragging
   a file out of the app to the Finder: not part of this decision.
+
+**Amended 2026-09-23** — ADR-0042 closes the open follow-up above: a note
+that changes folder has its own relative links (attachments included)
+rebased, in the core, for the app's moves and `novalis mv` alike.

@@ -595,3 +595,46 @@ fn cat_reads_an_exact_non_note_path_and_refuses_a_binary() {
     assert_eq!(code, 2, "{binary}");
     assert_eq!(binary["error"]["path"], "pic.png");
 }
+
+/// `doctor`'s attachment check (ADR-0042) on a vault that has both kinds of
+/// trouble: a link to a picture that is gone, and a picture nothing links.
+#[test]
+fn doctor_reports_missing_and_unlinked_attachments() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::create_dir_all(vault.join("notes/attachments")).expect("attachments");
+    std::fs::write(
+        vault.join("notes/Trip.md"),
+        "![](attachments/here.png) ![](attachments/gone.png) [x](../index.md)\n",
+    )
+    .expect("note");
+    std::fs::write(vault.join("notes/attachments/here.png"), "x").expect("here");
+    std::fs::write(vault.join("notes/attachments/lonely.pdf"), "x").expect("lonely");
+
+    let out = Command::new(BIN)
+        .arg("--vault")
+        .arg(&vault)
+        .args(["doctor", "--json"])
+        .env("HOME", &root)
+        .env_remove("NOVALIS_VAULT")
+        .output()
+        .expect("run novalis doctor");
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).expect("JSON");
+    let check = value["checks"]
+        .as_array()
+        .expect("checks")
+        .iter()
+        .find(|c| c["id"] == "attachments")
+        .expect("the attachments check")
+        .clone();
+    assert_eq!(check["status"], "warn", "{check}");
+    assert_eq!(
+        check["paths"],
+        serde_json::json!([
+            "notes/Trip.md → notes/attachments/gone.png",
+            "notes/attachments/lonely.pdf"
+        ])
+    );
+}
