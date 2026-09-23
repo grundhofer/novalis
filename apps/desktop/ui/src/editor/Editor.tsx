@@ -9,9 +9,11 @@ import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBrid
 import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
 import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
+import { useFiles } from "../stores/files";
 import { report, useUi } from "../stores/ui";
 import { setActiveView } from "./commands";
 import { buildExtensions } from "./setup";
+import { notesChanged } from "./unresolvedLinks";
 import { editorTheme, markdownHighlight } from "./theme";
 
 /**
@@ -110,6 +112,7 @@ export default function Editor({
     let view: EditorView | null = null;
     let read: (() => string) | null = null;
     let cancelled = false;
+    let stopNotes: (() => void) | null = null;
 
     const doc = useEditorSave.getState().docs[path];
     if (!doc) return;
@@ -168,6 +171,10 @@ export default function Editor({
         keepPosition(path, { editorTop: created.lineBlockAtHeight(Math.max(0, height)).from });
       });
       view = created;
+      // A note created or deleted elsewhere changes which links resolve.
+      stopNotes = useFiles.subscribe((state, previous) => {
+        if (state.notes !== previous.notes) created.dispatch({ effects: notesChanged.of(null) });
+      });
       // `sliceDoc()`, not `doc.toString()`: it joins with the file's own line
       // break (`editor/lineBreak.ts`), which `toString()` always makes `\n`.
       read = () => created.state.sliceDoc();
@@ -185,6 +192,7 @@ export default function Editor({
 
     return () => {
       cancelled = true;
+      stopNotes?.();
       if (view) {
         // The buffer goes with the view: what it holds beyond the mirror is
         // read now, while it still exists. A view being rebuilt after a

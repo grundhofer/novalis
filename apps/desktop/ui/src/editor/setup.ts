@@ -45,6 +45,7 @@ import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
 import { lineSeparatorFor } from "./lineBreak";
 import { editorPhrases } from "./phrases";
+import { unresolvedLinks } from "./unresolvedLinks";
 import { CodeText, Tag, WikiLink } from "./markdownExt";
 
 /**
@@ -235,6 +236,7 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
   if (isMarkdown) {
     base.push(
       decorations,
+      unresolvedLinks(hooks.notePaths),
       completions(hooks),
       keymap.of([
         { key: "Mod-b", run: (view) => wrapSelection("**")(view) },

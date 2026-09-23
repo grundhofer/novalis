@@ -13,7 +13,8 @@ import TitleBar from "./components/TitleBar";
 import Toast from "./components/Toast";
 import { initI18n } from "./i18n";
 import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/client";
-import { dispatchCommand } from "./lib/commands";
+import { dispatchCommand, newNote } from "./lib/commands";
+import { folderOf } from "./lib/paths";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
@@ -300,7 +301,12 @@ export default function App() {
       .map((part) => part.trim());
     // `[[#Heading]]` is a heading of the note it is written in.
     const hit = name === "" ? useTabs.getState().active : resolveWikiTarget(name, useFiles.getState().notes);
-    if (!hit) return;
+    if (!hit) {
+      // A link to no note offers to make it, beside the note it is written
+      // in, the name filled in (ADR-0038); nothing is written until OK.
+      if (name) newNote(folderOf(useTabs.getState().active ?? ""), name);
+      return;
+    }
     // `[[note#heading]]` lands on the heading (§7.2); the pane settles it
     // against the text it shows, like a backlink's line.
     if (heading) openAt(hit, { line: 1, snippet: "", heading });

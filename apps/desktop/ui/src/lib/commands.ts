@@ -15,6 +15,7 @@ import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
 import { localIsoDay } from "./localTime";
+import { resolveWikiTarget } from "./links";
 import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
 import { uiStateNow } from "./uiState";
 
@@ -30,11 +31,16 @@ import { uiStateNow } from "./uiState";
 
 export type CommandResult = void | Promise<void>;
 
-async function newNote(folder: string): Promise<void> {
+/**
+ * The New Note dialog, into `folder`. `initial` fills the name — the target
+ * of a `[[link]]` that resolves to nothing (ADR-0038); nothing is written
+ * until OK.
+ */
+export function newNote(folder: string, initial = ""): void {
   useUi.getState().ask({
     titleKey: "menu.file.newNote",
     placeholderKey: "tree.renamePlaceholder",
-    initial: "",
+    initial,
     // What a typed extension does (ADR-0014): the table is too long to list.
     hint: { key: "tree.newNoteHint" },
     submit: async (name) => {
@@ -44,6 +50,26 @@ async function newNote(folder: string): Promise<void> {
       await useTabs.getState().open(entry.path);
     },
   });
+}
+
+/**
+ * "Create …" in quick-open (ADR-0038): the typed name as a note where
+ * `Cmd+N` would put it, opened; a typed extension makes that file
+ * (ADR-0014). Already there — typed in another case, or made meanwhile —
+ * it is opened instead.
+ */
+export async function createNoteNamed(name: string): Promise<void> {
+  const folder = targetFolder();
+  try {
+    const entry = await unwrap(commands.createNote(folder, name));
+    await useVault.getState().reload(folder);
+    await useFiles.getState().refresh();
+    await useTabs.getState().open(entry.path);
+  } catch (error) {
+    if (!(error instanceof NovalisError && error.code === "already_exists")) throw error;
+    const existing = resolveWikiTarget(name, useFiles.getState().notes);
+    if (existing) await useTabs.getState().open(existing);
+  }
 }
 
 async function newFolder(folder: string): Promise<void> {
