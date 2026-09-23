@@ -230,8 +230,7 @@ novalis/
 │                                 # used by the clap layer, by `help --json`, later by `novalis mcp`
 ├─ apps/
 │  └─ desktop/
-│     ├─ src-tauri/               # thin shell: <30 commands, menu from i18n JSON, window state;
-│     │                           # bundles `novalis` at Contents/MacOS/novalis
+│     ├─ src-tauri/               # thin shell: <30 commands, menu from i18n JSON, window state
 │     └─ ui/                      # React 19 + Vite, CodeMirror 6; imports i18n/*.json, packages/tokens
 ├─ packages/
 │  ├─ tokens/                     # tokens.css (--ds-*) for the chosen style; GENERATED-PENDING until

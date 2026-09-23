@@ -97,9 +97,8 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      # The CLI is built before the app: the bundle carries it at
-      # Contents/MacOS/novalis (PLAN.md §9.4) and the release publishes it as
-      # its own tarball below. `--locked` so the shipped binary uses the same
+      # The CLI is not bundled inside the app (PLAN.md §9.4); the release
+      # publishes it as its own tarball below. `--locked` so the shipped binary uses the same
       # Cargo.lock the `audit` job cleared.
       - name: Build the CLI
         run: cargo build --release --locked -p novalis-cli --target aarch64-apple-darwin
