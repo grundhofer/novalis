@@ -21,10 +21,11 @@ novalis [--vault <dir>] [--json | --plain] [--no-index] <command> [args] [--dry-
   `"dryRun": true` and, for multi-file operations, `changes: [{path, line,
   before, after}]`; exits with the code the real run would. `migrate` is
   dry-run by default and needs `--apply`.
-- **Index:** reads that use the cache run the incremental scan first unless the
-  desktop app's heartbeat is younger than 10 s (`index --status` reports
-  `indexSource: "app" | "scan"`). `--no-index` skips the scan on reads and is
-  rejected with exit 2 on mutations.
+- **Index:** reads that use the cache run the incremental scan first, also
+  while the desktop app is running, so a read right after your own write sees
+  it. `index --status` reports `indexSource: "app"` when the app's heartbeat
+  is younger than 10 s, else `"scan"`. `--no-index` skips the scan on reads and
+  is rejected with exit 2 on mutations.
 - **No prompts, ever.** No colour, no progress bars on stdout. English only.
 - **Concurrency:** the CLI does not talk to the app. Both write through the
   same atomic path (same-directory temp file, fsync, rename) and the app's

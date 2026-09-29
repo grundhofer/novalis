@@ -33,13 +33,15 @@ pub const VAULT_MARKER: &str = ".novalis/vault.json";
 /// the vault-side `.novalis/config.json`, once, for `novalis migrate`").
 pub const LEGACY_MARKER: &str = ".novalis/config.json";
 
-/// Where the cache row served by this invocation came from, reported by
-/// `index --status` as `indexSource`.
+/// Who else keeps the cache current, reported by `index --status` as
+/// `indexSource`. Either way this invocation runs its own scan first
+/// (ADR-0046); [`Index::stale`] says whether it did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndexSource {
-    /// The app's watcher heartbeat is younger than 10 s; no scan was run.
+    /// The app's watcher heartbeat is younger than 10 s: the app is live on
+    /// this vault and rescans it too.
     App,
-    /// This process ran (or skipped, under `--no-index`) its own scan.
+    /// No live app; only CLI scans keep the cache current.
     Scan,
 }
 
@@ -203,29 +205,29 @@ impl Ctx {
         self.vault.join(rel)
     }
 
-    /// Open the cache and, unless the app's watcher is live or `--no-index`
-    /// was passed, run the incremental scan first. A busy cache during a read
-    /// serves what is there behind a `stale_index` warning (PLAN.md §9.2).
+    /// Open the cache and, unless `--no-index` was passed, run the
+    /// incremental scan first — also while the app is live, whose own rescan
+    /// trails a write by its settle window (ADR-0046). A busy cache during a
+    /// read serves what is there behind a `stale_index` warning (PLAN.md
+    /// §9.2).
     pub fn index(&self) -> Result<Index, CliError> {
         let mut cache = Cache::open(&self.app_data.join("cache"), &self.vault)?;
-        if cache.watcher_alive(WATCHER_MAX_AGE).unwrap_or(false) {
-            return Ok(Index {
-                cache,
-                source: IndexSource::App,
-                stale: false,
-            });
-        }
+        let source = if cache.watcher_alive(WATCHER_MAX_AGE).unwrap_or(false) {
+            IndexSource::App
+        } else {
+            IndexSource::Scan
+        };
         if self.no_index {
             return Ok(Index {
                 cache,
-                source: IndexSource::Scan,
+                source,
                 stale: true,
             });
         }
         match cache.incremental_scan() {
             Ok(_) => Ok(Index {
                 cache,
-                source: IndexSource::Scan,
+                source,
                 stale: false,
             }),
             Err(CoreError::CacheBusy) => {
@@ -235,7 +237,7 @@ impl Ctx {
                 );
                 Ok(Index {
                     cache,
-                    source: IndexSource::Scan,
+                    source,
                     stale: true,
                 })
             }
