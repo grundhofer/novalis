@@ -134,7 +134,7 @@ pub fn vault_kind(root: &Path) -> VaultKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ConflictCopyKind {
-    /// `<stem>-<hostname>.<ext>` (OneDrive).
+    /// `<stem>-<computer name>.<ext>` (OneDrive).
     Host,
     /// `<stem> (n).<ext>` (OneDrive, Google Drive).
     Numbered,
@@ -167,9 +167,13 @@ fn split_ext(name: &str) -> (&str, &str) {
     }
 }
 
+/// OneDrive on the Mac appends the computer name, not the hostname, and the
+/// macOS default one has spaces and may have letters beyond ASCII and an
+/// apostrophe: `Note-MacBook Pro von Sebastian.md`, `Note-Jürgens MacBook.md`,
+/// `Note-Sebastian's MacBook Pro.md` (checklist A4, 2026-09-29).
 fn host_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"^[A-Za-z0-9][A-Za-z0-9-]*$").unwrap())
+    RE.get_or_init(|| Regex::new(r"^[\p{L}\p{N}][\p{L}\p{N} '’-]*$").unwrap())
 }
 
 fn numbered_re() -> &'static Regex {
@@ -415,6 +419,8 @@ mod tests {
                 "board.json",
                 "Local-First Software.md",
                 "project.md",
+                "a4-konflikt.md",
+                "01M3QFZ1S2N8MKXGZTT38NP6ZC.json",
             ]
             .contains(&n)
         };
@@ -443,6 +449,26 @@ mod tests {
             c("Local-First Software-MacBook-Pro.md"),
             Some(("Local-First Software.md".into(), ConflictCopyKind::Host))
         );
+        // The names OneDrive 26.x on macOS 26.6 actually wrote (checklist A4).
+        assert_eq!(
+            c("a4-konflikt-MacBook Pro von Sebastian.md"),
+            Some(("a4-konflikt.md".into(), ConflictCopyKind::Host))
+        );
+        assert_eq!(
+            c("01M3QFZ1S2N8MKXGZTT38NP6ZC-MacBook Pro von Sebastian.json"),
+            Some((
+                "01M3QFZ1S2N8MKXGZTT38NP6ZC.json".into(),
+                ConflictCopyKind::Host
+            ))
+        );
+        assert_eq!(
+            c("Note-Sebastian’s MacBook Pro.md"),
+            Some(("Note.md".into(), ConflictCopyKind::Host))
+        );
+        assert_eq!(
+            c("Note-MacBook Air von Jürgen.md"),
+            Some(("Note.md".into(), ConflictCopyKind::Host))
+        );
         assert_eq!(
             c("Note (conflict MacBook-Pro 2026-09-05 1402).md"),
             Some(("Note.md".into(), ConflictCopyKind::App))
@@ -454,6 +480,7 @@ mod tests {
         // Not copies: no original, lowercase suffix, regular names.
         assert_eq!(c("Other (1).md"), None);
         assert_eq!(c("project-notes.md"), None);
+        assert_eq!(c("project-weekly sync.md"), None);
         assert_eq!(c("Note.md"), None);
         assert_eq!(c("Local-First Software.md"), None);
     }
