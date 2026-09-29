@@ -9,6 +9,7 @@
 //! Nothing in this file reads a file body, so a cloud-only placeholder is
 //! never materialized by the watcher.
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -18,7 +19,7 @@ use notify::RecursiveMode;
 use notify_debouncer_full::{new_debouncer_opt, DebouncedEvent, Debouncer, RecommendedCache};
 use novalis_core::boards;
 use novalis_core::vault::fs::{stat, EntryKind};
-use novalis_core::vault::path::rel_of;
+use novalis_core::vault::path::{nfc, rel_of};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::AppHandle;
@@ -80,13 +81,41 @@ fn ignored(rel: &str) -> bool {
         .any(|part| part.starts_with('.') || part.starts_with('~') || part.ends_with(".tmp"))
 }
 
-/// Build a tree row for a path that still exists, plus the raw
-/// `(mtime_ns, size)` the self-write check compares. `stat` is `lstat` only,
-/// so a cloud-only placeholder stays dataless.
-fn entry_of(root: &Path, rel: &str) -> Option<(EntryDto, i64, u64)> {
+/// The names in each parent directory, read at most once per batch.
+///
+/// `stat` answers for any spelling on a case-insensitive volume (the APFS
+/// default), so after a case-only rename `Readme.md` still stats as the file
+/// now called `README.md`, and the old row stayed in the tree (checklist A6,
+/// 2026-09-29). Only the directory listing holds the real name. `read_dir`
+/// reads no body and no metadata, so nothing is hydrated.
+#[derive(Default)]
+struct Listings(HashMap<PathBuf, HashSet<String>>);
+
+impl Listings {
+    fn contains(&mut self, abs: &Path) -> bool {
+        let (Some(parent), Some(name)) = (abs.parent(), abs.file_name()) else {
+            return false;
+        };
+        let names = self.0.entry(parent.to_path_buf()).or_insert_with(|| {
+            std::fs::read_dir(parent)
+                .map(|rd| {
+                    rd.filter_map(Result::ok)
+                        .map(|e| nfc(&e.file_name().to_string_lossy()))
+                        .collect()
+                })
+                .unwrap_or_default()
+        });
+        names.contains(&nfc(&name.to_string_lossy()))
+    }
+}
+
+/// Build a tree row for a path that still exists under exactly this name,
+/// plus the raw `(mtime_ns, size)` the self-write check compares. `stat` is
+/// `lstat` only, so a cloud-only placeholder stays dataless.
+fn entry_of(root: &Path, rel: &str, listings: &mut Listings) -> Option<(EntryDto, i64, u64)> {
     let abs = root.join(rel);
     let st = stat(&abs).ok()?;
-    if st.kind == EntryKind::Symlink {
+    if st.kind == EntryKind::Symlink || !listings.contains(&abs) {
         return None;
     }
     let board_slug = if st.kind == EntryKind::Dir {
@@ -111,6 +140,7 @@ fn to_batch(root: &Path, own: &Arc<Mutex<OwnWrites>>, events: Vec<DebouncedEvent
         renamed: Vec::new(),
     };
     let mut own = own.lock().unwrap_or_else(|e| e.into_inner());
+    let mut listings = Listings::default();
 
     for event in events {
         let rels: Vec<String> = event
@@ -130,13 +160,13 @@ fn to_batch(root: &Path, own: &Arc<Mutex<OwnWrites>>, events: Vec<DebouncedEvent
                     from: rels[0].clone(),
                     to: rels[1].clone(),
                 });
-                if let Some((entry, _, _)) = entry_of(root, &rels[1]) {
+                if let Some((entry, _, _)) = entry_of(root, &rels[1], &mut listings) {
                     batch.modified.push(entry);
                 }
             }
             EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
                 for rel in rels {
-                    match entry_of(root, &rel) {
+                    match entry_of(root, &rel, &mut listings) {
                         Some((entry, _, _)) => batch.added.push(entry),
                         None => batch.removed.push(rel),
                     }
@@ -150,7 +180,7 @@ fn to_batch(root: &Path, own: &Arc<Mutex<OwnWrites>>, events: Vec<DebouncedEvent
             }
             _ => {
                 for rel in rels {
-                    match entry_of(root, &rel) {
+                    match entry_of(root, &rel, &mut listings) {
                         // §5.3 step 4: our own write, already reflected in the
                         // editor and the tree — drop it.
                         Some((_, mtime_ns, size)) if own.take_if_ours(&rel, mtime_ns, size) => {}
@@ -221,7 +251,51 @@ pub fn spawn(
 
 #[cfg(test)]
 mod tests {
-    use super::ignored;
+    use std::sync::{Arc, Mutex};
+    use std::time::Instant;
+
+    use notify::event::{EventKind, ModifyKind, RenameMode};
+    use notify::Event;
+    use notify_debouncer_full::DebouncedEvent;
+
+    use super::{ignored, to_batch};
+    use crate::state::OwnWrites;
+
+    /// FSEvents reports a rename as two unrelated `Renamed` paths; after
+    /// `Readme.md` -> `README.md` both still stat on a case-insensitive volume.
+    /// On Linux's case-sensitive filesystems the old spelling simply fails to
+    /// stat, so the assertion holds there too; macOS is where it bites.
+    #[test]
+    fn case_only_rename_drops_the_old_spelling() {
+        let root = std::env::temp_dir().join(format!("novalis-watch-case-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("s2")).unwrap();
+        std::fs::write(root.join("s2/README.md"), "# Readme\n").unwrap();
+
+        let renamed = |name: &str| {
+            DebouncedEvent::new(
+                Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
+                    .add_path(root.join("s2").join(name)),
+                Instant::now(),
+            )
+        };
+        let own = Arc::new(Mutex::new(OwnWrites::default()));
+        let batch = to_batch(
+            &root,
+            &own,
+            vec![renamed("Readme.md"), renamed("README.md")],
+        );
+        let _ = std::fs::remove_dir_all(&root);
+
+        assert_eq!(batch.removed, vec!["s2/Readme.md".to_string()]);
+        let rows: Vec<&str> = batch
+            .added
+            .iter()
+            .chain(&batch.modified)
+            .map(|e| e.path.as_str())
+            .collect();
+        assert_eq!(rows, vec!["s2/README.md"]);
+    }
 
     #[test]
     fn hidden_and_temp_paths_are_ignored() {
