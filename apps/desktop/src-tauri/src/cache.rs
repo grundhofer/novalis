@@ -3,8 +3,10 @@
 //!
 //! The database lives in app-data and never inside the vault (PLAN.md §5.6
 //! rule 7): a WAL file under a sync client corrupts. The path is the one
-//! `novalis-cli` computes, so the app and the CLI share a single file and the
-//! CLI can skip its own scan while this heartbeat is fresh (§9.1).
+//! `novalis-cli` computes, so the app and the CLI share a single file. The
+//! heartbeat tells `novalis index --status` that the app is live; the CLI
+//! still scans before every read, because this actor's rescan trails a write
+//! by `SETTLE` (ADR-0046).
 //!
 //! Readers do not go through the actor. `Cache::incremental_scan` finishes
 //! every file read before it opens its write transaction, and the connection
@@ -117,8 +119,8 @@ fn run(
 
     let mut ok = cache.incremental_scan().is_ok();
     indexed.store(ok, Ordering::SeqCst);
-    // The heartbeat starts only after the first scan: while it runs the rows
-    // are incomplete, and a CLI that saw a live heartbeat would serve them.
+    // The heartbeat starts only after the first scan, so `index --status`
+    // reports the app as live only once its rows are complete.
     let mut beat = Instant::now();
     if ok {
         let _ = cache.touch_watcher();

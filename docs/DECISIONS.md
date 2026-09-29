@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0045). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0046). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -727,6 +727,21 @@ until then, because the grammar brings the note bundle with it):
 Recorded as the 2026-09-21 amendment of **ADR-0022**: `php` listed as
 code with the PHP grammar; the four dialects open like `.markdown`, as
 files.
+
+## Answered 2026-09-29
+
+Three defects from session 2 of the File Provider checklist run, asked
+together. For the third — a CLI read right after a CLI write served the
+rows from before the write while the app was running — the question was
+"Befund 3 lässt sich am einfachsten beheben, indem die CLI geänderte
+Dateien immer selbst neu einliest. Das ändert aber das Verhalten aus PLAN
+§9.1 und braucht dein Ja.":
+
+> ja, mach 1-3 wie vorgeschlagen
+
+Recorded as **ADR-0046**: the CLI runs its incremental scan before every
+read, also while the app is live; `indexSource` now only reports whether
+the app is live.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

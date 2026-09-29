@@ -27,8 +27,9 @@ pub struct IndexOut {
     pub files: usize,
     /// The cache was not refreshed by this invocation.
     pub stale: bool,
-    /// "app" when the desktop watcher's heartbeat is younger than 10 s,
-    /// else "scan".
+    /// "app" when the desktop watcher's heartbeat is younger than 10 s (the
+    /// app keeps this cache current too), else "scan". The CLI scans first
+    /// either way (ADR-0046).
     pub index_source: String,
     /// The app version recorded in the cache, null when no app has opened it.
     pub app_version: Option<String>,
