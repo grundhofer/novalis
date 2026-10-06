@@ -108,6 +108,17 @@ fn visible_entries(root: &Path, folder: &str) -> IpcResult<Vec<EntryDto>> {
         .collect())
 }
 
+/// The vault root with its own symlinks resolved, once, as the CLI does
+/// (PLAN.md §5.5, rule 7); files below it are never resolved. FSEvents reports
+/// real paths, so a watcher on an alias root dropped every event: Drive 131
+/// Mirror leaves `CloudStorage/GoogleDrive-…/Meine Ablage` as a symlink to
+/// `~/Meine Ablage`, and an open note never saw an external edit (checklist
+/// S4, 2026-10-04).
+fn resolve_root(path: &str) -> PathBuf {
+    let root = PathBuf::from(path);
+    std::fs::canonicalize(&root).unwrap_or(root)
+}
+
 /// Read a vault root without touching any shell state: metadata, the board
 /// list and the root listing. Safe to run on a pool thread.
 fn scan_vault(root: &Path) -> IpcResult<VaultOpenDto> {
@@ -264,7 +275,7 @@ pub async fn bootstrap(app: AppHandle, state: State<'_, AppState>) -> IpcResult<
 
     let mut vault = None;
     let mut tree = Vec::new();
-    if let Some(root) = settings.last_vault.as_deref().map(PathBuf::from) {
+    if let Some(root) = settings.last_vault.as_deref().map(resolve_root) {
         let scan_root = root.clone();
         // A vault that moved or lives on an unmounted volume must not stop the
         // app from starting: the UI shows the "open a vault" empty state.
@@ -310,7 +321,7 @@ pub async fn open_vault(
     state: State<'_, AppState>,
     path: String,
 ) -> IpcResult<VaultOpenDto> {
-    let root = PathBuf::from(path);
+    let root = resolve_root(&path);
     let scan_root = root.clone();
     let open = blocking(move || scan_vault(&scan_root)).await?;
     attach_vault(&app, &state, root)?;
@@ -1301,7 +1312,7 @@ mod tests {
             assert!(super::external_url(bad).is_err(), "{bad:?}");
         }
     }
-    use super::{creatable_file_rel, creatable_name, scan_vault};
+    use super::{creatable_file_rel, creatable_name, resolve_root, scan_vault};
 
     /// feature-gaps A32: the old app's `.novalis/config.json` without a
     /// `migrated` stamp in `vault.json` is a legacy vault; the stamp ends it.
@@ -1325,6 +1336,23 @@ mod tests {
         .unwrap();
         assert!(!scan_vault(&root).unwrap().vault.legacy, "migrated");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Checklist S4: a vault opened through a symlinked root is watched at
+    /// its real path; a path that cannot be resolved is kept as given.
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_root_resolves_to_the_real_folder() {
+        let base = std::env::temp_dir().join(format!("novalis-alias-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("real")).unwrap();
+        std::os::unix::fs::symlink(base.join("real"), base.join("alias")).unwrap();
+        let real = std::fs::canonicalize(base.join("real")).unwrap();
+
+        assert_eq!(resolve_root(&base.join("alias").to_string_lossy()), real);
+        let missing = base.join("gone");
+        assert_eq!(resolve_root(&missing.to_string_lossy()), missing);
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// ADR-0014: a §7.3 extension is kept, `.md` is normalised, anything
