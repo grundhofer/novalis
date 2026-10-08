@@ -34,3 +34,14 @@ Only an "Apple Development" signing identity exists on this Mac; distributing ou
 ## Sources
 
 PLAN.md §1 (premise 2), §4.5, §11.4, §14 · docs/DECISIONS.md · docs/RELEASING.md · old repository `RELEASING.md` "Unsigned-build warnings (what users see)"
+
+## Amendment 2026-10-08 — 1.0 ships unsigned too
+
+The revisit trigger above ("the first release without an `-alpha`/`-beta`/`-rc`
+suffix") came up with the File Provider checklist done. Asked how 1.0 should
+be signed, the owner answered "Stay unsigned (Recommended)". 1.0.0 and its
+release candidate ship exactly as the alphas did: ad-hoc signed DMG,
+`SHA256SUMS`, build-provenance attestations, the right-click / `xattr` note in
+both languages. The signing steps in `release.yml` stay dormant behind the
+secrets. New revisit trigger: the owner's enrolment in the Apple Developer
+Program. No certificate exists, so there is no team id to record.

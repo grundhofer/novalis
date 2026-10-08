@@ -743,6 +743,23 @@ Recorded as **ADR-0046**: the CLI runs its incremental scan before every
 read, also while the app is live; `indexSource` now only reports whether
 the app is live.
 
+## Answered 2026-10-08
+
+With every row of the File Provider checklist done, two questions before the
+release that follows alpha.2: which version, given that 24 features
+(ADR-0026…0046) and the checklist fixes have not shipped in any release and
+the CLI contract freezes at 1.0.0; and how to sign it, since ADR-0010 is to
+be revisited at the first release without a suffix:
+
+> 1.0.0-rc.1 first (Recommended)
+
+> Stay unsigned (Recommended)
+
+The next tag is `v1.0.0-rc.1` (release notes `docs/releases/v1.0.0-rc.1.md`);
+1.0.0 follows with the same content once the candidate has been used.
+Recorded as the 2026-10-08 amendment of **ADR-0010**: 1.0 also ships
+unsigned; the revisit trigger becomes the owner's enrolment.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
