@@ -92,7 +92,10 @@ export const useTabs = create<TabsState>((set, get) => ({
     // The tab is there at once and the pane says "loading" while the file is
     // read — which for a cloud-only note is a download of up to 30 s (PLAN.md
     // §2.3 rule 7: a visible state and a timeout). A read that fails takes
-    // the tab away again and leaves the previous one current.
+    // the tab away again and leaves the previous one current. Closing the tab
+    // while it loads is the cancel: the download cannot be stopped, but its
+    // result is dropped — no doc without a tab, no error for a tab that is
+    // gone.
     const added = !get().tabs.includes(path);
     const previous = get().active;
     if (added) set((s) => ({ tabs: [...s.tabs, path] }));
@@ -100,6 +103,7 @@ export const useTabs = create<TabsState>((set, get) => ({
       if (!options?.background) await get().activate(path);
       if (!viewKind(path)) await useEditorSave.getState().open(path);
     } catch (error) {
+      if (added && !get().tabs.includes(path)) return;
       if (added) {
         set((s) => ({
           tabs: s.tabs.filter((t) => t !== path),
@@ -109,6 +113,10 @@ export const useTabs = create<TabsState>((set, get) => ({
         }));
       }
       throw error;
+    }
+    if (added && !get().tabs.includes(path)) {
+      await useEditorSave.getState().close(path);
+      return;
     }
     if (options?.background) return;
     // Opening from quick-open or a link should show where the note lives.
