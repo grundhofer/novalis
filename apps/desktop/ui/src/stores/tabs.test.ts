@@ -196,6 +196,37 @@ describe("useTabs.open while the file is read", () => {
     expect(useTabs.getState()).toMatchObject({ tabs: ["a.md"], active: "a.md", history: ["a.md"] });
   });
 
+  it("drops the result when the tab is closed while it loads", async () => {
+    let finish: () => void = () => undefined;
+    const close = vi.fn().mockResolvedValue(undefined);
+    useEditorSave.setState({
+      open: vi.fn(() => new Promise<never>((resolve) => (finish = () => resolve(undefined as never)))),
+      close,
+    });
+
+    const opening = useTabs.getState().open("cloud.md");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useTabs.setState({ tabs: ["a.md"], active: "a.md" });
+    finish();
+    await opening;
+    expect(close).toHaveBeenCalledWith("cloud.md");
+    expect(useTabs.getState()).toMatchObject({ tabs: ["a.md"], active: "a.md" });
+  });
+
+  it("raises no error when a load fails after its tab was closed", async () => {
+    let fail: () => void = () => undefined;
+    useEditorSave.setState({
+      open: vi.fn(() => new Promise<never>((_, reject) => (fail = () => reject(new Error("materialize_timeout"))))),
+    });
+
+    const opening = useTabs.getState().open("cloud.md");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useTabs.setState({ tabs: ["a.md"], active: "a.md" });
+    fail();
+    await expect(opening).resolves.toBeUndefined();
+    expect(useTabs.getState().tabs).toEqual(["a.md"]);
+  });
+
   it("keeps a tab that was already open when reading it again fails", async () => {
     useTabs.setState({ tabs: ["a.md", "cloud.md"] });
     useEditorSave.setState({ open: vi.fn().mockRejectedValue(new Error("io")) });
