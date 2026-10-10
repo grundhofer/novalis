@@ -152,11 +152,11 @@ ich will so ein homebrew repo") carries two files, because a cask has one
 Both take their checksums from the release's **published** `SHA256SUMS`, not
 from a local run's: a re-run of `release.yml` rebuilds the tarballs with new
 timestamps and new digests (the first tap commit had the first run's CLI
-digest and failed `brew fetch`). Both carry a `livecheck` block that keeps
-pre-releases, since Homebrew's `github_releases` strategy drops them by
-default and there is nothing else before 1.0.0. `brew audit --cask` reports
-"is a GitHub pre-release" for the same reason; that is the main tap's rule,
-not a defect here.
+digest and failed `brew fetch`). Both carry a `livecheck` block with the
+`github_latest` strategy, so Homebrew offers stable releases only (owner,
+2026-10-10: "ja, nur stabile anbieten"); before 1.0.0 the block kept
+pre-releases, because there was nothing else. A pre-release is therefore
+not put into the tap.
 
 After publishing a release:
 
