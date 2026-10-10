@@ -65,7 +65,7 @@ Available now (the core harness):
 | `ls [folder] [--tree] [--tag T] [--sort S] [--limit N] [--fields F]` | list notes: `path stem title linkTarget folder tags modified size sha256 cloudOnly` |
 | `cat <note>… [--body\|--frontmatter] [--lines A:B] [--materialize]` | read notes; `links[]` carries `resolvedPath`; exit 8 if cloud-only; an exact path to a non-note text file reads that file |
 | `new <path> [--tag T]… [--content <text\|->] [--exist-ok]` | create; title = stem; exit 4 if it exists |
-| `edit <note> <one edit flag> [--nth N] [--if-match S]` | one atomic text edit (`--append`, `--prepend`, `--replace-section`, `--insert-after-section`, `--find/--replace`, `--set-body -`); frontmatter untouched |
+| `edit <note> <one edit flag> [--nth N] [--if-match S]` | one atomic text edit (`--append`, `--prepend`, `--replace-section "## H" --content …`, `--insert-after-section "## H" --content …`, `--find/--replace`, `--set-body -`); frontmatter untouched |
 | `journal [--date YYYY-MM-DD\|today\|yesterday] [--append <text\|->]` | today's (local) `journal/<date>.md`, created when missing, optionally appended to — never compute the date yourself |
 | `mv <from> <to> [--no-relink] [--force] [--materialize]` | rename or move, then rewrite every link form and card reference |
 | `rm <note> [--force] [--materialize]` | macOS Trash; exit 5 while backlinks point here |
