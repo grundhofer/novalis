@@ -119,6 +119,23 @@ pub fn find_sections(body: &str, wanted: &str) -> Vec<Section> {
     out
 }
 
+/// The byte range of a section's content: its body without the blank lines
+/// that open and close it, so an edit keeps the spacing around the heading
+/// and before the next one. An all-blank body yields an empty range after
+/// its first line.
+pub fn content_span(body: &str, s: &Section) -> (usize, usize) {
+    let off = s.body_start;
+    let lines = lines_of(&body[s.body_start..s.body_end]);
+    let filled = |l: &&Line<'_>| !l.text.trim().is_empty();
+    match (lines.iter().find(filled), lines.iter().rev().find(filled)) {
+        (Some(first), Some(last)) => (off + first.start, off + last.next),
+        _ => {
+            let at = lines.first().map_or(off, |l| off + l.next);
+            (at, at)
+        }
+    }
+}
+
 /// Which lines sit inside a ``` or ~~~ fence.
 fn fenced_lines(lines: &[Line<'_>]) -> Vec<bool> {
     let mut out = vec![false; lines.len()];
@@ -278,6 +295,25 @@ mod tests {
         let body = "## Real\n```\n## Fake\n```\ntail\n";
         assert!(find_sections(body, "## Fake").is_empty());
         assert_eq!(find_sections(body, "## Real").len(), 1);
+    }
+
+    #[test]
+    fn the_content_span_leaves_the_blank_lines_around_a_section() {
+        fn span<'a>(body: &'a str, h: &str) -> (&'a str, &'a str, &'a str) {
+            let (a, b) = content_span(body, &find_sections(body, h)[0]);
+            (&body[..a], &body[a..b], &body[b..])
+        }
+        assert_eq!(
+            span("## A\n\nx\ny\n\n## B\n", "## A"),
+            ("## A\n\n", "x\ny\n", "\n## B\n")
+        );
+        assert_eq!(span("## A\nx\n## B\n", "## A"), ("## A\n", "x\n", "## B\n"));
+        assert_eq!(span("## A\n\nx", "## A"), ("## A\n\n", "x", ""));
+        assert_eq!(
+            span("## A\n\n\n## B\n", "## A"),
+            ("## A\n\n", "", "\n## B\n")
+        );
+        assert_eq!(span("## A\n", "## A"), ("## A\n", "", ""));
     }
 
     #[test]

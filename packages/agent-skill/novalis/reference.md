@@ -134,8 +134,8 @@ Exactly one edit flag per call:
 |---|---|
 | `--append <text\|->` | add at the end of the body (a newline is inserted if the file does not end with one) |
 | `--prepend <text\|->` | insert after the frontmatter block (or at the top) |
-| `--replace-section "## Heading" --content <text\|->` | keep the heading line, replace the lines below it up to the next heading of the same or higher level |
-| `--insert-after-section "## Heading" --content <text\|->` | insert after that section's last line |
+| `--replace-section "## Heading" --content <text\|->` | keep the heading line, replace the lines below it up to the next heading of the same or higher level; blank lines that open and close the section stay |
+| `--insert-after-section "## Heading" --content <text\|->` | insert after that section's last non-blank line |
 | `--find <text> --replace <text> [--regex] [--expect N]` | replace every match; with `--expect N` the edit is refused (exit 4) unless exactly N matches exist; default `--expect 1` |
 | `--set-body -` | replace the whole body from stdin; frontmatter kept |
 
