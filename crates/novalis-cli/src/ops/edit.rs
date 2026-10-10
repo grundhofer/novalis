@@ -17,7 +17,7 @@ use crate::ctx::Ctx;
 use crate::error::CliError;
 use crate::note::{load_for_write, DEFAULT_TIMEOUT};
 use crate::output::Render;
-use crate::text::{block_at, find_sections, line_ending, unified_diff, Section};
+use crate::text::{block_at, content_span, find_sections, line_ending, unified_diff, Section};
 use crate::util::text_arg;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -157,17 +157,19 @@ fn apply(args: &EditArgs, body: &str, path: &str) -> Result<String, CliError> {
     if let Some(heading) = &args.replace_section {
         let section = pick_section(body, heading, args.nth, path)?;
         let insert = text_arg(args.content.as_deref().unwrap_or(""))?;
-        let mut out = body[..section.body_start].to_string();
-        out.push_str(&block_at(body, section.body_start, &insert, eol));
-        out.push_str(&body[section.body_end..]);
+        let (start, end) = content_span(body, &section);
+        let mut out = body[..start].to_string();
+        out.push_str(&block_at(body, start, &insert, eol));
+        out.push_str(&body[end..]);
         return Ok(out);
     }
     if let Some(heading) = &args.insert_after_section {
         let section = pick_section(body, heading, args.nth, path)?;
         let insert = text_arg(args.content.as_deref().unwrap_or(""))?;
-        let mut out = body[..section.body_end].to_string();
-        out.push_str(&block_at(body, section.body_end, &insert, eol));
-        out.push_str(&body[section.body_end..]);
+        let (_, end) = content_span(body, &section);
+        let mut out = body[..end].to_string();
+        out.push_str(&block_at(body, end, &insert, eol));
+        out.push_str(&body[end..]);
         return Ok(out);
     }
     if let Some(find) = &args.find {

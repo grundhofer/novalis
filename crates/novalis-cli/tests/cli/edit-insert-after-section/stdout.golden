@@ -1,0 +1,8 @@
+{
+  "changed": true,
+  "diff": "@@ -27,0 +27,1 @@\n+- One added line.\n",
+  "dryRun": true,
+  "path": "reading/slow-software.md",
+  "sha256After": "127bcb82192d43eed6e96555e651dc84e3390a396103bb4eb497c5cdc00c6fe4",
+  "sha256Before": "9cf1c038ed9d9d36f424bf2387f397dc756d929f93a80214a18d726084880bfc"
+}
