@@ -64,7 +64,11 @@ git push origin v1.0.0-alpha.1
    build cannot start before every CI job is green, and the gate can never drift
    from the PR gate because it is the same file;
 2. builds the app with `tauri-action` v1 (arm64 DMG; ad-hoc signature from the
-   bundler) and the CLI tarball `novalis-cli-<ver>-arm64.tar.gz`;
+   bundler, because `tauri.conf.json` sets `bundle.macOS.signingIdentity` to
+   `"-"`; without it the bundler does not sign at all, and v1.0.0-alpha.1 …
+   v1.0.0 shipped that way, which macOS reports as "damaged") and the CLI
+   tarball `novalis-cli-<ver>-arm64.tar.gz`, then checks the bundle signature
+   of the app inside the DMG (`codesign --verify --deep --strict`);
 3. runs the signing and notarization steps **only if the secrets exist** (they
    do not this year, see below);
 4. writes `SHA256SUMS`, attaches build-provenance attestations, and creates the
@@ -84,6 +88,10 @@ Asset checklist on the draft:
   v1.0.0-alpha.1 — the workflow had never built it — and added on 2026-09-18.
 - `SHA256SUMS` listing every other asset
 - attestations verify: `gh attestation verify <file> --repo grundhofer/novalis`
+- the app's signature verifies: mount the DMG, then
+  `codesign --verify --deep --strict /Volumes/novalis/novalis.app` prints
+  nothing and exits 0. `codesign -dv` alone is not enough: it shows
+  `Signature=adhoc` for an unsigned bundle too
   (one file per call)
 
 ## Unsigned builds: what users see, and the note every release carries

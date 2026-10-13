@@ -195,6 +195,22 @@ jobs:
           # Everything after `--` is forwarded to cargo by the tauri CLI.
           args: --target aarch64-apple-darwin -- --locked
 
+      # The app inside the DMG must carry a valid bundle signature, ad-hoc or
+      # Developer ID. Without one (only the linker's signature on the binary)
+      # macOS calls a downloaded copy "damaged" and offers only the Trash; that
+      # shipped in v1.0.0-alpha.1 … v1.0.0. A red run means: do not publish.
+      - name: Verify the app's signature
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          DMG="target/aarch64-apple-darwin/release/bundle/dmg/novalis_${TAG#v}_aarch64.dmg"
+          MNT="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$DMG"
+          trap 'hdiutil detach -quiet "$MNT"' EXIT
+          codesign --verify --deep --strict --verbose=2 "$MNT/novalis.app"
+          codesign -dv "$MNT/novalis.app" 2>&1 | grep -E '^(Signature|Sealed Resources)'
+
       # PLAN.md §9.4: the CLI is also published on its own.
       - name: Package the CLI
         id: cli
