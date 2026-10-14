@@ -169,8 +169,8 @@ fn split_ext(name: &str) -> (&str, &str) {
 
 /// OneDrive on the Mac appends the computer name, not the hostname, and the
 /// macOS default one has spaces and may have letters beyond ASCII and an
-/// apostrophe: `Note-MacBook Pro von Sebastian.md`, `Note-Jürgens MacBook.md`,
-/// `Note-Sebastian's MacBook Pro.md` (checklist A4, 2026-09-29).
+/// apostrophe: `Note-MacBook Pro von Alex.md`, `Note-Jürgens MacBook.md`,
+/// `Note-Alex's MacBook Pro.md` (checklist A4, 2026-09-29).
 fn host_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"^[\p{L}\p{N}][\p{L}\p{N} '’-]*$").unwrap())
@@ -434,7 +434,7 @@ mod tests {
             Some(("board.json".into(), ConflictCopyKind::Numbered))
         );
         assert_eq!(
-            c("Note (Sebastian's conflicted copy 2026-09-05).md"),
+            c("Note (Alex's conflicted copy 2026-09-05).md"),
             Some(("Note.md".into(), ConflictCopyKind::ConflictedCopy))
         );
         assert_eq!(
@@ -451,18 +451,18 @@ mod tests {
         );
         // The names OneDrive 26.x on macOS 26.6 actually wrote (checklist A4).
         assert_eq!(
-            c("a4-konflikt-MacBook Pro von Sebastian.md"),
+            c("a4-konflikt-MacBook Pro von Alex.md"),
             Some(("a4-konflikt.md".into(), ConflictCopyKind::Host))
         );
         assert_eq!(
-            c("01M3QFZ1S2N8MKXGZTT38NP6ZC-MacBook Pro von Sebastian.json"),
+            c("01M3QFZ1S2N8MKXGZTT38NP6ZC-MacBook Pro von Alex.json"),
             Some((
                 "01M3QFZ1S2N8MKXGZTT38NP6ZC.json".into(),
                 ConflictCopyKind::Host
             ))
         );
         assert_eq!(
-            c("Note-Sebastian’s MacBook Pro.md"),
+            c("Note-Alex’s MacBook Pro.md"),
             Some(("Note.md".into(), ConflictCopyKind::Host))
         );
         assert_eq!(

@@ -1,6 +1,6 @@
 # Spec: Editorial-Print (editorial-print)
 
-Catalog mode: light. Demo to look at: /Users/sgrundhoefer/Projects/designSprache/styles/editorial-print.html · Fact sheet: /Users/sgrundhoefer/Projects/designSprache/styles/editorial-print.json
+Catalog mode: light. Demo to look at: ~/Projects/designSprache/styles/editorial-print.html · Fact sheet: ~/Projects/designSprache/styles/editorial-print.json
 
 ## From the design report
 
@@ -28,7 +28,7 @@ KNOWN FAILURE MODES (risks, verbatim): Interaktive Dichte ist der Feind: Toolbar
 ACCESSIBILITY (sheet): ink on paper ~15:1 (measured 17.3:1); small caps 10-12px are at the legibility limit and must carry >= 4.5:1; status never by italic/grey alone — hence the filled/empty square; hairlines vanish in Windows high-contrast, structure must stand without them. TIP (verbatim): Vertikalrhythmus vor Ornament. Leg eine Basiszeile fest (z.B. 24px) und binde jede Zeilenhöhe, jeden Abstand und jede Hairline an ihr Vielfaches.
 
 HOW NOVALIS LOOKS IN EDITORIAL-PRINT: Window = a page: native macOS title bar, then a 'running head' row (Kolumnentitel): small caps 12px 0.16em muted 'vault · folder' left, hairline in the middle, italic red file name + word count right, 1px rule underneath. File tree = the Marginalspalte: 200-240px column with a 1px right rule, folder names as small-caps rubrics, files in Newsreader 15px, modified time italic 12px muted, active file in red with ■ marker, no background fills. Editor: Newsreader 16-17px / 1.55-1.6, measure 66ch, first paragraph of a note may get the 3-line red initial (optional device); h1 Instrument Serif 44-54px 0.92, h2 28px, h3 small caps; blockquote italic with 1px left rule; lists with hanging indent; wikilinks red underline; @due tasks as ■/□ glyph + small-caps date; code blocks in ui-monospace on paper-2 with 1px rule left. Kanban: newspaper columns — vertical 1px rules between columns, column head in small caps 0.22em + Roman numeral (I, II, III as in the demo's rank) + count in Instrument Serif red; cards are entries: title Instrument Serif 20-22px, caption italic 13px, status small caps + ■/□, hairline between cards, no boxes, no radius, no shadow; drag = 1px ink outline, drop target = 1px ink rule. Modals / command palette: a sheet with 3px double rule top and bottom (the demo frame), no shadow, scrim rgba(23,20,15,.25); search field = 'Register' small caps + italic input on a rule; buttons small caps, primary ink fill. Fleuron (❧ U+2767) between hr sections as the single ornament.
-_evidence: /Users/sgrundhoefer/Projects/designSprache/styles/editorial-print.json (full), styles/editorial-print.html (full CSS), build.py FONT_SPECS; contrast computed; dark palette DERIVED (ASSUMED)_
+_evidence: ~/Projects/designSprache/styles/editorial-print.json (full), styles/editorial-print.html (full CSS), build.py FONT_SPECS; contrast computed; dark palette DERIVED (ASSUMED)_
 
 
 

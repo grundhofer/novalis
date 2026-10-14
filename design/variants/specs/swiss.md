@@ -1,6 +1,6 @@
 # Spec: Swiss (swiss)
 
-Catalog mode: light. Demo to look at: /Users/sgrundhoefer/Projects/designSprache/styles/swiss.html · Fact sheet: /Users/sgrundhoefer/Projects/designSprache/styles/swiss.json
+Catalog mode: light. Demo to look at: ~/Projects/designSprache/styles/swiss.html · Fact sheet: ~/Projects/designSprache/styles/swiss.json
 
 ## From the design report
 
@@ -28,7 +28,7 @@ KNOWN FAILURE MODES (risks, verbatim): Ohne exzellente Typografie und echte Rast
 ACCESSIBILITY (sheet): 19.7:1 body; secondary grey must be >= #6E6E6E (5.1:1); micro type never under 11px, tracking over 0.2em lowers word recognition; status never red-only (always word + form); hairline dividers can vanish for low vision so structure must stand without them; focus ring 2px red, never 1px grey. TIP (verbatim): Mach das Raster einmal sichtbar, statt es nur zu befolgen: eine Hairline auf einer Spaltenachse, eine Legendenzeile über der Liste, eine leere Randspalte, die konsequent leer bleibt.
 
 HOW NOVALIS LOOKS IN SWISS (my translation of the rules): Window: native macOS title bar (hiddenInset, traffic lights) on plain paper, no custom chrome; the whole window is one sheet with at most a 1px ink frame. File tree (left, ~240px): a typographic index — 9px caps legend row ('Name · Geändert'), 1px hairline under every entry, folders 500 weight, files 400, modified time 12px grey tabular; active file marked by a 2px red bar on the left edge (same device as the demo input's border-left) and 700 weight, no background fill; tree/editor separated by a single 1px vertical hairline sitting on a column axis. Editor: prose Inter 16-17px / line-height 1.5, measure 66-72ch, left-aligned at column 2, the right margin column stays EMPTY (this is the style's signature); h1 700 -0.045em, h2 500; markdown syntax marks in grey #6E6E6E; code in monospace (style defines none — use ui-monospace/SF Mono, flagged deviation); blockquote = 1px ink left rule; wikilinks ink with 1px red underline; @due tasks: 7px square checkbox (filled = done). Kanban: columns are NOT boxes — vertical 1px hairlines on column axes, column head = 9-10px caps 0.2em grey + count in red tabular figures; cards = rows: title 15px/500, meta 12px grey, hairline between cards, radius 0, no shadow; state = filled/hollow 7px square + word; linked note shown as an underlined title; drag = 1px ink outline, drop target = 3px ink rule. Modals / command palette: a sheet with 1px ink border, no shadow, on a white or #FFFFFFD9 scrim; buttons 44px caps; quick-open list identical to the tree rows. Status bar (optional): 9px caps grey, 6x96px red bar as the only colour (demo 'fuss').
-_evidence: /Users/sgrundhoefer/Projects/designSprache/styles/swiss.json (full), styles/swiss.html (full CSS); contrast ratios computed with WCAG formula; dark palette DERIVED (ASSUMED, not in catalog)_
+_evidence: ~/Projects/designSprache/styles/swiss.json (full), styles/swiss.html (full CSS); contrast ratios computed with WCAG formula; dark palette DERIVED (ASSUMED, not in catalog)_
 
 
 

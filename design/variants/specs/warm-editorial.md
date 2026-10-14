@@ -1,6 +1,6 @@
 # Spec: Warm Editorial (warm-editorial)
 
-Catalog mode: light. Demo to look at: /Users/sgrundhoefer/Projects/designSprache/styles/warm-editorial.html · Fact sheet: /Users/sgrundhoefer/Projects/designSprache/styles/warm-editorial.json
+Catalog mode: light. Demo to look at: ~/Projects/designSprache/styles/warm-editorial.html · Fact sheet: ~/Projects/designSprache/styles/warm-editorial.json
 
 ## From the design report
 
@@ -28,7 +28,7 @@ KNOWN FAILURE MODES (risks, verbatim): Falsche Dichte für Applikations-UI: Tabe
 ACCESSIBILITY (sheet): #2B2622 on #FAF7F2 ~13:1 (measured 14:1); large line-height and limited measure match dyslexia recommendations; small caps under 10px and italic serif placeholders are hard to read; ink-3 #8A7E6F (3.9:1) only for casual metadata, labels/placeholders in ink-2 #5C5348 (7.4:1); the paused ochre pulled to #8A6A1E (~5:1) because it is set at 9.5px caps; status additionally coded by wording and position. TIP (verbatim): Warm sein heißt nicht beige sein: den Farbton einmal festlegen (etwa Hue 34-40) und konsequent durch die gesamte Skala ziehen - Papier, Tinte, Lineale, Schatten und sogar die Statusfarben.
 
 HOW NOVALIS LOOKS IN WARM EDITORIAL: Window: native macOS title bar, everything on paper #FAF7F2. The editor is 'the sheet': a #FFFDFA panel radius 14px, 1px rule-soft border, the warm 3-layer shadow, 40-56px inner padding, prose Newsreader 17-18px/1.7 at 64ch, h1 Instrument Serif 40-58px, kicker line above the title (Inter 10px caps 0.18em: 'Notizen / Projekte / …' + date) with a rule in the middle; wikilinks in accent; @due tasks as italic dates with a 2px dash; code in ui-monospace on tint. File tree: sits directly on paper without a box: section heads as Inter micro-labels (ink-3, 10px caps), entries Newsreader 15px with dotted leaders (demo .leader) to an italic time, active = accent text, hover = tint gradient; folders indented, counts in Instrument Serif oldstyle figures. Kanban: columns are sheets (radius 14px, warm shadow) on paper, head = Instrument Serif 26-30px + Inter micro-label count; cards inside separated by rule-soft hairlines (no card boxes — the sheet is the container), title Newsreader 17px, meta italic, state micro-label green/ochre with dash; drag = card lifts 1px with warm shadow; alternative with cards as small radius-8px sheets is possible but doubles shadows (not recommended). Modals / command palette: a sheet radius 14px with the warm shadow on a warm scrim rgba(43,38,34,.35); search field = micro-label + italic underline input; primary button dark-ink radius 10px with inset highlight, quiet button = underline. Dark mode: same structure on the derived warm dark ladder; the sheet lifts by border + shadow only.
-_evidence: /Users/sgrundhoefer/Projects/designSprache/styles/warm-editorial.json (full), styles/warm-editorial.html (full CSS); contrast computed; dark palette DERIVED (ASSUMED)_
+_evidence: ~/Projects/designSprache/styles/warm-editorial.json (full), styles/warm-editorial.html (full CSS); contrast computed; dark palette DERIVED (ASSUMED)_
 
 
 

@@ -1,6 +1,6 @@
 # novalis — the editor stack, file-type handling and the JS bundle today
 
-Read-only analysis, 2026-09-19, repository `/Users/sgrundhoefer/Projects/novalis` at `aeead36` (main, clean before and after; `dist/` is git-ignored). Everything under **Verified** was read in code or measured with the commands quoted; **Inferred** is marked as such. Installed versions (pnpm-lock.yaml): `@codemirror/view 6.43.12`, `state 6.7.5`, `language 6.12.4`, `language-data 6.5.2`, `legacy-modes 6.5.4`, `lang-markdown 6.5.2`, `lang-yaml 6.1.3`, `@lezer/markdown 1.7.2`, `@lezer/javascript 1.5.4`, `@lezer/highlight 1.2.3`, Vite 8.3 (rolldown), node 22.23.2, pnpm 11.0.9.
+Read-only analysis, 2026-09-19, repository `~/Projects/novalis` at `aeead36` (main, clean before and after; `dist/` is git-ignored). Everything under **Verified** was read in code or measured with the commands quoted; **Inferred** is marked as such. Installed versions (pnpm-lock.yaml): `@codemirror/view 6.43.12`, `state 6.7.5`, `language 6.12.4`, `language-data 6.5.2`, `legacy-modes 6.5.4`, `lang-markdown 6.5.2`, `lang-yaml 6.1.3`, `@lezer/markdown 1.7.2`, `@lezer/javascript 1.5.4`, `@lezer/highlight 1.2.3`, Vite 8.3 (rolldown), node 22.23.2, pnpm 11.0.9.
 
 ---
 

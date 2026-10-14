@@ -1,6 +1,6 @@
 # Spec: Flat 2.0 (Kontrollreihe) (flat)
 
-Catalog mode: both. Demo to look at: /Users/sgrundhoefer/Projects/designSprache/styles/flat.html · Fact sheet: /Users/sgrundhoefer/Projects/designSprache/styles/flat.json
+Catalog mode: both. Demo to look at: ~/Projects/designSprache/styles/flat.html · Fact sheet: ~/Projects/designSprache/styles/flat.json
 
 ## From the design report
 

@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-CATALOG = Path('/Users/sgrundhoefer/Projects/designSprache/styles')
-DESIGN_REPORT = Path('/Users/sgrundhoefer/Projects/novalis/docs/research/2026-09-05-design.md')
+CATALOG = Path.home() / 'Projects/designSprache/styles'
+DESIGN_REPORT = Path.home() / 'Projects/novalis/docs/research/2026-09-05-design.md'
 
 STYLES = [
     # slug, display name, leading (gets the layout alternates), catalog mode

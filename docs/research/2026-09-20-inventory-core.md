@@ -1,6 +1,6 @@
 # Inventory: core — how the core, the shell and the CLI treat file types, and what the perf harness measures
 
-Repository: `/Users/sgrundhoefer/Projects/novalis` at `aeead36` (main, 2026-09-19). Read-only analysis; the only things executed were `cargo build -p novalis-cli`, `cargo build --release -p novalis-core --example perf`, the fixture generator into the scratchpad, and the debug CLI against a scratch vault. Nothing in the repository was modified.
+Repository: `~/Projects/novalis` at `aeead36` (main, 2026-09-19). Read-only analysis; the only things executed were `cargo build -p novalis-cli`, `cargo build --release -p novalis-core --example perf`, the fixture generator into the scratchpad, and the debug CLI against a scratch vault. Nothing in the repository was modified.
 
 Legend: **[code]** = verified by reading the cited lines · **[run]** = verified by executing · **[infer]** = my inference.
 

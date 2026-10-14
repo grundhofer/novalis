@@ -1,6 +1,6 @@
 # novalis — the UI surface as a user experiences it today
 
-Read-only analysis of `/Users/sgrundhoefer/Projects/novalis` at `main` (`aeead36`, 2026-09-19).
+Read-only analysis of `~/Projects/novalis` at `main` (`aeead36`, 2026-09-19).
 Everything below is **verified in code** unless marked *inferred*. Paths are repo-relative;
 `ui/` means `apps/desktop/ui/src/`, `shell/` means `apps/desktop/src-tauri/src/`.
 
