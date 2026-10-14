@@ -12,7 +12,7 @@ into the spike write-up. An empty Result means "not run", never "passed".
 |---|---|
 | Date | Spike runs 2026-09-05–09-08; app run 2026-09-17; release checks S1 2026-09-23, S2 2026-09-29–30, S3 2026-10-03. Evidence reconciled 2026-10-04; S4 partial 2026-10-04; CloudStorage-alias fix #198 re-verified and A1/A10/C7 batch counts measured 2026-10-08. |
 | macOS | 26.6 (25G72), Apple Silicon |
-| Machine / hostname (appears in conflict-copy names) | MacBook-Pro-von-Sebastian |
+| Machine / hostname (appears in conflict-copy names) | MacBook-Pro-von-<owner> |
 | OneDrive client version | 26.153.0809 |
 | Google Drive for desktop version | 130.0.2.0 for the 2026-09-07 spike; S4 2026-10-04: 131.0 / bundle build 131.0.2 |
 | Second client used for concurrent edits | S2: OneDrive web; S3: Drive web (file-version replacement/upload), plus owner’s Drive phone app. |
@@ -38,7 +38,7 @@ the app, placed at the path in the section header. Never use a personal vault.
 | [x] | A1 | FSEvents delivery inside CloudStorage | Edit a note from the second client; watch the app's `fs-batch` events | One batch within ~100 ms of the local file changing; no kqueue fallback | 2026-09-29, OneDrive web → Mac: content arrived in ~3.3 s; clean tab reloaded silently. Provider emitted 5 FSEvents over ~530 ms (evict, hydrate, rename-in), so the single-batch/~100 ms expectation is not established. The earlier NFC/NFD event-loss defect was fixed 2026-09-07. **2026-10-08, release `9d5aeb0` with a temporary, uncommitted `eprintln!` of every emitted `FsBatch` in `watcher::spawn`:** the owner edited `s2/a1-web.md` in OneDrive web while the app had it open and clean. The open buffer showed the new line, with no banner and no conflict copy. The trace logged **4 batches over 1.18 s** for this one change: evict (`cloud_only: true`), two hydrate/metadata updates, then the new size and mtime. The app sends one batch per 100 ms debounce window as designed; OneDrive spreads its own sequence over ~1.2 s, so 'one batch' does not hold on OneDrive. The final state is right and nothing is lost, so this is recorded as **Known**, not a defect. The intermediate batch marks the open note cloud-only for ~0.3 s; the open buffer was unaffected. |
 | [x] | A2 | temp + rename write does not create a conflict copy | Save a note in the app 20× while the client is idle | Zero `<stem>-<host>.md` siblings appear | 2026-09-23: 20 app autosaves, new inode each time, then 60 s settle: zero conflict siblings. Earlier Spike A also found no duplicates. A dedicated 20-save web-version inspection was not recorded. |
 | [x] | A3 | temp + rename keeps extended attributes | `xattr -l` on a note before and after an app save | Same xattr set (including the provider's own) |  Verified 2026-09-05: OneDrive attaches no xattr of its own; synced files carry only `com.apple.provenance` (kernel-set). No provider-owned xattr can be lost. A *user* xattr on the old inode does not survive, because temp+rename replaces the inode. |
-| [x] | A4 | Conflict-copy naming via the web UI | Edit the same note offline in the app and in the web UI, reconnect | Sibling named `<stem>-<host>.md` (record the exact form); app detects and lists it | 2026-09-29: actual sibling `a4-konflikt-MacBook Pro von Sebastian.md`; local edit becomes the copy, web edit keeps the original name. Spaced computer names initially escaped detection; fixed in PR #193 (`1ae65fb`), then `sync status` listed this copy. |
+| [x] | A4 | Conflict-copy naming via the web UI | Edit the same note offline in the app and in the web UI, reconnect | Sibling named `<stem>-<host>.md` (record the exact form); app detects and lists it | 2026-09-29: actual sibling `a4-konflikt-MacBook Pro von <owner>.md`; local edit becomes the copy, web edit keeps the original name. Spaced computer names initially escaped detection; fixed in PR #193 (`1ae65fb`), then `sync status` listed this copy. |
 | [x] | A5 | `ä` / NFD-named note round trip | Create `Ärger mit Sync.md` in the app; rename it on the web; sync back | Name arrives NFC-equal; tree shows one entry; links still resolve | 2026-09-29: web rename to NFD stored NFD on the server; Mac retained NFC name and inode, no duplicate, path links resolved. A stem link was ambiguous because a second test note shared its stem. |
 | [x] | A6 | Case-only rename | Rename `Readme.md` → `README.md` in the app | Same inode, one file after sync, no duplicate on the web | 2026-09-29: same inode, exactly one README.md on disk and web. External case-only rename exposed a phantom old tree row; fixed in PR #194 (`8f13fea`), re-verified 2026-09-30 with one CASETEST.md row. Folder case-only rename not covered. |
 | [x] | A7 | Same-card edit on two clients under `boards/test/cards/` | Edit one card offline on both clients, reconnect | One sibling with the same `id`; app keeps the newer `updated`, moves the loser to `conflicts/`, shows the one-line notice | 2026-09-29: card conflict sibling used the spaced computer name. On vault reopen, the newer card won, loser moved into `conflicts/`, and the notice appeared. Reconciliation occurs on the first board read after vault open, not immediately while the board remains open. |
@@ -109,13 +109,13 @@ passing a current path does not explain an earlier conflicting observation.
 Observed 2026-10-04 on this Mac, `a2986c2` with a temporary watcher trace:
 Drive settings selected Mirror and reported synced. The 76 existing test-vault
 files were all materialized. `CloudStorage/GoogleDrive-<account>/Meine Ablage`
-is now a symlink to `/Users/sgrundhoefer/Meine Ablage`.
+is now a symlink to `~/Meine Ablage`.
 
 1. Start the app with the old CloudStorage path as `lastVault`, open
    `s4-20261004/d4-clean.md`, then append `CLI CLEAN MIRROR` with the CLI.
    Disk contains the new line, but the open clean buffer stays on `Original`;
    no matching watcher batch was logged.
-2. Select `/Users/sgrundhoefer/Meine Ablage/novalis-test` in the app and restart
+2. Select `~/Meine Ablage/novalis-test` in the app and restart
    to discard the old in-memory documents. The file shows the CLI line.
 3. Append `CLI DIRECT ROOT` with the CLI using this real root. The watcher logs
    the file and the open buffer reloads silently. Dirty-buffer preservation
