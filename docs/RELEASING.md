@@ -100,17 +100,20 @@ Gatekeeper shows *"novalis" can't be opened because Apple could not verify it is
 free of malware* (wording varies by macOS version). Paste this block into
 every release's notes, both languages:
 
-> **macOS: erster Start.** Die App ist nicht von Apple beglaubigt. Rechtsklick
-> auf `novalis.app` ▸ **Öffnen** ▸ **Öffnen** — einmalig. Alternativ:
-> Systemeinstellungen ▸ Datenschutz & Sicherheit ▸ **Trotzdem öffnen**, oder im
-> Terminal `xattr -d com.apple.quarantine /Applications/novalis.app`.
-> Homebrew: `brew install --cask --no-quarantine grundhofer/novalis/novalis`.
+> **macOS: erster Start.** Die App ist nicht von Apple beglaubigt. Beim ersten
+> Öffnen meldet macOS, es könne „novalis" nicht überprüfen. Dann einmalig:
+> Systemeinstellungen ▸ Datenschutz & Sicherheit ▸ unten **Trotzdem öffnen**
+> und bestätigen. Oder im Terminal
+> `xattr -dr com.apple.quarantine /Applications/novalis.app`. (Unter macOS 14
+> geht auch Rechtsklick auf `novalis.app` ▸ **Öffnen**; seit macOS 15 nicht
+> mehr.) Homebrew: `brew install --cask --no-quarantine grundhofer/novalis/novalis`.
 >
-> **macOS: first launch.** The app is not notarized by Apple. Right-click
-> `novalis.app` ▸ **Open** ▸ **Open** — once. Or: System Settings ▸ Privacy &
-> Security ▸ **Open Anyway**, or in Terminal
-> `xattr -d com.apple.quarantine /Applications/novalis.app`.
-> Homebrew: `brew install --cask --no-quarantine grundhofer/novalis/novalis`.
+> **macOS: first launch.** The app is not notarized by Apple. On first open
+> macOS says it could not verify "novalis". Then, once: System Settings ▸
+> Privacy & Security ▸ **Open Anyway** at the bottom, and confirm. Or in
+> Terminal `xattr -dr com.apple.quarantine /Applications/novalis.app`. (On
+> macOS 14 right-clicking `novalis.app` ▸ **Open** also works; since macOS 15
+> it does not.) Homebrew: `brew install --cask --no-quarantine grundhofer/novalis/novalis`.
 >
 > Every asset carries a build-provenance attestation; verify with
 > `gh attestation verify <file> --repo grundhofer/novalis`. That is the proof of
@@ -208,7 +211,7 @@ before the first non-alpha release in 2027):
    | `APPLE_API_KEY_PATH` | contents of the `.p8` key (the workflow writes it to a file) |
 
 4. Push the next tag. `release.yml` detects the secrets, signs, notarizes and
-   staples; the right-click block is dropped from the notes; amend ADR-0010 with
+   staples; the first-launch block is dropped from the notes; amend ADR-0010 with
    the date and team id.
 5. Local check of a signed DMG: `spctl -a -vv -t install novalis_<ver>_aarch64.dmg`.
 

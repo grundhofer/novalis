@@ -158,12 +158,13 @@ jobs:
             novalis ${{ github.ref_name }} — Apple Silicon, macOS 14 or newer.
 
             The build is **unsigned** (no Apple Developer Program enrolment this
-            year). On first launch macOS says the app "cannot be opened because
-            Apple cannot check it for malicious software". Either right-click
-            the app → **Open** → **Open**, or remove the quarantine flag:
+            year). On first launch macOS says it could not verify "novalis".
+            Open System Settings → Privacy & Security → **Open Anyway** once
+            (on macOS 14 right-click the app → **Open** also works), or remove
+            the quarantine flag:
 
             ```sh
-            xattr -d com.apple.quarantine /Applications/novalis.app
+            xattr -dr com.apple.quarantine /Applications/novalis.app
             ```
 
             - **App:** the `.dmg` below. Intel Macs are not supported.
