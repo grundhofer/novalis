@@ -106,16 +106,18 @@ every release's notes, both languages:
 > und bestätigen. Oder im Terminal
 > `xattr -dr com.apple.quarantine /Applications/novalis.app`. (Unter macOS 14
 > geht auch Rechtsklick auf `novalis.app` ▸ **Öffnen**; seit macOS 15 nicht
-> mehr.) Homebrew: `brew install --cask grundhofer/novalis/novalis`, danach
-> einmalig derselbe `xattr`-Befehl; Homebrew 7 kennt `--no-quarantine` nicht
-> mehr.
+> mehr.) Homebrew: `brew tap grundhofer/novalis`, `brew trust grundhofer/novalis`
+> (Homebrew 7 lädt sonst nichts aus dem Tap), `brew install --cask novalis`,
+> danach einmalig derselbe `xattr`-Befehl; `--no-quarantine` gibt es in
+> Homebrew 7 nicht mehr.
 >
 > **macOS: first launch.** The app is not notarized by Apple. On first open
 > macOS says it could not verify "novalis". Then, once: System Settings ▸
 > Privacy & Security ▸ **Open Anyway** at the bottom, and confirm. Or in
 > Terminal `xattr -dr com.apple.quarantine /Applications/novalis.app`. (On
 > macOS 14 right-clicking `novalis.app` ▸ **Open** also works; since macOS 15
-> it does not.) Homebrew: `brew install --cask grundhofer/novalis/novalis`,
+> it does not.) Homebrew: `brew tap grundhofer/novalis`, `brew trust grundhofer/novalis`
+> (otherwise Homebrew 7 loads nothing from the tap), `brew install --cask novalis`,
 > then the same `xattr` command once; Homebrew 7 no longer has
 > `--no-quarantine`.
 >
@@ -176,7 +178,7 @@ not put into the tap.
 After publishing a release:
 
 ```sh
-brew tap grundhofer/novalis   # once
+brew tap grundhofer/novalis && brew trust grundhofer/novalis   # once
 # edit the two files, then
 brew style --cask grundhofer/novalis/novalis && brew style grundhofer/novalis/novalis-cli
 brew fetch --cask grundhofer/novalis/novalis && brew fetch grundhofer/novalis/novalis-cli
