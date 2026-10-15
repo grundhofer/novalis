@@ -43,6 +43,8 @@ that took any absolute path would remove that boundary.
   `system_open` take such a path as it was granted, and every other path
   through `vault_rel` as before. The page cannot add to the list. It lives
   in memory and ends with the app.
+  A granted file that is a symlink is read, written and watched through the
+  file it names, so a save never swaps the link for a copy.
 - **The tab is keyed by the absolute path**, which no vault path ever is
   (`isExternal`). It edits, autosaves and resolves conflicts exactly like a
   vault file (§5.3, conflict copy beside the file); "keep mine" keeps the

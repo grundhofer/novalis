@@ -348,8 +348,9 @@ export default function Preview({
       if (!target) continue;
       img.removeAttribute("src");
       // Beside a file from outside the vault nothing was granted but the
-      // file itself (ADR-0047): the alt text stays.
-      if (isExternal(target)) continue;
+      // file itself (ADR-0047), and a `..` past the disk's root must not
+      // land in the vault: the alt text stays.
+      if (isExternal(rendered.path)) continue;
       // A click opens it in the viewer (ADR-0025) — an image the viewer
       // shows, that is: an SVG would open as its XML.
       if (viewKind(target) === "image") img.dataset.open = source;

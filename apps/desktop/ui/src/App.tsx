@@ -424,8 +424,9 @@ export default function App() {
             </div>
           )}
           {/* Under the editor, never beside the board: the board owns the whole
-              pane, and a backlinks list about a note is meaningless there. */}
-          {backlinksVisible && !boardVisible && active && (
+              pane, and a backlinks list about a note is meaningless there. A
+              file from outside the vault has none (ADR-0047). */}
+          {backlinksVisible && !boardVisible && active && !isExternal(active) && (
             <Suspense fallback={null}>
               <Backlinks />
             </Suspense>

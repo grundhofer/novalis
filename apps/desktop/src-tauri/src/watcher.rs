@@ -298,16 +298,16 @@ impl ExternalWatcher {
         })
     }
 
-    /// Watch `key`, an absolute path the user handed over. Its folder is
-    /// resolved once, because FSEvents reports real paths (`/private/var`,
-    /// a symlinked folder) and the event must still find the tab.
+    /// Watch `key`, an absolute path the user handed over. It is resolved
+    /// once, because FSEvents reports real paths (`/private/var`, a
+    /// symlinked folder, the file a symlink names) and the event must still
+    /// find the tab; the commands write through the same resolution.
     pub fn add(&mut self, key: &str) -> notify::Result<()> {
-        let path = Path::new(key);
-        let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+        let real_path = std::fs::canonicalize(key).unwrap_or_else(|_| PathBuf::from(key));
+        let Some(real_dir) = real_path.parent().map(Path::to_path_buf) else {
             return Ok(());
         };
-        let real_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
-        let real = nfc(&real_dir.join(name).to_string_lossy());
+        let real = nfc(&real_path.to_string_lossy());
         self.files
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -340,13 +340,16 @@ fn external_batch(
     let mut seen = HashSet::new();
     for event in events {
         for path in &event.paths {
-            let Some(key) = files.get(&nfc(&path.to_string_lossy())) else {
+            let real = nfc(&path.to_string_lossy());
+            let Some(key) = files.get(&real) else {
                 continue;
             };
             if !seen.insert(key.clone()) {
                 continue;
             }
-            match stat(Path::new(key)) {
+            // The real file, not the key: a key that is a symlink would
+            // `lstat` as one and read as gone.
+            match stat(Path::new(&real)) {
                 Ok(st) if st.kind == EntryKind::File => {
                     if !own.take_if_ours(key, st.mtime_ns, st.size) {
                         batch

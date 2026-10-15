@@ -82,7 +82,14 @@ impl Place {
     /// vault-relative one, or the absolute one it was granted as.
     fn resolve(&self, path: &str) -> IpcResult<(PathBuf, String)> {
         match self {
-            Place::Outside(abs) => Ok((abs.clone(), path.to_string())),
+            // Through a symlink to the file it names: `write_atomic`
+            // renames over its path, which would replace the link with a
+            // copy and leave the real file unedited. The vault never meets
+            // one (the tree hides them); a file from the Finder can be one.
+            Place::Outside(abs) => Ok((
+                std::fs::canonicalize(abs).unwrap_or_else(|_| abs.clone()),
+                path.to_string(),
+            )),
             Place::Vault(root) => {
                 let rel = normalize_rel(path)?;
                 let abs = vault_rel(root, &rel)?;
@@ -1340,6 +1347,34 @@ pub async fn state_save(
 
 #[cfg(test)]
 mod tests {
+
+    // ADR-0047: a granted file that is a symlink is written through it.
+    // Renaming over the link would swap it for a copy and leave the file it
+    // names unedited.
+    #[test]
+    fn a_symlinked_file_from_outside_is_written_through_the_link() {
+        let dir = std::env::temp_dir().join(format!("novalis-outside-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("real.md"), "old\n").unwrap();
+        std::os::unix::fs::symlink(dir.join("real.md"), dir.join("link.md")).unwrap();
+        let key = dir.join("link.md").to_string_lossy().into_owned();
+
+        let (abs, rel) = super::Place::Outside(std::path::PathBuf::from(&key))
+            .resolve(&key)
+            .unwrap();
+        novalis_core::vault::fs::write_atomic(&abs, b"new\n", None).unwrap();
+        let link_is_link = std::fs::symlink_metadata(dir.join("link.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink();
+        let real = std::fs::read_to_string(dir.join("real.md")).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(rel, key);
+        assert!(link_is_link);
+        assert_eq!(real, "new\n");
+    }
 
     // ADR-0044: only web and mail links reach `open`, and never as an option.
     #[test]
