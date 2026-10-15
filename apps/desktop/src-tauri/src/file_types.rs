@@ -442,4 +442,42 @@ mod tests {
             "{ts}"
         );
     }
+
+    /// Open With offers novalis for exactly the extensions this table lists
+    /// (ADR-0047): `tauri.conf.json` is written by hand, so this is what keeps
+    /// the two from drifting. A text type is an editor's, a viewer type a
+    /// viewer's. Name rows (`Makefile`) have no extension to declare.
+    #[test]
+    fn file_associations_match_the_table() {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let mut declared = std::collections::BTreeMap::new();
+        for association in conf["bundle"]["fileAssociations"].as_array().unwrap() {
+            assert_eq!(association["rank"], "Alternate", "{association}");
+            let role = association["role"].as_str().unwrap().to_string();
+            for ext in association["ext"].as_array().unwrap() {
+                let ext = ext.as_str().unwrap().to_string();
+                assert!(
+                    declared.insert(ext.clone(), role.clone()).is_none(),
+                    "{ext} twice"
+                );
+            }
+        }
+        let listed: std::collections::BTreeMap<String, String> = FILE_TYPES
+            .iter()
+            .filter_map(|t| match t.key {
+                Key::Ext(e) => Some((
+                    e.to_string(),
+                    if t.kind == Kind::View {
+                        "Viewer"
+                    } else {
+                        "Editor"
+                    }
+                    .to_string(),
+                )),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(declared, listed);
+    }
 }

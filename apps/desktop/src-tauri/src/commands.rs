@@ -41,7 +41,7 @@ use crate::error::{IpcError, IpcResult};
 use crate::file_types::Kind;
 use crate::i18n::{resolve_locale, Catalog};
 use crate::state::{AppState, BoardRead, MenuShape};
-use crate::{cache, file_types, menu, watcher};
+use crate::{cache, file_types, menu, opening, watcher};
 
 /// Hits are posted in groups: a 10k-note vault otherwise sends 10k messages
 /// and the UI thread spends the whole search doing React updates.
@@ -58,6 +58,45 @@ where
     tauri::async_runtime::spawn_blocking(f)
         .await
         .map_err(|e| IpcError::internal(format!("worker thread failed: {e}")))?
+}
+
+/// Where a file command acts: inside the vault, or on a file macOS handed
+/// over from outside it (ADR-0047), which the UI names by its absolute path.
+/// Decided before the blocking work; the vault path is checked inside it.
+enum Place {
+    Vault(PathBuf),
+    Outside(PathBuf),
+}
+
+/// An absolute path the user granted is that file; anything else is a vault
+/// path, refused like before when it is absolute or climbs out.
+fn place_of(state: &AppState, path: &str) -> IpcResult<Place> {
+    match opening::granted(path) {
+        Some(abs) => Ok(Place::Outside(abs)),
+        None => Ok(Place::Vault(state.require_vault()?)),
+    }
+}
+
+impl Place {
+    /// The file's absolute path, and the path it is answered under: the
+    /// vault-relative one, or the absolute one it was granted as.
+    fn resolve(&self, path: &str) -> IpcResult<(PathBuf, String)> {
+        match self {
+            // Through a symlink to the file it names: `write_atomic`
+            // renames over its path, which would replace the link with a
+            // copy and leave the real file unedited. The vault never meets
+            // one (the tree hides them); a file from the Finder can be one.
+            Place::Outside(abs) => Ok((
+                std::fs::canonicalize(abs).unwrap_or_else(|_| abs.clone()),
+                path.to_string(),
+            )),
+            Place::Vault(root) => {
+                let rel = normalize_rel(path)?;
+                let abs = vault_rel(root, &rel)?;
+                Ok((abs, rel))
+            }
+        }
+    }
 }
 
 /// Sort a directory listing the way the tree shows it: folders first, then
@@ -369,18 +408,29 @@ pub async fn list_files(state: State<'_, AppState>) -> IpcResult<Vec<String>> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn read_file(state: State<'_, AppState>, path: String) -> IpcResult<FileDto> {
-    let root = state.require_vault()?;
-    blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+pub async fn read_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+) -> IpcResult<FileDto> {
+    let place = place_of(&state, &path)?;
+    let outside = matches!(place, Place::Outside(_));
+    let file = blocking(move || {
+        let (abs, rel) = place.resolve(&path)?;
         // Explicit open: a cloud-only note is downloaded here on purpose
         // (§4.5 "downloaded on open"), with a deadline (§2.3 rule 7). A binary
         // file is read no further than the NUL that decides it.
         download_for_open(&abs, &rel)?;
         Ok(FileDto::from_read(rel, fs::read_text(&abs)?))
     })
-    .await
+    .await?;
+    // A file from outside the vault is watched from its first read on
+    // (ADR-0047). A folder FSEvents will not watch costs the live reload,
+    // not the file: saving still checks its precondition (§5.3 step 3).
+    if outside {
+        let _ = state.watch_external(&app, &file.path);
+    }
+    Ok(file)
 }
 
 /// How long an explicit open waits for a cloud-only file (§2.3 rule 7).
@@ -409,10 +459,9 @@ fn download_for_open(abs: &Path, rel: &str) -> IpcResult<()> {
 #[specta::specta]
 pub async fn read_blob(state: State<'_, AppState>, path: String) -> IpcResult<BlobDto> {
     use base64::Engine;
-    let root = state.require_vault()?;
+    let place = place_of(&state, &path)?;
     blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+        let (abs, rel) = place.resolve(&path)?;
         download_for_open(&abs, &rel)?;
         let size = fs::stat(&abs)?.size;
         if size > HUGE_FILE_BYTES {
@@ -447,10 +496,9 @@ pub async fn read_packed(
     entries: Vec<String>,
 ) -> IpcResult<PackedDto> {
     use base64::Engine;
-    let root = state.require_vault()?;
+    let place = place_of(&state, &path)?;
     blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+        let (abs, rel) = place.resolve(&path)?;
         if entries.is_empty() {
             return Ok(PackedDto {
                 path: rel,
@@ -558,11 +606,10 @@ pub async fn write_file(
     text: String,
     expected: Option<PreconditionDto>,
 ) -> IpcResult<PreconditionDto> {
-    let root = state.require_vault()?;
+    let place = place_of(&state, &path)?;
     let own = state.own_writes.clone();
     blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+        let (abs, rel) = place.resolve(&path)?;
         let expected: Option<Precondition> = expected
             .as_ref()
             .map(PreconditionDto::to_core)
@@ -577,8 +624,8 @@ pub async fn write_file(
 }
 
 /// Write the buffer to `<name> (conflict <host> <YYYY-MM-DD HHMM>).<ext>` next
-/// to the target and return the new vault-relative path. Never clobbers
-/// (§5.3 step 3).
+/// to the target and return the new path — vault-relative, or absolute
+/// beside a file from outside the vault. Never clobbers (§5.3 step 3).
 #[tauri::command]
 #[specta::specta]
 pub async fn write_conflict_copy(
@@ -586,12 +633,21 @@ pub async fn write_conflict_copy(
     path: String,
     text: String,
 ) -> IpcResult<String> {
-    let root = state.require_vault()?;
+    let place = place_of(&state, &path)?;
     blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+        let (abs, _) = place.resolve(&path)?;
         let copy = fs::write_conflict_copy(&abs, text.as_bytes(), &hostname(), &local_now())?;
-        rel_of(&root, &copy).ok_or_else(|| IpcError::internal("conflict copy left the vault"))
+        match place {
+            Place::Vault(root) => rel_of(&root, &copy)
+                .ok_or_else(|| IpcError::internal("conflict copy left the vault")),
+            // Beside a file from outside the vault, and as much the user's
+            // as it is: the tab follows it there (ADR-0047).
+            Place::Outside(_) => {
+                let copy = copy.to_string_lossy().into_owned();
+                opening::grant(&copy);
+                Ok(copy)
+            }
+        }
     })
     .await
 }
@@ -731,11 +787,12 @@ pub async fn rename(
 #[tauri::command]
 #[specta::specta]
 pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
-    let root = state.require_vault()?;
+    // Outside the vault only a granted file: the conflict copy a reload or
+    // "keep mine" discards (ADR-0047).
+    let place = place_of(&state, &path)?;
     let own = state.own_writes.clone();
     blocking(move || {
-        let rel = normalize_rel(&path)?;
-        let abs = vault_rel(&root, &rel)?;
+        let (abs, rel) = place.resolve(&path)?;
         // Checklist B9, 2026-09-17: a dataless note on Drive left the vault
         // once although the core refuses one. Until that run is explained the
         // dev build says what it saw and what it did, on stderr, where
@@ -757,18 +814,17 @@ pub async fn trash(state: State<'_, AppState>, path: String) -> IpcResult<()> {
 /// vault file selected in the Finder (ADR-0021), `default` opens it in the
 /// app macOS picks for its type (ADR-0043), `url` opens a web or mail link
 /// in the default browser or mail app (ADR-0044). A path is checked against
-/// the vault like every other and is absolute, so it can never be read as an
-/// option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
+/// the vault like every other, or is a file the user handed over from outside
+/// it (ADR-0047), and is absolute, so it can never be read as an option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
 /// with an error.
 #[tauri::command]
 #[specta::specta]
 pub async fn system_open(state: State<'_, AppState>, target: SystemOpenDto) -> IpcResult<()> {
-    // A path is the vault's; a URL is checked on its own (ADR-0044).
+    // A path is the vault's or a granted one (ADR-0047); a URL is checked on
+    // its own (ADR-0044).
     let arg: std::ffi::OsString = match &target {
         SystemOpenDto::Reveal { path } | SystemOpenDto::Default { path } => {
-            let root = state.require_vault()?;
-            let rel = normalize_rel(path)?;
-            vault_rel(&root, &rel)?.into_os_string()
+            place_of(&state, path)?.resolve(path)?.0.into_os_string()
         }
         SystemOpenDto::Url { url } => external_url(url)?.into(),
     };
@@ -1291,6 +1347,34 @@ pub async fn state_save(
 
 #[cfg(test)]
 mod tests {
+
+    // ADR-0047: a granted file that is a symlink is written through it.
+    // Renaming over the link would swap it for a copy and leave the file it
+    // names unedited.
+    #[test]
+    fn a_symlinked_file_from_outside_is_written_through_the_link() {
+        let dir = std::env::temp_dir().join(format!("novalis-outside-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("real.md"), "old\n").unwrap();
+        std::os::unix::fs::symlink(dir.join("real.md"), dir.join("link.md")).unwrap();
+        let key = dir.join("link.md").to_string_lossy().into_owned();
+
+        let (abs, rel) = super::Place::Outside(std::path::PathBuf::from(&key))
+            .resolve(&key)
+            .unwrap();
+        novalis_core::vault::fs::write_atomic(&abs, b"new\n", None).unwrap();
+        let link_is_link = std::fs::symlink_metadata(dir.join("link.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink();
+        let real = std::fs::read_to_string(dir.join("real.md")).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(rel, key);
+        assert!(link_is_link);
+        assert_eq!(real, "new\n");
+    }
 
     // ADR-0044: only web and mail links reach `open`, and never as an option.
     #[test]

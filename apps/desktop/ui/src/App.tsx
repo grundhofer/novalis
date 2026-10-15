@@ -17,7 +17,7 @@ import { commands, events, NovalisError, unwrap, type FsBatch } from "./ipc/clie
 import { dispatchCommand, newNote } from "./lib/commands";
 import { openExternal, SCHEME } from "./lib/external";
 import { handleOpenRequests } from "./lib/opening";
-import { folderOf } from "./lib/paths";
+import { folderOf, isExternal } from "./lib/paths";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, glyphsOf } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
@@ -201,7 +201,12 @@ export default function App() {
           useTabs.getState().rename(rename.from, rename.to);
         }
       }
-      if (batch.added.some((e) => isSupported(e.path)) || batch.removed.some(isSupported)) {
+      // A file from outside the vault going (ADR-0047) is no change to the
+      // vault's list.
+      if (
+        batch.added.some((e) => isSupported(e.path)) ||
+        batch.removed.some((p) => isSupported(p) && !isExternal(p))
+      ) {
         void useFiles.getState().refresh().catch(report);
       }
       const board = useBoard.getState().slug;
@@ -309,9 +314,13 @@ export default function App() {
       openExternal(target.trim().replace(/^<|>$/g, ""));
       return;
     }
+    // A file from outside the vault (ADR-0047) has no vault to link into:
+    // beyond a web or mail link, only its own headings are followed.
+    const active = useTabs.getState().active;
+    const outside = active !== null && isExternal(active);
     // A Markdown destination is a path relative to the note (PLAN.md §7.2):
     // a `.md` opens in the editor, an image or PDF in the viewer (ADR-0017).
-    const destination = resolveDestination(useTabs.getState().active, target);
+    const destination = outside ? null : resolveDestination(active, target);
     if (destination && isSupported(destination)) {
       void useTabs.getState().open(destination).catch(report);
       return;
@@ -323,11 +332,11 @@ export default function App() {
       .split("#")
       .map((part) => part.trim());
     // `[[#Heading]]` is a heading of the note it is written in.
-    const hit = name === "" ? useTabs.getState().active : resolveWikiTarget(name, useFiles.getState().notes);
+    const hit = name === "" ? active : outside ? null : resolveWikiTarget(name, useFiles.getState().notes);
     if (!hit) {
       // A link to no note offers to make it, beside the note it is written
       // in, the name filled in (ADR-0038); nothing is written until OK.
-      if (name) newNote(folderOf(useTabs.getState().active ?? ""), name);
+      if (name && !outside) newNote(folderOf(active ?? ""), name);
       return;
     }
     // `[[note#heading]]` lands on the heading (§7.2); the pane settles it
@@ -372,7 +381,7 @@ export default function App() {
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
               <BoardPane />
             </Suspense>
-          ) : !vault ? (
+          ) : !vault && !active ? (
             <div className="empty-state">
               <h1 className="empty-title">{t("app.openVault.title")}</h1>
               <p className="empty-body">{t("app.openVault.body")}</p>
@@ -415,8 +424,9 @@ export default function App() {
             </div>
           )}
           {/* Under the editor, never beside the board: the board owns the whole
-              pane, and a backlinks list about a note is meaningless there. */}
-          {backlinksVisible && !boardVisible && active && (
+              pane, and a backlinks list about a note is meaningless there. A
+              file from outside the vault has none (ADR-0047). */}
+          {backlinksVisible && !boardVisible && active && !isExternal(active) && (
             <Suspense fallback={null}>
               <Backlinks />
             </Suspense>

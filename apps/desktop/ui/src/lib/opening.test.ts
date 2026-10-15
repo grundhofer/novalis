@@ -11,8 +11,8 @@ import { handleOpenRequests } from "./opening";
 vi.mock("../ipc/client", () => ({ commands: {}, unwrap: vi.fn() }));
 vi.mock("./commands", () => ({ dispatchCommand: vi.fn() }));
 
-// ADR-0045: what macOS hands over opens when it is the vault's, and is said
-// otherwise; nothing switches vaults.
+// ADR-0045: what macOS hands over opens when it is the vault's; ADR-0047:
+// any other file the app opens too, in place; nothing switches vaults.
 describe("handleOpenRequests", () => {
   let open: ReturnType<typeof vi.fn>;
   let load: ReturnType<typeof vi.fn>;
@@ -32,13 +32,25 @@ describe("handleOpenRequests", () => {
     expect(open).toHaveBeenCalledWith("notes/a.md");
   });
 
-  it("says so for a file outside the vault, or one it does not list", () => {
+  // ADR-0047: any other file the app opens gets a tab of its own, keyed by
+  // the absolute path the shell granted — unnormalized, as it came.
+  it("opens a file outside the vault, or one the tree does not list, by its absolute path", () => {
     handleOpenRequests([{ kind: "file", path: "/Users/me/Elsewhere/x.md" }]);
-    expect(useUi.getState().toast).toEqual({
-      key: "app.openOutsideVault",
-      values: { path: "/Users/me/Elsewhere/x.md" },
-    });
+    expect(open).toHaveBeenCalledWith("/Users/me/Elsewhere/x.md");
     handleOpenRequests([{ kind: "file", path: "/Users/me/Vault/.hidden.md" }]);
+    expect(open).toHaveBeenCalledWith("/Users/me/Vault/.hidden.md");
+    const decomposed = "/Users/me/Elsewhere/Gru\u0308n.pdf";
+    handleOpenRequests([{ kind: "file", path: decomposed }]);
+    expect(open).toHaveBeenCalledWith(decomposed);
+    expect(useUi.getState().toast).toBeNull();
+  });
+
+  it("says so for a file of a type it does not open", () => {
+    handleOpenRequests([{ kind: "file", path: "/Users/me/Elsewhere/x.exe" }]);
+    expect(useUi.getState().toast).toEqual({
+      key: "app.openUnsupported",
+      values: { path: "/Users/me/Elsewhere/x.exe" },
+    });
     expect(open).not.toHaveBeenCalled();
   });
 

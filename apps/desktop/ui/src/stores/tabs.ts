@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { viewKind } from "../lib/fileTypes";
+import { isExternal } from "../lib/paths";
 import { useEditorSave } from "./editorSave";
 import { report, useUi } from "./ui";
 import { useVault } from "./vault";
@@ -118,7 +119,8 @@ export const useTabs = create<TabsState>((set, get) => ({
       await useEditorSave.getState().close(path);
       return;
     }
-    if (options?.background) return;
+    // A file from outside the vault has no row to show (ADR-0047).
+    if (options?.background || isExternal(path)) return;
     // Opening from quick-open or a link should show where the note lives.
     useVault.getState().select(path);
     void useVault.getState().reveal(path).catch(report);

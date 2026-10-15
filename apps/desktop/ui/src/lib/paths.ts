@@ -50,6 +50,15 @@ export function relativeLink(from: string, to: string): string {
     .join("/");
 }
 
+/**
+ * A file opened from outside the vault (ADR-0047): its tab is keyed by the
+ * absolute path macOS handed over, which no vault path ever is. It has no
+ * tree row, no links, no backlinks and no place in `state.json`.
+ */
+export function isExternal(path: string): boolean {
+  return path.startsWith("/");
+}
+
 export function isNote(rel: string): boolean {
   return extensionOf(rel) === "md";
 }
