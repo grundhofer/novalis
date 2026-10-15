@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { extensionForMime, saveAttachment } from "../lib/attachments";
 import { viewKind } from "../lib/fileTypes";
 import { wikiLinkFor } from "../lib/links";
-import { fileNameOf, folderOf, isMarkdownFile, isNote, relativeLink } from "../lib/paths";
+import { fileNameOf, folderOf, isExternal, isMarkdownFile, isNote, relativeLink } from "../lib/paths";
 import { ENTRY_DRAG_TYPE } from "../stores/board";
 import { useFiles } from "../stores/files";
 import { report } from "../stores/ui";
@@ -48,7 +48,9 @@ async function bytesOf(file: File): Promise<Uint8Array> {
 }
 
 export function attachments(notePath: string): Extension {
-  if (!isMarkdownFile(notePath)) return [];
+  // `attachments/` is the vault's; nothing is written beside a file from
+  // outside it, and a tree row is no file of its folder (ADR-0047).
+  if (!isMarkdownFile(notePath) || isExternal(notePath)) return [];
   return EditorView.domEventHandlers({
     paste(event, view) {
       // A read-only buffer (not UTF-8) takes no edits, so no file either.

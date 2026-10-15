@@ -13,6 +13,7 @@ import type { Mermaid } from "mermaid";
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf, viewKind } from "../lib/fileTypes";
 import { resolveDestination } from "../lib/links";
+import { isExternal } from "../lib/paths";
 import { resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition } from "../lib/positions";
 import { setPreviewBridge } from "../lib/previewBridge";
@@ -346,6 +347,9 @@ export default function Preview({
       const target = resolveDestination(rendered.path, source);
       if (!target) continue;
       img.removeAttribute("src");
+      // Beside a file from outside the vault nothing was granted but the
+      // file itself (ADR-0047): the alt text stays.
+      if (isExternal(target)) continue;
       // A click opens it in the viewer (ADR-0025) — an image the viewer
       // shows, that is: an SVG would open as its XML.
       if (viewKind(target) === "image") img.dataset.open = source;

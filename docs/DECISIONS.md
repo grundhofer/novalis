@@ -1,6 +1,6 @@
 # Decisions
 
-Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0046). This file is the record.
+Index of owner decisions for novalis. Each row of the 2026-09-05 answers became an ADR under `docs/decisions/` at scaffold time (ADR-0001…0009 as listed in PLAN.md §11.5); the answers since are recorded below by date, and each that adds a feature, a field or a dependency has its own ADR (ADR-0010…0047). This file is the record.
 
 ## Owner answers of 2026-09-05
 
@@ -759,6 +759,29 @@ The next tag is `v1.0.0-rc.1` (release notes `docs/releases/v1.0.0-rc.1.md`);
 1.0.0 follows with the same content once the candidate has been used.
 Recorded as the 2026-10-08 amendment of **ADR-0010**: 1.0 also ships
 unsigned; the revisit trigger becomes the owner's enrolment.
+
+## Answered 2026-10-15
+
+The owner asked why novalis does not open supported files outside the vault
+(„wieso öffnet novalis keine unterstützten dateien außerhlb des vaults?“).
+ADR-0045 had answered such a file with a toast. Shown the three ways —
+switch vaults, a tab of its own for the one file, more file associations —
+and asked whether it should only be read or also edited, and whether it
+should come back after a restart:
+
+> auch bearbeiten.
+
+> nicht wiederherstellen und auch bearbeiten umsetzeb
+
+Asked whether Open With should offer every type novalis opens, as an
+alternate app and never the default:
+
+> Ja, alle Typen (Recommended)
+
+Recorded as **ADR-0047**: the shell grants exactly the files macOS hands
+over; such a file opens in its own tab keyed by its absolute path, is edited
+and saved where it is, is watched through its folder, and is left out of
+`state.json`. Open With declares every extension of the file-type table.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

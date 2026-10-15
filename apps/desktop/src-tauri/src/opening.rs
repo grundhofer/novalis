@@ -4,7 +4,13 @@
 //! has asked for the boot state they are queued, because a launch by a file
 //! delivers it before there is a page to tell; `bootstrap` hands the queue
 //! over, and later ones go out as one `OpenRequested` event.
+//!
+//! A file handed over this way is also a grant (ADR-0047): the file commands
+//! take its absolute path, and no other one outside the vault. The user's
+//! gesture in the Finder is the permission; the page cannot add to the list.
 
+use std::collections::HashSet;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -12,10 +18,35 @@ use specta::Type;
 use tauri::{AppHandle, Manager, Url};
 use tauri_specta::Event;
 
+use crate::file_types;
+
 /// Requests that came before the UI asked for its boot state; `None` once
 /// it has. A static, not app state: on a launch by a file macOS delivers it
 /// before `setup` has registered any state (measured in the built app).
 static PENDING: Mutex<Option<Vec<OpenRequestDto>>> = Mutex::new(Some(Vec::new()));
+
+/// Absolute paths of files macOS handed over, plus the conflict copies made
+/// beside them, for as long as the app runs — never written anywhere, so a
+/// restart forgets them with the tabs (ADR-0047). A static for the same reason
+/// as [`PENDING`]: the launch file arrives before there is any state.
+static GRANTED: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
+/// Allow the file commands to act on `path`, an absolute path.
+pub fn grant(path: &str) {
+    GRANTED
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_or_insert_with(HashSet::new)
+        .insert(path.to_string());
+}
+
+/// `path` as a file outside the vault the user handed over, or `None` — a
+/// vault path, or an absolute one nobody granted.
+pub fn granted(path: &str) -> Option<PathBuf> {
+    let granted = GRANTED.lock().unwrap_or_else(|e| e.into_inner());
+    (path.starts_with('/') && granted.as_ref().is_some_and(|g| g.contains(path)))
+        .then(|| PathBuf::from(path))
+}
 
 /// The queued requests, once; from then on they are sent as they come.
 pub fn take_pending() -> Vec<OpenRequestDto> {
@@ -26,8 +57,9 @@ pub fn take_pending() -> Vec<OpenRequestDto> {
         .unwrap_or_default()
 }
 
-/// One thing to open. The UI decides what it means: a file inside the open
-/// vault becomes a tab, anything else is said in a toast.
+/// One thing to open. The UI decides what it means: a file the vault lists
+/// becomes its tab, another file the app opens a tab of its own outside the
+/// vault (ADR-0047), anything else is said in a toast.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum OpenRequestDto {
@@ -65,6 +97,15 @@ pub fn opened(app: &AppHandle, urls: &[Url]) {
     let items: Vec<OpenRequestDto> = urls.iter().filter_map(request_of).collect();
     if items.is_empty() {
         return;
+    }
+    // Only a file the app opens is granted: `open -a novalis` takes any
+    // file, and the UI refuses the others with a toast anyway.
+    for item in &items {
+        if let OpenRequestDto::File { path } = item {
+            if file_types::kind_of(path).is_some() {
+                grant(path);
+            }
+        }
     }
     let release = {
         let mut pending = PENDING.lock().unwrap_or_else(|e| e.into_inner());
@@ -106,5 +147,16 @@ mod tests {
             })
         );
         assert_eq!(request_of(&Url::parse("https://x.org").unwrap()), None);
+    }
+
+    #[test]
+    fn only_a_granted_absolute_path_is_granted() {
+        grant("/Users/me/Downloads/granted-test.md");
+        assert_eq!(
+            granted("/Users/me/Downloads/granted-test.md"),
+            Some(PathBuf::from("/Users/me/Downloads/granted-test.md"))
+        );
+        assert_eq!(granted("/Users/me/Downloads/other.md"), None);
+        assert_eq!(granted("notes/a.md"), None);
     }
 }

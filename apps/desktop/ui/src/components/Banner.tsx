@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { folderOf } from "../lib/paths";
+import { folderOf, isExternal } from "../lib/paths";
 import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
@@ -21,6 +21,10 @@ export default function Banner() {
   const vaultKind = useVault((s) => s.vault?.kind ?? "local");
 
   if (!active || !doc?.banner) return null;
+  // A file from outside the vault has no cloud version history to fall back
+  // on that we know of: "keep mine" keeps the disk version as a copy first,
+  // as in a local vault (ADR-0047).
+  const kind = isExternal(active) ? "local" : vaultKind;
   const store = useEditorSave.getState();
   const copy = store.conflictCopyPath(active);
 
@@ -39,7 +43,7 @@ export default function Banner() {
           <button
             className="btn primary"
             type="button"
-            onClick={() => void store.keepMine(active, vaultKind).catch(report)}
+            onClick={() => void store.keepMine(active, kind).catch(report)}
           >
             {t("banner.replacedBySync.restoreMine")}
           </button>
@@ -72,7 +76,11 @@ export default function Banner() {
               // and the file list learn of the file again from here.
               void store
                 .restoreDeleted(active)
-                .then(() => Promise.all([useVault.getState().reload(folderOf(active)), useFiles.getState().refresh()]))
+                .then(() =>
+                  isExternal(active)
+                    ? undefined
+                    : Promise.all([useVault.getState().reload(folderOf(active)), useFiles.getState().refresh()]),
+                )
                 .catch(report);
             }}
           >
@@ -99,7 +107,7 @@ export default function Banner() {
           <button
             className="btn ghost"
             type="button"
-            onClick={() => void store.keepMine(active, vaultKind).catch(report)}
+            onClick={() => void store.keepMine(active, kind).catch(report)}
           >
             {t("banner.changedOnDisk.keepMine")}
           </button>

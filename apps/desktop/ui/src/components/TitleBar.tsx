@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { glyphsOf } from "../lib/keymap";
-import { folderOf, stemOf } from "../lib/paths";
+import { folderOf, isExternal, stemOf } from "../lib/paths";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
@@ -20,11 +20,14 @@ export default function TitleBar() {
   const active = useTabs((s) => s.active);
   const setOverlay = useUi((s) => s.setOverlay);
 
+  // A file from outside the vault (ADR-0047) is not the vault's: its crumb
+  // is the folder it lives in, from the root of the disk.
+  const outside = active !== null && isExternal(active);
   const segments: string[] = [];
-  if (vault) segments.push(vault.name);
+  if (vault && !outside) segments.push(vault.name);
   if (active) {
     const folder = folderOf(active);
-    if (folder) segments.push(...folder.split("/"));
+    if (folder) segments.push(...folder.split("/").filter((part) => part !== ""));
     segments.push(stemOf(active));
   }
 

@@ -249,6 +249,121 @@ pub fn spawn(
     })
 }
 
+/// The files open from outside the vault (ADR-0047), watched through their
+/// folders, one level deep: a change becomes `modified`, a file gone
+/// `removed`, under the absolute path the tab is keyed by — the same
+/// `fs-batch` the vault's watcher sends, so the editor's §5.3 handling needs
+/// nothing new. Never `added`: nothing new in those folders is the app's.
+/// Folders are only ever added; the app forgets them all when it quits.
+pub struct ExternalWatcher {
+    debouncer: Debouncer<VaultWatcher, RecommendedCache>,
+    /// The real path FSEvents reports (NFC) → the path the tab is keyed by.
+    files: Arc<Mutex<HashMap<String, String>>>,
+    dirs: HashSet<PathBuf>,
+}
+
+impl std::fmt::Debug for ExternalWatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExternalWatcher")
+            .field("dirs", &self.dirs)
+            .finish()
+    }
+}
+
+impl ExternalWatcher {
+    pub fn spawn(app: AppHandle, own: Arc<Mutex<OwnWrites>>) -> notify::Result<Self> {
+        let files: Arc<Mutex<HashMap<String, String>>> = Arc::default();
+        let watched = files.clone();
+        let handler = move |result: notify_debouncer_full::DebounceEventResult| {
+            // As for the vault: an error is not actionable, the next window
+            // recovers.
+            let Ok(events) = result else { return };
+            let files = watched.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let batch = external_batch(&files, &own, events);
+            if !batch.is_empty() {
+                let _ = batch.emit(&app);
+            }
+        };
+        let debouncer = new_debouncer_opt::<_, VaultWatcher, RecommendedCache>(
+            DEBOUNCE,
+            None,
+            handler,
+            RecommendedCache::new(),
+            notify::Config::default(),
+        )?;
+        Ok(ExternalWatcher {
+            debouncer,
+            files,
+            dirs: HashSet::new(),
+        })
+    }
+
+    /// Watch `key`, an absolute path the user handed over. Its folder is
+    /// resolved once, because FSEvents reports real paths (`/private/var`,
+    /// a symlinked folder) and the event must still find the tab.
+    pub fn add(&mut self, key: &str) -> notify::Result<()> {
+        let path = Path::new(key);
+        let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+            return Ok(());
+        };
+        let real_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+        let real = nfc(&real_dir.join(name).to_string_lossy());
+        self.files
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(real, key.to_string());
+        if self.dirs.insert(real_dir.clone()) {
+            if let Err(e) = self.debouncer.watch(&real_dir, RecursiveMode::NonRecursive) {
+                self.dirs.remove(&real_dir);
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+}
+
+/// One window of events in the watched folders, narrowed to the open files.
+/// Whatever the event says, the file's `stat` decides: there is `modified`
+/// (unless it is our own write, §5.3 step 4), gone is `removed`.
+fn external_batch(
+    files: &HashMap<String, String>,
+    own: &Arc<Mutex<OwnWrites>>,
+    events: Vec<DebouncedEvent>,
+) -> FsBatch {
+    let mut batch = FsBatch {
+        added: Vec::new(),
+        modified: Vec::new(),
+        removed: Vec::new(),
+        renamed: Vec::new(),
+    };
+    let mut own = own.lock().unwrap_or_else(|e| e.into_inner());
+    let mut seen = HashSet::new();
+    for event in events {
+        for path in &event.paths {
+            let Some(key) = files.get(&nfc(&path.to_string_lossy())) else {
+                continue;
+            };
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            match stat(Path::new(key)) {
+                Ok(st) if st.kind == EntryKind::File => {
+                    if !own.take_if_ours(key, st.mtime_ns, st.size) {
+                        batch
+                            .modified
+                            .push(EntryDto::from_stat(key.clone(), &st, None));
+                    }
+                }
+                _ => {
+                    own.forget(key);
+                    batch.removed.push(key.clone());
+                }
+            }
+        }
+    }
+    batch
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -258,7 +373,7 @@ mod tests {
     use notify::Event;
     use notify_debouncer_full::DebouncedEvent;
 
-    use super::{ignored, to_batch};
+    use super::{external_batch, ignored, to_batch};
     use crate::state::OwnWrites;
 
     /// FSEvents reports a rename as two unrelated `Renamed` paths; after
@@ -305,5 +420,46 @@ mod tests {
         assert!(ignored("notes/~lock"));
         assert!(!ignored("notes/Wochenrückblick.md"));
         assert!(!ignored("boards/kanban/board.json"));
+    }
+
+    /// A file opened from outside the vault (ADR-0047): its folder's events
+    /// reach the tab under the key it was opened by, a file gone is removed,
+    /// and nothing else in the folder is reported.
+    #[test]
+    fn an_external_file_is_reported_under_its_key_and_its_neighbours_are_not() {
+        let dir = std::env::temp_dir().join(format!("novalis-watch-ext-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("open.md"), "# Open\n").unwrap();
+        std::fs::write(dir.join("other.md"), "# Other\n").unwrap();
+        // FSEvents reports the real path (`/private/var/…` for a temp dir);
+        // the key is the path as the Finder handed it over.
+        let real = std::fs::canonicalize(&dir).unwrap();
+        let reported = |name: &str| real.join(name).to_string_lossy().into_owned();
+        let key = |name: &str| dir.join(name).to_string_lossy().into_owned();
+        let files = [
+            (reported("open.md"), key("open.md")),
+            (reported("gone.md"), key("gone.md")),
+        ]
+        .into_iter()
+        .collect();
+        let changed = |name: &str| {
+            DebouncedEvent::new(
+                Event::new(EventKind::Modify(ModifyKind::Any)).add_path(real.join(name)),
+                Instant::now(),
+            )
+        };
+        let own = Arc::new(Mutex::new(OwnWrites::default()));
+        let batch = external_batch(
+            &files,
+            &own,
+            vec![changed("open.md"), changed("other.md"), changed("gone.md")],
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let modified: Vec<&str> = batch.modified.iter().map(|e| e.path.as_str()).collect();
+        assert_eq!(modified, vec![key("open.md").as_str()]);
+        assert_eq!(batch.removed, vec![key("gone.md")]);
+        assert!(batch.added.is_empty());
     }
 }

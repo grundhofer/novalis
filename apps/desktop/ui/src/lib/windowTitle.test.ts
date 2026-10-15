@@ -8,4 +8,10 @@ describe("windowTitle", () => {
     expect(windowTitle(null, "Vault")).toBe("Vault");
     expect(windowTitle(null, null)).toBe("novalis");
   });
+
+  // ADR-0047: a file from outside the vault is not the vault's.
+  it("names a file from outside the vault alone", () => {
+    expect(windowTitle("/Users/me/Downloads/draußen.md", "Vault")).toBe("draußen");
+    expect(windowTitle("/Users/me/Downloads/draußen.md", null)).toBe("draußen");
+  });
 });

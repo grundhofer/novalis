@@ -4,6 +4,8 @@ Date: 2026-09-23
 
 ## Status
 
+**Amended by:** ADR-0047 (2026-10-15) — a file the open vault does not list opens in a tab of its own, edited where it is, instead of the toast; Open With offers novalis for every extension the file-type table lists, not only `md`, `markdown` and `txt`.
+
 Accepted. The bundle declares Markdown and plain-text files (as an
 alternate editor, never the default) and the `novalis://` scheme; the
 shell handles what macOS hands over. One event, a field on `bootstrap`,

@@ -70,8 +70,8 @@ export const commands = {
 } | null) => typedError<PreconditionDto, IpcError>(__TAURI_INVOKE("write_file", { path, text, expected })),
 	/**
 	 *  Write the buffer to `<name> (conflict <host> <YYYY-MM-DD HHMM>).<ext>` next
-	 *  to the target and return the new vault-relative path. Never clobbers
-	 *  (§5.3 step 3).
+	 *  to the target and return the new path — vault-relative, or absolute
+	 *  beside a file from outside the vault. Never clobbers (§5.3 step 3).
 	 */
 	writeConflictCopy: (path: string, text: string) => typedError<string, IpcError>(__TAURI_INVOKE("write_conflict_copy", { path, text })),
 	/**
@@ -102,8 +102,8 @@ export const commands = {
 	 *  vault file selected in the Finder (ADR-0021), `default` opens it in the
 	 *  app macOS picks for its type (ADR-0043), `url` opens a web or mail link
 	 *  in the default browser or mail app (ADR-0044). A path is checked against
-	 *  the vault like every other and is absolute, so it can never be read as an
-	 *  option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
+	 *  the vault like every other, or is a file the user handed over from outside
+	 *  it (ADR-0047), and is absolute, so it can never be read as an option; a URL must pass [`external_url`]. macOS only, as the app is (PLAN.md §4.5); the Linux build answers
 	 *  with an error.
 	 */
 	systemOpen: (target: SystemOpenDto) => typedError<null, IpcError>(__TAURI_INVOKE("system_open", { target })),
@@ -464,8 +464,9 @@ export type MenuAction = {
 };
 
 /**
- *  One thing to open. The UI decides what it means: a file inside the open
- *  vault becomes a tab, anything else is said in a toast.
+ *  One thing to open. The UI decides what it means: a file the vault lists
+ *  becomes its tab, another file the app opens a tab of its own outside the
+ *  vault (ADR-0047), anything else is said in a toast.
  */
 export type OpenRequestDto = 
 /**  An absolute file path. */

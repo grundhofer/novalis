@@ -5,13 +5,16 @@ import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import { dispatchCommand } from "./commands";
+import { isSupported } from "./fileTypes";
 
 /**
  * What macOS handed to the app (ADR-0045). A file inside the open vault that
- * the tree lists opens as a tab; `novalis://today` is Today's Note;
+ * the tree lists opens as its tab; any other file of a type the app opens
+ * gets a tab of its own, keyed by its absolute path, edited and saved where
+ * it is (ADR-0047); `novalis://today` is Today's Note;
  * `novalis://open?path=<vault path>` opens that file or board. Everything
- * else — a file outside the vault, a link novalis does not know — is said in
- * a toast; nothing switches vaults and nothing is written.
+ * else — a type novalis does not open, a link it does not know — is said in
+ * a toast; nothing switches vaults.
  */
 export function handleOpenRequests(items: readonly OpenRequestDto[]): void {
   for (const item of items) {
@@ -25,11 +28,16 @@ function openFile(absolute: string): void {
   const path = absolute.normalize("NFC");
   const base = root?.normalize("NFC");
   const rel = base && path.startsWith(`${base}/`) ? path.slice(base.length + 1) : null;
-  if (!rel || !useFiles.getState().files.includes(rel)) {
-    useUi.getState().showToast("app.openOutsideVault", { path: absolute });
+  if (rel && useFiles.getState().files.includes(rel)) {
+    void useTabs.getState().open(rel).catch(report);
     return;
   }
-  void useTabs.getState().open(rel).catch(report);
+  // The path as macOS gave it, not normalized: it is what the shell granted.
+  if (isSupported(absolute)) {
+    void useTabs.getState().open(absolute).catch(report);
+    return;
+  }
+  useUi.getState().showToast("app.openUnsupported", { path: absolute });
 }
 
 function openLink(raw: string): void {

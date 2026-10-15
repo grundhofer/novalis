@@ -16,7 +16,7 @@ import { useVault } from "../stores/vault";
 import { previewKind } from "./fileTypes";
 import { localIsoDay } from "./localTime";
 import { resolveWikiTarget, wikiLinkFor } from "./links";
-import { fileNameOf, folderOf, isNote, joinRel } from "./paths";
+import { fileNameOf, folderOf, isExternal, isNote, joinRel } from "./paths";
 import { uiStateNow } from "./uiState";
 
 /**
@@ -346,7 +346,8 @@ export function cardTitleOfLine(text: string): string {
 async function cardFromSelection(): Promise<void> {
   const note = useTabs.getState().active;
   const slug = cardBoard();
-  if (!note || !isNote(note) || !slug) return;
+  // A card links vault notes; a file from outside it is none (ADR-0047).
+  if (!note || !isNote(note) || isExternal(note) || !slug) return;
   // The rendered note has no editor; its selection is the document's.
   const text = previewMounted() ? (window.getSelection()?.toString() ?? "") : editorSelectionOrLine();
   const title = cardTitleOfLine(text ?? "");
@@ -398,6 +399,7 @@ async function copyText(text: string): Promise<void> {
 /** The selected row's, else the active tab's, absolute path. */
 function copyPath(): Promise<void> | void {
   const path = targetPath();
+  if (path && isExternal(path)) return copyText(path);
   const root = useVault.getState().vault?.root;
   if (!path || !root || isBoardPath(path)) return;
   return copyText(`${root}/${path}`);
@@ -406,7 +408,7 @@ function copyPath(): Promise<void> | void {
 /** The `[[…]]` a note is linked by — the form a drop inserts (ADR-0040). */
 function copyLink(): Promise<void> | void {
   const path = targetPath();
-  if (!path || !isNote(path)) return;
+  if (!path || !isNote(path) || isExternal(path)) return;
   return copyText(wikiLinkFor(path, useFiles.getState().notes));
 }
 
@@ -457,7 +459,8 @@ function targetPath(): string | null {
  */
 function targetFolder(): string {
   const path = targetPath();
-  if (!path) return "";
+  // Nothing is created beside a file from outside the vault (ADR-0047).
+  if (!path || isExternal(path)) return "";
   const entry = useVault.getState().children[folderOf(path)]?.find((e) => e.path === path);
   return entry?.dir && !entry.boardSlug ? path : folderOf(path);
 }
@@ -526,13 +529,15 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "view.fontSmaller": () => useUi.getState().changeFontSize(-1),
   "view.fontReset": () => useUi.getState().changeFontSize("reset"),
   "tree.newFolder": () => newFolder(targetFolder()),
+  // Renaming and trashing are the vault's; a file from outside it is the
+  // Finder's (ADR-0047).
   "tree.rename": () => {
     const path = targetPath();
-    if (path) return renamePath(path);
+    if (path && !isExternal(path)) return renamePath(path);
   },
   "tree.trash": () => {
     const path = targetPath();
-    if (path) return trashPath(path);
+    if (path && !isExternal(path)) return trashPath(path);
   },
   "tree.reveal": () => {
     const path = targetPath();
@@ -634,7 +639,7 @@ export function paletteCommands(): readonly {
   // Only where there is a board to put the card on (ADR-0030).
   ...(cardBoard() ? [{ id: "board.newCard", labelKey: "board.newCard" }] : []),
   // From the note being read, onto the active board (ADR-0035).
-  ...(cardBoard() && isNote(useTabs.getState().active ?? "")
+  ...(cardBoard() && isNote(useTabs.getState().active ?? "") && !isExternal(useTabs.getState().active ?? "")
     ? [{ id: "board.cardFromSelection", labelKey: "palette.cmd.cardFromSelection" }]
     : []),
   { id: "settings.open", labelKey: "palette.cmd.settings" },

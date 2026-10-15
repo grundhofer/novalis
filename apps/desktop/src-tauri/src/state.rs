@@ -19,7 +19,7 @@ use novalis_core::vault::fs::Precondition;
 use crate::cache::CacheHandle;
 use crate::dto::WindowRectDto;
 use crate::error::{IpcError, IpcResult};
-use crate::watcher::WatcherHandle;
+use crate::watcher::{ExternalWatcher, WatcherHandle};
 
 /// `(mtime_ns, size)` of a write we made ourselves, keyed by vault-relative
 /// path. The watcher drops an event that matches one (PLAN.md §5.3 step 4);
@@ -114,6 +114,9 @@ pub struct AppState {
     /// The window's last place and size, tracked from its move and resize
     /// events; written into every save of `state.json`.
     window: Mutex<Option<WindowRectDto>>,
+    /// The folders of files open from outside the vault (ADR-0047); started
+    /// by the first such file and kept across vault switches.
+    external: Mutex<Option<ExternalWatcher>>,
     config_dir: PathBuf,
 }
 
@@ -133,6 +136,7 @@ impl AppState {
             search_generation: Arc::new(AtomicU64::new(0)),
             quitting: AtomicBool::new(false),
             window: Mutex::new(None),
+            external: Mutex::new(None),
             config_dir,
         }
     }
@@ -149,6 +153,23 @@ impl AppState {
 
     pub fn set_window(&self, rect: WindowRectDto) {
         *self.window.lock().unwrap_or_else(|e| e.into_inner()) = Some(rect);
+    }
+
+    /// Watch a file opened from outside the vault (ADR-0047). The folder is
+    /// added to one FSEvents stream; `own_writes` drops our own saves there
+    /// as it does in the vault.
+    pub fn watch_external(&self, app: &tauri::AppHandle, key: &str) -> notify::Result<()> {
+        let mut external = self.external.lock().unwrap_or_else(|e| e.into_inner());
+        if external.is_none() {
+            *external = Some(ExternalWatcher::spawn(
+                app.clone(),
+                self.own_writes.clone(),
+            )?);
+        }
+        match external.as_mut() {
+            Some(watcher) => watcher.add(key),
+            None => Ok(()),
+        }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {

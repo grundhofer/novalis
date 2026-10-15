@@ -134,6 +134,26 @@ describe("useTabs and the board pane", () => {
   });
 });
 
+describe("useTabs and a file from outside the vault", () => {
+  beforeEach(() => {
+    useTabs.setState({ tabs: [], active: null, closed: [], history: [], historyIndex: -1 });
+    useEditorSave.setState({
+      open: vi.fn().mockResolvedValue(undefined),
+      save: vi.fn().mockResolvedValue(undefined),
+    });
+    useVault.setState({ selected: "notes/a.md", reveal: vi.fn().mockResolvedValue(undefined) });
+  });
+
+  // ADR-0047: it has no tree row, so opening it leaves the tree as it was.
+  it("opens it without touching the tree", async () => {
+    await useTabs.getState().open("/Users/me/Downloads/x.md");
+
+    expect(useTabs.getState().active).toBe("/Users/me/Downloads/x.md");
+    expect(useVault.getState().selected).toBe("notes/a.md");
+    expect(useVault.getState().reveal).not.toHaveBeenCalled();
+  });
+});
+
 describe("useTabs and the viewer", () => {
   beforeEach(() => {
     useTabs.setState({ tabs: [], active: null, closed: [], history: [], historyIndex: -1 });
