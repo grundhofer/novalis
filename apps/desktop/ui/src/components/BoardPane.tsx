@@ -196,6 +196,7 @@ export default function BoardPane() {
           onClick={() =>
             useUi.getState().ask({
               titleKey: "board.addColumn",
+              busyKey: "app.creating",
               placeholderKey: "board.columnNamePlaceholder",
               initial: "",
               submit: async (name) => {
@@ -478,6 +479,7 @@ export default function BoardPane() {
                   onClick={() =>
                     useUi.getState().ask({
                       titleKey: "board.newCard",
+                      busyKey: "app.creating",
                       placeholderKey: "board.cardTitlePlaceholder",
                       initial: "",
                       submit: async (title) => {
@@ -520,6 +522,7 @@ function newBoard(t: (key: string) => string): void {
   void t;
   useUi.getState().ask({
     titleKey: "board.newBoard",
+    busyKey: "app.creating",
     placeholderKey: "board.boardNamePlaceholder",
     initial: "",
     submit: async (name) => {

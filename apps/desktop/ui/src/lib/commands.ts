@@ -39,6 +39,7 @@ export type CommandResult = void | Promise<void>;
 export function newNote(folder: string, initial = ""): void {
   useUi.getState().ask({
     titleKey: "menu.file.newNote",
+    busyKey: "app.creating",
     placeholderKey: "tree.renamePlaceholder",
     initial,
     // What a typed extension does (ADR-0014): the table is too long to list.
@@ -75,6 +76,7 @@ export async function createNoteNamed(name: string): Promise<void> {
 async function newFolder(folder: string): Promise<void> {
   useUi.getState().ask({
     titleKey: "menu.file.newFolder",
+    busyKey: "app.creating",
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
     submit: async (name) => {

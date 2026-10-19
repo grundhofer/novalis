@@ -40,8 +40,16 @@ The owner built one design system for all sebaro apps and sites in the sebaroDes
 - `--ds-*` names are unchanged, so components did not need new names; new tokens were added for the line widths, the primary action, danger, focus, the tile and the start.
 - Mono for metadata (counts, dates, status, palette foot, board counts) is gone: sebaro keeps mono for code (sebaro D38); paths in quick-open and on card chips stay mono.
 - The status bar's look changed, its content did not: the same counts and cloud state, now the action zone's state sentence.
-- Not done in this step and still open: the external-link icon after web links (sebaro D56), progress shown inside the primary action (sebaro D48), the app icon set from sebaroDesign `brand/dist/novalis/tauri`, a check on screen in the real window.
-- Eager CSS is 22.6 of 24 kB.
+- Done in a second step the same day:
+  - **External links:** a link in the preview that leaves the app (web, mail, phone) ends in the 16 px `external-link` icon (sebaro D56). The editor shows the Markdown source and gets no icon there.
+  - **Progress in the primary action** (sebaro D48), in the dialog's lime OK, which is where every create and rename runs:
+    - while `submit` runs, OK says what runs ("Wird angelegt …", otherwise "Wird gesichert …") and an ink bar sweeps inside it; under reduced motion the bar stands still;
+    - a failure stays in the dialog as a sentence in danger and OK becomes "Noch mal versuchen", instead of a toast;
+    - there is no "✓ Angelegt" step, because on success the dialog closes and the result (the opened note, the new card) is shown;
+    - confirmation dialogs close at once as before.
+  - **App icons:** generated with `cargo tauri icon` from sebaroDesign `brand/dist/novalis/tauri/icon-1024.png` (the flower with `nvs` on petrol). They replace the Dev-Noir placeholder and its generator script.
+- Checked in the real window on 2026-10-19 (`just dev`) by the owner.
+- Eager CSS is 23.5 of 24 kB: the next stylesheet change of any size needs room made first.
 
 **Owner approval:** 2026-10-18 — "ja, bitte committen! danach entweder retrobeam oder novalis umbauen, keine der billo android apps", then "ja, mach das genau so. denk bitte dran, dass die andere zeichen auch weitere designregeln festgelegt, die wir beim umbau auch berücksichtigen müssen. starte mit novalis". 2026-10-19, on the sketch's questions (1 petrol out of the UI, 2 the reduce-motion setting, 3 the fonts, 4 the danger hue): "1 ja passt / 2 die Einstellung ermöglichen / 3 Warum brauchen wir beide Schriftarten? / 4 ja, nach das / Die Skizze könnte näher an den Anforderungen sein. Der Hauptbutton für neue Notiz ist nicht überall. Bitte nochmal prüfen ob alles beachtet wird wie Tintenlinie lindgruner Hauptbutton etc" ("nach das" read as "mach das"); after the second sketch and the font answer: "ja, dann fang bitte damit an, wir behalten beide schriftarten und merke dir diese entscheidung für unsere anderen projekte" (sebaroDesign DECISIONS D65, D66).
 

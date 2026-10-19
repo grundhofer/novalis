@@ -21,6 +21,7 @@ import { openExternal, SCHEME } from "../lib/external";
 import { blockForLine, parseBlockSpan, toggleMarkInSource, toggleTaskInSource } from "../lib/previewEdit";
 import { useEditorSave } from "../stores/editorSave";
 import { report } from "../stores/ui";
+import { externalLinkIcon } from "./Icon";
 import "../styles/preview.css";
 
 /**
@@ -337,6 +338,12 @@ export default function Preview({
     // click that `onClick` turns into the source edit.
     for (const box of host.querySelectorAll<HTMLInputElement>('li[data-pos] > input[type="checkbox"]')) {
       box.disabled = false;
+    }
+
+    // A link that leaves the app — the web, a mail, a call — ends in the
+    // external-link icon (sebaro D56); a link into the vault does not.
+    for (const anchor of host.querySelectorAll("a[href]")) {
+      if (SCHEME.test(anchor.getAttribute("href") ?? "")) anchor.append(externalLinkIcon(document));
     }
 
     // A relative `src` is a vault path the webview cannot reach; the bytes

@@ -765,6 +765,57 @@ button {
   background: var(--ds-color-primary-pressed);
 }
 
+/* Busy (sebaro D48): the label says what runs and an ink bar sweeps along
+   the bottom edge inside the button; no spinner, no toast. Under reduced
+   motion the bar stands still, full width and faint. */
+.btn.primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 34%;
+  height: var(--ds-size-progress-bar);
+  background: var(--ds-color-primary-fg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.btn.primary[aria-busy="true"] {
+  cursor: progress;
+}
+
+.btn.primary[aria-busy="true"] .btn-bar {
+  opacity: 1;
+  animation: btn-sweep var(--ds-motion-progress-period) var(--ds-motion-ease) infinite;
+}
+
+@keyframes btn-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary[aria-busy="true"] .btn-bar {
+    width: 100%;
+    opacity: 0.4;
+    animation: none;
+  }
+}
+
+:root[data-motion="reduced"] .btn.primary[aria-busy="true"] .btn-bar {
+  width: 100%;
+  opacity: 0.4;
+  animation: none;
+}
+
 .btn.ghost {
   background: none;
   border-color: var(--ds-color-border-control);
@@ -926,6 +977,16 @@ button {
   padding: var(--ds-space-4);
   line-height: var(--ds-line-height-ui);
   resize: vertical;
+}
+
+/* A failed OK (sebaro D48): the reason as a sentence in danger, above the
+   buttons; OK says "Try Again". */
+.dialog-error {
+  margin: var(--ds-space-4) 0 0;
+  font-size: var(--ds-font-size-ui-sm);
+  line-height: var(--ds-line-height-ui);
+  color: var(--ds-color-danger-text);
+  overflow-wrap: anywhere;
 }
 
 .dialog-actions {

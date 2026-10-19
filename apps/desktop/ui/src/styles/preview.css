@@ -92,6 +92,15 @@
   color: var(--ds-color-accent-text);
 }
 
+/* The external-link icon after a link that leaves the app (sebaro D56):
+   16 px, 2 px from the word, in the link's colour, outside its underline. */
+.preview-body a .icon-16 {
+  display: inline-block;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  stroke-width: 1.5;
+}
+
 .preview-body strong {
   font-weight: var(--ds-font-weight-medium);
 }

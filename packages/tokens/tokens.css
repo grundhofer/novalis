@@ -259,6 +259,10 @@
   --ds-motion-duration-long: 200ms;
   --ds-motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --ds-motion-enter-distance: 8px;
+  /* The busy primary action's ink bar (sebaro D48): one sweep per period;
+     under reduced motion it stands still (app.css). */
+  --ds-motion-progress-period: 1100ms;
+  --ds-size-progress-bar: 6px;
 
   --ds-size-titlebar: 48px;
   --ds-size-tabstrip: 40px;

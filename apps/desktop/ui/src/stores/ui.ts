@@ -74,6 +74,11 @@ export interface PromptRequest {
     /** Catalog key for the confirming button, which names the action. */
     confirmKey: string;
   };
+  /**
+   * Input dialogs only: what OK says while `submit` runs (sebaro D48), e.g.
+   * `app.creating`; `app.saving` when not given.
+   */
+  busyKey?: string;
   submit: (value: string) => void | Promise<void>;
 }
 

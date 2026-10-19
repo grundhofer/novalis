@@ -41,11 +41,35 @@ describe("Prompt", () => {
     fireEvent.click(screen.getByText("app.ok"));
     await flush();
 
-    // `report` (stores/ui.ts): a toast, never the fatal overlay.
-    expect(useUi.getState().toast).toEqual({
-      key: "errors.internal",
-      values: { detail: String(boom) },
+    // Never the fatal overlay, and since sebaro D48 not a toast either: the
+    // dialog stays, says why in a sentence, and OK becomes "Try Again".
+    expect(useUi.getState().prompt).not.toBeNull();
+    expect(screen.getByRole("alert").textContent).toBe("errors.internal");
+    expect(screen.getByText("app.retry")).toBeTruthy();
+    expect(useUi.getState().toast).toBeNull();
+  });
+
+  it("says what runs inside OK while submit is pending (sebaro D48)", async () => {
+    let finish: () => void = () => undefined;
+    useUi.setState({
+      prompt: {
+        titleKey: "menu.file.newNote",
+        busyKey: "app.creating",
+        initial: "",
+        submit: () => new Promise<void>((resolve) => (finish = resolve)),
+      },
     });
+    render(<Prompt />);
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Idea" } });
+    fireEvent.click(screen.getByText("app.ok"));
+    await flush();
+    const ok = screen.getByText("app.creating").closest("button");
+    expect(ok?.getAttribute("aria-busy")).toBe("true");
+
+    finish();
+    await flush();
+    expect(useUi.getState().prompt).toBeNull();
   });
 
   it("passes the trimmed value through and closes on success", async () => {

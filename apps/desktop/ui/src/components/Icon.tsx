@@ -32,6 +32,32 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
+/** The 16-unit `external-link--16` symbol: the box with the arrow (sebaro D56). */
+const EXTERNAL_LINK_16 = [
+  "M5.75 2.75 H4 A1.25 1.25 0 0 0 2.75 4 V12 A1.25 1.25 0 0 0 4 13.25 H12 A1.25 1.25 0 0 0 13.25 12 V10.25",
+  "M7.5 8.5 L13.25 2.75",
+  "M9.25 2.75 H13.25 V6.75",
+];
+
+/**
+ * The icon a link that leaves the app ends in (sebaro D56, spec/03 §15), as
+ * a DOM node: the preview's fragment is written outside React.
+ */
+export function externalLinkIcon(doc: Document): SVGSVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = doc.createElementNS(ns, "svg");
+  svg.setAttribute("class", "icon icon-16");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  for (const d of EXTERNAL_LINK_16) {
+    const path = doc.createElementNS(ns, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 export default function Icon({ name }: { name: IconName }) {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
