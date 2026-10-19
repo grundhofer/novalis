@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import { dispatchCommand } from "../lib/commands";
 import { previewKind } from "../lib/fileTypes";
 import { stemOf } from "../lib/paths";
+import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
+import Icon from "./Icon";
 
 /**
  * A tab's drag payload (ADR-0028): its own type, so the tree — which reads
@@ -26,10 +28,18 @@ export default function TabStrip() {
   const active = useTabs((s) => s.active);
   const docs = useEditorSave((s) => s.docs);
   const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
+  const boardVisible = useUi((s) => s.boardVisible);
+  // The open board is a tab like a note's (ADR-0050): the one board at a
+  // time, first in the strip, current while the board pane shows. A board
+  // shown by the toggle before any was chosen is the board store's.
+  const chosenBoard = useUi((s) => s.activeBoard);
+  const loadedBoard = useBoard((s) => s.slug);
+  const boardSlug = chosenBoard ?? (boardVisible ? loadedBoard : null);
+  const boardName = useBoard((s) => s.boards.find((b) => b.slug === boardSlug)?.name ?? boardSlug);
 
   // Inside the bar even when empty: on its own in the column, the strip's
   // `flex: 1` (meant for the row) grew it to half the pane's height.
-  if (tabs.length === 0) {
+  if (tabs.length === 0 && !boardSlug) {
     return (
       <div className="tabbar">
         <div className="tabs tabs-empty" />
@@ -40,16 +50,45 @@ export default function TabStrip() {
   return (
     <div className="tabbar">
     <div className="tabs" role="tablist" onDragLeave={() => setDropAt(null)}>
+      {boardSlug && (
+        <div
+          className={boardVisible ? "tab board-tab active" : "tab board-tab"}
+          role="tab"
+          aria-selected={boardVisible}
+          tabIndex={-1}
+          onMouseDown={(event) => {
+            if (event.button === 1) {
+              event.preventDefault();
+              useUi.getState().setActiveBoard(null);
+            }
+          }}
+          onClick={() => useUi.getState().setActiveBoard(boardSlug)}
+        >
+          <Icon name="board" />
+          <span className="tab-name">{boardName}</span>
+          <button
+            className="tab-close"
+            type="button"
+            title={t("menu.file.closeTab")}
+            aria-label={t("menu.file.closeTab")}
+            onClick={(event) => {
+              event.stopPropagation();
+              useUi.getState().setActiveBoard(null);
+            }}
+          />
+        </div>
+      )}
       {tabs.map((path, index) => {
         const doc = docs[path];
+        const current = !boardVisible && path === active;
         return (
           <div
             className={
-              (path === active ? "tab active" : "tab") + (dropAt === index ? " drop" : "")
+              (current ? "tab active" : "tab") + (dropAt === index ? " drop" : "")
             }
             key={path}
             role="tab"
-            aria-selected={path === active}
+            aria-selected={current}
             tabIndex={-1}
             draggable
             onDragStart={(event) => {
@@ -113,7 +152,7 @@ export default function TabStrip() {
         pushes it out of sight; a glyph with the state in its tooltip, not a
         word. Only a file with a second representation has it — a note, a
         CSV or TSV, an SVG (ADR-0025) — so it is not there for a PDF. */}
-    {active && previewKind(active) && (
+    {active && !boardVisible && previewKind(active) && (
       <button
         className={previewing ? "btn ghost tool tab-preview on" : "btn ghost tool tab-preview"}
         type="button"

@@ -32,7 +32,7 @@ export const editorTheme = EditorView.theme({
     paddingBottom: "0",
   },
   // The code dress (ADR-0022): every preset but prose sets `nv-mono` on the
-  // editor — Geist Mono with its tracking, the full width instead of the
+  // editor — sebaro Mono with its tracking, the full width instead of the
   // measure. Size and line height stay the editor's; there is one of each.
   "&.nv-mono .cm-scroller": {
     fontFamily: "var(--ds-font-mono)",
@@ -89,10 +89,9 @@ export const editorTheme = EditorView.theme({
     outline: "none",
   },
   ".cm-tooltip": {
-    backgroundColor: "var(--ds-color-bg-raised)",
-    border: "1px solid var(--ds-color-border-strong)",
+    backgroundColor: "var(--ds-color-bg-canvas)",
+    border: "var(--ds-line-ink) solid var(--ds-color-line-ink)",
     borderRadius: "var(--ds-radius-control)",
-    boxShadow: "var(--ds-shadow-modal)",
     color: "var(--ds-color-fg-default)",
     fontFamily: "var(--ds-font-sans)",
     fontSize: "var(--ds-font-size-ui)",
@@ -230,12 +229,17 @@ export const CODE_RULES: readonly CodeRule[] = [
 export const markdownHighlight = HighlightStyle.define([
   // Markers stay visible, only dimmed — the decorated-source rule.
   { tag: t.processingInstruction, color: "var(--ds-color-syntax-marker)" },
-  { tag: t.heading, color: "var(--ds-color-syntax-heading)", fontWeight: "500" },
-  { tag: t.strong, fontWeight: "600" },
+  { tag: t.heading, color: "var(--ds-color-syntax-heading)", fontWeight: "var(--ds-font-weight-strong)" },
+  { tag: t.strong, fontWeight: "var(--ds-font-weight-medium)" },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strikethrough, textDecoration: "line-through" },
-  { tag: t.link, color: "var(--ds-color-syntax-link)" },
-  { tag: t.url, color: "var(--ds-color-syntax-link)" },
+  // Links in text colour with the 2 px cobalt line (sebaro D52/D55): the
+  // text of `[text](url)`, and a URL, bare in the text or as its target.
+  {
+    tag: [t.link, t.url],
+    textDecoration: "underline var(--ds-line-link) var(--ds-color-accent-default)",
+    textUnderlineOffset: "0.2em",
+  },
   {
     tag: noteTag,
     color: "var(--ds-color-syntax-tag)",
@@ -243,7 +247,6 @@ export const markdownHighlight = HighlightStyle.define([
     border: "1px solid var(--ds-color-accent-line)",
     borderRadius: "var(--ds-radius-chip)",
     padding: "0 0.28em",
-    fontFamily: "var(--ds-font-mono)",
     fontSize: "0.86em",
   },
   {

@@ -5,10 +5,9 @@
 .palette {
   width: var(--ds-size-palette);
   max-width: calc(100vw - 2 * var(--ds-space-9));
-  background: var(--ds-color-bg-raised);
-  border: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-bg-canvas);
+  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
   border-radius: var(--ds-radius-container);
-  box-shadow: var(--ds-shadow-modal);
   overflow: hidden;
 }
 
@@ -85,8 +84,9 @@
     color var(--ds-motion-duration) var(--ds-motion-ease);
 }
 
+/* The chosen row: a light fill and the 3 px cobalt place line (sebaro D48). */
 .result.active {
-  background: var(--ds-color-bg-fill-strong);
+  background: var(--ds-color-bg-hover);
   color: var(--ds-color-fg-default);
 }
 
@@ -94,10 +94,9 @@
   content: "";
   position: absolute;
   left: 0;
-  top: var(--ds-space-4);
-  bottom: var(--ds-space-4);
-  width: 2px;
-  border-radius: 0 2px 2px 0;
+  top: 0;
+  bottom: 0;
+  width: var(--ds-line-place);
   background: var(--ds-color-accent-default);
 }
 
@@ -153,8 +152,7 @@
   height: 36px;
   padding: 0 var(--ds-space-6);
   border-top: 1px solid var(--ds-color-border-default);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
+  font-size: var(--ds-font-size-ui-sm);
   color: var(--ds-color-fg-muted);
 }
 

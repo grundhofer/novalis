@@ -39,6 +39,7 @@ export type CommandResult = void | Promise<void>;
 export function newNote(folder: string, initial = ""): void {
   useUi.getState().ask({
     titleKey: "menu.file.newNote",
+    busyKey: "app.creating",
     placeholderKey: "tree.renamePlaceholder",
     initial,
     // What a typed extension does (ADR-0014): the table is too long to list.
@@ -75,6 +76,7 @@ export async function createNoteNamed(name: string): Promise<void> {
 async function newFolder(folder: string): Promise<void> {
   useUi.getState().ask({
     titleKey: "menu.file.newFolder",
+    busyKey: "app.creating",
     placeholderKey: "tree.renamePlaceholder",
     initial: "",
     submit: async (name) => {
@@ -494,10 +496,16 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "journal.previousDay": () => stepDay(-1),
   "journal.nextDay": () => stepDay(1),
   "vault.open": () => openVault(),
-  "tab.close": () => useTabs.getState().closeActive(),
+  // The open board is a tab too (ADR-0050): while it shows, Cmd-W closes it,
+  // not the note behind it.
+  "tab.close": () =>
+    useUi.getState().boardVisible ? useUi.getState().setActiveBoard(null) : useTabs.getState().closeActive(),
   "tab.reopenClosed": () => useTabs.getState().reopenClosed(),
   "tab.closeOthers": () => useTabs.getState().closeOthers(),
-  "tab.closeAll": () => useTabs.getState().closeAll(),
+  "tab.closeAll": () => {
+    useUi.getState().setActiveBoard(null);
+    return useTabs.getState().closeAll();
+  },
   "tab.next": () => useTabs.getState().next(),
   "tab.previous": () => useTabs.getState().previous(),
   "nav.back": () => useTabs.getState().back(),
@@ -560,6 +568,8 @@ const REGISTRY: Record<string, () => CommandResult> = {
   "settings.language.en": () => useUi.getState().setLanguage("en"),
   "settings.spellcheck": () =>
     useUi.getState().setSpellcheck(!(useUi.getState().settings?.spellcheck ?? true)),
+  "settings.reduceMotion": () =>
+    useUi.getState().setReduceMotion(!(useUi.getState().settings?.reduceMotion ?? false)),
 };
 
 for (let n = 1; n <= 9; n += 1) {
@@ -613,8 +623,8 @@ export function dispatchCommand(id: string): void {
 
 /**
  * Command ids the palette offers, in the order it shows them. `valueKey`
- * fills the label's `{{value}}`. The entries marked `settings` are the four
- * settings' values: they have no window, and the settings button (ADR-0012,
+ * fills the label's `{{value}}`. The entries marked `settings` are the
+ * settings' values (docs/SETTINGS.md): they have no window, and the settings button (ADR-0012,
  * amended 2026-09-15) opens the palette on exactly this subset.
  *
  * A function, not a constant, because one entry names its own state: the
@@ -692,5 +702,6 @@ export function paletteCommands(): readonly {
   { id: "settings.language.de", labelKey: "palette.cmd.language", valueKey: "settings.language.de", settings: true },
   { id: "settings.language.en", labelKey: "palette.cmd.language", valueKey: "settings.language.en", settings: true },
   { id: "settings.spellcheck", labelKey: "menu.edit.checkSpellingWhileTyping", settings: true },
+  { id: "settings.reduceMotion", labelKey: "menu.view.reduceMotion", settings: true },
   ];
 }

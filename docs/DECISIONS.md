@@ -783,6 +783,36 @@ over; such a file opens in its own tab keyed by its absolute path, is edited
 and saved where it is, is watched through its folder, and is left out of
 `state.json`. Open With declares every extension of the file-type table.
 
+## Answered 2026-10-18 and 2026-10-19
+
+The owner built the sebaro design system in sebaroDesign and chose novalis
+as the first app to rebuild in it:
+
+> ja, bitte committen! danach entweder retrobeam oder novalis umbauen, keine der billo android apps
+
+> ja, mach das genau so. denk bitte dran, dass die andere zeichen auch weitere designregeln festgelegt, die wir beim umbau auch berücksichtigen müssen. starte mit novalis
+
+Shown the sketch (petrol out of the UI, a reduce-motion setting, two
+fonts, a danger hue):
+
+> 1 ja passt / 2 die Einstellung ermöglichen / 3 Warum brauchen wir beide Schriftarten? / 4 ja, nach das / Die Skizze könnte näher an den Anforderungen sein. Der Hauptbutton für neue Notiz ist nicht überall. Bitte nochmal prüfen ob alles beachtet wird wie Tintenlinie lindgruner Hauptbutton etc
+
+and, after the second sketch and the answer that the variable web fonts
+weigh 57.5 kB together:
+
+> ja, dann fang bitte damit an, wir behalten beide schriftarten und merke dir diese entscheidung für unsere anderen projekte
+
+Recorded as **ADR-0048** (sebaro replaces Dev-Noir; amends ADR-0007) and
+**ADR-0049** (the fifth setting, `reduceMotion`, View ▸ Always Reduce
+Motion).
+
+Seen in the real window:
+
+> ein offenes board sollte auch wie ein offenes dokument angezeigt werden in der dokumentleiste. aktuell überblendet das einfach alles. wir haben aktuell auch einstellungen zwei mal. ich möchte es unten links behalten und oben rechts entfernen. das neue notiz in einer spalte oder neue karte wie es auch heißt, sollte immer am unteren rand sichtbar bleiben, auch wenn so viele karten auf dem board sind das gescrolled werden muss.
+
+Recorded as **ADR-0050** (the open board is a tab, the `⇧⌘P` badge goes,
+New Card stays at the column's foot; amends ADR-0007).
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

@@ -52,12 +52,13 @@ pub struct SettingsDto {
     pub appearance: AppearanceDto,
     pub editor: EditorSettingsDto,
     pub spellcheck: bool,
+    pub reduce_motion: bool,
     pub last_vault: Option<String>,
 }
 
 /// A partial settings update. Absent fields stay as they are; there are only
-/// the four settings of PLAN.md §4.1 plus the `lastVault` state key, which the
-/// shell writes itself when a vault opens.
+/// the four settings of PLAN.md §4.1 and `reduceMotion` (ADR-0049) plus the
+/// `lastVault` state key, which the shell writes itself when a vault opens.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsPatchDto {
@@ -65,6 +66,7 @@ pub struct SettingsPatchDto {
     pub appearance: Option<AppearanceDto>,
     pub font_size: Option<u32>,
     pub spellcheck: Option<bool>,
+    pub reduce_motion: Option<bool>,
 }
 
 impl From<&Settings> for SettingsDto {
@@ -85,6 +87,7 @@ impl From<&Settings> for SettingsDto {
                 font_size: s.editor.font_size,
             },
             spellcheck: s.spellcheck,
+            reduce_motion: s.reduce_motion,
             last_vault: s.last_vault.clone(),
         }
     }
@@ -116,6 +119,9 @@ impl SettingsPatchDto {
         }
         if let Some(spellcheck) = self.spellcheck {
             settings.spellcheck = spellcheck;
+        }
+        if let Some(reduce_motion) = self.reduce_motion {
+            settings.reduce_motion = reduce_motion;
         }
     }
 }

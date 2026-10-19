@@ -23,7 +23,7 @@ import Marked from "./Marked";
 /**
  * Quick-open (`Cmd+P`), the command palette (`Shift+Cmd+P`) and the settings
  * list behind the sidebar's gear are the same component: one list, three
- * sources; the settings mode is the palette on the four settings alone.
+ * sources; the settings mode is the palette on the settings alone.
  *
  * The palette is "the home of every transient toggle" (PLAN.md §5.3) and it
  * carries the heading jump that replaces the dropped outline panel (§4.3).

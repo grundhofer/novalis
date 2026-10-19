@@ -8,6 +8,7 @@ import LegacyHint from "./components/LegacyHint";
 import Prompt from "./components/Prompt";
 import Sidebar from "./components/Sidebar";
 import SidebarResize from "./components/SidebarResize";
+import StartTile from "./components/StartTile";
 import StatusBar from "./components/StatusBar";
 import TabStrip from "./components/TabStrip";
 import TitleBar from "./components/TitleBar";
@@ -385,9 +386,8 @@ export default function App() {
             <div className="empty-state">
               <h1 className="empty-title">{t("app.openVault.title")}</h1>
               <p className="empty-body">{t("app.openVault.body")}</p>
-              <button className="btn primary" type="button" onClick={() => dispatch("vault.open")}>
-                {t("app.openVault.button")}
-              </button>
+              {/* Its button is the action zone's primary (ADR-0048): one per
+                  view, at the bottom. */}
             </div>
           ) : active && view ? (
             <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
@@ -467,6 +467,7 @@ export default function App() {
       )}
       <Prompt />
       <Toast />
+      <StartTile />
     </div>
   );
 }

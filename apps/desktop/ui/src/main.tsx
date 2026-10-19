@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
+import { startI18n } from "./i18n";
 import "@novalis/tokens/tokens.css";
 import "./styles/fonts.css";
 import "./styles/app.css";
@@ -51,6 +52,8 @@ window.addEventListener("unhandledrejection", (event) => {
   const reason: unknown = event.reason;
   reportFatal(reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason));
 });
+
+startI18n();
 
 const host = document.getElementById("root");
 if (!host) throw new Error("index.html is missing #root");

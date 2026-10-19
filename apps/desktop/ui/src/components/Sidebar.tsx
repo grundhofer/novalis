@@ -12,6 +12,7 @@ import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { cloudCounts, treeRows, useVault, type TreeRow } from "../stores/vault";
+import Icon from "./Icon";
 
 /**
  * The tree: virtualized (`@tanstack/react-virtual`), folders first, cloud
@@ -217,7 +218,7 @@ export default function Sidebar() {
               aria-label={t("menu.file.newNote")}
               onClick={() => dispatchCommand("file.newNote")}
             >
-              +
+              <Icon name="plus" />
             </button>
             <button
               className="btn ghost tool"
@@ -226,7 +227,7 @@ export default function Sidebar() {
               aria-label={t("menu.file.newFolder")}
               onClick={() => dispatchCommand("tree.newFolder")}
             >
-              <span className="glyph-folder" aria-hidden="true" />
+              <Icon name="folder" />
             </button>
             <button
               className={boardVisible ? "btn ghost tool on" : "btn ghost tool"}
@@ -236,7 +237,7 @@ export default function Sidebar() {
               aria-pressed={boardVisible}
               onClick={() => dispatchCommand("board.toggle")}
             >
-              <span className="glyph-board" aria-hidden="true" />
+              <Icon name="board" />
             </button>
           </span>
         </div>
@@ -417,7 +418,7 @@ export default function Sidebar() {
           aria-label={t("palette.cmd.settings")}
           onClick={() => dispatchCommand("settings.open")}
         >
-          <span className="glyph-gear" aria-hidden="true" />
+          <Icon name="settings" />
         </button>
         {counts.cloudOnly > 0 && (
           <span className="hint">

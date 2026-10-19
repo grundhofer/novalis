@@ -81,17 +81,28 @@
   margin-bottom: 0;
 }
 
+/* Links in text colour with the 2 px cobalt line (sebaro D52/D55). */
 .preview-body a {
-  color: var(--ds-color-syntax-link);
-  text-decoration: none;
+  color: inherit;
+  text-decoration: underline var(--ds-line-link) var(--ds-color-accent-default);
+  text-underline-offset: 0.2em;
 }
 
 .preview-body a:hover {
-  text-decoration: underline;
+  color: var(--ds-color-accent-text);
+}
+
+/* The external-link icon after a link that leaves the app (sebaro D56):
+   16 px, 2 px from the word, in the link's colour, outside its underline. */
+.preview-body a .icon-16 {
+  display: inline-block;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  stroke-width: 1.5;
 }
 
 .preview-body strong {
-  font-weight: 600;
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .preview-body blockquote {

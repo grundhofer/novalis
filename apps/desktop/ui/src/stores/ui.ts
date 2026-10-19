@@ -15,7 +15,8 @@ import {
 } from "../ipc/client";
 
 /**
- * Settings (the four of PLAN.md §4.1) plus the disposable window state.
+ * Settings (the four of PLAN.md §4.1 and `reduceMotion`, ADR-0049) plus the
+ * disposable window state.
  *
  * The settings live in `settings.json` and are written through `settings_set`,
  * which also rebuilds the native menu. Everything else — sidebar, board,
@@ -73,6 +74,11 @@ export interface PromptRequest {
     /** Catalog key for the confirming button, which names the action. */
     confirmKey: string;
   };
+  /**
+   * Input dialogs only: what OK says while `submit` runs (sebaro D48), e.g.
+   * `app.creating`; `app.saving` when not given.
+   */
+  busyKey?: string;
   submit: (value: string) => void | Promise<void>;
 }
 
@@ -127,6 +133,7 @@ interface UiState {
   setAppearance: (appearance: AppearanceDto) => Promise<void>;
   setLanguage: (language: LanguageDto) => Promise<void>;
   setSpellcheck: (on: boolean) => Promise<void>;
+  setReduceMotion: (on: boolean) => Promise<void>;
   changeFontSize: (delta: number | "reset") => Promise<void>;
   showToast: (key: string, values?: Record<string, string | number>) => void;
   clearToast: () => void;
@@ -146,7 +153,7 @@ function systemLocale(): string {
  * optional, so a partial change still names the three fields it leaves alone.
  */
 function patch(change: Partial<Record<keyof SettingsPatchDto, never>> | SettingsPatchDto): SettingsPatchDto {
-  return { language: null, appearance: null, fontSize: null, spellcheck: null, ...change };
+  return { language: null, appearance: null, fontSize: null, spellcheck: null, reduceMotion: null, ...change };
 }
 
 function applyAppearance(appearance: AppearanceDto): void {
@@ -160,6 +167,12 @@ function applyAppearance(appearance: AppearanceDto): void {
     // Private mode or a cleared store: the shell re-sends the setting at boot,
     // so the only cost is one frame in the wrong theme.
   }
+}
+
+/** `data-motion="reduced"` collapses every duration token (tokens.css, ADR-0049). */
+function applyMotion(reduce: boolean): void {
+  if (reduce) document.documentElement.dataset.motion = "reduced";
+  else delete document.documentElement.dataset.motion;
 }
 
 function applyFontSize(size: number): void {
@@ -185,6 +198,7 @@ export const useUi = create<UiState>((set, get) => ({
   hydrate: (settings, state, locale) => {
     applyAppearance(settings.appearance);
     applyFontSize(settings.editor.fontSize);
+    applyMotion(settings.reduceMotion);
     void setLocale(locale).catch(report);
     set({
       settings,
@@ -244,6 +258,11 @@ export const useUi = create<UiState>((set, get) => ({
 
   setSpellcheck: async (spellcheck) => {
     set({ settings: await unwrap(commands.settingsSet(patch({ spellcheck } as SettingsPatchDto))) });
+  },
+
+  setReduceMotion: async (reduceMotion) => {
+    applyMotion(reduceMotion);
+    set({ settings: await unwrap(commands.settingsSet(patch({ reduceMotion } as SettingsPatchDto))) });
   },
 
   changeFontSize: async (delta) => {

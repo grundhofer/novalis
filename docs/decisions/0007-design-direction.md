@@ -44,6 +44,10 @@ Applied rules: exactly one radius per element class (6–8 px controls, 10–12 
 
 **Owner approval:** 2026-09-05 — "i like two style dev noir first and then as alternative swiss, but what is exactly the difference in layout? I think we need tabs" (docs/DECISIONS.md, "Design (§4.6) — answered 2026-09-05 after the mockups").
 
+**Amended 2026-10-19** — ADR-0048: the style is sebaro instead of Dev-Noir (cobalt place and lime primary action instead of the teal accent, Radio Canada and sebaro Mono instead of Inter and Geist Mono, a 48 px title bar with the app tile, 2 px ink lines and no shadow, a danger hue). Tabs, the L2/L4 layouts, the breadcrumb, the `⇧⌘P` badge, the maintained light theme and the tokens-only rule stand.
+
+**Amended 2026-10-19** — ADR-0050: the `⇧⌘P` badge leaves the title bar (the chord and the menu item stay), and an open board is a tab in the strip.
+
 ## Sources
 
 PLAN.md §4.6, §5.9, §6, D10, D13, D20, D21 · docs/DECISIONS.md · design/variants/specs/dev-noir.md · design/variants/css/dev-noir.css (accent values) · docs/research/2026-09-05-design.md (F5, R2, R4)

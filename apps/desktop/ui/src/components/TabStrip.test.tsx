@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchCommand } from "../lib/commands";
+import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
@@ -29,7 +30,8 @@ describe("TabStrip", () => {
   beforeEach(() => {
     useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md" });
     useEditorSave.setState({ docs: {} });
-    useUi.setState({ toast: null, previewing: {} });
+    useUi.setState({ toast: null, previewing: {}, activeBoard: null, boardVisible: false });
+    useBoard.setState({ boards: [], slug: null });
     vi.mocked(dispatchCommand).mockClear();
   });
 
@@ -110,6 +112,35 @@ describe("TabStrip", () => {
         expect(screen.getByLabelText("editor.preview"), active).toBeTruthy();
         unmount();
       }
+    });
+  });
+
+  // ADR-0050: an open board is a tab like a note's, not a pane over
+  // everything with a note still marked current.
+  describe("the board tab", () => {
+    beforeEach(() => {
+      useBoard.setState({ boards: [{ slug: "work", name: "Work" } as never] });
+      useUi.setState({ activeBoard: "work", boardVisible: true });
+    });
+
+    it("is current while the board shows, and no note tab is", () => {
+      render(<TabStrip />);
+      const tabs = screen.getAllByRole("tab");
+      expect(tabs[0]).toHaveProperty("textContent", "Work");
+      expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
+    });
+
+    it("stays when the board is hidden, and a click shows it again", () => {
+      useUi.setState({ boardVisible: false });
+      render(<TabStrip />);
+      fireEvent.click(screen.getByText("Work"));
+      expect(useUi.getState().boardVisible).toBe(true);
+    });
+
+    it("closes the board with its ×", () => {
+      render(<TabStrip />);
+      fireEvent.click(screen.getAllByLabelText("menu.file.closeTab")[0]!);
+      expect(useUi.getState()).toMatchObject({ activeBoard: null, boardVisible: false });
     });
   });
 });

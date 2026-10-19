@@ -161,7 +161,7 @@ export const commands = {
 	 */
 	cardWrite: (slug: string, op: CardOpDto) => typedError<CardDto, IpcError>(__TAURI_INVOKE("card_write", { slug, op })),
 	/**
-	 *  Change one or more of the four settings (PLAN.md §4.1). Writes
+	 *  Change one or more of the settings (PLAN.md §4.1, ADR-0049). Writes
 	 *  `settings.json` atomically and rebuilds the native menu so its check marks
 	 *  and the Language/Appearance submenus match.
 	 */
@@ -577,19 +577,21 @@ export type SettingsDto = {
 	appearance: AppearanceDto,
 	editor: EditorSettingsDto,
 	spellcheck: boolean,
+	reduceMotion: boolean,
 	lastVault: string | null,
 };
 
 /**
  *  A partial settings update. Absent fields stay as they are; there are only
- *  the four settings of PLAN.md §4.1 plus the `lastVault` state key, which the
- *  shell writes itself when a vault opens.
+ *  the four settings of PLAN.md §4.1 and `reduceMotion` (ADR-0049) plus the
+ *  `lastVault` state key, which the shell writes itself when a vault opens.
  */
 export type SettingsPatchDto = {
 	language: LanguageDto | null,
 	appearance: AppearanceDto | null,
 	fontSize: number | null,
 	spellcheck: boolean | null,
+	reduceMotion: boolean | null,
 };
 
 /**  What `system_open` hands to macOS's opener (ADR-0021, ADR-0043). */

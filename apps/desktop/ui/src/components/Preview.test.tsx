@@ -179,6 +179,20 @@ describe("Preview", () => {
     expect(onFollowLink).not.toHaveBeenCalled();
   });
 
+  // sebaro D56: a link that leaves the app ends in the external-link icon;
+  // one into the vault does not.
+  it("ends a web or mail link in the external-link icon", async () => {
+    doc("n.md", "x");
+    fragment =
+      '<p><a href="https://example.com/">web</a> <a href="mailto:a@b.c">mail</a> <a href="b.md">note</a></p>';
+    render(<Preview path="n.md" onFollowLink={vi.fn()} />);
+    await flush();
+
+    expect(screen.getByText("web").querySelector("svg.icon-16")).toBeTruthy();
+    expect(screen.getByText("mail").querySelector("svg.icon-16")).toBeTruthy();
+    expect(screen.getByText("note").querySelector("svg")).toBeNull();
+  });
+
   it("replaces a mermaid fence with the diagram it renders", async () => {
     doc("n.md", "x");
     fragment = '<pre><code class="language-mermaid">graph TD; A--&gt;B</code></pre><p>after</p>';

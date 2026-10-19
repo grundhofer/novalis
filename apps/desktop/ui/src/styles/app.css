@@ -1,8 +1,9 @@
 /* Component styles for the desktop UI.
    Every value here is a `--ds-*` token from @novalis/tokens — no raw colour,
-   font, radius or duration (PLAN.md §11.5 PR checklist). The look is Dev-Noir
-   (docs/DECISIONS.md §4.6); swapping tokens.css for swiss.tokens.css is the
-   whole cost of changing style. */
+   font, radius or duration (PLAN.md §11.5 PR checklist). The look is sebaro
+   (ADR-0048, amending ADR-0007): 2 px ink lines between layers, 3 px cobalt
+   place lines, one lime primary action at the bottom, the 45-degree cut only
+   on destructive actions, no shadows. */
 
 *,
 *::before,
@@ -74,16 +75,56 @@ button {
 }
 
 /* ------------------------------------------------------------- title bar */
-/* 38 px custom bar; macOS draws the traffic lights over the left inset. */
+/* 48 px custom bar; macOS draws the traffic lights over the left inset. The
+   2 px ink line is the layer line between the bar and the window (sebaro D46). */
 .titlebar {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-6);
+  gap: var(--ds-space-5);
   flex: 0 0 auto;
   height: var(--ds-size-titlebar);
   padding: 0 var(--ds-space-5) 0 82px;
-  background: var(--ds-color-bg-surface);
-  border-bottom: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-bg-canvas);
+  border-bottom: var(--ds-line-ink) solid var(--ds-color-line-ink);
+}
+
+/* The app tile, the one place the product colour appears (sebaro D40); the
+   start tile flies here (StartTile.tsx). */
+.app-tile {
+  flex: 0 0 auto;
+  width: var(--ds-size-tile);
+  height: var(--ds-size-tile);
+}
+
+.tile-ground {
+  fill: var(--ds-color-tile);
+}
+
+.tile-glyph {
+  fill: var(--ds-color-tile-glyph);
+}
+
+/* The start tile (StartTile.tsx): centred over the window, then one move
+   into the title bar's tile; it covers nothing and takes no clicks. */
+.start {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.start-tile {
+  width: var(--ds-size-start-tile);
+  height: var(--ds-size-start-tile);
+  transition: transform var(--ds-motion-duration-long) var(--ds-motion-ease);
+}
+
+.start-tile-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .crumb {
@@ -92,9 +133,8 @@ button {
   flex: 1;
   min-width: 0;
   gap: var(--ds-space-3);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-subtle);
+  font-size: var(--ds-font-size-ui);
+  color: var(--ds-color-fg-muted);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -117,7 +157,7 @@ button {
 }
 
 .crumb-seg.current {
-  color: var(--ds-color-fg-muted);
+  color: var(--ds-color-fg-default);
   font-weight: var(--ds-font-weight-strong);
 }
 
@@ -137,6 +177,18 @@ button {
   color: var(--ds-color-fg-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The sebaro icons (Icon.tsx): 16 px, the system's 16 px stroke. */
+.icon {
+  flex: 0 0 auto;
+  width: var(--ds-size-icon);
+  height: var(--ds-size-icon);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .kbd.on {
@@ -169,15 +221,16 @@ button {
 .sidebar-resize:active,
 .sidebar-resize:focus-visible {
   outline: none;
-  background: linear-gradient(var(--ds-color-accent-line), var(--ds-color-accent-line)) center / 1px 100% no-repeat;
+  background: linear-gradient(var(--ds-color-accent-default), var(--ds-color-accent-default)) center / var(--ds-line-ink)
+    100% no-repeat;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--ds-color-bg-surface);
-  border-right: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-bg-canvas);
+  border-right: var(--ds-line-ink) solid var(--ds-color-line-ink);
 }
 
 .sidebar-head {
@@ -218,8 +271,8 @@ button {
    selectors carry the whole class list because the button section further
    down would otherwise take the colour back; `on` is the pressed state. */
 .btn.ghost.tool {
-  height: 22px;
-  min-width: 22px;
+  height: 24px;
+  min-width: 24px;
   padding: 0 var(--ds-space-2);
   justify-content: center;
   border-radius: var(--ds-radius-chip);
@@ -228,79 +281,25 @@ button {
 }
 
 .btn.ghost.tool:focus-visible {
-  outline: 2px solid var(--ds-color-accent-default);
+  outline: var(--ds-line-focus) solid var(--ds-color-focus);
 }
 
+/* Pressed = the place it shows: the 3 px cobalt place line under it, no
+   fill (sebaro D48). */
 .btn.ghost.tool.on {
-  border-color: var(--ds-color-accent-line);
-  background: var(--ds-color-accent-fill);
+  border-color: transparent;
+  border-bottom: var(--ds-line-place) solid var(--ds-color-accent-default);
+  border-radius: 0;
+  background: none;
   color: var(--ds-color-accent-text);
-}
-
-/* The folder, board and settings glyphs are borders, like `.chev`: no icon
-   font, no image (PLAN.md §11.5). */
-.glyph-folder,
-.glyph-board,
-.glyph-gear {
-  position: relative;
-  display: block;
-  width: 12px;
-  height: 10px;
-}
-
-/* `currentColor`: the glyphs follow the button's text colour, so the pressed
-   board button needs no rule of its own. */
-.glyph-folder::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 2px;
-  width: 12px;
-  height: 8px;
-  border: 1px solid currentColor;
-  border-radius: 1px;
-}
-
-.glyph-folder::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 5px;
-  height: 3px;
-  border: 1px solid currentColor;
-  border-bottom: none;
-  border-radius: 1px 1px 0 0;
-}
-
-.glyph-board::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid currentColor;
-  border-radius: 2px;
-}
-
-.glyph-board::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  bottom: 1px;
-  width: 4px;
-  border-left: 1px solid currentColor;
-  border-right: 1px solid currentColor;
 }
 
 .legend {
   display: flex;
   justify-content: space-between;
   gap: var(--ds-space-4);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ds-color-fg-subtle);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-muted);
 }
 
 /* The legend's two labels are the sort switch (ADR-0012). The global button
@@ -313,7 +312,8 @@ button {
 }
 
 .legend-sort.on {
-  color: var(--ds-color-fg-muted);
+  color: var(--ds-color-accent-text);
+  font-weight: var(--ds-font-weight-strong);
 }
 
 /* The direction mark: the `.chev` square, pointing where the order goes.
@@ -324,8 +324,8 @@ button {
   width: 5px;
   height: 5px;
   margin-bottom: 2px;
-  border-right: 1.5px solid var(--ds-color-fg-subtle);
-  border-bottom: 1.5px solid var(--ds-color-fg-subtle);
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
   transform: rotate(-135deg);
 }
 
@@ -397,8 +397,10 @@ button {
   background: var(--ds-color-bg-hover);
 }
 
+/* The current note: link colour, title weight and the 3 px place line
+   (`.active-marker`), no fill (sebaro D48). */
 .tree-row.active {
-  background: var(--ds-color-bg-raised);
+  color: var(--ds-color-accent-text);
   font-weight: var(--ds-font-weight-strong);
 }
 
@@ -417,10 +419,9 @@ button {
 .active-marker {
   position: absolute;
   left: 0;
-  top: var(--ds-space-3);
-  bottom: var(--ds-space-3);
-  width: 2px;
-  border-radius: 0 2px 2px 0;
+  top: 0;
+  bottom: 0;
+  width: var(--ds-line-place);
   background: var(--ds-color-accent-default);
 }
 
@@ -469,9 +470,9 @@ button {
 .badge,
 .meta {
   flex: 0 0 auto;
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-subtle);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .badge-conflict {
@@ -486,38 +487,11 @@ button {
   border-top: 1px solid var(--ds-color-border-default);
 }
 
-/* The settings button (ADR-0012, amended 2026-09-15): the macOS "sliders"
-   glyph, three lines with a knob each, drawn like the other glyphs. It opens
-   the palette on the four settings — still no preferences window. */
+/* The settings button (ADR-0012, amended 2026-09-15): the sebaro "settings"
+   icon, sliders with a knob each. It opens the palette on the settings —
+   still no preferences window. */
 .sidebar-settings {
   align-self: flex-start;
-}
-
-.glyph-gear::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 1px;
-  width: 12px;
-  height: 0;
-  border-top: 1px solid currentColor;
-  box-shadow:
-    0 4px 0 currentColor,
-    0 8px 0 currentColor;
-}
-
-.glyph-gear::after {
-  content: "";
-  position: absolute;
-  left: 2px;
-  top: 0;
-  width: 3px;
-  height: 3px;
-  border-radius: var(--ds-radius-pill);
-  background: currentColor;
-  box-shadow:
-    6px 4px 0 currentColor,
-    -1px 8px 0 currentColor;
 }
 
 .hint {
@@ -543,7 +517,7 @@ button {
   display: flex;
   flex: 0 0 auto;
   height: var(--ds-size-tabstrip);
-  background: var(--ds-color-bg-surface);
+  background: var(--ds-color-bg-canvas);
 }
 
 .tabs {
@@ -551,7 +525,7 @@ button {
   flex: 1;
   min-width: 0;
   height: var(--ds-size-tabstrip);
-  background: var(--ds-color-bg-surface);
+  background: var(--ds-color-bg-canvas);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -561,7 +535,7 @@ button {
 }
 
 .tabs-empty {
-  border-bottom: 1px solid var(--ds-color-border-strong);
+  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
 .tab {
@@ -572,8 +546,7 @@ button {
   max-width: 220px;
   height: 100%;
   padding: 0 var(--ds-space-4) 0 var(--ds-space-6);
-  border-right: 1px solid var(--ds-color-border-default);
-  border-bottom: 1px solid var(--ds-color-border-strong);
+  border-bottom: 1px solid var(--ds-color-border-default);
   color: var(--ds-color-fg-muted);
   font-weight: var(--ds-font-weight-medium);
   transition:
@@ -586,10 +559,11 @@ button {
   color: var(--ds-color-fg-default);
 }
 
+/* The current tab: the 3 px cobalt place line under it (sebaro D48). */
 .tab.active {
-  background: var(--ds-color-bg-canvas);
-  color: var(--ds-color-fg-default);
-  border-bottom-color: transparent;
+  color: var(--ds-color-accent-text);
+  font-weight: var(--ds-font-weight-strong);
+  border-bottom: var(--ds-line-place) solid var(--ds-color-accent-default);
 }
 
 /* Where a dragged tab lands (ADR-0028): the tab it takes the place of. */
@@ -635,20 +609,20 @@ button {
 
 .tab-spacer {
   flex: 1;
-  border-bottom: 1px solid var(--ds-color-border-strong);
+  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
 /* The preview toggle (ADR-0020): a fixed cell beside the scrolling strip,
    so a row of many tabs never pushes it out of sight. */
 .tab-preview {
   flex: 0 0 auto;
-  margin: 7px var(--ds-space-4) 0 var(--ds-space-3);
+  margin: var(--ds-space-4) var(--ds-space-4) 0 var(--ds-space-3);
 }
 
 .tabbar::after {
   content: "";
   flex: 0 0 var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-color-border-strong);
+  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
 .glyph-eye {
@@ -702,6 +676,7 @@ button {
 .empty-title {
   margin: 0;
   font-size: 20px;
+  line-height: 1.4;
   font-weight: var(--ds-font-weight-strong);
   letter-spacing: var(--ds-letter-spacing-title);
   color: var(--ds-color-fg-default);
@@ -769,44 +744,141 @@ button {
     opacity var(--ds-motion-duration) var(--ds-motion-ease);
 }
 
+.btn:focus-visible {
+  outline: var(--ds-line-focus) solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+/* The one primary action of a view (sebaro D37/D39): lime with a 2 px
+   outline, at the bottom in the action zone. */
 .btn.primary {
-  background: var(--ds-color-accent-default);
-  border-color: var(--ds-color-accent-default);
-  color: var(--ds-color-fg-on-accent);
+  background: var(--ds-color-primary-default);
+  border: 2px solid var(--ds-color-primary-outline);
+  color: var(--ds-color-primary-fg);
 }
 
 .btn.primary:hover {
-  opacity: 0.9;
+  background: var(--ds-color-primary-hover);
+}
+
+.btn.primary:active {
+  background: var(--ds-color-primary-pressed);
+}
+
+/* Busy (sebaro D48): the label says what runs and an ink bar sweeps along
+   the bottom edge inside the button; no spinner, no toast. Under reduced
+   motion the bar stands still, full width and faint. */
+.btn.primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 34%;
+  height: var(--ds-size-progress-bar);
+  background: var(--ds-color-primary-fg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.btn.primary[aria-busy="true"] {
+  cursor: progress;
+}
+
+.btn.primary[aria-busy="true"] .btn-bar {
+  opacity: 1;
+  animation: btn-sweep var(--ds-motion-progress-period) var(--ds-motion-ease) infinite;
+}
+
+@keyframes btn-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary[aria-busy="true"] .btn-bar {
+    width: 100%;
+    opacity: 0.4;
+    animation: none;
+  }
+}
+
+:root[data-motion="reduced"] .btn.primary[aria-busy="true"] .btn-bar {
+  width: 100%;
+  opacity: 0.4;
+  animation: none;
 }
 
 .btn.ghost {
-  background: var(--ds-color-bg-fill);
-  border-color: var(--ds-color-border-strong);
-  color: var(--ds-color-fg-muted);
-}
-
-.btn.ghost:hover {
-  background: var(--ds-color-bg-fill-strong);
+  background: none;
+  border-color: var(--ds-color-border-control);
   color: var(--ds-color-fg-default);
 }
 
-/* ------------------------------------------------------------ status bar */
+.btn.ghost:hover {
+  background: var(--ds-color-bg-hover);
+}
+
+/* A destructive action (sebaro D46, D56): danger text, a 1 px danger frame
+   and the 45-degree cut at the top-right corner. The cut is a clip-path, so
+   the frame is drawn by an inset outline that the clip leaves standing,
+   plus the diagonal as a gradient across the cut corner. */
+.btn.danger {
+  border: none;
+  border-radius: 0;
+  background:
+    linear-gradient(
+        225deg,
+        transparent calc(var(--ds-size-danger-bevel) * 0.7071 - 0.5px),
+        var(--ds-color-danger-default) calc(var(--ds-size-danger-bevel) * 0.7071 - 0.5px),
+        var(--ds-color-danger-default) calc(var(--ds-size-danger-bevel) * 0.7071 + 0.5px),
+        transparent calc(var(--ds-size-danger-bevel) * 0.7071 + 0.5px)
+      )
+      no-repeat,
+    var(--ds-color-bg-canvas);
+  box-shadow: inset 0 0 0 var(--ds-line-control) var(--ds-color-danger-default);
+  color: var(--ds-color-danger-text);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--ds-size-danger-bevel)) 0,
+    100% var(--ds-size-danger-bevel),
+    100% 100%,
+    0 100%
+  );
+}
+
+.btn.danger:hover {
+  background-color: var(--ds-color-danger-fill);
+}
+
+/* ------------------------------------------------- action zone (status) */
+/* The bottom action zone (sebaro D46): 56 px under a 2 px ink line, the state
+   sentence on the left, the one lime primary action on the right. */
 .statusbar {
   display: flex;
   align-items: center;
   gap: var(--ds-space-6);
   flex: 0 0 auto;
-  height: var(--ds-size-statusbar);
-  padding: 0 var(--ds-space-6);
-  background: var(--ds-color-bg-surface);
-  border-top: 1px solid var(--ds-color-border-strong);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
-  letter-spacing: var(--ds-letter-spacing-mono);
-  color: var(--ds-color-fg-subtle);
+  height: var(--ds-size-action-zone);
+  padding: 0 var(--ds-space-5) 0 var(--ds-space-6);
+  background: var(--ds-color-bg-canvas);
+  border-top: var(--ds-line-ink) solid var(--ds-color-line-ink);
+  font-size: var(--ds-font-size-ui-sm);
+  color: var(--ds-color-fg-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.statusbar .btn.primary {
+  flex: 0 0 auto;
 }
 
 .status-item {
@@ -823,7 +895,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-3);
-  color: var(--ds-color-fg-muted);
+  color: var(--ds-color-fg-default);
 }
 
 .status-dot {
@@ -852,17 +924,16 @@ button {
 .dialog {
   width: var(--ds-size-palette);
   max-width: calc(100vw - 2 * var(--ds-space-9));
-  background: var(--ds-color-bg-raised);
-  border: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-color-bg-canvas);
+  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
   border-radius: var(--ds-radius-container);
-  box-shadow: var(--ds-shadow-modal);
   overflow: hidden;
   padding: var(--ds-space-6);
 }
 
 .dialog-title {
   margin: 0 0 var(--ds-space-5);
-  font-size: var(--ds-font-size-ui);
+  font-size: 16px;
   font-weight: var(--ds-font-weight-strong);
   color: var(--ds-color-fg-default);
 }
@@ -887,7 +958,8 @@ button {
 }
 
 .dialog-input:focus {
-  border-color: var(--ds-color-accent-default);
+  border-color: var(--ds-color-focus);
+  box-shadow: inset 0 0 0 1px var(--ds-color-focus);
 }
 
 .dialog-hint {
@@ -907,6 +979,16 @@ button {
   resize: vertical;
 }
 
+/* A failed OK (sebaro D48): the reason as a sentence in danger, above the
+   buttons; OK says "Try Again". */
+.dialog-error {
+  margin: var(--ds-space-4) 0 0;
+  font-size: var(--ds-font-size-ui-sm);
+  line-height: var(--ds-line-height-ui);
+  color: var(--ds-color-danger-text);
+  overflow-wrap: anywhere;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -917,16 +999,15 @@ button {
 .toast {
   position: fixed;
   right: var(--ds-space-6);
-  bottom: calc(var(--ds-size-statusbar) + var(--ds-space-5));
+  bottom: calc(var(--ds-size-action-zone) + var(--ds-space-5));
   display: flex;
   align-items: center;
   gap: var(--ds-space-5);
   max-width: 520px;
   padding: var(--ds-space-4) var(--ds-space-5);
-  background: var(--ds-color-bg-raised);
-  border: 1px solid var(--ds-color-warning-line);
+  background: var(--ds-color-bg-canvas);
+  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
   border-radius: var(--ds-radius-control);
-  box-shadow: var(--ds-shadow-modal);
   color: var(--ds-color-fg-default);
   z-index: 20;
 }

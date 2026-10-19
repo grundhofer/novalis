@@ -258,6 +258,7 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
         language: settings.language,
         appearance: settings.appearance,
         spellcheck: settings.spellcheck,
+        reduce_motion: settings.reduce_motion,
         sidebar_visible: ui_state.sidebar_visible,
         board_visible: ui_state.board_visible,
         backlinks_visible: ui_state.backlinks_visible,
@@ -1292,7 +1293,7 @@ pub async fn card_write(
 
 // ---------------------------------------------------------------- 7. settings
 
-/// Change one or more of the four settings (PLAN.md §4.1). Writes
+/// Change one or more of the settings (PLAN.md §4.1, ADR-0049). Writes
 /// `settings.json` atomically and rebuilds the native menu so its check marks
 /// and the Language/Appearance submenus match.
 #[tauri::command]

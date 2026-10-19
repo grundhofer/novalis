@@ -256,10 +256,9 @@
   max-height: 60%;
   overflow-y: auto;
   padding: var(--ds-space-2);
-  border: 1px solid var(--ds-color-border-default);
+  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
   border-radius: var(--ds-radius-container);
-  background: var(--ds-color-bg-raised);
-  box-shadow: var(--ds-shadow-modal);
+  background: var(--ds-color-bg-canvas);
 }
 
 .contents-list {

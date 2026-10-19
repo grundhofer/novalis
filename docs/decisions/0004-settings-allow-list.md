@@ -43,6 +43,8 @@ No preferences window; `Cmd-,` stays unbound (ADR-0008). The hard-coded defaults
 
 **Owner approval:** 2026-09-05 — "section 4 please make your recommedations" (docs/DECISIONS.md, "Settings (§4.1) — all four approved": `language` yes, `appearance` yes, `editor.fontSize` yes, `spellcheck` yes; "No preferences window").
 
+**Amended 2026-10-19** — ADR-0049: a fifth setting, `reduceMotion` (View ▸ Always Reduce Motion), with the owner's yes "2 die Einstellung ermöglichen".
+
 ## Sources
 
 PLAN.md §4.1, §4.2, §5.5, D12, §11.5 · docs/DECISIONS.md · docs/SETTINGS.md

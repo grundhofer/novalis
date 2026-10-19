@@ -316,11 +316,11 @@ Dependency budget: D26.
 
 **Notes:** `.md`, UTF-8, line endings preserved. Frontmatter: `title` and `tags` read; written only by `meta` and `new --tag` as text edits of named keys (D22).
 
-**Settings** (`~/Library/Application Support/io.github.grundhofer.novalis/settings.json`; `version` is a schema stamp, `lastVault` is state, four settings):
+**Settings** (`~/Library/Application Support/io.github.grundhofer.novalis/settings.json`; `version` is a schema stamp, `lastVault` is state, five settings since ADR-0049):
 
 ```json
 { "version": 1, "language": "system", "appearance": "system", "editor": { "fontSize": 16 }, "spellcheck": true,
-  "lastVault": "/Users/…/OneDrive-Persönlich/Notizen" }
+  "reduceMotion": false, "lastVault": "/Users/…/OneDrive-Persönlich/Notizen" }
 ```
 
 **State:** `<app-data>/state.json` (window, tabs, sidebar width), free-form.

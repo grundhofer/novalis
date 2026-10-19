@@ -85,6 +85,7 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.view.fontReset",
     "menu.view.appearance",
     "menu.view.language",
+    "menu.view.reduceMotion",
     "menu.go.title",
     "menu.go.quickOpen",
     "menu.go.commandPalette",
@@ -480,6 +481,14 @@ pub fn build(
         .separator()
         .item(&appearance)
         .item(&language)
+        .item(
+            &CheckMenuItemBuilder::with_id(
+                "settings.reduceMotion",
+                cat.t("menu.view.reduceMotion"),
+            )
+            .checked(settings.reduce_motion)
+            .build(app)?,
+        )
         .separator()
         .fullscreen()
         .build()?;
