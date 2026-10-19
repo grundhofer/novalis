@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { dispatchCommand } from "../lib/commands";
 import { providerOf } from "../lib/paths";
 import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { cloudCounts, useVault } from "../stores/vault";
+import Icon from "./Icon";
 
 /** The word count of the mirror; never split in plain mode (ADR-0022 F7). */
 export function countWords(text: string | undefined, plainMode: boolean): number {
@@ -16,7 +18,10 @@ export function countWords(text: string | undefined, plainMode: boolean): number
 }
 
 /**
- * Words · characters · position · cloud state (PLAN.md §5.3). The position is
+ * The bottom action zone (sebaro D46, ADR-0048): on the left the state
+ * sentence — words · characters · position · cloud state (PLAN.md §5.3) —,
+ * on the right the one primary action of every view, lime: "New Note", or
+ * "Open Vault…" while no vault is open, since a note needs a place first. The position is
  * the editor's main cursor; the selection and the cursor count show only
  * when there is one, or more than one.
  *
@@ -43,7 +48,7 @@ export default function StatusBar() {
   const cursor = useCursor((s) => (s.cursor?.path === active && !previewing ? s.cursor : null));
 
   return (
-    <footer className="statusbar">
+    <footer className="statusbar action-zone">
       {doc && (
         <>
           {!doc.plainMode && <span className="status-item">{t("status.words", { count: words })}</span>}
@@ -78,6 +83,16 @@ export default function StatusBar() {
         <span className="status-item warn">
           {t("status.cloud.conflicts", { count: counts.conflicts })}
         </span>
+      )}
+      {vault ? (
+        <button className="btn primary" type="button" onClick={() => dispatchCommand("file.newNote")}>
+          <Icon name="plus" />
+          {t("menu.file.newNote")}
+        </button>
+      ) : (
+        <button className="btn primary" type="button" onClick={() => dispatchCommand("vault.open")}>
+          {t("app.openVault.button")}
+        </button>
       )}
     </footer>
   );

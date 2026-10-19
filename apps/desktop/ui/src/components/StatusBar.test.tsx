@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dispatchCommand } from "../lib/commands";
 import { useCursor } from "../stores/cursor";
 import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
+import { useVault } from "../stores/vault";
 import StatusBar, { countWords } from "./StatusBar";
 
 vi.mock("react-i18next", () => ({
@@ -19,6 +21,8 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
+
+vi.mock("../lib/commands", () => ({ dispatchCommand: vi.fn() }));
 
 function doc(text: string, plainMode = false) {
   return {
@@ -105,6 +109,23 @@ describe("StatusBar", () => {
       useUi.setState({ previewing: { "a.md": true } });
       render(<StatusBar />);
       expect(screen.queryByText("status.position")).toBeNull();
+    });
+  });
+
+  // ADR-0048: the one primary action sits in the zone in every view.
+  describe("primary action", () => {
+    it("makes a new note while a vault is open", () => {
+      useVault.setState({ vault: { name: "v", root: "/v", kind: "local", boards: [] } as never });
+      render(<StatusBar />);
+      fireEvent.click(screen.getByRole("button", { name: "menu.file.newNote" }));
+      expect(dispatchCommand).toHaveBeenCalledWith("file.newNote");
+    });
+
+    it("opens a vault while none is open", () => {
+      useVault.setState({ vault: null });
+      render(<StatusBar />);
+      fireEvent.click(screen.getByRole("button", { name: "app.openVault.button" }));
+      expect(dispatchCommand).toHaveBeenCalledWith("vault.open");
     });
   });
 });

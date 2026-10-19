@@ -50,6 +50,8 @@ pub struct Settings {
     pub appearance: Appearance,
     pub editor: EditorSettings,
     pub spellcheck: bool,
+    /// Always reduce motion, whatever macOS says (ADR-0049).
+    pub reduce_motion: bool,
     pub last_vault: Option<String>,
 }
 
@@ -61,6 +63,7 @@ impl Default for Settings {
             appearance: Appearance::System,
             editor: EditorSettings::default(),
             spellcheck: true,
+            reduce_motion: false,
             last_vault: None,
         }
     }
@@ -136,7 +139,8 @@ mod tests {
             json,
             serde_json::json!({
                 "version": 1, "language": "system", "appearance": "system",
-                "editor": {"fontSize": 16}, "spellcheck": true, "lastVault": null
+                "editor": {"fontSize": 16}, "spellcheck": true, "reduceMotion": false,
+                "lastVault": null
             })
         );
     }

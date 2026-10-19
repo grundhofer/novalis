@@ -17,6 +17,7 @@ import { CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
+import Icon from "./Icon";
 import "../styles/board.css";
 
 /**
@@ -204,6 +205,7 @@ export default function BoardPane() {
             })
           }
         >
+          <Icon name="plus" />
           {t("board.addColumn")}
         </button>
       </header>
@@ -464,6 +466,12 @@ export default function BoardPane() {
                   </article>
                 ))}
 
+              </div>
+
+              {/* Outside the scrolling cards, so a long column never scrolls
+                  it out of sight; a secondary action, the lime one is the
+                  action zone's (sebaro D39). */}
+              <footer className="col-foot">
                 <button
                   className="btn ghost card-add"
                   type="button"
@@ -484,9 +492,10 @@ export default function BoardPane() {
                     })
                   }
                 >
+                  <Icon name="plus" />
                   {t("board.newCard")}
                 </button>
-              </div>
+              </footer>
             </div>
           );
         })}

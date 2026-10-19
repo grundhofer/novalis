@@ -1,7 +1,8 @@
 # Settings
 
-The complete list of persisted settings. ADR-0004 is the allow-list; nothing
-ships beyond this table without a new ADR carrying a quoted owner yes.
+The complete list of persisted settings. ADR-0004 is the allow-list, ADR-0049
+added `reduceMotion`; nothing ships beyond this table without a new ADR
+carrying a quoted owner yes.
 
 - File: `~/Library/Application Support/io.github.grundhofer.novalis/settings.json` (ADR-0003).
 - Written by an atomic read-modify-write; the Rust `Settings` struct uses
@@ -16,7 +17,7 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
 - No preferences window. Each setting has exactly one persisted place where it
   changes (the "Changed via" column); the command palette is a second launcher
   for the same command ids, not a second place (ADR-0012), and the sidebar's
-  settings button opens that palette on the four settings alone.
+  settings button opens that palette on the settings alone.
 
 <!-- settings-table:start -->
 | Key | Kind | Type | Values | Default | Changed via | ADR |
@@ -26,6 +27,7 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
 | `appearance` | setting | string | `system` · `light` · `dark` | `system` | View ▸ Appearance | 0004 |
 | `editor.fontSize` | setting | integer | CSS px | `16` | `Cmd+=` / `Cmd+-` / `Cmd+0` | 0004 |
 | `spellcheck` | setting | boolean | `true` · `false` | `true` | Edit ▸ Spelling ▸ Check Spelling While Typing | 0004 |
+| `reduceMotion` | setting | boolean | `true` · `false` | `false` | View ▸ Always Reduce Motion | 0049 |
 | `lastVault` | state | string or null | absolute path | `null` | Open Vault… (`Cmd+O`) | 0004 |
 <!-- settings-table:end -->
 
@@ -38,6 +40,7 @@ ships beyond this table without a new ADR carrying a quoted owner yes.
   "appearance": "system",
   "editor": { "fontSize": 16 },
   "spellcheck": true,
+  "reduceMotion": false,
   "lastVault": "/Users/…/OneDrive-Persönlich/Notizen"
 }
 ```

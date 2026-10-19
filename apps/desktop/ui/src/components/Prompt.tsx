@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { report, useUi } from "../stores/ui";
+import Icon from "./Icon";
 
 /** The app's one dialog: a title, a line of text or a question, OK and Cancel. */
 export default function Prompt() {
@@ -105,9 +106,19 @@ export default function Prompt() {
           <button className="btn ghost" type="button" onClick={close}>
             {t("app.cancel")}
           </button>
-          <button className="btn primary" type="button" ref={accept} onClick={submit}>
-            {t(confirm ? confirm.confirmKey : "app.ok")}
-          </button>
+          {/* Every confirmation guards a destructive action (stores/ui.ts):
+              its button is the danger one with the 45-degree cut, never the
+              lime primary (sebaro D46, D56; ADR-0048). */}
+          {confirm ? (
+            <button className="btn danger" type="button" ref={accept} onClick={submit}>
+              <Icon name="trash" />
+              {t(confirm.confirmKey)}
+            </button>
+          ) : (
+            <button className="btn primary" type="button" ref={accept} onClick={submit}>
+              {t("app.ok")}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -48,7 +48,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 - **User-visible strings** → `i18n/en.json` and `i18n/de.json`, never inline (the lint and the catalog parity test enforce it). Core and CLI carry no strings, only typed errors.
 - **Colours, fonts, radii** → `packages/tokens/tokens.css` (`--ds-*` semantic tokens only). No hard-coded values in components. Light and dark are two token sets.
 - **UI tests** → `vitest` + `jsdom` + `@testing-library/react` (ADR-0011), as `*.test.ts(x)` beside the file they cover. They mock `../ipc/client`; they do not start a shell, and they cannot see CSS, hover or drag.
-- **Settings** → exactly the four in `docs/SETTINGS.md` (`language`, `appearance`, `editor.fontSize`, `spellcheck`) mirrored by the `Settings` struct; a cargo parity test compares them. `lastVault` is state, not a setting. No preferences window.
+- **Settings** → exactly the five in `docs/SETTINGS.md` (`language`, `appearance`, `editor.fontSize`, `spellcheck`, `reduceMotion` from ADR-0049) mirrored by the `Settings` struct; a cargo parity test compares them. `lastVault` is state, not a setting. No preferences window.
 - **Keyboard shortcuts** → `docs/KEYMAP.md` mirrored by the keymap table; a cargo parity test compares them.
 - **Decisions** → `docs/decisions/NNNN-*.md` (old ADR voice, owner approval quoted). `docs/DECISIONS.md` is the index.
 - **Budgets** → `docs/BUDGET.json` (read by `scripts/bundle-budget.mjs`) and `PLAN.md` §11.3.
@@ -62,7 +62,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 | `Cargo.lock`, `pnpm-lock.yaml` | `cargo update -p <crate>`, `pnpm install`. A new top-level entry needs an ADR; CI (`lockfile-adr-check.mjs`) refuses it otherwise |
 | `apps/desktop/src-tauri/gen/schemas/` | Tauri CLI on every build; git-ignored |
 | `crates/novalis-cli/tests/**/*.golden` | `UPDATE_GOLDEN=1 just test-cli` |
-| `packages/tokens/tokens.css` | `just tokens-sync <slug> <commit>` once designSprache ships tokens; until then hand-written with the header `GENERATED-PENDING` |
+| `packages/tokens/tokens.css` | `just tokens-sync <slug> <commit>` once sebaroDesign ships `--ds-*` tokens (ADR-0048); until then hand-mapped from its `systems/sebaro/dist/tokens.css` with the header `GENERATED-PENDING` |
 | `THIRD-PARTY-NOTICES.md` | generated from the lockfiles (`PLAN.md` §11.6) |
 | UI ⇄ Rust IPC bindings, `apps/desktop/ui/src/lib/fileTypes.generated.ts` | the desktop crate's export command (`cargo run -p novalis-desktop --example gen_bindings`); CI diffs both |
 
@@ -80,7 +80,7 @@ No telemetry, no analytics, no crash reporting, no update check, no outbound con
 
 ## What not to do
 
-- No setting beyond the four; no preferences window; no `Cmd-,`.
+- No setting beyond the five; no preferences window; no `Cmd-,`.
 - No new dependency (crate, npm package, GitHub Action) without an ADR number in the PR body. `Cargo.lock` stays within scaffold + 150 entries (D26); no `*-sys` crates beyond `libsqlite3-sys` and Tauri's own.
 - No feature, menu item or shortcut the plan does not name. No split view, folding, minimap, vim mode, version history, multi-vault, images, MCP in v1.
 - Never modify the legacy app: `~/Projects/novalis-legacy` and the `legacy` branch are reference only.

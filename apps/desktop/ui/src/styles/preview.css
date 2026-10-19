@@ -81,17 +81,19 @@
   margin-bottom: 0;
 }
 
+/* Links in text colour with the 2 px cobalt line (sebaro D52/D55). */
 .preview-body a {
-  color: var(--ds-color-syntax-link);
-  text-decoration: none;
+  color: inherit;
+  text-decoration: underline var(--ds-line-link) var(--ds-color-accent-default);
+  text-underline-offset: 0.2em;
 }
 
 .preview-body a:hover {
-  text-decoration: underline;
+  color: var(--ds-color-accent-text);
 }
 
 .preview-body strong {
-  font-weight: 600;
+  font-weight: var(--ds-font-weight-medium);
 }
 
 .preview-body blockquote {

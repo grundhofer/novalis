@@ -94,6 +94,7 @@ pub struct MenuShape {
     pub language: Language,
     pub appearance: Appearance,
     pub spellcheck: bool,
+    pub reduce_motion: bool,
     pub sidebar_visible: bool,
     pub board_visible: bool,
     pub backlinks_visible: bool,

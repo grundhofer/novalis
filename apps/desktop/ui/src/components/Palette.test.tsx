@@ -87,6 +87,16 @@ describe("Palette", () => {
     expect(dispatchCommand).toHaveBeenCalledWith("settings.spellcheck");
   });
 
+  // ADR-0049: the fifth setting sits in the same list.
+  it("offers Always Reduce Motion in settings mode", () => {
+    render(<Palette mode="settings" />);
+    const input = screen.getByPlaceholderText("palette.settingsPlaceholder");
+
+    fireEvent.change(input, { target: { value: "menu.view.reduceMotion" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(dispatchCommand).toHaveBeenCalledWith("settings.reduceMotion");
+  });
+
   // Quick-open lists every file the tree lists (ADR-0022 point 5): a note by
   // its stem, anything else by its name with the extension; the `[[` source
   // is the notes alone.

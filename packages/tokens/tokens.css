@@ -1,13 +1,16 @@
 /* ============================================================================
-   novalis design tokens — Dev-Noir (the chosen style, docs/DECISIONS.md §4.6)
+   novalis design tokens — sebaro (ADR-0048, amends ADR-0007)
 
    GENERATED-PENDING (PLAN.md §5.9)
    ---------------------------------
-   Hand-written from design/variants/css/dev-noir.css until designSprache ships
-   DTCG tokens; `just tokens:sync <slug> <commit>` then replaces this file with
-   its Style Dictionary output plus a SHA-256 manifest, and CI fails on drift.
+   Hand-mapped from sebaroDesign `systems/sebaro/dist/tokens.css` (token
+   contract 1.5, palette "sebaro" 2.3, sebaroDesign commit 8b8d4a7) onto the
+   `--ds-*` names the components already use. `just tokens-sync` replaces this
+   file once sebaroDesign exports `--ds-*` names directly; until then a value
+   here is either a sebaro value (named in the comment beside its group) or
+   marked DERIVED with the rule that made it.
    Do not hand-edit values here to "fix" a component: change the component, or
-   change the style and re-derive.
+   change the system and re-derive.
 
    Rules this file follows and components rely on:
    - Components use SEMANTIC tokens only. No component may name a raw colour,
@@ -15,15 +18,19 @@
    - Light and dark are two complete token sets, never `filter: invert()`.
      Light lives on bare `:root` and `[data-theme="light"]`; dark on
      `[data-theme="dark"]`. `index.html` stamps `data-theme` before first paint.
-   - Dev-Noir is dark-first: dark carries the catalog values, light is the
-     derived second ladder (both are maintained).
-   - Depth = the layer ladder + 1px hairlines. One shadow exists
-     (`--ds-shadow-modal`) and only the palette/modal may use it. No gradients,
-     no glow, no noise, no textures (§4.6 decision 8).
-   - Status coding is one accent plus green/amber, always paired with a word.
-     There is deliberately no `danger` hue: destructive states use warning.
+   - Colour jobs (sebaro D37): cobalt `accent` = place, link, focus; lime
+     `primary` = the one primary action of a view, at the bottom; status =
+     glyph plus word, never colour alone. The petrol app colour lives only in
+     the app tile (`tile-*`), never in the UI (sebaro D40, novalis ADR-0048).
+   - Depth = 2 px ink lines between layers (`line-ink`), no fills between
+     surfaces and no shadows (sebaro D46). `--ds-shadow-modal` is `none` and
+     stays only so old call sites resolve.
+   - Destructive actions have their own hue (`danger`, ADR-0048); warning is
+     for "needs attention", no longer for "destroys".
+   - Dark mode sets text 30 weight units heavier (sebaro D40): the weight
+     tokens are part of each colour set.
 
-   Grey ladder, 12 steps, one job each:
+   Grey ladder, one job each:
      canvas surface raised hover fill fill-strong
      border-default border-strong border-control fg-subtle fg-muted fg-default
    ============================================================================ */
@@ -32,186 +39,262 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  /* -- surfaces ---------------------------------------------------------- */
-  --ds-color-bg-canvas: #fafafa;
-  --ds-color-bg-surface: #ffffff;
-  --ds-color-bg-raised: #f4f4f5;
-  --ds-color-bg-hover: rgba(0, 0, 0, 0.03);
-  --ds-color-bg-fill: rgba(0, 0, 0, 0.035);
-  --ds-color-bg-fill-strong: rgba(0, 0, 0, 0.06);
-  --ds-color-bg-scrim: rgba(23, 23, 23, 0.32);
+  /* -- surfaces: sebaro bg / surface / surface-raised / hover-fill /
+        surface-sunken / pressed-fill / scrim ------------------------------ */
+  --ds-color-bg-canvas: #f4f5f8;
+  --ds-color-bg-surface: #fbfcfe;
+  --ds-color-bg-raised: #ffffff;
+  --ds-color-bg-hover: #e9ebee;
+  --ds-color-bg-fill: #e9ebee;
+  --ds-color-bg-fill-strong: #d7d9dd;
+  --ds-color-bg-scrim: #1c1e2252;
 
-  /* -- text -------------------------------------------------------------- */
-  --ds-color-fg-default: #171717;
-  --ds-color-fg-muted: #525252;
-  --ds-color-fg-subtle: #737373;
+  /* -- text: sebaro text / text-muted / text-subtle / on-accent ---------- */
+  --ds-color-fg-default: #1c1e22;
+  --ds-color-fg-muted: #66696e;
+  --ds-color-fg-subtle: #828589;
   --ds-color-fg-on-accent: #ffffff;
 
-  /* -- lines ------------------------------------------------------------- */
-  --ds-color-border-default: rgba(0, 0, 0, 0.08);
-  --ds-color-border-strong: rgba(0, 0, 0, 0.12);
-  --ds-color-border-control: rgba(0, 0, 0, 0.45);
+  /* -- lines: sebaro border / border-strong; ink = the layer line -------- */
+  --ds-color-border-default: #d7d9dd;
+  --ds-color-border-strong: #84868a;
+  --ds-color-border-control: #84868a;
+  --ds-color-line-ink: #1c1e22;
 
-  /* -- accent (teal, §4.6 decision 5) ------------------------------------ */
-  --ds-color-accent-default: #1f7a83;
-  --ds-color-accent-text: #19666e;
-  --ds-color-accent-fill: rgba(31, 122, 131, 0.1);
-  --ds-color-accent-line: rgba(31, 122, 131, 0.3);
+  /* -- accent (cobalt: place, link, focus): sebaro accent / link /
+        accent-subtle / selection ------------------------------------------ */
+  --ds-color-accent-default: #3057b1;
+  --ds-color-accent-hover: #2348a1;
+  --ds-color-accent-text: #254ba4;
+  --ds-color-accent-fill: #daeaff;
+  --ds-color-accent-line: #3057b140;
+  --ds-color-focus: #3057b1;
 
-  /* -- success ----------------------------------------------------------- */
-  --ds-color-success-default: #176f49;
-  --ds-color-success-text: #176f49;
-  --ds-color-success-fill: rgba(23, 111, 73, 0.1);
-  --ds-color-success-line: rgba(23, 111, 73, 0.26);
+  /* -- primary action (lime, one per view): sebaro primary-action-* ------- */
+  --ds-color-primary-default: #a9e773;
+  --ds-color-primary-hover: #9dd966;
+  --ds-color-primary-pressed: #90cc59;
+  --ds-color-primary-fg: #1c1e22;
+  --ds-color-primary-outline: #1c1e22;
 
-  /* -- warning (also carries every destructive state) -------------------- */
-  --ds-color-warning-default: #9a5b0b;
-  --ds-color-warning-text: #855009;
-  --ds-color-warning-fill: rgba(154, 91, 11, 0.1);
-  --ds-color-warning-line: rgba(154, 91, 11, 0.26);
+  /* -- success: sebaro success / text-on-success-subtle / success-subtle;
+        line DERIVED = default at 26 % --------------------------------------- */
+  --ds-color-success-default: #07662e;
+  --ds-color-success-text: #005821;
+  --ds-color-success-fill: #def6e2;
+  --ds-color-success-line: #07662e42;
 
-  /* -- editor ------------------------------------------------------------ */
-  --ds-color-editor-selection: rgba(31, 122, 131, 0.18);
-  --ds-color-editor-selection-match: rgba(31, 122, 131, 0.12);
-  --ds-color-editor-cursor: #1f7a83;
-  --ds-color-editor-active-line: rgba(0, 0, 0, 0.03);
-  --ds-color-editor-gutter: #737373;
-  --ds-color-editor-match: rgba(154, 91, 11, 0.24);
+  /* -- warning (needs attention): same mapping --------------------------- */
+  --ds-color-warning-default: #be5a0a;
+  --ds-color-warning-text: #782e00;
+  --ds-color-warning-fill: #ffe7d7;
+  --ds-color-warning-line: #be5a0a42;
 
-  /* -- syntax (Markdown decorations and lazy code grammars) -------------- */
-  --ds-color-syntax-marker: #737373;
-  --ds-color-syntax-heading: #171717;
-  --ds-color-syntax-link: #1f7a83;
-  --ds-color-syntax-tag: #19666e;
-  --ds-color-syntax-code: #525252;
-  --ds-color-syntax-quote: #525252;
-  --ds-color-syntax-keyword: #7c3f8f;
-  --ds-color-syntax-string: #176f49;
-  --ds-color-syntax-comment: #737373;
-  --ds-color-syntax-number: #9a5b0b;
-  --ds-color-syntax-type: #1f7a83;
-  --ds-color-syntax-invalid: #9a5b0b;
+  /* -- danger (destroys; ADR-0048): same mapping ------------------------- */
+  --ds-color-danger-default: #af2a27;
+  --ds-color-danger-text: #7c2621;
+  --ds-color-danger-fill: #ffe5e0;
+  --ds-color-danger-line: #af2a2742;
 
-  --ds-shadow-modal: 0 24px 64px -24px rgba(0, 0, 0, 0.35);
+  /* -- editor: selection = sebaro selection; match = warning-subtle;
+        selection-match and active line DERIVED (accent at 15 %, text at 4 %) */
+  --ds-color-editor-selection: #3057b140;
+  --ds-color-editor-selection-match: #3057b126;
+  --ds-color-editor-cursor: #3057b1;
+  --ds-color-editor-active-line: #1c1e220a;
+  --ds-color-editor-gutter: #828589;
+  --ds-color-editor-match: #ffe7d7;
+
+  /* -- syntax: only system colours, no tile colour (sebaro D40) --------- */
+  --ds-color-syntax-marker: #828589;
+  --ds-color-syntax-heading: #1c1e22;
+  --ds-color-syntax-link: #254ba4;
+  --ds-color-syntax-tag: #304b83;
+  --ds-color-syntax-code: #66696e;
+  --ds-color-syntax-quote: #66696e;
+  --ds-color-syntax-keyword: #254ba4;
+  --ds-color-syntax-string: #07662e;
+  --ds-color-syntax-comment: #828589;
+  --ds-color-syntax-number: #782e00;
+  --ds-color-syntax-type: #33485d;
+  --ds-color-syntax-invalid: #af2a27;
+
+  /* -- weights: sebaro body / label / title (light) ---------------------- */
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 570;
+  --ds-font-weight-strong: 670;
+
+  --ds-shadow-modal: none;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --ds-color-bg-canvas: #08080b;
-  --ds-color-bg-surface: #0d0e12;
-  --ds-color-bg-raised: #14151a;
-  --ds-color-bg-hover: rgba(255, 255, 255, 0.028);
-  --ds-color-bg-fill: rgba(255, 255, 255, 0.04);
-  --ds-color-bg-fill-strong: rgba(255, 255, 255, 0.09);
-  --ds-color-bg-scrim: rgba(0, 0, 0, 0.6);
+  --ds-color-bg-canvas: #13161c;
+  --ds-color-bg-surface: #1b1e24;
+  --ds-color-bg-raised: #212429;
+  --ds-color-bg-hover: #212429;
+  --ds-color-bg-fill: #212429;
+  --ds-color-bg-fill-strong: #32353c;
+  --ds-color-bg-scrim: #00000099;
 
-  --ds-color-fg-default: #ededef;
-  --ds-color-fg-muted: #a2a2ae;
-  --ds-color-fg-subtle: #71717f;
-  --ds-color-fg-on-accent: #08080b;
+  --ds-color-fg-default: #ebedef;
+  --ds-color-fg-muted: #9d9ea1;
+  --ds-color-fg-subtle: #797a7d;
+  --ds-color-fg-on-accent: #101114;
 
-  --ds-color-border-default: rgba(255, 255, 255, 0.07);
-  --ds-color-border-strong: rgba(255, 255, 255, 0.11);
-  --ds-color-border-control: rgba(255, 255, 255, 0.36);
+  --ds-color-border-default: #32353c;
+  --ds-color-border-strong: #707379;
+  --ds-color-border-control: #707379;
+  --ds-color-line-ink: #707379;
 
-  --ds-color-accent-default: #4fb3bf;
-  --ds-color-accent-text: #4fb3bf;
-  --ds-color-accent-fill: rgba(79, 179, 191, 0.1);
-  --ds-color-accent-line: rgba(79, 179, 191, 0.3);
+  --ds-color-accent-default: #89b1fa;
+  --ds-color-accent-hover: #95beff;
+  --ds-color-accent-text: #8fb7ff;
+  --ds-color-accent-fill: #202e47;
+  --ds-color-accent-line: #89b1fa59;
+  --ds-color-focus: #89b1fa;
 
-  --ds-color-success-default: #4cc38a;
-  --ds-color-success-text: #7fd8ac;
-  --ds-color-success-fill: rgba(76, 195, 138, 0.09);
-  --ds-color-success-line: rgba(76, 195, 138, 0.22);
+  --ds-color-primary-default: #a9e277;
+  --ds-color-primary-hover: #b6ed88;
+  --ds-color-primary-pressed: #99d267;
+  --ds-color-primary-fg: #101114;
+  --ds-color-primary-outline: #a9e277;
 
-  --ds-color-warning-default: #e3a455;
-  --ds-color-warning-text: #ebbe83;
-  --ds-color-warning-fill: rgba(227, 164, 85, 0.09);
-  --ds-color-warning-line: rgba(227, 164, 85, 0.22);
+  --ds-color-success-default: #439c5b;
+  --ds-color-success-text: #aaddb3;
+  --ds-color-success-fill: #19301e;
+  --ds-color-success-line: #439c5b38;
 
-  --ds-color-editor-selection: rgba(79, 179, 191, 0.24);
-  --ds-color-editor-selection-match: rgba(79, 179, 191, 0.14);
-  --ds-color-editor-cursor: #4fb3bf;
-  --ds-color-editor-active-line: rgba(255, 255, 255, 0.028);
-  --ds-color-editor-gutter: #71717f;
-  --ds-color-editor-match: rgba(227, 164, 85, 0.26);
+  --ds-color-warning-default: #f59258;
+  --ds-color-warning-text: #fcbe9d;
+  --ds-color-warning-fill: #3c2315;
+  --ds-color-warning-line: #f5925838;
 
-  --ds-color-syntax-marker: #71717f;
-  --ds-color-syntax-heading: #ededef;
-  --ds-color-syntax-link: #4fb3bf;
-  --ds-color-syntax-tag: #4fb3bf;
-  --ds-color-syntax-code: #a2a2ae;
-  --ds-color-syntax-quote: #a2a2ae;
-  --ds-color-syntax-keyword: #c58af0;
-  --ds-color-syntax-string: #7fd8ac;
-  --ds-color-syntax-comment: #71717f;
-  --ds-color-syntax-number: #ebbe83;
-  --ds-color-syntax-type: #4fb3bf;
-  --ds-color-syntax-invalid: #e3a455;
+  --ds-color-danger-default: #e66761;
+  --ds-color-danger-text: #ffb7b0;
+  --ds-color-danger-fill: #3e211f;
+  --ds-color-danger-line: #e6676138;
 
-  --ds-shadow-modal: 0 32px 90px -26px rgba(0, 0, 0, 0.95);
+  --ds-color-editor-selection: #89b1fa59;
+  --ds-color-editor-selection-match: #89b1fa26;
+  --ds-color-editor-cursor: #89b1fa;
+  --ds-color-editor-active-line: #ebedef08;
+  --ds-color-editor-gutter: #797a7d;
+  --ds-color-editor-match: #3c2315;
+
+  --ds-color-syntax-marker: #797a7d;
+  --ds-color-syntax-heading: #ebedef;
+  --ds-color-syntax-link: #8fb7ff;
+  --ds-color-syntax-tag: #aecbff;
+  --ds-color-syntax-code: #9d9ea1;
+  --ds-color-syntax-quote: #9d9ea1;
+  --ds-color-syntax-keyword: #8fb7ff;
+  --ds-color-syntax-string: #aaddb3;
+  --ds-color-syntax-comment: #797a7d;
+  --ds-color-syntax-number: #fcbe9d;
+  --ds-color-syntax-type: #c8ddf5;
+  --ds-color-syntax-invalid: #e66761;
+
+  /* sebaro D40: dark text 30 units heavier */
+  --ds-font-weight-regular: 430;
+  --ds-font-weight-medium: 600;
+  --ds-font-weight-strong: 700;
+
+  --ds-shadow-modal: none;
 }
 
 /* Mode-independent tokens: type, space, radius, motion, metrics. ---------- */
 :root {
-  /* Self-hosted @fontsource-variable subsets; never a CDN (PLAN.md §11.3). */
-  --ds-font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
-  --ds-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  /* Self-hosted OFL woff2 in apps/desktop/ui/src/fonts; never a CDN
+     (PLAN.md §11.3). Radio Canada for UI and prose, sebaro Mono (a renamed
+     IBM Plex Mono) for code only (sebaro D38, D66). */
+  --ds-font-sans: "Radio Canada", system-ui, -apple-system, sans-serif;
+  --ds-font-mono: "sebaro Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --ds-font-size-root: 13px;
-  --ds-font-size-ui: 13px;
-  --ds-font-size-ui-sm: 11px;
-  --ds-font-size-mono-sm: 10px;
-  --ds-font-size-mono: 11px;
+  --ds-font-size-root: 14px;
+  --ds-font-size-ui: 14px;
+  --ds-font-size-ui-sm: 12px;
+  --ds-font-size-mono-sm: 12px;
+  --ds-font-size-mono: 13px;
   /* The one size the user changes (`editor.fontSize`, Cmd+= / Cmd+- / Cmd+0).
      The shell writes it onto the root element as a px value. */
-  --ds-font-size-editor: 15px;
+  --ds-font-size-editor: 16px;
 
-  --ds-font-weight-regular: 400;
-  --ds-font-weight-medium: 450;
-  --ds-font-weight-strong: 500;
-
-  --ds-line-height-ui: 1.5;
+  --ds-line-height-ui: 1.4286;
   --ds-line-height-editor: 1.6;
 
-  --ds-letter-spacing-ui: -0.006em;
-  --ds-letter-spacing-title: -0.022em;
-  --ds-letter-spacing-mono: 0.02em;
+  --ds-letter-spacing-ui: 0em;
+  --ds-letter-spacing-title: 0em;
+  --ds-letter-spacing-mono: 0em;
 
   --ds-space-1: 2px;
   --ds-space-2: 4px;
   --ds-space-3: 6px;
   --ds-space-4: 8px;
   --ds-space-5: 12px;
-  --ds-space-6: 14px;
-  --ds-space-7: 18px;
+  --ds-space-6: 16px;
+  --ds-space-7: 20px;
   --ds-space-8: 24px;
   --ds-space-9: 32px;
 
-  --ds-radius-control: 7px;
-  --ds-radius-container: 10px;
+  /* sebaro radius small / control / container */
+  --ds-radius-control: 8px;
+  --ds-radius-container: 12px;
   --ds-radius-chip: 4px;
   --ds-radius-pill: 999px;
 
-  --ds-motion-duration: 140ms;
-  --ds-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* sebaro line widths: layer line (D46), place line (D48), link underline
+     (D52/D55), control and focus; the 45-degree cut of a destructive action */
+  --ds-line-ink: 2px;
+  --ds-line-place: 3px;
+  --ds-line-link: 2px;
+  --ds-line-control: 1px;
+  --ds-line-focus: 2px;
+  --ds-size-danger-bevel: 12px;
 
-  --ds-size-titlebar: 38px;
-  --ds-size-tabstrip: 36px;
-  --ds-size-statusbar: 28px;
-  --ds-size-row: 28px;
+  /* One motion rule (sebaro D46): standard ease, 160 ms; the start tile's
+     flight takes the long step (D52). Both collapse under reduced motion. */
+  --ds-motion-duration: 160ms;
+  --ds-motion-duration-long: 200ms;
+  --ds-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ds-motion-enter-distance: 8px;
+
+  --ds-size-titlebar: 48px;
+  --ds-size-tabstrip: 40px;
+  --ds-size-statusbar: 56px;
+  --ds-size-action-zone: 56px;
+  --ds-size-row: 32px;
   --ds-size-control: 32px;
+  --ds-size-icon: 16px;
+  --ds-size-tile: 32px;
+  --ds-size-start-tile: 96px;
   --ds-size-sidebar: 256px;
   --ds-size-sidebar-min: 180px;
   --ds-size-sidebar-max: 480px;
   --ds-size-palette: 640px;
   --ds-size-board-column: 268px;
-  --ds-measure-editor: 72ch;
+  --ds-measure-editor: 70ch;
+
+  /* The novalis app tile: sebaro sign-tile group "collaboration" (petrol),
+     white sign, the same in both modes. Only for the tile (sebaro D40). */
+  --ds-color-tile: #0f8186;
+  --ds-color-tile-glyph: #ffffff;
 }
 
+/* Reduced motion: from macOS (System Settings ▸ Accessibility ▸ Display) or
+   from the `reduceMotion` setting, which stamps `data-motion="reduced"` on
+   the root (ADR-0049). 1 ms, not 0, so transitionend still fires. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --ds-motion-duration: 1ms;
+    --ds-motion-duration-long: 1ms;
+    --ds-motion-enter-distance: 0px;
   }
+}
+
+:root[data-motion="reduced"] {
+  --ds-motion-duration: 1ms;
+  --ds-motion-duration-long: 1ms;
+  --ds-motion-enter-distance: 0px;
 }

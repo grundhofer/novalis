@@ -26,20 +26,33 @@ async function ensureGerman(): Promise<void> {
   germanLoaded = true;
 }
 
+/**
+ * Start i18next on the bundled English catalog. English is bundled, so this
+ * finishes synchronously: `main.tsx` calls it before React renders, because
+ * `App` calls `useTranslation` on its first render, before the boot reaches
+ * `initI18n`, and react-i18next warned NO_I18NEXT_INSTANCE there.
+ */
+export function startI18n(): void {
+  if (i18next.isInitialized) return;
+  i18next.use(initReactI18next).init({
+    lng: "en",
+    fallbackLng: "en",
+    resources: { en: { translation: en } },
+    initAsync: false,
+    interpolation: { escapeValue: false },
+    returnNull: false,
+    // The catalogs are flat: `app.cancel` is one key, not `cancel` inside
+    // `app`. Without this i18next would split on the dot and find nothing.
+    keySeparator: false,
+    nsSeparator: false,
+  }).catch((error: unknown) => {
+    // Left to the unhandled-rejection handler of `main.tsx`, which paints it.
+    throw error;
+  });
+}
+
 export async function initI18n(locale: string): Promise<void> {
-  if (!i18next.isInitialized) {
-    await i18next.use(initReactI18next).init({
-      lng: "en",
-      fallbackLng: "en",
-      resources: { en: { translation: en } },
-      interpolation: { escapeValue: false },
-      returnNull: false,
-      // The catalogs are flat: `app.cancel` is one key, not `cancel` inside
-      // `app`. Without this i18next would split on the dot and find nothing.
-      keySeparator: false,
-      nsSeparator: false,
-    });
-  }
+  startI18n();
   await setLocale(locale);
 }
 
