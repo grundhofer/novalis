@@ -54,3 +54,13 @@ and is 28 since `read_packed`, ADR-0023).
   of its command.
 - `cardActions.test.ts` covers the request and the dispatch; the native
   popup itself is checked by hand in the app.
+
+**Amended 2026-10-26** — ADR-0051 #19 (AKT-10): the menu has the order of
+the card's „Mehr“ menu in the pane: Open Note (with a note), Rename, Edit
+Description, Create Note from Card (ADR-0035), Move to Column ▸, then
+Delete Card last after a separator. The pane's hover buttons are gone;
+their actions, Link Note… among them, are in that „Mehr“ menu.
+
+**Amended 2026-10-26** — ADR-0051 #41 (AKT-10): Link Note… (`card.linkNote`)
+is in the menu too, after Edit Description, in the order of the card's
+„Mehr“ menu, and opens the same note picker (ADR-0030).

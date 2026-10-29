@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Merged by Tauri into the bundle's Info.plist. The novalis:// scheme
-     (ADR-0045): novalis://today and novalis://open?path=<vault path>. -->
+     (ADR-0045): novalis://today and novalis://open?path=<vault path>. The
+     app's languages (ADR-0051 #55, sebaro D108 (3), spec/09 §13.1): the
+     items macOS adds to the menus follow the system's language. The
+     development region is the app's fallback language, English, as in
+     i18n.ts and i18n.rs (sebaro D111 (1)). -->
 <plist version="1.0">
 <dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>de</string>
+    <string>en</string>
+  </array>
   <key>CFBundleURLTypes</key>
   <array>
     <dict>

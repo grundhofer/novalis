@@ -222,3 +222,19 @@ too ("gleich 2. noch an"). The face and size are now the line's
 (`nv-code`, decorations.ts) for every code block, plain or not, and the
 node keeps its colour on a tag of its own (`codeTag`, markdownExt.ts);
 inline code keeps `monospace`.
+
+**Amended 2026-10-25** — ADR-0051 (sebaro view step 5; sebaro D67 (12), D69,
+D85, TEC-08): point 4's code rules on the tokens that existed give way to
+sebaro's five looks (spec/01 §1.8). Keywords indigo (`--sb-syntax-keyword`),
+strings forest green (`--sb-syntax-string`), constants — numbers, booleans,
+`null`, escapes — raspberry (`--sb-syntax-constant`), comments `text-muted`,
+everything else plain ink: function names lose their weight, types,
+properties and operators their colours, and `inserted` / `deleted` their
+colour too, since a change is never marked by colour alone (TXT-11). An
+invalid token wears the 2 px wavy danger line. `CODE_RULES` carries
+`sebaroHighlight`'s tags (spec/09 §17) verbatim; the preview's fences wear
+`sb-tok-<look>`, which sebaro.css colours, so the `tok-*` rules of
+`styles/preview.css` are gone and the test beside `editor/fences.ts` holds
+the editor's rules to sebaro.css. Code blocks, inline code and front matter
+are sebaro Mono at the code role's size relative to the editor's (0.875em);
+inline code sits on `surface-sunken`.

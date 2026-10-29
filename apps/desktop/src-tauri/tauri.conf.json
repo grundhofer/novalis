@@ -16,10 +16,14 @@
         "title": "novalis",
         "width": 1280,
         "height": 800,
-        "minWidth": 720,
-        "minHeight": 480,
+        "minWidth": 480,
+        "minHeight": 400,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 25
+        },
         "dragDropEnabled": false,
         "visible": false,
         "create": false

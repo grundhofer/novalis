@@ -127,11 +127,11 @@ The brief says: ask before adding any setting or feature. This is the one consol
 | `editor.fontSize` | integer | yes | `Cmd +` / `Cmd -` / `Cmd 0` only | Default = the chosen style's size |
 | `spellcheck` | bool | yes | Edit ▸ Spelling (macOS convention) | Default true |
 
-No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question. State that is persisted but is not a setting: `lastVault` (in `settings.json`); window size/position, open tabs, sidebar width (in `<app-data>/state.json`, free-form, never in `SETTINGS.md`).
+No preferences window in v1 (`Cmd-,` unbound) — a §4.4 question (changed 2026-10-24, ADR-0051: `Cmd-,` opens the settings view in the main window; still no separate window). State that is persisted but is not a setting: `lastVault` (in `settings.json`); window size/position, open tabs, sidebar width (in `<app-data>/state.json`, free-form, never in `SETTINGS.md`).
 
 ### 4.2 Hard-coded defaults that would otherwise be settings (confirm or change the value)
 
-Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch for prose; code and data files run full width in Geist Mono with line numbers, indentation guides and no spellcheck (ADR-0022) · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner). Projects do not belong in a vault: `node_modules`, `target`, `build` and the like are listed like any folder, because they can hold notes and plain files are the truth — there is no folder denylist in the walker (ADR-0022).
+Soft wrap on for `.md`/`.txt`, off for code · line numbers off for `.md`/`.txt`, on for code · auto-pair `(` `[` `` ` `` and wrap selection with `*` `_` `[[` in Markdown · indentation detected per file, 2 spaces default (4 for `py`, `rs`, `swift`, `sh`) · autosave 1,000 ms · large-file thresholds 5 MB (plain mode) and 50 MB (warning) · watcher debounce 100 ms · tree sort folders first by name; files by name (default) or by modified time, chosen in the sidebar legend (ADR-0012) · daily note `journal/YYYY-MM-DD.md`, local date, created empty (ADR-0012) · editor measure 66–72 ch for prose; code and data files run full width in sebaro Mono (ADR-0051) with line numbers, indentation guides and no spellcheck (ADR-0022) · font sizes per style spec · UTF-8 only (other encodings open read-only with a banner). Projects do not belong in a vault: `node_modules`, `target`, `build` and the like are listed like any folder, because they can hold notes and plain files are the truth — there is no folder denylist in the walker (ADR-0022).
 
 ### 4.3 Sublime/GFM baseline that the plan treats as part of "text editor" and "Markdown", listed so you see it before code exists
 
@@ -186,12 +186,12 @@ Heading jump via the command palette (replaces the dropped outline panel) · cli
 | Merge PR #94 (`fix/oauth-client-id`) into `main` before tagging `legacy-final` | **Yes** (1 commit, real fix; the old CI names still exist on that branch so its checks can pass) | Close it |
 | Delete the 12 stale remote branches listed in §13 after `legacy-final` is pushed (the 4 dependabot branches go with their closed PRs) | **Yes** | Keep |
 | Keyboard: `Cmd-P` | **Quick-open** (Sublime/Zed); no Print in v1 | Keep Print; quick-open on `Cmd-O`/`Cmd-T` |
-| Keyboard: `Cmd-K` | **Insert/wrap Markdown link** | Command palette (Dev-Noir signature); palette then stays on `Cmd-Shift-P` |
+| Keyboard: `Cmd-K` | **Insert/wrap Markdown link** (changed 2026-10-24, ADR-0051: `Cmd-K` opens the palette, the link is `Shift-Cmd-K`) | Command palette (Dev-Noir signature); palette then stays on `Cmd-Shift-P` |
 | Keyboard: board toggle | **`Cmd-Shift-B`** (`Cmd-B` stays bold) | Palette-only, no chord |
-| Sidebar toggle | **`Cmd-\`** (old novalis) | `Alt-Cmd-S` (Finder), `Cmd-K Cmd-B` (Sublime) |
+| Sidebar toggle | **`Cmd-\`** (old novalis; changed 2026-10-24, ADR-0051: `Ctrl-Cmd-S`) | `Alt-Cmd-S` (Finder), `Cmd-K Cmd-B` (Sublime) |
 | Kanban placement | **Pane in the same window, toggled by `Cmd-Shift-B` or the palette (mockup L4)** | Separate window |
 | Card click | **Opens the linked note in a tab (D21)** | Split next to the board (mockup L5; a later feature) |
-| Preferences window in v1 | **No** (menus and shortcuts only, `Cmd-,` unbound) | A window with the four items |
+| Preferences window in v1 | **No** (menus and shortcuts only, `Cmd-,` unbound; changed 2026-10-24, ADR-0051: a settings view in the main window on `Cmd-,`) | A window with the four items |
 | Cloud-only files in the tree | **Shown with a cloud badge, downloaded on open** | Hidden until materialized |
 | Autosave | **Autosave for all file types, 1,000 ms (D19)** | Explicit save only; autosave for `.md`/`.txt` only |
 | Commit message policy | **No `Claude-Session:` trailers** (262 of 466 old commits carry them) | Keep |
@@ -231,10 +231,8 @@ novalis/
 ├─ apps/
 │  └─ desktop/
 │     ├─ src-tauri/               # thin shell: <30 commands, menu from i18n JSON, window state
-│     └─ ui/                      # React 19 + Vite, CodeMirror 6; imports i18n/*.json, packages/tokens
+│     └─ ui/                      # React 19 + Vite, CodeMirror 6; imports i18n/*.json, src/sebaro (§5.9)
 ├─ packages/
-│  ├─ tokens/                     # tokens.css (--ds-*) for the chosen style; GENERATED-PENDING until
-│  │                              # designSprache ships DTCG tokens, then vendored via `just tokens:sync`
 │  └─ agent-skill/novalis/        # SKILL.md + reference.md + examples.md (§9.5)
 ├─ i18n/  en.json  de.json        # single source of truth, flat "namespace.key"
 ├─ fixtures/
@@ -316,11 +314,11 @@ Dependency budget: D26.
 
 **Notes:** `.md`, UTF-8, line endings preserved. Frontmatter: `title` and `tags` read; written only by `meta` and `new --tag` as text edits of named keys (D22).
 
-**Settings** (`~/Library/Application Support/io.github.grundhofer.novalis/settings.json`; `version` is a schema stamp, `lastVault` is state, five settings since ADR-0049):
+**Settings** (`~/Library/Application Support/io.github.grundhofer.novalis/settings.json`; `version` is a schema stamp, `lastVault` is state, five settings since ADR-0049, six since ADR-0051):
 
 ```json
-{ "version": 1, "language": "system", "appearance": "system", "editor": { "fontSize": 16 }, "spellcheck": true,
-  "reduceMotion": false, "lastVault": "/Users/…/OneDrive-Persönlich/Notizen" }
+{ "version": 1, "language": "system", "appearance": "system", "tone": "cool", "editor": { "fontSize": 16 },
+  "spellcheck": true, "reduceMotion": false, "lastVault": "/Users/…/OneDrive-Persönlich/Notizen" }
 ```
 
 **State:** `<app-data>/state.json` (window, tabs, sidebar width), free-form.
@@ -371,7 +369,7 @@ Specification, so the decision is informed; nothing is built in v1. Mode 2 is re
 
 ### 5.9 Design tokens
 
-Until designSprache ships DTCG tokens, `packages/tokens/tokens.css` is hand-written for the chosen style from the fact sheet's `palette`, `params` and `googleFonts` fields, marked `GENERATED-PENDING`, and written only after the Spike C go/no-go (D13). Components use semantic tokens only (`--ds-color-bg-canvas`, `--ds-color-fg-default`, `--ds-radius-control`, `--ds-font-sans`…). When designSprache's Style Dictionary build exists, `just tokens:sync <slug> <commit>` vendors its `tokens.css` with a SHA-256 manifest and CI fails on drift. Light and dark are two token sets, never `filter: invert()`.
+The tokens are sebaro's own export (ADR-0051 #23, sebaro TEC-07): `apps/desktop/ui/src/sebaro/` holds `tokens.css` with every `--sb-*` property, written by sebaroDesign's `tools/export_system.py` with a SHA-256 manifest (`sebaro-export.json`) and never edited; `export_system.py --verify` reports drift, and `scripts/check-sebaro-export.mjs` holds every file to its SHA-256 in `just check` and CI (ADR-0051 #37). Components use the `--sb-*` tokens only (`--sb-color-bg`, `--sb-color-text`, `--sb-radius-control`, `--sb-font-family-ui`…); the few values sebaro has no token for are novalis's own `--nv-*` in `styles/app.css`, without an alias layer. Until ADR-0051 the pilot (ADR-0048) hand-mapped sebaro onto `packages/tokens/tokens.css`; that package is retired. Light and dark are two token sets, chosen by `data-theme` on `<html>`, never `filter: invert()`.
 
 ---
 
@@ -431,8 +429,8 @@ The table is the shell's `apps/desktop/src-tauri/src/file_types.rs` (ADR-0022), 
 | Kind | Extensions and names | Editor | Grammar |
 |---|---|---|---|
 | Note | `md` | prose | Markdown with frontmatter, `[[`, `#tags` — the only note (cache, links, CLI) |
-| Prose | `markdown mkd mdx rmd qmd` · `txt text` · `rst adoc org textile srt vtt` · `tex ltx` · `LICENSE README CHANGELOG CONTRIBUTING AUTHORS NOTICE COPYING VERSION TODO CODEOWNERS` | prose (wrap, no numbers, Inter, spellcheck) | Markdown with its bundle for `markdown mkd mdx rmd qmd` (files, not notes); LaTeX for `tex ltx`; the rest plain |
-| Data | `json json5 jsonc` · `yaml yml` · `toml` · `xml xsl xsd plist svg` · `csv tsv log` · `diff patch` · `bib` · `ini properties cfg env conf` | data (mono, numbers, indent detected, 2 by default) | JSON, YAML, TOML, XML, diff, Properties files; `*nginx*.conf` Nginx; `csv tsv log bib conf` plain — csv/tsv are not a table editor; behind the eye glyph / ⌘E a CSV or TSV is a read-only table and an SVG its picture (ADR-0025) |
+| Prose | `markdown mkd mdx rmd qmd` · `txt text` · `rst adoc org textile srt vtt` · `tex ltx` · `LICENSE README CHANGELOG CONTRIBUTING AUTHORS NOTICE COPYING VERSION TODO CODEOWNERS` | prose (wrap, no numbers, sebaro Sans (ADR-0051), spellcheck) | Markdown with its bundle for `markdown mkd mdx rmd qmd` (files, not notes); LaTeX for `tex ltx`; the rest plain |
+| Data | `json json5 jsonc` · `yaml yml` · `toml` · `xml xsl xsd plist svg` · `csv tsv log` · `diff patch` · `bib` · `ini properties cfg env conf` | data (mono, numbers, indent detected, 2 by default) | JSON, YAML, TOML, XML, diff, Properties files; `*nginx*.conf` Nginx; `csv tsv log bib conf` plain — csv/tsv are not a table editor; behind the preview tool / ⌘E a CSV or TSV is a read-only table and an SVG its picture (ADR-0025) |
 | Web | `html htm` · `css scss sass less` · `js mjs cjs jsx` · `ts mts cts tsx` · `vue` | code2 | HTML, CSS/SCSS/Sass/LESS, JavaScript/JSX, TypeScript/TSX, Vue |
 | Scripts, shells | `py` · `rb` `Gemfile` `Rakefile` · `pl pm` · `php` · `lua` · `tcl` · `ps1` · `sh bash zsh` | code4 (py pl pm php tcl ps1 sh bash zsh), code2 (rb lua) | Python, Ruby, Perl, PHP, Lua, Tcl, PowerShell, Shell |
 | Systems, JVM, .NET | `c h` · `cpp cc cxx hpp hh hxx` · `rs` · `go` · `swift` · `java` · `kt kts` · `scala` · `cs` · `groovy gradle` `Jenkinsfile` | code4; `go` codeT (tab); `scala` code2 | C, C++, Rust, Go, Swift, Java, Kotlin, Scala, C#, Groovy |
@@ -444,7 +442,7 @@ Not listed, until someone asks (the plan's §3.3, ADR-0022): media, archives, bi
 
 ### 7.4 Keymap (hard-coded, no rebinding UI, documented in `docs/KEYMAP.md` with a parity test, ADR-0008)
 
-Apple standard untouched (`Cmd-Z/Shift-Cmd-Z`, `Cmd-F/G`, `Cmd-S`, `Cmd-N/O/W/Q`, `Cmd-B/I` apply `**`/`_` in Markdown, `Ctrl-Cmd-F` full screen; `Cmd-,` unbound in v1). Editor: `Cmd-P` quick-open · `Cmd-Shift-P` palette · `Ctrl-G` goto line · `Cmd-D` next occurrence · `Cmd-Shift-L` all occurrences · `Cmd-Alt-F` replace · `Cmd-Shift-F` vault search · `Cmd-/` comment (code) · `Ctrl-Shift-↑/↓` add cursor · `Cmd-Ctrl-↑/↓` move line · `Shift-Cmd-D` duplicate line · `Ctrl-Shift-K` delete line · tabs `Shift-Cmd-[`/`]`, `Cmd-1…9`, `Shift-Cmd-T` · navigation `Cmd-[`/`]` · `Cmd-K` link · `Cmd-Enter` toggle checkbox · `Cmd-\` sidebar · `Cmd-Shift-B` board · `Cmd-=`/`-`/`0` font size · `Cmd-J` Today's Note (ADR-0026). Tree: `Enter` rename, `Cmd-Delete` trash, `Shift-Cmd-N` new folder. PDF pane (ADR-0025): `←`/`→`, `PageUp`/`PageDown` turn the page, `Home`/`End` first and last.
+Apple standard untouched (`Cmd-Z/Shift-Cmd-Z`, `Cmd-F/G`, `Cmd-S`, `Cmd-N/O/W/Q`, `Cmd-B/I` apply `**`/`_` in Markdown, `Ctrl-Cmd-F` full screen; `Cmd-,` the settings view, ADR-0051). Editor: `Cmd-P` quick-open · `Cmd-K` palette, also `Cmd-Shift-P` (ADR-0051) · `Ctrl-G` goto line · `Cmd-D` next occurrence · `Cmd-Shift-L` all occurrences · `Cmd-Alt-F` replace · `Cmd-Shift-F` vault search · `Cmd-/` comment (code) · `Ctrl-Shift-↑/↓` add cursor · `Cmd-Ctrl-↑/↓` move line · `Shift-Cmd-D` duplicate line · `Ctrl-Shift-K` delete line · tabs `Ctrl-Tab`/`Ctrl-Shift-Tab` (ADR-0051), `Cmd-1…9`, `Shift-Cmd-T` · navigation `Cmd-←`/`→`, in a text field `Ctrl-Cmd-←`/`→` (ADR-0051) · `Shift-Cmd-K` link (ADR-0051) · `Cmd-Enter` toggle checkbox · `Ctrl-Cmd-S` sidebar (ADR-0051) · `Cmd-Shift-B` board · `Cmd-+`/`Cmd--`/`Cmd-0` font size (ADR-0051) · `Cmd-J` Today's Note (ADR-0026) · `F6`/`Shift-F6` next / previous area (ADR-0051). Tree: `Enter`/`Space` open, the arrows only move focus (ADR-0051), `Cmd-Delete` trash, `Alt-Cmd-N` new folder (ADR-0051). PDF pane (ADR-0025): `←`/`→`, `PageUp`/`PageDown` turn the page, `Home`/`End` first and last.
 
 ### 7.5 Spellcheck — settled by Spike B (2026-09-05)
 
@@ -590,7 +588,7 @@ Every existing vault was written by the old app: all demo notes carry `title/cre
 
 ### 11.2 CI (`ci.yml`, jobs `check (macos-latest)`, `check (ubuntu-latest)`, `audit`)
 
-fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli extract --ci` + `status`, catalog parity test, `check-versions.mjs`, bindings and file-type-table drift (`tauri-specta` export and `file_types::export_ts` + `git diff --exit-code` on both files), `bundle-budget.mjs` (parses `dist/index.html` modulepreloads against `docs/BUDGET.json`), settings-parity test, keymap-parity test (`docs/KEYMAP.md`), `lockfile-adr-check.mjs` (a new top-level `Cargo.lock`/`pnpm-lock.yaml` entry requires `ADR-NNNN` in the PR body), `cargo deny`, `cargo audit`, `pnpm audit --audit-level=high`. `perf.yml` on `main` and tags only (§11.3). `release.yml` on `v*` tags: gate = `ci.yml` via `workflow_call`, `tauri-action` v1 build, sign + notarize when secrets exist, draft release, build-provenance attestation, `SHA256SUMS`, CLI tarball.
+fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli extract --ci` + `status`, catalog parity test, `check-versions.mjs`, `check-sebaro-export.mjs` (ADR-0051 #37), bindings and file-type-table drift (`tauri-specta` export and `file_types::export_ts` + `git diff --exit-code` on both files), `bundle-budget.mjs` (parses `dist/index.html` modulepreloads against `docs/BUDGET.json`), settings-parity test, keymap-parity test (`docs/KEYMAP.md`), `lockfile-adr-check.mjs` (a new top-level `Cargo.lock`/`pnpm-lock.yaml` entry requires `ADR-NNNN` in the PR body), `cargo deny`, `cargo audit`, `pnpm audit --audit-level=high`. `perf.yml` on `main` and tags only (§11.3). `release.yml` on `v*` tags: gate = `ci.yml` via `workflow_call`, `tauri-action` v1 build, sign + notarize when secrets exist, draft release, build-provenance attestation, `SHA256SUMS`, CLI tarball.
 
 ### 11.3 Performance budgets (CI thresholds at 2× for runner noise; real numbers kept as an artifact)
 
@@ -599,7 +597,7 @@ fmt, clippy `-D warnings --locked`, `cargo test --locked`, eslint, `i18next-cli 
 | Window visible (first paint) after launch | ≤ 300 ms, **provisional**: measured so far is 166–231 ms to the `setup()` callback with a hidden window; Spike C measures first paint with `--exit-after-first-frame` and re-sets this row |
 | Tree interactive, 10k-note vault, warm disk | ≤ 500 ms, independent of the cache |
 | Idle RSS after opening the demo vault | ≤ 200 MB summed processes; the per-process split is an output of Spike C |
-| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 24 KB (20 KB until 2026-09-16, of which 4.7 KB are tokens and font faces; raised for the sidebar and tab-strip controls, ADR-0020); fonts ≤ 250 KB; the Preview chunk plus its static, non-eager imports ≤ 8 KB gzip (ADR-0022 point 8: it reaches CodeMirror only by `import()`) |
+| Eager JS | ≤ 250 KB gzip, no single eager chunk > 120 KB; eager CSS ≤ 33 KB gzip, confirmed by the owner on 2026-10-24 (ADR-0051 #3: measured gzip since the sebaro export, 30.5 KB gzip / 218 KB raw (213 KiB) on its first build; before that ≤ 24 KB raw, 20 KB until 2026-09-16, ADR-0020); fonts ≤ 250 KB; the Preview chunk plus its static, non-eager imports ≤ 8 KB gzip (ADR-0022 point 8: it reaches CodeMirror only by `import()`) |
 | IPC at boot | ≤ 3 calls before the tree paints; 1 per open; 1 per save |
 | Open note | 100 KB ≤ 16 ms p95; 1 MB ≤ 60 ms; 5 MB plain mode ≤ 500 ms; 50 MB plain mode ≤ 2 s and summed RSS stays under the 200 MB row (a 50 MB file is ~100 MB as a UTF-16 JS string); measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
 | Keystroke → paint | ≤ 8 ms p50 / 16 ms p95 in a 1 MB Markdown document with decorations on; measured by hand with `NOVALIS_PERF`, not in CI (docs/BUDGET.json notes) |
@@ -613,7 +611,7 @@ Measured with a hidden `--exit-after-first-frame` flag + `hyperfine`, `/usr/bin/
 
 ### 11.4 Release, signing, versioning
 
-SemVer, annotated tags `vX.Y.Z`, `-rc.N` pre-releases (hyphen ⇒ prerelease flag), first tag `v1.0.0-alpha.1` (2026-09-18; was `v2.0.0-alpha.1`). One `VERSION` file, `just bump` propagates to the five stamps (two of them the private workspace packages, since 2026-09-18), `check-versions.mjs` guards. Signing: **unsigned for the coming year by owner decision (2026-09-05)**; the DMG is ad-hoc signed by the Tauri bundler, the release notes carry the right-click-open / `xattr -d com.apple.quarantine` instructions as the old releases did. `release.yml` keeps the signing and notarization steps behind the documented secrets (`APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER/KEY/KEY_PATH`, `APPLE_CERTIFICATE/_PASSWORD`, `KEYCHAIN_PASSWORD`) so enabling them later is a secrets change, not a pipeline change. No updater; update path = GitHub Releases, optionally a personal tap `grundhofer/homebrew-novalis` carrying the unsigned cask (the main cask tap rejects un-notarized artefacts and applies notability criteria this repo does not meet, verified). Privacy: `docs/PRIVACY.md` keeps the old promise: no telemetry, no analytics, no crash reporting, no update check; the outbound-connection table is empty in Mode 1.
+SemVer, annotated tags `vX.Y.Z`, `-rc.N` pre-releases (hyphen ⇒ prerelease flag), first tag `v1.0.0-alpha.1` (2026-09-18; was `v2.0.0-alpha.1`). One `VERSION` file, `just bump` propagates to the five stamps (one of them the private workspace package `apps/desktop/ui`, since 2026-09-18; `packages/tokens` went with ADR-0051), `check-versions.mjs` guards. Signing: **unsigned for the coming year by owner decision (2026-09-05)**; the DMG is ad-hoc signed by the Tauri bundler, the release notes carry the right-click-open / `xattr -d com.apple.quarantine` instructions as the old releases did. `release.yml` keeps the signing and notarization steps behind the documented secrets (`APPLE_SIGNING_IDENTITY`, `APPLE_API_ISSUER/KEY/KEY_PATH`, `APPLE_CERTIFICATE/_PASSWORD`, `KEYCHAIN_PASSWORD`) so enabling them later is a secrets change, not a pipeline change. No updater; update path = GitHub Releases, optionally a personal tap `grundhofer/homebrew-novalis` carrying the unsigned cask (the main cask tap rejects un-notarized artefacts and applies notability criteria this repo does not meet, verified). Privacy: `docs/PRIVACY.md` keeps the old promise: no telemetry, no analytics, no crash reporting, no update check; the outbound-connection table is empty in Mode 1.
 
 ### 11.5 Minimalism gate
 

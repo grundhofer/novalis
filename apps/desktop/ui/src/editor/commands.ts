@@ -10,7 +10,6 @@ import {
 import {
   findNext,
   findPrevious,
-  gotoLine,
   openSearchPanel,
   selectNextOccurrence,
   selectSelectionMatches,
@@ -21,6 +20,7 @@ import type { Command, EditorView } from "@codemirror/view";
 import { setEditorBridge } from "../lib/editorBridge";
 import { localIsoMinute } from "../lib/localTime";
 import { toggleCheckbox, wrapSelection } from "./decorations";
+import { goToLine } from "./findPanel";
 
 /**
  * The editor half of the command registry.
@@ -87,8 +87,8 @@ const deleteLines: Command = (view) => {
   return true;
 };
 
-/** `Cmd+K`: wrap the selection in a Markdown link and land in the target. */
-const insertLink: StateCommand = ({ state, dispatch }) => {
+/** `Shift+Cmd+K`: wrap the selection in a Markdown link and land in the target. */
+export const insertLink: StateCommand = ({ state, dispatch }) => {
   const spec = state.changeByRange((range) => {
     const text = state.sliceDoc(range.from, range.to);
     const insert = `[${text}]()`;
@@ -199,7 +199,7 @@ const REGISTRY: Record<string, Command> = {
   "find.next": findNext,
   "find.previous": findPrevious,
   "find.replace": openSearchPanel,
-  "editor.gotoLine": gotoLine,
+  "editor.gotoLine": goToLine,
   "editor.selectNextOccurrence": selectNextOccurrence,
   "editor.selectAllOccurrences": selectSelectionMatches,
   "editor.addCursorAbove": addCursorVertically(-1),

@@ -1,0 +1,22 @@
+/* generated — do not edit. tools/icons.py 1.1.0 · system "sebaro" · source d4298ad26b6060bc
+   Stroke widths per display size (research/06 §3.5). Symbols read them through custom properties, so
+   they inherit into <use> shadow trees and follow data-theme subtrees.
+   Every rule sits in the cascade layer `base`, so unlayered CSS and later layers (Tailwind v4: components,
+   utilities) override .sb-icon at any specificity; declare `@layer base, components;` before a layered
+   component file that loads first (shared/ICONS-GUIDE.md §9.1). */
+@layer base {
+  :root { --sb-icon-w16: 2.25; --sb-icon-w20: 1.8; --sb-icon-w24: 1.75; --sb-icon-w32: 1.5; --sb-icon-w48: 1.125; --sb-icon-w16m: 1.5; --sb-icon-wspot: 2; }
+  .sb-icon { display: inline-block; flex: none; vertical-align: middle; width: 24px; height: 24px; --sb-icon-stroke: var(--sb-icon-w24); stroke-width: var(--sb-icon-stroke); }
+  .sb-icon--16 { width: 16px; height: 16px; --sb-icon-stroke: var(--sb-icon-w16); }
+  .sb-icon--20 { width: 20px; height: 20px; --sb-icon-stroke: var(--sb-icon-w20); }
+  .sb-icon--24 { width: 24px; height: 24px; --sb-icon-stroke: var(--sb-icon-w24); }
+  .sb-icon--32 { width: 32px; height: 32px; --sb-icon-stroke: var(--sb-icon-w32); }
+  .sb-icon--48 { width: 48px; height: 48px; --sb-icon-stroke: var(--sb-icon-w48); }
+  .sb-icon--spot { width: auto; height: auto; --sb-icon-stroke: var(--sb-icon-wspot); fill: var(--sb-icon-tone, currentColor); }
+  .sb-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .sb-sym-24 { stroke-width: var(--sb-icon-stroke, 1.75); }
+  .sb-sym-16 { stroke-width: var(--sb-icon-w16m, 1.5); }
+  .sb-sym-spot { stroke-width: var(--sb-icon-wspot, 2); }
+  .sb-sym-tone { fill: var(--sb-icon-tone, currentColor); }
+  .sb-sym-tone-stroke { stroke: var(--sb-icon-tone, currentColor); }
+}

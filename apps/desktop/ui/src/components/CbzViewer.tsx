@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
 import { mimeOf } from "../lib/fileTypes";
 import { extensionOf, fileNameOf } from "../lib/paths";
 import { report } from "../stores/ui";
+import { Callout } from "./Banner";
+import Tool from "./Tool";
+import Waiting from "./Waiting";
 import ZoomableImage from "./ZoomableImage";
 
 /**
@@ -22,11 +25,15 @@ import ZoomableImage from "./ZoomableImage";
  * pane until zoomed, and a zoom stays as the pages turn.
  */
 
-/** Where the reader stopped when a comic will not open, and what it says. */
+/**
+ * Where the reader stopped when a comic will not open, what it says, and in
+ * which of sebaro's callouts (STA-05): a comic it could not read is an
+ * error, one it may not open a warning, one without pages a note.
+ */
 const REFUSALS = {
-  protected: "viewer.cbz.protected",
-  unreadable: "viewer.cbz.unreadable",
-  empty: "viewer.cbz.empty",
+  protected: { key: "viewer.cbz.protected", kind: "warning" },
+  unreadable: { key: "viewer.cbz.unreadable", kind: "error" },
+  empty: { key: "viewer.cbz.empty", kind: "note" },
 } as const;
 
 type Refusal = keyof typeof REFUSALS;
@@ -66,6 +73,8 @@ function decode(base64: string): Uint8Array<ArrayBuffer> {
 
 export default function CbzViewer({ path }: { path: string }) {
   const { t } = useTranslation();
+  // The tools' tooltips need ids unique in the page.
+  const uid = useId();
   const [pages, setPages] = useState<readonly string[] | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [page, setPage] = useState(0);
@@ -87,8 +96,8 @@ export default function CbzViewer({ path }: { path: string }) {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        // A protected archive is not a failure to report: the banner says
-        // what it is. Anything else is, and the banner says only that much.
+        // A protected archive is not a failure to report: the callout says
+        // what it is. Anything else is, and the callout says only that much.
         if (error instanceof NovalisError && error.code === "protected") setRefusal("protected");
         else {
           setRefusal("unreadable");
@@ -149,13 +158,13 @@ export default function CbzViewer({ path }: { path: string }) {
   if (refusal) {
     return (
       <div className="cbz">
-        <div className="banner" role="status">
-          <span className="banner-body">{t(REFUSALS[refusal])}</span>
-        </div>
+        <Callout kind={REFUSALS[refusal].kind} text={t(REFUSALS[refusal].key)} />
       </div>
     );
   }
-  if (!pages) return <div className="pane-loading">{t("editor.loading")}</div>;
+  // A listing of the archive: silent while local, named after a second
+  // while a cloud-only comic downloads (STA-06, ADR-0051 #27.8).
+  if (!pages) return <Waiting path={path} />;
 
   const count = pages.length;
   const label = t("viewer.cbz.pageOf", { current: page + 1, count });
@@ -164,27 +173,21 @@ export default function CbzViewer({ path }: { path: string }) {
   return (
     <div className="cbz">
       <ZoomableImage src={src} alt={label}>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.previousPage")}
-          aria-label={t("viewer.previousPage")}
+        <Tool
+          id={`${uid}-previous`}
+          icon="chevron-left"
+          label={t("viewer.previousPage")}
           disabled={page <= 0}
           onClick={() => goTo(page - 1)}
-        >
-          &#8249;
-        </button>
-        <span className="cbz-count">{label}</span>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.nextPage")}
-          aria-label={t("viewer.nextPage")}
+        />
+        <span className="sb-doc-bar__count">{label}</span>
+        <Tool
+          id={`${uid}-next`}
+          icon="chevron-right"
+          label={t("viewer.nextPage")}
           disabled={page >= count - 1}
           onClick={() => goTo(page + 1)}
-        >
-          &#8250;
-        </button>
+        />
       </ZoomableImage>
     </div>
   );

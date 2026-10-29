@@ -1,0 +1,187 @@
+/* generated — do not edit.
+ * sebaroDesign token contract 1.10 · draft "sebaro" · palette "sebaro"
+ * source: systems/sebaro/tokens/tokens.json (sha256 7d2d13e1ba9b5b19)
+ *         palettes/sebaro.json (sha256 21cebe04ae051e3a)
+ * builder: tools/build_tokens.py 1.10.1 · spec: shared/TOKEN-CONTRACT.md
+ *
+ * Tailwind CSS v4 bridge. Import order:
+ *   @import "tailwindcss";
+ *   @import "./tokens.css";
+ *   @import "./tokens.tailwind.css";
+ * `@theme inline` makes every utility read var(--sb-*) at the element, so light/dark and
+ * [data-theme] subtrees switch without a rebuild. Tailwind's default colours, radii,
+ * shadows, easings and breakpoints are cleared: bg-blue-500, rounded-lg or shadow-md do not exist.
+ * Print needs nothing here: tokens.css repeats the light values in @media print (1.9) and the
+ * utilities read them through var(--sb-*).
+ */
+
+@theme inline {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --ease-*: initial;
+  --breakpoint-*: initial;
+
+  --spacing: 0.25rem; /* p-1 = 4px ... p-16 = 64px; allowed steps: TOKEN-CONTRACT §8.3 */
+
+  --color-bg: var(--sb-color-bg);
+  --color-surface: var(--sb-color-surface);
+  --color-surface-raised: var(--sb-color-surface-raised);
+  --color-surface-sunken: var(--sb-color-surface-sunken);
+  --color-text: var(--sb-color-text);
+  --color-text-muted: var(--sb-color-text-muted);
+  --color-text-subtle: var(--sb-color-text-subtle);
+  --color-border: var(--sb-color-border);
+  --color-border-strong: var(--sb-color-border-strong);
+  --color-accent: var(--sb-color-accent);
+  --color-accent-hover: var(--sb-color-accent-hover);
+  --color-accent-pressed: var(--sb-color-accent-pressed);
+  --color-on-accent: var(--sb-color-on-accent);
+  --color-accent-subtle: var(--sb-color-accent-subtle);
+  --color-text-on-accent-subtle: var(--sb-color-text-on-accent-subtle);
+  --color-focus: var(--sb-color-focus);
+  --color-success: var(--sb-color-success);
+  --color-on-success: var(--sb-color-on-success);
+  --color-success-subtle: var(--sb-color-success-subtle);
+  --color-text-on-success-subtle: var(--sb-color-text-on-success-subtle);
+  --color-warning: var(--sb-color-warning);
+  --color-on-warning: var(--sb-color-on-warning);
+  --color-warning-subtle: var(--sb-color-warning-subtle);
+  --color-text-on-warning-subtle: var(--sb-color-text-on-warning-subtle);
+  --color-danger: var(--sb-color-danger);
+  --color-on-danger: var(--sb-color-on-danger);
+  --color-danger-subtle: var(--sb-color-danger-subtle);
+  --color-text-on-danger-subtle: var(--sb-color-text-on-danger-subtle);
+  --color-info: var(--sb-color-info);
+  --color-on-info: var(--sb-color-on-info);
+  --color-info-subtle: var(--sb-color-info-subtle);
+  --color-text-on-info-subtle: var(--sb-color-text-on-info-subtle);
+  --color-selection: var(--sb-color-selection);
+  --color-scrim: var(--sb-color-scrim);
+  --color-link: var(--sb-color-link);
+  --color-link-visited: var(--sb-color-link-visited);
+  --color-primary-action: var(--sb-color-primary-action);
+  --color-primary-action-hover: var(--sb-color-primary-action-hover);
+  --color-primary-action-pressed: var(--sb-color-primary-action-pressed);
+  --color-on-primary-action: var(--sb-color-on-primary-action);
+  --color-primary-action-outline: var(--sb-color-primary-action-outline);
+  --color-hover-fill: var(--sb-color-hover-fill);
+  --color-pressed-fill: var(--sb-color-pressed-fill);
+  --color-dataviz-categorical-1: var(--sb-dataviz-categorical-1);
+  --color-dataviz-categorical-2: var(--sb-dataviz-categorical-2);
+  --color-dataviz-categorical-3: var(--sb-dataviz-categorical-3);
+  --color-dataviz-categorical-4: var(--sb-dataviz-categorical-4);
+  --color-dataviz-categorical-5: var(--sb-dataviz-categorical-5);
+  --color-dataviz-categorical-6: var(--sb-dataviz-categorical-6);
+  --color-dataviz-sequential-1: var(--sb-dataviz-sequential-1);
+  --color-dataviz-sequential-2: var(--sb-dataviz-sequential-2);
+  --color-dataviz-sequential-3: var(--sb-dataviz-sequential-3);
+  --color-dataviz-sequential-4: var(--sb-dataviz-sequential-4);
+  --color-dataviz-diverging-1: var(--sb-dataviz-diverging-1);
+  --color-dataviz-diverging-2: var(--sb-dataviz-diverging-2);
+  --color-dataviz-diverging-3: var(--sb-dataviz-diverging-3);
+  --color-dataviz-diverging-4: var(--sb-dataviz-diverging-4);
+  --color-dataviz-diverging-5: var(--sb-dataviz-diverging-5);
+  --color-tile-studio: var(--sb-tile-studio);
+  --color-tile-studio-glyph: var(--sb-tile-studio-glyph);
+  --color-tile-collaboration: var(--sb-tile-collaboration);
+  --color-tile-collaboration-glyph: var(--sb-tile-collaboration-glyph);
+  --color-tile-everyday: var(--sb-tile-everyday);
+  --color-tile-everyday-glyph: var(--sb-tile-everyday-glyph);
+  --color-tile-learning: var(--sb-tile-learning);
+  --color-tile-learning-glyph: var(--sb-tile-learning-glyph);
+  --color-tile-tools: var(--sb-tile-tools);
+  --color-tile-tools-glyph: var(--sb-tile-tools-glyph);
+  --color-tile-media: var(--sb-tile-media);
+  --color-tile-media-glyph: var(--sb-tile-media-glyph);
+  --color-tile-money: var(--sb-tile-money);
+  --color-tile-money-glyph: var(--sb-tile-money-glyph);
+  --color-tile-system: var(--sb-tile-system);
+  --color-tile-system-glyph: var(--sb-tile-system-glyph);
+  --color-syntax-keyword: var(--sb-syntax-keyword);
+  --color-syntax-string: var(--sb-syntax-string);
+  --color-syntax-constant: var(--sb-syntax-constant);
+  --color-category-1: var(--sb-category-1);
+  --color-category-2: var(--sb-category-2);
+  --color-category-3: var(--sb-category-3);
+  --color-category-4: var(--sb-category-4);
+  --color-category-5: var(--sb-category-5);
+  --color-category-6: var(--sb-category-6);
+  --color-mark: var(--sb-mark);
+  --color-mark-edge: var(--sb-mark-edge);
+
+  --font-ui: var(--sb-font-family-ui);
+  --font-display: var(--sb-font-family-display);
+  --font-mono: var(--sb-font-family-mono);
+  --default-font-family: var(--sb-font-family-ui);
+  --default-mono-font-family: var(--sb-font-family-mono);
+
+  --text-display: var(--sb-type-display-size);
+  --text-display--line-height: var(--sb-type-display-line-height);
+  --text-display--letter-spacing: var(--sb-type-display-tracking);
+  --text-display--font-weight: var(--sb-type-display-weight);
+  --text-headline: var(--sb-type-headline-size);
+  --text-headline--line-height: var(--sb-type-headline-line-height);
+  --text-headline--letter-spacing: var(--sb-type-headline-tracking);
+  --text-headline--font-weight: var(--sb-type-headline-weight);
+  --text-title: var(--sb-type-title-size);
+  --text-title--line-height: var(--sb-type-title-line-height);
+  --text-title--letter-spacing: var(--sb-type-title-tracking);
+  --text-title--font-weight: var(--sb-type-title-weight);
+  --text-body: var(--sb-type-body-size);
+  --text-body--line-height: var(--sb-type-body-line-height);
+  --text-body--letter-spacing: var(--sb-type-body-tracking);
+  --text-body--font-weight: var(--sb-type-body-weight);
+  --text-body-strong: var(--sb-type-body-strong-size);
+  --text-body-strong--line-height: var(--sb-type-body-strong-line-height);
+  --text-body-strong--letter-spacing: var(--sb-type-body-strong-tracking);
+  --text-body-strong--font-weight: var(--sb-type-body-strong-weight);
+  --text-label: var(--sb-type-label-size);
+  --text-label--line-height: var(--sb-type-label-line-height);
+  --text-label--letter-spacing: var(--sb-type-label-tracking);
+  --text-label--font-weight: var(--sb-type-label-weight);
+  --text-caption: var(--sb-type-caption-size);
+  --text-caption--line-height: var(--sb-type-caption-line-height);
+  --text-caption--letter-spacing: var(--sb-type-caption-tracking);
+  --text-caption--font-weight: var(--sb-type-caption-weight);
+  --text-code: var(--sb-type-code-size);
+  --text-code--line-height: var(--sb-type-code-line-height);
+  --text-code--letter-spacing: var(--sb-type-code-tracking);
+  --text-code--font-weight: var(--sb-type-code-weight);
+  --text-numeric: var(--sb-type-numeric-size);
+  --text-numeric--line-height: var(--sb-type-numeric-line-height);
+  --text-numeric--letter-spacing: var(--sb-type-numeric-tracking);
+  --text-numeric--font-weight: var(--sb-type-numeric-weight);
+
+  --spacing-inline: var(--sb-spacing-inline);
+  --spacing-stack: var(--sb-spacing-stack);
+  --spacing-group: var(--sb-spacing-group);
+  --spacing-inset-control: var(--sb-spacing-inset-control);
+  --spacing-inset-container: var(--sb-spacing-inset-container);
+  --spacing-gutter: var(--sb-spacing-gutter);
+  --spacing-gutter-wide: var(--sb-spacing-gutter-wide);
+  --spacing-section: var(--sb-spacing-section);
+  --spacing-section-wide: var(--sb-spacing-section-wide);
+
+  --radius-small: var(--sb-radius-small);
+  --radius-control: var(--sb-radius-control);
+  --radius-container: var(--sb-radius-container);
+  --radius-sheet: var(--sb-radius-sheet);
+  --radius-pill: var(--sb-radius-pill);
+
+  --shadow-level-0: var(--sb-elevation-level-0-shadow);
+  --shadow-level-1: var(--sb-elevation-level-1-shadow);
+  --shadow-level-2: var(--sb-elevation-level-2-shadow);
+  --shadow-level-3: var(--sb-elevation-level-3-shadow);
+  --shadow-overlay: var(--sb-elevation-overlay-shadow);
+
+  --ease-standard: var(--sb-motion-easing-standard);
+  --ease-emphasized: var(--sb-motion-easing-emphasized);
+  --ease-exit: var(--sb-motion-easing-exit);
+
+  /* media queries cannot read custom properties: breakpoints are literal values */
+  --breakpoint-sm: 40rem; /* 640px */
+  --breakpoint-lg: 64rem; /* 1024px */
+}

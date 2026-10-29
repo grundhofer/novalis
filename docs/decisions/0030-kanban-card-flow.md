@@ -57,3 +57,16 @@ B4, B26 and B49 of `docs/research/2026-09-20-feature-gaps.md`).
   and its refusals and the click (`BoardPane.test.tsx`), when New Card is
   listed (`commands.test.ts`). jsdom cannot drag; the drop is checked by
   hand in the app.
+
+**Amended 2026-10-26** — ADR-0051 #42 (spec/02 §4.22): a card or a note
+dropped on a card lands before it from the card's upper half and after it
+from its lower half, so it can go first; the 3 px line shows where. The
+`Position` stays `first`, `last` or `after`: before a card is after the
+card above it, or first. A drop on a column's free space is last, as
+before. A card let go over itself, or in the gap beside it, stays where it
+is: nothing is sent to the core.
+
+**Amended 2026-10-26** — ADR-0051 #35: the board tool now hides the board
+with its tab and clears `activeBoard`. New Card in the palette still acts
+on the board the pane last showed: the loaded board counts when no board
+is active, so hiding the board does not take the command away.

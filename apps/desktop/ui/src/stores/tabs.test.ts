@@ -25,7 +25,7 @@ describe("useTabs and the board pane", () => {
       save: vi.fn().mockResolvedValue(undefined),
     });
     useVault.setState({ reveal: vi.fn().mockResolvedValue(undefined) });
-    useUi.setState({ boardVisible: true, activeBoard: "plan", toast: null });
+    useUi.setState({ boardVisible: true, activeBoard: "plan", message: null });
   });
 
   // The defect: while the board was visible the main pane rendered the board
@@ -69,7 +69,7 @@ describe("useTabs and the board pane", () => {
 
     expect(useTabs.getState().tabs).toEqual(["a.md", "b.md"]);
     expect(useTabs.getState().active).toBe("b.md");
-    expect(useUi.getState().toast).toEqual({ key: "errors.internal", values: { detail: "Error: gone.md" } });
+    expect(useUi.getState().message).toEqual({ key: "errors.internal", values: { detail: "Error: gone.md" } });
   });
 
   it("makes nothing current when the active tab is the one that is gone", async () => {
@@ -95,7 +95,7 @@ describe("useTabs and the board pane", () => {
 
     expect(useTabs.getState().tabs).toEqual(["meanwhile.md", "a.md"]);
     expect(useTabs.getState().active).toBe("meanwhile.md");
-    expect(useUi.getState().toast?.values).toEqual({ detail: "Error: disk full" });
+    expect(useUi.getState().message?.values).toEqual({ detail: "Error: disk full" });
   });
 
   it("hides it when a tab is activated", async () => {
@@ -115,6 +115,23 @@ describe("useTabs and the board pane", () => {
     expect(useUi.getState().boardVisible).toBe(false);
   });
 
+  // ADR-0051 #1: the settings view gives way to a tab made current the same
+  // way, the tree's click and quick-open's included, back and forward too.
+  it("leaves the settings view when a tab is activated, also the current one, and on back and forward", async () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md", history: ["a.md", "b.md"], historyIndex: 0 });
+    useUi.setState({ settingsView: true });
+    await useTabs.getState().activate("a.md");
+    expect(useUi.getState().settingsView).toBe(false);
+
+    useUi.setState({ settingsView: true });
+    await useTabs.getState().forward();
+    expect(useUi.getState().settingsView).toBe(false);
+
+    useUi.setState({ settingsView: true });
+    await useTabs.getState().back();
+    expect(useUi.getState().settingsView).toBe(false);
+  });
+
   it("hides it on back and on forward", async () => {
     useTabs.setState({
       tabs: ["a.md", "b.md"],
@@ -131,6 +148,94 @@ describe("useTabs and the board pane", () => {
     await useTabs.getState().forward();
     expect(useTabs.getState().active).toBe("b.md");
     expect(useUi.getState().boardVisible).toBe(false);
+  });
+
+  // ⌃⇥ / ⌃⇧⇥ (ADR-0051) step through the note tabs; the board tab is not one
+  // of them (ADR-0050), so from the board they land on a note and wrap there.
+  it("steps through the note tabs only, never onto the board tab", async () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "b.md", history: ["b.md"], historyIndex: 0 });
+
+    await useTabs.getState().next();
+    expect(useTabs.getState().active).toBe("a.md");
+    expect(useUi.getState().boardVisible).toBe(false);
+
+    useUi.getState().setActiveBoard("plan");
+    await useTabs.getState().previous();
+    expect(useTabs.getState().active).toBe("b.md");
+    expect(useUi.getState().boardVisible).toBe(false);
+  });
+});
+
+describe("useTabs and the tree's chosen row", () => {
+  beforeEach(() => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md", closed: [], history: [], historyIndex: -1 });
+    useEditorSave.setState({ save: vi.fn().mockResolvedValue(undefined) });
+  });
+
+  // NAV-11: a tab made current with a click or Ctrl+Tab is the tree's one
+  // chosen row, not a second one beside the row chosen before.
+  it("chooses the tab made current, and the keys' row goes along", async () => {
+    useVault.setState({ selected: "a.md", focused: "a.md" });
+    await useTabs.getState().next();
+    expect(useVault.getState()).toMatchObject({ selected: "b.md", focused: "b.md" });
+  });
+
+  it("leaves the keys' row where the arrows moved it", async () => {
+    useVault.setState({ selected: "a.md", focused: "Notes" });
+    await useTabs.getState().activate("b.md");
+    expect(useVault.getState()).toMatchObject({ selected: "b.md", focused: "Notes" });
+  });
+
+  // A chord given while a row has the keyboard: the keys stay on that row.
+  it("leaves the keys' row on the row that has focus", async () => {
+    const tree = document.createElement("div");
+    tree.setAttribute("role", "tree");
+    const row = document.createElement("div");
+    row.setAttribute("role", "treeitem");
+    row.tabIndex = 0;
+    tree.append(row);
+    document.body.append(tree);
+    row.focus();
+    useVault.setState({ selected: "a.md", focused: "a.md" });
+    await useTabs.getState().next();
+    expect(useVault.getState()).toMatchObject({ selected: "b.md", focused: "a.md" });
+    tree.remove();
+  });
+
+  // ⇧⌘T or Today's note given from a row: the opened file is chosen, and
+  // the keys stay on the row that has the ring, as for a chord above.
+  it("leaves the keys' row on the focused row when a file opens", async () => {
+    useEditorSave.setState({ open: vi.fn().mockResolvedValue(undefined) });
+    useVault.setState({ reveal: vi.fn().mockResolvedValue(undefined) });
+    const tree = document.createElement("div");
+    tree.setAttribute("role", "tree");
+    const row = document.createElement("div");
+    row.setAttribute("role", "treeitem");
+    row.tabIndex = 0;
+    tree.append(row);
+    document.body.append(tree);
+    row.focus();
+    useVault.setState({ selected: "a.md", focused: "a.md" });
+    await useTabs.getState().open("c.md");
+    expect(useVault.getState()).toMatchObject({ selected: "c.md", focused: "a.md" });
+    tree.remove();
+  });
+
+  // ⌘[ / ⌘] and closing the current tab make another tab current: its row
+  // is the chosen one, not the row of the tab before.
+  it("chooses the tab that back, forward or a close makes current", async () => {
+    useEditorSave.setState({
+      open: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    });
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "b.md", history: ["a.md", "b.md"], historyIndex: 1 });
+    useVault.setState({ selected: "b.md", focused: "b.md" });
+    await useTabs.getState().back();
+    expect(useVault.getState()).toMatchObject({ selected: "a.md", focused: "a.md" });
+    await useTabs.getState().forward();
+    expect(useVault.getState()).toMatchObject({ selected: "b.md", focused: "b.md" });
+    await useTabs.getState().close("b.md");
+    expect(useVault.getState()).toMatchObject({ selected: "a.md", focused: "a.md" });
   });
 });
 

@@ -30,7 +30,7 @@ your OneDrive or Google Drive folder and it syncs between devices. macOS first.
 ## What it deliberately is not
 
 No AI, no telemetry, no analytics, no crash reporting, no update check, no
-accounts, no plugins, and no settings beyond four. See
+accounts, no plugins, and no settings beyond the six in [docs/SETTINGS.md](docs/SETTINGS.md). See
 [docs/PRIVACY.md](docs/PRIVACY.md); the outbound-connection table is empty.
 
 ## Build it

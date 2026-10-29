@@ -81,7 +81,7 @@ export function viewKind(rel: string): ViewKind | null {
 }
 
 /**
- * The second representation behind the eye glyph and `Cmd+E`, or `null` for
+ * The second representation behind the preview switch and `Cmd+E`, or `null` for
  * a file that has none: a note renders (ADR-0020), a CSV or TSV is a table
  * and an SVG its picture (ADR-0025). All three are read-only; the text
  * stays what the editor shows.

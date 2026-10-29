@@ -7,6 +7,8 @@ import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import "../styles/backlinks.css";
+import { FileName } from "./FileName";
+import Icon from "./Icon";
 
 /**
  * What points at the open note (§4.4, approved for v1).
@@ -18,7 +20,8 @@ import "../styles/backlinks.css";
  *
  * A pane under the editor, not a second sidebar and not a split view (D21).
  * The catalog decided this shape before the code existed: a title, an empty
- * line naming both kinds, and separate counts.
+ * line naming both kinds, and separate counts. It stays there in sebaro's
+ * look, not as an inspector (ADR-0051 #8).
  */
 export default function Backlinks() {
   const { t } = useTranslation();
@@ -56,47 +59,74 @@ export default function Backlinks() {
 
   return (
     <section className="backlinks" aria-label={t("editor.backlinks.title")}>
-      <header className="backlinks-head">
-        <span className="backlinks-title">{t("editor.backlinks.title")}</span>
-        <span className="backlinks-counts">
+      {/* sebaro's list head (spec/02 §3.3): the word in `label`, no capitals
+          (TXT-05), the two counts in Sans with tabular figures (SCH-03). */}
+      <p className="sb-list-header">
+        {t("editor.backlinks.title")}
+        <span className="sb-list-header__count sb-num">
           {t("editor.backlinks.notes", { count: notes.length })} ·{" "}
           {t("editor.backlinks.cards", { count: cards.length })}
         </span>
-      </header>
+      </p>
 
       <div className="backlinks-list">
-        {empty && <p className="backlinks-empty">{t("editor.backlinks.empty")}</p>}
+        {empty ? (
+          <p className="sb-list-end">{t("editor.backlinks.empty")}</p>
+        ) : (
+          // Two-line window rows (spec/02 §4.13, RAU-06): the note's name or
+          // the card's title, under it the line the link sits on or the
+          // card's board. Both wrap instead of ending in „…“ (ADR-0051 #24);
+          // only a line the core cut ends in „…“, as in the vault search, so a
+          // cut line does not read as whole (TXT-09, ZUG-09).
+          <ul className="sb-list">
+            {notes.map((note) => (
+              <li key={`${note.path}:${note.line}`}>
+                <button
+                  className="sb-row"
+                  type="button"
+                  onClick={() => openAt(note.path, { line: note.line, snippet: note.snippet })}
+                >
+                  <Icon name="file-text" size={20} className="sb-row__icon" />
+                  <span className="sb-row__main">
+                    <span className="sb-row__name">
+                      <FileName name={note.title} />
+                    </span>
+                    <span className="sb-row__sub">
+                      {note.snippet ? (
+                        note.snippetCutEnd ? `${note.snippet}…` : note.snippet
+                      ) : (
+                        <FileName name={note.path} />
+                      )}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
 
-        {notes.map((note) => (
-          <button
-            className="backlink"
-            type="button"
-            key={`${note.path}:${note.line}`}
-            onClick={() => openAt(note.path, { line: note.line, snippet: note.snippet })}
-          >
-            <span className="backlink-glyph" aria-hidden="true" />
-            <span className="backlink-name">{note.title}</span>
-            <span className="backlink-meta">{note.snippet || note.path}</span>
-          </button>
-        ))}
-
-        {cards.map((card) => (
-          <button
-            className="backlink card"
-            type="button"
-            key={`${card.board}/${card.id}`}
-            onClick={() => {
-              // Showing the pane is not enough: it draws whatever board was
-              // loaded last, under this card's board's name.
-              useUi.getState().setActiveBoard(card.board);
-              void useBoard.getState().load(card.board).catch(report);
-            }}
-          >
-            <span className="backlink-glyph card" aria-hidden="true" />
-            <span className="backlink-name">{card.title}</span>
-            <span className="backlink-meta">{card.boardName}</span>
-          </button>
-        ))}
+            {cards.map((card) => (
+              <li key={`${card.board}/${card.id}`}>
+                <button
+                  className="sb-row"
+                  type="button"
+                  onClick={() => {
+                    // Showing the pane is not enough: it draws whatever board was
+                    // loaded last, under this card's board's name.
+                    useUi.getState().setActiveBoard(card.board);
+                    void useBoard.getState().load(card.board).catch(report);
+                  }}
+                >
+                  {/* A card is a different kind of thing from a note, so it
+                      gets the board's icon rather than the note's. */}
+                  <Icon name="board" size={20} className="sb-row__icon" />
+                  <span className="sb-row__main">
+                    <span className="sb-row__name">{card.title}</span>
+                    <span className="sb-row__sub">{card.boardName}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

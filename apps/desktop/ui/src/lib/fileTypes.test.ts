@@ -100,7 +100,7 @@ describe("fileTypes", () => {
     expect(mimeOf("a.avif")).toBe("image/avif");
   });
 
-  it("names the second representation behind the eye glyph", () => {
+  it("names the second representation behind the preview switch", () => {
     expect(previewKind("a.md")).toBe("markdown");
     expect(previewKind("a.markdown")).toBe("markdown");
     expect(previewKind("data/a.CSV")).toBe("csv");

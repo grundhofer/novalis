@@ -45,6 +45,10 @@ No preferences window; `Cmd-,` stays unbound (ADR-0008). The hard-coded defaults
 
 **Amended 2026-10-19** — ADR-0049: a fifth setting, `reduceMotion` (View ▸ Always Reduce Motion), with the owner's yes "2 die Einstellung ermöglichen".
 
+**Amended 2026-10-24** — ADR-0051 #2: a sixth setting, `tone` (`cool` · `warm`, View ▸ Tone), with the owner's yes „Ja, sechste Einstellung (Empfohlen)“.
+
+**Amended 2026-10-26** — ADR-0051 #1 (built in sebaro view step 13): "No preferences window; `Cmd-,` stays unbound" and "Menus and shortcuts are the only settings UI" are superseded. The settings are also shown in a settings view inside the main window (sebaro DSK-02, spec/02 §4.24): `Cmd-,`, App menu ▸ Settings …, the palette and the sidebar's place „Einstellungen“ open it in the content area; it holds exactly the six settings, each with a help sentence, applies a change at once and is never a second window. The allow-list itself is unchanged: still one persisted place per setting (`settings.json`), and a new key still needs its own ADR. Owner's yes: „Ansicht mit ⌘, (Empfohlen)“ (ADR-0051).
+
 ## Sources
 
 PLAN.md §4.1, §4.2, §5.5, D12, §11.5 · docs/DECISIONS.md · docs/SETTINGS.md

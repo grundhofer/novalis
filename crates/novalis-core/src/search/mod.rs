@@ -71,6 +71,10 @@ pub struct SearchHit {
     /// 1-based line number.
     pub line: usize,
     pub snippet: String,
+    /// The snippet ends before the line does: the core marks a cut start
+    /// with „…“ in the text, a cut end only here, so the text stays as the
+    /// CLI prints it (PLAN.md §9).
+    pub snippet_cut_end: bool,
 }
 
 /// What the scan covered.
@@ -106,13 +110,15 @@ fn build_regex(q: &SearchQuery) -> CoreResult<Regex> {
         .map_err(|e| CoreError::parse(None, e.to_string()))
 }
 
-fn snippet_of(line: &str, at: usize, want: bool) -> String {
+/// The snippet for a hit at byte `at` of `line`, and whether it ends before
+/// the line's text does (whitespace after the window does not count).
+fn snippet_of(line: &str, at: usize, want: bool) -> (String, bool) {
     if !want {
-        return String::new();
+        return (String::new(), false);
     }
     let trimmed = line.trim();
     if trimmed.chars().count() <= SNIPPET_MAX_CHARS {
-        return trimmed.to_string();
+        return (trimmed.to_string(), false);
     }
     // Centre the window on the match, on character boundaries.
     let match_char = line[..at.min(line.len())].chars().count();
@@ -122,19 +128,24 @@ fn snippet_of(line: &str, at: usize, want: bool) -> String {
         .skip(start_char)
         .take(SNIPPET_MAX_CHARS)
         .collect();
+    let cut_end = line
+        .chars()
+        .skip(start_char + SNIPPET_MAX_CHARS)
+        .any(|c| !c.is_whitespace());
     let prefix = if start_char > 0 { "…" } else { "" };
-    format!("{prefix}{}", out.trim())
+    (format!("{prefix}{}", out.trim()), cut_end)
 }
 
 /// The line each of `rows` sits on, as the snippet the vault search would
 /// show for it: trimmed, at most [`SNIPPET_MAX_CHARS`] characters, centred on
-/// the link's target text. One entry per row, in order. Each source note is
-/// read once, under [`MaterializeOff`], so a cloud-only note is never
-/// downloaded for a decoration; its rows, like those of a note that is gone,
-/// not UTF-8 or shorter than the cached line, come back as an empty string.
-/// Only the guard's own failure is an error: the list the snippets decorate
-/// must not fall over because one source could not be read.
-pub fn link_snippets(root: &Path, rows: &[LinkRow]) -> CoreResult<Vec<String>> {
+/// the link's target text, with whether it ends before the line's text does
+/// (as [`SearchHit::snippet_cut_end`]). One entry per row, in order. Each
+/// source note is read once, under [`MaterializeOff`], so a cloud-only note
+/// is never downloaded for a decoration; its rows, like those of a note that
+/// is gone, not UTF-8 or shorter than the cached line, come back as an empty
+/// string, not cut. Only the guard's own failure is an error: the list the
+/// snippets decorate must not fall over because one source could not be read.
+pub fn link_snippets(root: &Path, rows: &[LinkRow]) -> CoreResult<Vec<(String, bool)>> {
     let _guard = MaterializeOff::new()?;
     let mut texts: HashMap<&str, Option<String>> = HashMap::new();
     Ok(rows
@@ -150,7 +161,7 @@ pub fn link_snippets(root: &Path, rows: &[LinkRow]) -> CoreResult<Vec<String>> {
                 .as_deref()
                 .and_then(|t| t.lines().nth(row.line.checked_sub(1)?))
             else {
-                return String::new();
+                return (String::new(), false);
             };
             snippet_of(line, line.find(&row.target).unwrap_or(0), true)
         })
@@ -278,10 +289,13 @@ pub fn search_where(
                     }
                     for (n, line) in content.text.lines().enumerate() {
                         let Some(m) = re.find(line) else { continue };
+                        let (snippet, snippet_cut_end) =
+                            snippet_of(line, m.start(), query.snippets);
                         let hit = SearchHit {
                             path: rel.clone(),
                             line: n + 1,
-                            snippet: snippet_of(line, m.start(), query.snippets),
+                            snippet,
+                            snippet_cut_end,
                         };
                         // Counting, the limit check and the callback happen
                         // under one lock, so `stop` is honoured by every
@@ -374,12 +388,14 @@ mod tests {
                 SearchHit {
                     path: "a.md".into(),
                     line: 2,
-                    snippet: "local-first software".into()
+                    snippet: "local-first software".into(),
+                    snippet_cut_end: false
                 },
                 SearchHit {
                     path: "sub/b.md".into(),
                     line: 4,
-                    snippet: "LOCAL-FIRST again".into()
+                    snippet: "LOCAL-FIRST again".into(),
+                    snippet_cut_end: false
                 },
             ]
         );
@@ -506,8 +522,33 @@ mod tests {
         );
         assert!(long.snippet.starts_with('…'));
         assert!(long.snippet.contains("needle"));
+        assert!(long.snippet_cut_end);
+        assert!(hits
+            .iter()
+            .filter(|h| h.path != "long.md")
+            .all(|h| !h.snippet_cut_end));
         // 40 files × 2 lines + the long file.
         assert_eq!(hits.len(), 81);
+    }
+
+    /// A cut end is reported, not guessed from the length: a line of exactly
+    /// the longest snippet is whole, a window that ends on a space before
+    /// more text is cut, and only whitespace after the window is no cut.
+    #[test]
+    fn snippet_reports_a_cut_end_only_when_text_follows() {
+        let exact = "x".repeat(SNIPPET_MAX_CHARS);
+        assert_eq!(snippet_of(&exact, 0, true), (exact.clone(), false));
+
+        let spaced = format!("{} {}", "x".repeat(SNIPPET_MAX_CHARS - 1), "y".repeat(50));
+        let (text, cut) = snippet_of(&spaced, 0, true);
+        assert_eq!(text, "x".repeat(SNIPPET_MAX_CHARS - 1));
+        assert!(cut);
+
+        let trailing = format!("{}{}", "x".repeat(SNIPPET_MAX_CHARS + 10), " ".repeat(30));
+        let (_, cut) = snippet_of(&trailing, SNIPPET_MAX_CHARS + 9, true);
+        assert!(!cut);
+
+        assert_eq!(snippet_of(&spaced, 0, false), (String::new(), false));
     }
 
     #[test]
@@ -551,7 +592,7 @@ mod tests {
     #[test]
     fn link_snippets_give_each_row_its_own_line_and_nothing_for_an_unreadable_one() {
         let tmp = vault();
-        let long = format!("{} [[a]] tail", "x".repeat(300));
+        let long = format!("{} [[a]] tail {}", "x".repeat(300), "y".repeat(300));
         write(
             tmp.path(),
             "sub/c.md",
@@ -569,15 +610,20 @@ plain
             link_row("gone.md", "a", 1),
         ];
         let got = link_snippets(tmp.path(), &rows).unwrap();
-        assert_eq!(got[0], "see [[a]] here");
+        assert_eq!(got[0], ("see [[a]] here".to_string(), false));
         assert!(
-            got[1].starts_with('…') && got[1].contains("[[a]] tail"),
+            got[1].0.starts_with('…') && got[1].0.contains("[[a]] tail"),
             "{}",
-            got[1]
+            got[1].0
         );
-        assert!(got[1].chars().count() <= SNIPPET_MAX_CHARS + 1);
-        assert_eq!(got[2], "", "a line past the end of the note");
-        assert_eq!(got[3], "", "a note that is gone");
+        assert!(got[1].0.chars().count() <= SNIPPET_MAX_CHARS + 1);
+        assert!(got[1].1, "the line goes on past the snippet");
+        assert_eq!(
+            got[2],
+            (String::new(), false),
+            "a line past the end of the note"
+        );
+        assert_eq!(got[3], (String::new(), false), "a note that is gone");
         assert!(crate::vault::cloud::materialize_is_default());
     }
     /// The caller's filter runs before the limit: a refused file is neither

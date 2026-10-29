@@ -13,11 +13,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use novalis_core::settings::{Appearance, Language, Settings};
+use novalis_core::settings::{Appearance, Language, Settings, Tone};
 use novalis_core::vault::fs::Precondition;
 
 use crate::cache::CacheHandle;
-use crate::dto::WindowRectDto;
+use crate::dto::{MenuTargetsDto, WindowRectDto};
 use crate::error::{IpcError, IpcResult};
 use crate::watcher::{ExternalWatcher, WatcherHandle};
 
@@ -93,11 +93,18 @@ pub struct BoardRead {
 pub struct MenuShape {
     pub language: Language,
     pub appearance: Appearance,
+    pub tone: Tone,
     pub spellcheck: bool,
     pub reduce_motion: bool,
     pub sidebar_visible: bool,
     pub board_visible: bool,
     pub backlinks_visible: bool,
+    /// The checked step of View ▸ Sidebar Width, not the width itself: a
+    /// drag rebuilds the menu only when the check moves.
+    pub sidebar_width: Option<u32>,
+    /// Which items have a target (sebaro D102 (9)): an item is switched off
+    /// without one.
+    pub targets: MenuTargetsDto,
 }
 
 /// Managed state, one per app.
@@ -270,6 +277,15 @@ impl AppState {
         }
         inner.menu_shape = Some(shape);
         true
+    }
+
+    /// The targets the menu was last built for; none before the UI's first
+    /// save.
+    pub fn menu_targets(&self) -> MenuTargetsDto {
+        self.lock()
+            .menu_shape
+            .map(|shape| shape.targets)
+            .unwrap_or_default()
     }
 
     /// The search generation counter, cloned into the worker so the scan can

@@ -47,7 +47,7 @@ function doc(overrides: Partial<BoardDto> = {}): BoardDto {
 describe("useBoard.load", () => {
   beforeEach(() => {
     useBoard.setState({ boards: [], slug: null, board: null, busy: false, notices: {} });
-    useUi.setState({ toast: null, activeBoard: null, boardVisible: false });
+    useUi.setState({ message: null, activeBoard: null, boardVisible: false });
     vi.mocked(commands.boardRead).mockClear();
   });
 
@@ -75,14 +75,28 @@ describe("useBoard.load", () => {
     expect(useBoard.getState().notices).toEqual({ plan: { cards: 0, columns: true } });
   });
 
-  it("reports a failed resolution as a toast instead of swallowing it", async () => {
+  it("reports a failed resolution in the action zone instead of swallowing it", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce(
       doc({ resolveError: { code: "io", path: "boards/plan/cards", detail: "EACCES", name: null, candidates: [] } }),
     );
     await useBoard.getState().load("plan");
-    expect(useUi.getState().toast?.key).toBe("errors.io");
+    expect(useUi.getState().message?.key).toBe("errors.io");
     expect(useBoard.getState().board?.slug).toBe("plan");
     expect(useBoard.getState().notices).toEqual({});
+  });
+
+  // D102 (11): the watcher's re-read is no action of the user, so its failed
+  // tidy-up is a failure without a trigger.
+  it("reports a failed resolution after a watcher refresh as a failure without a trigger", async () => {
+    vi.mocked(unwrap).mockResolvedValueOnce(doc());
+    await useBoard.getState().load("plan");
+    expect(useUi.getState().message).toBeNull();
+    vi.mocked(unwrap).mockResolvedValueOnce(
+      doc({ resolveError: { code: "io", path: "boards/plan/cards", detail: "EACCES", name: null, candidates: [] } }),
+    );
+    await useBoard.getState().refresh();
+    expect(useUi.getState().message?.key).toBe("errors.io");
+    expect(useUi.getState().message?.background).toBe(true);
   });
 
   // A failed read used to leave `slug` on the board that could not be read

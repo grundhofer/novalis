@@ -119,6 +119,78 @@ describe("Backlinks", () => {
     expect(screen.getByText("editor.backlinks.empty")).toBeTruthy();
   });
 
+  // sebaro's list end (spec/02 §3.3, DAT-07): one sentence after the head,
+  // no list and no row.
+  it("ends with sebaro's list end when nothing links here", async () => {
+    answer({ notes: [], cards: [], indexed: true });
+    const { container } = render(<Backlinks />);
+    await flush();
+
+    expect(screen.getByText("editor.backlinks.empty").className).toBe("sb-list-end");
+    expect(container.querySelector(".sb-list")).toBeNull();
+    expect(container.querySelector(".sb-row")).toBeNull();
+  });
+
+  // TXT-05, SCH-03: the head is sebaro's list head, the counts its count
+  // part in tabular figures, not a mono label.
+  it("heads the pane with sebaro's list head and its count", async () => {
+    answer({ notes: [{ path: "a.md", title: "A", line: 1, snippet: "" }], cards: [], indexed: true });
+    const { container } = render(<Backlinks />);
+    await flush();
+
+    const section = screen.getByRole("region", { name: "editor.backlinks.title" });
+    const head = section.querySelector(".sb-list-header")!;
+    expect(head.firstChild?.textContent).toBe("editor.backlinks.title");
+    const count = head.querySelector(".sb-list-header__count")!;
+    expect(count.classList.contains("sb-num")).toBe(true);
+    expect(count.textContent).toBe("editor.backlinks.notes=1 · editor.backlinks.cards=0");
+    expect(container.querySelector(".backlinks-head, .backlinks-title, .backlinks-counts")).toBeNull();
+  });
+
+  // spec/02 §4.13, ICO-03: each entry is a two-line window row with the
+  // sprite's icon for its kind, the name over the line or the board.
+  it("draws a note and a card as two-line rows with their icons", async () => {
+    answer({
+      notes: [{ path: "projects/Spec.md", title: "Spec", line: 12, snippet: "see [[A]]" }],
+      cards: [{ board: "plan", boardName: "Plan", id: "c1", title: "Ship the bundle" }],
+      indexed: true,
+    });
+    const { container } = render(<Backlinks />);
+    await flush();
+
+    const rows = [...container.querySelectorAll("ul.sb-list > li > button.sb-row")];
+    expect(rows).toHaveLength(2);
+    const [note, card] = rows as [HTMLButtonElement, HTMLButtonElement];
+    expect(note.querySelector(".sb-row__icon use")?.getAttribute("href")).toBe("#file-text");
+    expect(note.querySelector(".sb-row__main > .sb-row__name")?.textContent).toBe("Spec");
+    expect(note.querySelector(".sb-row__main > .sb-row__sub")?.textContent).toBe("see [[A]]");
+    expect(card.querySelector(".sb-row__icon use")?.getAttribute("href")).toBe("#board");
+    expect(card.querySelector(".sb-row__main > .sb-row__name")?.textContent).toBe("Ship the bundle");
+    expect(card.querySelector(".sb-row__main > .sb-row__sub")?.textContent).toBe("Plan");
+    expect(container.querySelector(".backlink-glyph")).toBeNull();
+    // An icon names nothing on its own: the row's name is its text.
+    expect(note.querySelector(".sb-row__icon")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  // D100 (6): a note's name and the path that stands in for an unread line
+  // break only after - . _ /, as file names do everywhere.
+  it("lets a note's name and its path break as file names", async () => {
+    answer({
+      notes: [{ path: "projects/long-name_v2.md", title: "long-name_v2", line: 3, snippet: "" }],
+      cards: [],
+      indexed: true,
+    });
+    const { container } = render(<Backlinks />);
+    await flush();
+
+    const name = container.querySelector(".sb-row__name > .sb-file-name")!;
+    expect(name.textContent).toBe("long-name_v2");
+    expect(name.querySelectorAll("wbr")).toHaveLength(2);
+    const path = container.querySelector(".sb-row__sub > .sb-file-name")!;
+    expect(path.textContent).toBe("projects/long-name_v2.md");
+    expect(path.querySelectorAll("wbr")).toHaveLength(4);
+  });
+
   it("asks for the note that is open", async () => {
     answer({ notes: [], cards: [], indexed: true });
     render(<Backlinks />);
@@ -168,6 +240,33 @@ describe("Backlinks", () => {
     expect(screen.getByText("see [[A]] for the plan")).toBeTruthy();
     expect(screen.getByText("budget for [[A]]")).toBeTruthy();
     expect(screen.getByText("c.md")).toBeTruthy();
+  });
+
+  // The core cuts a line at 200 characters and says so in `snippetCutEnd`;
+  // the row now wraps instead of ending in a CSS „…“, so the cut needs its
+  // own mark, as in the vault search. The jump still gets the core's text.
+  it("ends a line the core cut with „…“, and only that one", async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open });
+    const cut = `…${"x".repeat(60)} [[A]] ${"y".repeat(132)}`;
+    const whole = `see [[A]] ${"z".repeat(190)}`;
+    answer({
+      notes: [
+        { path: "b.md", title: "B", line: 4, snippet: cut, snippetCutEnd: true },
+        { path: "c.md", title: "C", line: 2, snippet: whole, snippetCutEnd: false },
+      ],
+      cards: [],
+      indexed: true,
+    });
+    const { container } = render(<Backlinks />);
+    await flush();
+
+    const subs = [...container.querySelectorAll(".sb-row__sub")].map((el) => el.textContent);
+    expect(subs).toEqual([`${cut}…`, whole]);
+
+    fireEvent.click(screen.getByText(`${cut}…`));
+    await flush();
+    expect(takeDeferredLine()).toEqual({ line: 4, snippet: cut });
   });
 
   // The clicked entry's note gets its view after the tab switch, so the line

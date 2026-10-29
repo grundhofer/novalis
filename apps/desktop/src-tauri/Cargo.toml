@@ -30,4 +30,8 @@ tauri-plugin-dialog = "2.7.3"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 [build-dependencies]
+# ADR-0051 #22: build.rs reads the window grounds from sebaro's exported
+# tokens.json (DSK-14). The crate is already a dependency above, so this adds
+# no Cargo.lock entry.
+serde_json.workspace = true
 tauri-build = { version = "2.6.3", features = [] }

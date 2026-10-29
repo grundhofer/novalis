@@ -16,7 +16,8 @@ import { CODE_RULES } from "./theme";
  * in `ALIASES`. The editor hands `fenceLanguage` to `lang-markdown` and the
  * preview highlights through it, so both colour the same fences the same
  * way — with the editor's code rules (editor/theme.ts `CODE_RULES`), which
- * the preview wears as classes that styles/preview.css dresses.
+ * the preview wears as sebaro's `sb-tok-<look>` classes, coloured by
+ * sebaro.css §6 (TEC-08).
  *
  * The preview imports this module with `await import()` inside its render
  * and never statically, so its chunk stays free of CodeMirror
@@ -56,7 +57,7 @@ export interface Run {
   readonly classes: string;
 }
 
-const highlighter = tagHighlighter(CODE_RULES.map(({ tag, name }) => ({ tag, class: `tok-${name}` })));
+const highlighter = tagHighlighter(CODE_RULES.map(({ tag, name }) => ({ tag, class: `sb-tok-${name}` })));
 
 /**
  * A fence's text in runs, each with the classes its tokens wear, in order

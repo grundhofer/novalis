@@ -1,6 +1,6 @@
 /**
- * CSV and TSV as rows of cells, for the read-only table behind the eye glyph
- * (ADR-0025). The text buffer stays the truth: nothing here writes.
+ * CSV and TSV as rows of cells, for the read-only table behind the preview
+ * switch (ADR-0025). The text buffer stays the truth: nothing here writes.
  *
  * CSV follows RFC 4180 — a field in double quotes may hold commas, line
  * breaks and doubled quotes — and is lenient where files are not: LF or

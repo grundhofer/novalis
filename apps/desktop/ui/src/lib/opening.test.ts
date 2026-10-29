@@ -24,7 +24,7 @@ describe("handleOpenRequests", () => {
     useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never, load } as never);
     useVault.setState({ vault: { root: "/Users/me/Vault" } as never });
     useFiles.setState({ files: ["notes/a.md", "b.txt"] });
-    useUi.setState({ toast: null, activeBoard: null });
+    useUi.setState({ message: null, activeBoard: null });
   });
 
   it("opens a listed file of the vault as a tab", () => {
@@ -42,12 +42,12 @@ describe("handleOpenRequests", () => {
     const decomposed = "/Users/me/Elsewhere/Gru\u0308n.pdf";
     handleOpenRequests([{ kind: "file", path: decomposed }]);
     expect(open).toHaveBeenCalledWith(decomposed);
-    expect(useUi.getState().toast).toBeNull();
+    expect(useUi.getState().message).toBeNull();
   });
 
   it("says so for a file of a type it does not open", () => {
     handleOpenRequests([{ kind: "file", path: "/Users/me/Elsewhere/x.exe" }]);
-    expect(useUi.getState().toast).toEqual({
+    expect(useUi.getState().message).toEqual({
       key: "app.openUnsupported",
       values: { path: "/Users/me/Elsewhere/x.exe" },
     });
@@ -63,6 +63,6 @@ describe("handleOpenRequests", () => {
     expect(useUi.getState().activeBoard).toBe("plan");
     expect(load).toHaveBeenCalledWith("plan");
     handleOpenRequests([{ kind: "link", url: "novalis://new?text=x" }]);
-    expect(useUi.getState().toast?.key).toBe("app.openLinkRefused");
+    expect(useUi.getState().message?.key).toBe("app.openLinkRefused");
   });
 });

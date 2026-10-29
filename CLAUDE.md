@@ -18,13 +18,13 @@ crates/novalis-core/                            # vault fs, atomic save, watcher
 crates/novalis-cli/                             # `novalis` binary on core; --json; English; src/ops/*.rs one fn per command
 apps/desktop/src-tauri/                         # thin Tauri 2 shell: <30 commands, native menu from i18n JSON
 apps/desktop/ui/                                # React 19 + Vite + CodeMirror 6
-packages/tokens/                                # tokens.css (--ds-*) for the chosen style
+apps/desktop/ui/src/sebaro/                     # the sebaro design export (tokens.css with --sb-*, sebaro.css, fonts, icons); never edited
 packages/agent-skill/novalis/                   # SKILL.md for agents driving the CLI
 i18n/en.json  i18n/de.json                      # every user-visible string, flat "namespace.key"
 fixtures/demo-vault/  fixtures/gen/             # vendored demo vault; fixture generator
 design/variants/                                # the mockup frames (reference, not shipped)
-docs/                                           # DECISIONS.md decisions/ SETTINGS.md KEYMAP.md PRIVACY.md RELEASING.md BUDGET.json research/
-scripts/                                        # check-versions.mjs bundle-budget.mjs lockfile-adr-check.mjs
+docs/                                           # DECISIONS.md decisions/ SETTINGS.md KEYMAP.md GLOSSARY.md PRIVACY.md RELEASING.md BUDGET.json research/ sebaro-umbau.md sebaro-luecken.md
+scripts/                                        # check-versions.mjs bundle-budget.mjs lockfile-adr-check.mjs check-sebaro-export.mjs
 .github/workflows/                              # ci.yml (check (macos-latest), check (ubuntu-latest), audit)  release.yml  perf.yml
 ```
 
@@ -34,21 +34,21 @@ scripts/                                        # check-versions.mjs bundle-budg
 |---|---|
 | `just setup` | Verifies rustc 1.96 / node 22 / pnpm 11 / `cargo tauri` 2, then `pnpm install` |
 | `just dev` | `cargo tauri dev` in `apps/desktop` |
-| `just check` | Exactly what CI runs: versions, UI typecheck/lint/build, UI tests, fmt, clippy `-D warnings`, cargo test, i18n, bundle budget |
+| `just check` | Exactly what CI runs: versions, sebaro export, UI typecheck/lint/build, UI tests, fmt, clippy `-D warnings`, cargo test, i18n, bundle budget |
 | `just test` | Rust + UI tests. Until 2026-09-08 this ran no UI test at all and still reported success (ADR-0011) |
 | `just test-cli` | CLI golden tests; `UPDATE_GOLDEN=1 just test-cli` regenerates them |
 | `just perf` | The core §11.3 budgets on a generated 10k-note vault; what `perf.yml` runs on `main` and tags |
 | `just app` | Release app bundle for this Mac |
-| `just bump X.Y.Z` | Writes the version to all six stamps (VERSION, Cargo.toml, three package.json, tauri.conf.json) |
+| `just bump X.Y.Z` | Writes the version to all five stamps (VERSION, Cargo.toml, two package.json, tauri.conf.json) |
 
 Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missing, add it to the `justfile` **and** to `ci.yml`. "Done" means `just check` is green, with nothing skipped; if a test is skipped, ignored or red, say so.
 
 ## Where things live
 
 - **User-visible strings** → `i18n/en.json` and `i18n/de.json`, never inline (the lint and the catalog parity test enforce it). Core and CLI carry no strings, only typed errors.
-- **Colours, fonts, radii** → `packages/tokens/tokens.css` (`--ds-*` semantic tokens only). No hard-coded values in components. Light and dark are two token sets.
+- **Colours, fonts, radii** → the sebaro export's `apps/desktop/ui/src/sebaro/tokens.css`, named as `--sb-*` (ADR-0051 #23). No novalis-own `--nv-*` value is left; a new one, for a value sebaro has no token for, goes at the top of `apps/desktop/ui/src/styles/app.css`, is never a copy of a sebaro value and needs a gap row in `docs/sebaro-luecken.md`. No hard-coded values in components. Light and dark are two token sets, chosen by `data-theme` on `<html>`.
 - **UI tests** → `vitest` + `jsdom` + `@testing-library/react` (ADR-0011), as `*.test.ts(x)` beside the file they cover. They mock `../ipc/client`; they do not start a shell, and they cannot see CSS, hover or drag.
-- **Settings** → exactly the five in `docs/SETTINGS.md` (`language`, `appearance`, `editor.fontSize`, `spellcheck`, `reduceMotion` from ADR-0049) mirrored by the `Settings` struct; a cargo parity test compares them. `lastVault` is state, not a setting. No preferences window.
+- **Settings** → exactly the six in `docs/SETTINGS.md` (`language`, `appearance`, `editor.fontSize`, `spellcheck`, `reduceMotion` from ADR-0049, `tone` from ADR-0051) mirrored by the `Settings` struct; a cargo parity test compares them. `lastVault` is state, not a setting. They are shown in the settings view inside the main window (`Cmd-,`, ADR-0051 #1), never in a second window.
 - **Keyboard shortcuts** → `docs/KEYMAP.md` mirrored by the keymap table; a cargo parity test compares them.
 - **Decisions** → `docs/decisions/NNNN-*.md` (old ADR voice, owner approval quoted). `docs/DECISIONS.md` is the index.
 - **Budgets** → `docs/BUDGET.json` (read by `scripts/bundle-budget.mjs`) and `PLAN.md` §11.3.
@@ -62,7 +62,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 | `Cargo.lock`, `pnpm-lock.yaml` | `cargo update -p <crate>`, `pnpm install`. A new top-level entry needs an ADR; CI (`lockfile-adr-check.mjs`) refuses it otherwise |
 | `apps/desktop/src-tauri/gen/schemas/` | Tauri CLI on every build; git-ignored |
 | `crates/novalis-cli/tests/**/*.golden` | `UPDATE_GOLDEN=1 just test-cli` |
-| `packages/tokens/tokens.css` | `just tokens-sync <slug> <commit>` once sebaroDesign ships `--ds-*` tokens (ADR-0048); until then hand-mapped from its `systems/sebaro/dist/tokens.css` with the header `GENERATED-PENDING` |
+| `apps/desktop/ui/src/sebaro/` | sebaroDesign's `python3 <sebaroDesign>/tools/export_system.py sebaro --target tauri --out apps/desktop/ui/src/sebaro --product novalis`; `scripts/check-sebaro-export.mjs` (in `just check` and CI) holds every file to the sha256 in its `sebaro-export.json` and refuses unlisted files (ADR-0051 #37) |
 | `THIRD-PARTY-NOTICES.md` | generated from the lockfiles (`PLAN.md` §11.6) |
 | UI ⇄ Rust IPC bindings, `apps/desktop/ui/src/lib/fileTypes.generated.ts` | the desktop crate's export command (`cargo run -p novalis-desktop --example gen_bindings`); CI diffs both |
 
@@ -80,7 +80,7 @@ No telemetry, no analytics, no crash reporting, no update check, no outbound con
 
 ## What not to do
 
-- No setting beyond the five; no preferences window; no `Cmd-,`.
+- No setting beyond the six; the settings view in the main window (`Cmd-,`, ADR-0051 #1) shows exactly those six and is never a second window.
 - No new dependency (crate, npm package, GitHub Action) without an ADR number in the PR body. `Cargo.lock` stays within scaffold + 150 entries (D26); no `*-sys` crates beyond `libsqlite3-sys` and Tauri's own.
 - No feature, menu item or shortcut the plan does not name. No split view, folding, minimap, vim mode, version history, multi-vault, images, MCP in v1.
 - Never modify the legacy app: `~/Projects/novalis-legacy` and the `legacy` branch are reference only.

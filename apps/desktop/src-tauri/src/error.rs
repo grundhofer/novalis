@@ -19,7 +19,8 @@ pub struct IpcError {
     pub code: String,
     /// Vault-relative path the failure is about, when there is one.
     pub path: Option<String>,
-    /// Free text for `parse`/`io`/`internal`; never shown on its own.
+    /// Free text for `parse`/`io`/`internal`, and for `invalid_path` why the
+    /// path was refused (`empty`, `symlink`, …); never shown on its own.
     pub detail: Option<String>,
     /// `ambiguous` only: the note name that matched more than once.
     pub name: Option<String>,
@@ -81,6 +82,13 @@ impl From<CoreError> for IpcError {
             CoreError::Parse { detail, .. } => out.detail = Some(detail.clone()),
             CoreError::Io { source, .. } => out.detail = Some(source.to_string()),
             CoreError::Internal(detail) => out.detail = Some(detail.clone()),
+            // The dialog says a refused name at its field only when the name
+            // is the cause; a symlink on the way is not (EIN-02).
+            CoreError::InvalidPath { reason, .. } => {
+                out.detail = serde_json::to_value(reason)
+                    .ok()
+                    .and_then(|value| value.as_str().map(str::to_string));
+            }
             _ => {}
         }
         out
@@ -110,3 +118,20 @@ impl std::error::Error for IpcError {}
 
 /// What every command returns.
 pub type IpcResult<T> = Result<T, IpcError>;
+
+#[cfg(test)]
+mod tests {
+    use novalis_core::PathReason;
+
+    use super::*;
+
+    #[test]
+    fn invalid_path_carries_its_reason() {
+        let err = IpcError::from(CoreError::InvalidPath {
+            path: "a/link/b.md".into(),
+            reason: PathReason::Symlink,
+        });
+        assert_eq!(err.code, "invalid_path");
+        assert_eq!(err.detail.as_deref(), Some("symlink"));
+    }
+}

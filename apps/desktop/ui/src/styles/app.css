@@ -1,9 +1,27 @@
 /* Component styles for the desktop UI.
-   Every value here is a `--ds-*` token from @novalis/tokens — no raw colour,
-   font, radius or duration (PLAN.md §11.5 PR checklist). The look is sebaro
-   (ADR-0048, amending ADR-0007): 2 px ink lines between layers, 3 px cobalt
-   place lines, one lime primary action at the bottom, the 45-degree cut only
-   on destructive actions, no shadows. */
+   Every value here is a token: sebaro's `--sb-*` from the export
+   (`ui/src/sebaro/tokens.css`, TEC-07, ADR-0051 #23) — no raw colour,
+   font, radius or duration
+   (PLAN.md §11.5 PR checklist). The look is sebaro (ADR-0048, amending
+   ADR-0007): 2 px ink lines between layers, 3 px cobalt place lines, one lime
+   primary action at the bottom, the 45-degree cut only on destructive
+   actions, no shadows.
+
+   Reduced motion (BEW-04, spec/03 §13.1; ADR-0049): the transitions in
+   novalis's stylesheets change colour or opacity only, on sebaro's duration
+   tokens, which reduced motion sets to 1 ms — under the system setting and,
+   since token contract 1.10, under the app setting
+   (`html[data-sb-motion="reduce"]`) too. A rule that moves something is
+   still by default and moves only under
+   `@media (prefers-reduced-motion: no-preference)` and
+   `:not([data-sb-motion="reduce"], [data-sb-motion="reduce"] *)`, as
+   sebaro's busy bar and spinner do: an animation with its own period (the
+   sweep, the turn) is no duration token. */
+
+/* novalis's own values (`--nv-*`), for what the export has no token of
+   the same value: none is left. The last, the fatal banner's warning line,
+   went when sebaro's last-resort notice `sb-fatal` took its place (sebaro
+   D108, docs/sebaro-luecken.md W). */
 
 *,
 *::before,
@@ -19,15 +37,21 @@ body,
 }
 
 body {
-  background: var(--ds-color-bg-canvas);
-  color: var(--ds-color-fg-default);
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-font-size-root);
-  line-height: var(--ds-line-height-ui);
-  letter-spacing: var(--ds-letter-spacing-ui);
+  background: var(--sb-color-bg);
+  color: var(--sb-color-text);
+  font-family: var(--sb-font-family-ui);
+  font-size: var(--sb-type-label-size);
+  /* 400, in dark 430 (sebaro D40, SCH-05). sebaro Mono has the one face 500,
+     which every weight resolves to; no weight or slant is faked on top of it
+     (SCH-02, D70), as sebaro's own page base does. */
+  font-weight: var(--sb-type-body-weight);
+  font-synthesis: none;
+  line-height: var(--sb-type-label-line-height);
+  letter-spacing: var(--sb-type-label-tracking);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   /* No text selection outside the editor and inputs: this is an app window. */
+  -webkit-user-select: none;
   user-select: none;
   cursor: default;
 }
@@ -35,13 +59,11 @@ body {
 input,
 textarea,
 .cm-editor {
+  -webkit-user-select: text;
   user-select: text;
 }
 
 button {
-  font: inherit;
-  letter-spacing: inherit;
-  color: inherit;
   background: none;
   border: none;
   padding: 0;
@@ -50,605 +72,232 @@ button {
 
 .boot {
   height: 100%;
-  background: var(--ds-color-bg-canvas);
+  background: var(--sb-color-bg);
 }
 
-.win {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--ds-color-bg-canvas);
-}
-
-.body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  background: var(--ds-color-bg-canvas);
-}
-
-/* ------------------------------------------------------------- title bar */
-/* 48 px custom bar; macOS draws the traffic lights over the left inset. The
-   2 px ink line is the layer line between the bar and the window (sebaro D46). */
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-5);
-  flex: 0 0 auto;
-  height: var(--ds-size-titlebar);
-  padding: 0 var(--ds-space-5) 0 82px;
-  background: var(--ds-color-bg-canvas);
-  border-bottom: var(--ds-line-ink) solid var(--ds-color-line-ink);
-}
-
-/* The app tile, the one place the product colour appears (sebaro D40); the
-   start tile flies here (StartTile.tsx). */
-.app-tile {
-  flex: 0 0 auto;
-  width: var(--ds-size-tile);
-  height: var(--ds-size-tile);
-}
-
-.tile-ground {
-  fill: var(--ds-color-tile);
-}
-
-.tile-glyph {
-  fill: var(--ds-color-tile-glyph);
-}
-
-/* The start tile (StartTile.tsx): centred over the window, then one move
-   into the title bar's tile; it covers nothing and takes no clicks. */
-.start {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 50;
-  pointer-events: none;
-}
-
-.start-tile {
-  width: var(--ds-size-start-tile);
-  height: var(--ds-size-start-tile);
-  transition: transform var(--ds-motion-duration-long) var(--ds-motion-ease);
-}
-
-.start-tile-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.crumb {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  gap: var(--ds-space-3);
-  font-size: var(--ds-font-size-ui);
-  color: var(--ds-color-fg-muted);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.crumb-part {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  min-width: 0;
-}
-
-.crumb-sep::before {
-  content: "/";
-  opacity: 0.6;
-}
-
-.crumb-seg {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.crumb-seg.current {
-  color: var(--ds-color-fg-default);
-  font-weight: var(--ds-font-weight-strong);
-}
-
-.kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border: 1px solid var(--ds-color-border-strong);
-  border-radius: var(--ds-radius-chip);
-  background: var(--ds-color-bg-fill);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
-  line-height: 1;
-  color: var(--ds-color-fg-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* The sebaro icons (Icon.tsx): 16 px, the system's 16 px stroke. */
-.icon {
-  flex: 0 0 auto;
-  width: var(--ds-size-icon);
-  height: var(--ds-size-icon);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.25;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.kbd.on {
-  border-color: var(--ds-color-accent-line);
-  background: var(--ds-color-accent-fill);
-  color: var(--ds-color-accent-text);
-}
-
-/* --------------------------------------------------------------- sidebar */
-.sidebar-host {
-  position: relative;
-  flex: 0 0 auto;
-  min-width: var(--ds-size-sidebar-min);
-  max-width: var(--ds-size-sidebar-max);
-}
-
-/* The sidebar's right edge, dragged to resize it: a strip wider than it
-   looks, the accent line only while hovered, dragged or focused. */
-.sidebar-resize {
-  position: absolute;
-  top: 0;
-  right: -3px;
-  bottom: 0;
-  width: 6px;
-  cursor: col-resize;
-  z-index: 2;
-}
-
-.sidebar-resize:hover,
-.sidebar-resize:active,
-.sidebar-resize:focus-visible {
-  outline: none;
-  background: linear-gradient(var(--ds-color-accent-default), var(--ds-color-accent-default)) center / var(--ds-line-ink)
-    100% no-repeat;
-}
-
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--ds-color-bg-canvas);
-  border-right: var(--ds-line-ink) solid var(--ds-color-line-ink);
-}
-
-.sidebar-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-5) var(--ds-space-5) var(--ds-space-3) var(--ds-space-6);
-  border-bottom: 1px solid var(--ds-color-border-default);
-}
-
-.sidebar-title {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  min-width: 0;
-}
-
-.vault-name {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--ds-font-size-ui);
-  font-weight: var(--ds-font-weight-strong);
-  color: var(--ds-color-fg-default);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-tools {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  flex: 0 0 auto;
-}
-
-/* The small glyph controls (ADR-0012, ADR-0020): `.btn.ghost` at row
-   height, in the sidebar head and foot and beside the tab strip. The
-   selectors carry the whole class list because the button section further
-   down would otherwise take the colour back; `on` is the pressed state. */
-.btn.ghost.tool {
-  height: 24px;
-  min-width: 24px;
-  padding: 0 var(--ds-space-2);
-  justify-content: center;
-  border-radius: var(--ds-radius-chip);
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-subtle);
-}
-
-.btn.ghost.tool:focus-visible {
-  outline: var(--ds-line-focus) solid var(--ds-color-focus);
-}
-
-/* Pressed = the place it shows: the 3 px cobalt place line under it, no
-   fill (sebaro D48). */
-.btn.ghost.tool.on {
-  border-color: transparent;
-  border-bottom: var(--ds-line-place) solid var(--ds-color-accent-default);
-  border-radius: 0;
-  background: none;
-  color: var(--ds-color-accent-text);
-}
-
-.legend {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--ds-space-4);
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-muted);
-}
-
-/* The legend's two labels are the sort switch (ADR-0012). The global button
-   reset gives back font, spacing and colour; `text-transform` it does not. */
-.legend-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  text-transform: inherit;
-}
-
-.legend-sort.on {
-  color: var(--ds-color-accent-text);
-  font-weight: var(--ds-font-weight-strong);
-}
-
-/* The direction mark: the `.chev` square, pointing where the order goes.
-   Name is ascending (up), modified is newest first (down); the legend has
-   exactly these two, in this order. */
-.legend-sort.on::after {
-  content: "";
-  width: 5px;
-  height: 5px;
-  margin-bottom: 2px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-135deg);
-}
-
-.legend-sort:last-child.on::after {
-  margin-top: 2px;
-  margin-bottom: 0;
-  transform: rotate(45deg);
-}
-
-/* The "Today" row is a `.tree-row` above the virtualized tree, so it stays in
-   the flow where the virtualizer's rows are absolutely positioned. Both
-   classes in the selector: `.tree-row` is declared later and would win the
-   position back — which put the row at the window's top-left corner. */
-.tree-row.today-row {
-  position: static;
-  flex: 0 0 auto;
-  height: var(--ds-size-row);
-  padding-left: 14px;
-  border-bottom: 1px solid var(--ds-color-border-default);
-  text-align: left;
-}
-
-.today-row .chev::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--ds-color-accent-default);
-  border-radius: var(--ds-radius-pill);
-}
-
-.tree {
-  position: relative;
-  flex: 1;
-  overflow: auto;
-  padding-top: var(--ds-space-3);
-}
-
-/* The tree takes keys (↑↓←→, ⌘↓); the selected row shows where they act,
-   so the container draws no ring of its own. */
-.tree:focus {
-  outline: none;
-}
-
-.tree-row:focus {
-  outline: none;
-}
-
-.tree-inner {
-  position: relative;
-  width: 100%;
-}
-
-.tree-row {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  width: 100%;
-  padding-right: var(--ds-space-5);
-  color: var(--ds-color-fg-default);
-  transition:
-    background-color var(--ds-motion-duration) var(--ds-motion-ease),
-    color var(--ds-motion-duration) var(--ds-motion-ease);
-}
-
-.tree-row:hover {
-  background: var(--ds-color-bg-hover);
-}
-
-/* The current note: link colour, title weight and the 3 px place line
-   (`.active-marker`), no fill (sebaro D48). */
-.tree-row.active {
-  color: var(--ds-color-accent-text);
-  font-weight: var(--ds-font-weight-strong);
-}
-
-.tree-row.drop {
-  background: var(--ds-color-accent-fill);
-}
-
-.tree-row.folder {
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.tree-row.cloud .name {
-  color: var(--ds-color-fg-muted);
-}
-
-.active-marker {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--ds-line-place);
-  background: var(--ds-color-accent-default);
-}
-
-.chev {
-  position: relative;
-  flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
-}
-
-.tree-row.folder .chev::before {
-  content: "";
-  position: absolute;
-  left: 1px;
-  top: 2px;
-  width: 5px;
-  height: 5px;
-  border-right: 1.5px solid var(--ds-color-fg-subtle);
-  border-bottom: 1.5px solid var(--ds-color-fg-subtle);
-  transform: rotate(-45deg);
-}
-
-.tree-row.folder.open .chev::before {
-  left: 2px;
-  top: 0;
-  transform: rotate(45deg);
-}
-
-.tree-row.board-item .chev::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--ds-color-fg-muted);
-  border-radius: 2px;
-  transform: none;
-}
-
-.tree-row .name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.badge,
-.meta {
-  flex: 0 0 auto;
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.badge-conflict {
-  color: var(--ds-color-warning-text);
-}
-
-.sidebar-foot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-2);
-  padding: var(--ds-space-4) var(--ds-space-5) var(--ds-space-4) var(--ds-space-6);
-  border-top: 1px solid var(--ds-color-border-default);
-}
-
-/* The settings button (ADR-0012, amended 2026-09-15): the sebaro "settings"
-   icon, sliders with a knob each. It opens the palette on the settings —
-   still no preferences window. */
-.sidebar-settings {
-  align-self: flex-start;
-}
-
-.hint {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-subtle);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.hint-dot {
-  flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-color-warning-default);
-}
-
-/* ------------------------------------------------------------------ tabs */
-.tabbar {
-  display: flex;
-  flex: 0 0 auto;
-  height: var(--ds-size-tabstrip);
-  background: var(--ds-color-bg-canvas);
-}
-
-.tabs {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  height: var(--ds-size-tabstrip);
-  background: var(--ds-color-bg-canvas);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tabs::-webkit-scrollbar {
+/* The content the settings view covers stays in the page with `hidden`
+   (ADR-0051 #1); sebaro's flush content (`display: flex`) would show it.
+   Column, `min-inline-size` and background are sebaro's
+   (`.sb-window__content`, `--flush`, `.sb-window`). */
+.main[hidden] {
   display: none;
 }
 
-.tabs-empty {
-  border-bottom: 1px solid var(--ds-color-border-default);
+/* ------------------------------------------------------------- title bar */
+/* „Zurück zu <Ort>“ below 722 px (TitleBar.tsx): sebaro gives the name and
+   the tools `flex: none` and the word `nowrap`, and lets the word go only
+   below 480 px, so a long place ran past the window's edge and the path was
+   gone (ZUG-09, DSK-07). Here only „Zurück“ shows; the button's name keeps
+   the place (docs/sebaro-luecken.md U). */
+.nv-word-short {
+  display: none;
 }
 
-.tab {
+@container sb-window (max-width: 721.98px) {
+  .nv-word-long {
+    display: none;
+  }
+
+  .nv-word-short {
+    display: inline;
+  }
+}
+
+/* --------------------------------------------------------------- sidebar */
+/* sebaro's window body, sidebar and divider (spec/02 §4.3, §4.14, §4.17,
+   §4.23; NAV-04, NAV-11, DSK-04, DSK-07) come from sebaro.css:
+   `sb-window__body`'s grid that keeps the content at 480 px, the sidebar
+   giving way to its smallest width and below 722 px lying over the content
+   (lib/windowFit.ts), `sb-side-nav sb-window__sidebar`,
+   `sb-window__divider`, `sb-tree` rows, `sb-side-nav__item` places,
+   `sb-side-nav__head`, `__scroll` and `__foot`. What stays here is what sebaro has no part for. */
+
+/* The content (the main pane or the settings view) is its own stacking
+   context, so no layer inside it rises above the window's parts: without
+   it the editor's find bar and Go to Line panel (CodeMirror's sticky
+   `.cm-panels`, z-index 300) and its tooltips (500) lay over the sidebar's
+   overlay below 722 px (`--sb-layer-overlay`), and they and a viewer's head
+   (`--sb-layer-dropdown`) over the divider's pointer target (spec/02
+   §4.17, EBE-01; docs/sebaro-luecken.md U „Überlagerung, Ebenen im
+   Inhalt“). */
+.sb-window__body > .sb-window__content {
+  isolation: isolate;
+}
+
+/* The group head with its tools (`sb-side-nav__head`, `__name`, `__tools`,
+   D104 (36)) and the parts of a sidebar with a foot (`sb-side-nav__scroll`,
+   `__foot`, D105 (46)) are sebaro.css's (spec/02 §4.17). */
+
+/* The tree scrolls by itself (the virtualizer's scroll element) and is the
+   vault root's drop space below its rows. It keeps four rows of the
+   window's row height when large text crowds the sidebar, whose upper
+   block then scrolls (spec/02 §4.14, sebaro D108; the product's
+   virtualizer sets it). */
+.nv-tree {
+  position: relative;
+  flex: 1 1 0;
+  min-block-size: calc(4 * max(var(--sb-size-control-sm), 2rem));
+  overflow: auto;
+  container: nv-tree / inline-size;
+}
+
+/* An empty tree has no scroll frame and no minimum height (spec/02
+   §4.14, sebaro CHECKS §38): its sentence stands in `sb-side-nav__scroll`,
+   which scrolls at large text, so the foot never cuts it. The tree still
+   fills the rest as the root's drop space (docs/sebaro-luecken.md Z4). */
+.nv-tree:has(> .sb-empty) {
+  flex: 1 0 auto;
+  min-block-size: 0;
+  overflow: visible;
+}
+
+/* Rows stay one line (ADR-0051 #24), and a day in `sb-row__meta` never
+   shrinks: at large text in a narrow sidebar the day or „Board“ would leave
+   the name one letter. Below 12rem of tree (never at 100 %, where the
+   sidebar is at least 200 px) the day goes; it stands in the row's `title`,
+   the board keeps its icon. A status stays and, where it does not fit,
+   sebaro.css puts it under the name (D108 (1); docs/sebaro-luecken.md G
+   „Baumzeile mit Status und Datum“). */
+@container nv-tree (max-width: 12rem) {
+  .sb-tree__row > .sb-row__meta:not(:has(.sb-status)) {
+    display: none;
+  }
+}
+
+/* One empty window row, never seen: its height changes with the root font,
+   which tells the tree to measure its rows again (ZUG-09, ADR-0051 #24). */
+.nv-tree__probe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The list fills the tree's space, so the frame a drop on the vault root
+   gets (`.sb-tree[data-sb-state="drop-into"]`, sebaro.css, NV-G6) takes
+   the free space under the rows as well. */
+.nv-tree > .sb-tree {
+  position: relative;
+  inline-size: 100%;
+  min-block-size: 100%;
+}
+
+/* A virtualized row's slot: placed by the virtualizer, as high as the row
+   (`windowRowHeight`). The slot a drag marks lies over its neighbours, so
+   the cobalt line below a row is not covered by the next one. */
+.nv-tree__slot {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+}
+
+.nv-tree__slot:has(> [data-sb-state]) {
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ tabs */
+/* sebaro's document tabs (`sb-doc-tabs`, spec/02 §4.21, DSK-10) are
+   sebaro.css's: 32 px rows that grow with the root font, the hairline under
+   the row, the place line, the cross. What novalis adds is below; each is a
+   row in docs/sebaro-luecken.md H. */
+
+/* The content's head: the tab row and, beside it outside its scrolling, the
+   preview tool (ADR-0051 #16). sebaro places a tab row at the top of a
+   padded `sb-window__content`; novalis's content is the editor's own
+   scrolling pane, so the row keeps the 16 px start sebaro gives it there. */
+.nv-doc-head {
+  display: flex;
+  flex: 0 0 auto;
+  min-inline-size: 0;
+  background: var(--sb-color-bg);
+}
+
+/* The scroll padding keeps that start when the first tab is scrolled back
+   into view. The row scrolls sideways only: sebaro.css sets `overflow-x`
+   alone, so with the system's classic scroll bar (D102 (10)) the block axis
+   scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q). */
+.nv-doc-head > .sb-doc-tabs {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-y: hidden;
+  scroll-padding-inline-start: var(--sb-space-4);
+}
+
+/* The 16 px start is the first tab's margin, not the row's padding, as
+   sebaro.css gives it a row in `sb-window__content` (spec/02 §4.21, sebaro
+   CHECKS §38): a sticky pinned tab is held inside a scroller's padding, so
+   it then stands at the very edge once the row scrolls, and no tab shows
+   before it (docs/sebaro-luecken.md Z4). */
+.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item:first-child {
+  margin-inline-start: var(--sb-space-4);
+}
+
+/* A hairline at its start marks where the scrolling row ends. */
+.nv-doc-head__tools {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-4);
   flex: 0 0 auto;
-  max-width: 220px;
-  height: 100%;
-  padding: 0 var(--ds-space-4) 0 var(--ds-space-6);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  color: var(--ds-color-fg-muted);
-  font-weight: var(--ds-font-weight-medium);
-  transition:
-    background-color var(--ds-motion-duration) var(--ds-motion-ease),
-    color var(--ds-motion-duration) var(--ds-motion-ease);
+  padding-inline: var(--sb-space-1);
+  border-inline-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
+  border-block-end: var(--sb-border-width-hairline) solid var(--sb-color-border);
 }
 
-.tab:hover {
-  background: var(--ds-color-bg-hover);
-  color: var(--ds-color-fg-default);
-}
+/* The board's tab carries the board icon before its name (ADR-0050); its
+   place, size and colour are sebaro.css's (spec/02 §4.21, NV-H). */
 
-/* The current tab: the 3 px cobalt place line under it (sebaro D48). */
-.tab.active {
-  color: var(--ds-color-accent-text);
-  font-weight: var(--ds-font-weight-strong);
-  border-bottom: var(--ds-line-place) solid var(--ds-color-accent-default);
-}
-
-/* Where a dragged tab lands (ADR-0028): the tab it takes the place of. */
-.tab.drop,
-.tab-spacer.drop {
-  background: var(--ds-color-accent-fill);
-}
-
-.tab-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tab-dot {
-  flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-color-accent-default);
-}
-
-.tab-close {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border-radius: var(--ds-radius-chip);
-  color: var(--ds-color-fg-subtle);
-  opacity: 0.55;
-  transition: opacity var(--ds-motion-duration) var(--ds-motion-ease);
-}
-
-.tab-close::before {
-  content: "×";
-  font-size: var(--ds-font-size-ui);
-  line-height: 1;
-}
-
-.tab:hover .tab-close,
-.tab.active .tab-close {
-  opacity: 0.9;
-}
-
-.tab-spacer {
-  flex: 1;
-  border-bottom: 1px solid var(--ds-color-border-default);
-}
-
-/* The preview toggle (ADR-0020): a fixed cell beside the scrolling strip,
-   so a row of many tabs never pushes it out of sight. */
-.tab-preview {
-  flex: 0 0 auto;
-  margin: var(--ds-space-4) var(--ds-space-4) 0 var(--ds-space-3);
-}
-
-.tabbar::after {
-  content: "";
-  flex: 0 0 var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-color-border-default);
-}
-
-.glyph-eye {
+/* Where a dragged tab lands (ADR-0028): sebaro.css draws the dragged tab's
+   ink frame and the 3 px drop line at a tab's edge (D102 (5)); the room
+   after the last tab, which takes a tab dropped behind them all, has no
+   sebaro part and draws the same line at its start. */
+.nv-doc-tabs__end {
   position: relative;
-  display: block;
-  width: 14px;
-  height: 10px;
+  flex: 1 0 var(--sb-space-8);
 }
 
-.glyph-eye::before {
+.nv-doc-tabs__end[data-sb-state="drop-before"]::after {
   content: "";
   position: absolute;
-  inset: 1px 0;
-  border: 1px solid currentColor;
-  border-radius: 50%;
+  inset-block: 0;
+  inset-inline-start: calc(-1 * var(--sb-border-width-strong) / 2);
+  inline-size: 0;
+  pointer-events: none;
+  border-inline-start: var(--sb-border-width-strong) solid var(--sb-color-accent);
 }
 
-.glyph-eye::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 3px;
-  width: 4px;
-  height: 4px;
-  border-radius: var(--ds-radius-pill);
-  background: currentColor;
+/* sebaro's forced-colours block gives the drop line `Highlight` for rows
+   and cards, not for a tab's (docs/sebaro-luecken.md Q). */
+@media (forced-colors: active) {
+  :is(.sb-doc-tabs__item, .nv-doc-tabs__end):is([data-sb-state="drop-before"], [data-sb-state="drop-after"])::after {
+    border-color: Highlight;
+  }
+}
+
+/* Below 722 px sebaro starts the row at the content's edge; novalis
+   follows (docs/sebaro-luecken.md H). The sentence without a current tab
+   takes its padding from `.sb-window__content--flush` (NV-H5). sebaro.css
+   pads every `.sb-window__content` with 16 px there, in a rule as specific
+   as `--flush` and after it, so the flush content would lose its edge
+   (docs/sebaro-luecken.md P). */
+@container sb-window (max-width: 721.98px) {
+  .nv-doc-head > .sb-doc-tabs {
+    scroll-padding-inline-start: 0;
+  }
+
+  .nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item:first-child {
+    margin-inline-start: 0;
+  }
+
+  .main.sb-window__content--flush {
+    padding: 0;
+  }
+}
+
+/* The panel the current tab shows: the column the editor, a viewer or the
+   board fills. */
+.nv-doc-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
 }
 
 /* ---------------------------------------------------------------- editor */
@@ -662,447 +311,58 @@ button {
   height: 100%;
 }
 
-.pane-loading,
-.empty-state {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--ds-space-5);
-  color: var(--ds-color-fg-subtle);
-}
-
-.empty-title {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.4;
-  font-weight: var(--ds-font-weight-strong);
-  letter-spacing: var(--ds-letter-spacing-title);
-  color: var(--ds-color-fg-default);
-}
-
-.empty-body {
-  margin: 0;
-  max-width: 46ch;
-  text-align: center;
-  color: var(--ds-color-fg-muted);
-}
+/* A pane that waits (components/Waiting.tsx) is sebaro's
+   `sb-view__content`; a lone `sb-loading` in it stands start-aligned in the
+   middle of its height with the empty state's padding (spec/02 §3.12,
+   sebaro.css since D108). */
 
 /* --------------------------------------------------------------- banners */
-.banner {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-5);
+/* Above the editor (components/Banner.tsx, CloudHint.tsx, LegacyHint.tsx)
+   and in a viewer that refuses a file, the hints are sebaro's `sb-callout`
+   (STA-05, ADR-0051 #27.7) with its actions and „Ausblenden“ (D102 (39));
+   this only places them in the panel. */
+.nv-callout,
+.nv-callout-live {
   flex: 0 0 auto;
-  padding: var(--ds-space-4) var(--ds-space-6);
-  background: var(--ds-color-bg-surface);
-  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
-.banner-warning {
-  background: var(--ds-color-warning-fill);
-  border-bottom-color: var(--ds-color-warning-line);
-}
-
-.banner-title {
-  font-weight: var(--ds-font-weight-strong);
-  color: var(--ds-color-fg-default);
-}
-
-.banner-body {
-  flex: 1;
-  min-width: 0;
-  color: var(--ds-color-fg-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.banner-actions {
-  display: flex;
-  gap: var(--ds-space-4);
-  margin-left: auto;
-}
-
-/* --------------------------------------------------------------- buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  height: var(--ds-size-control);
-  padding: 0 var(--ds-space-5);
-  border: 1px solid transparent;
-  border-radius: var(--ds-radius-control);
-  font-size: var(--ds-font-size-ui);
-  font-weight: var(--ds-font-weight-strong);
-  white-space: nowrap;
-  transition:
-    background-color var(--ds-motion-duration) var(--ds-motion-ease),
-    color var(--ds-motion-duration) var(--ds-motion-ease),
-    border-color var(--ds-motion-duration) var(--ds-motion-ease),
-    opacity var(--ds-motion-duration) var(--ds-motion-ease);
-}
-
-.btn:focus-visible {
-  outline: var(--ds-line-focus) solid var(--ds-color-focus);
-  outline-offset: 2px;
-}
-
-/* The one primary action of a view (sebaro D37/D39): lime with a 2 px
-   outline, at the bottom in the action zone. */
-.btn.primary {
-  background: var(--ds-color-primary-default);
-  border: 2px solid var(--ds-color-primary-outline);
-  color: var(--ds-color-primary-fg);
-}
-
-.btn.primary:hover {
-  background: var(--ds-color-primary-hover);
-}
-
-.btn.primary:active {
-  background: var(--ds-color-primary-pressed);
-}
-
-/* Busy (sebaro D48): the label says what runs and an ink bar sweeps along
-   the bottom edge inside the button; no spinner, no toast. Under reduced
-   motion the bar stands still, full width and faint. */
-.btn.primary {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 34%;
-  height: var(--ds-size-progress-bar);
-  background: var(--ds-color-primary-fg);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.btn.primary[aria-busy="true"] {
-  cursor: progress;
-}
-
-.btn.primary[aria-busy="true"] .btn-bar {
-  opacity: 1;
-  animation: btn-sweep var(--ds-motion-progress-period) var(--ds-motion-ease) infinite;
-}
-
-@keyframes btn-sweep {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(300%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn.primary[aria-busy="true"] .btn-bar {
-    width: 100%;
-    opacity: 0.4;
-    animation: none;
-  }
-}
-
-:root[data-motion="reduced"] .btn.primary[aria-busy="true"] .btn-bar {
-  width: 100%;
-  opacity: 0.4;
-  animation: none;
-}
-
-.btn.ghost {
-  background: none;
-  border-color: var(--ds-color-border-control);
-  color: var(--ds-color-fg-default);
-}
-
-.btn.ghost:hover {
-  background: var(--ds-color-bg-hover);
-}
-
-/* A destructive action (sebaro D46, D56): danger text, a 1 px danger frame
-   and the 45-degree cut at the top-right corner. The cut is a clip-path, so
-   the frame is drawn by an inset outline that the clip leaves standing,
-   plus the diagonal as a gradient across the cut corner. */
-.btn.danger {
-  border: none;
-  border-radius: 0;
-  background:
-    linear-gradient(
-        225deg,
-        transparent calc(var(--ds-size-danger-bevel) * 0.7071 - 0.5px),
-        var(--ds-color-danger-default) calc(var(--ds-size-danger-bevel) * 0.7071 - 0.5px),
-        var(--ds-color-danger-default) calc(var(--ds-size-danger-bevel) * 0.7071 + 0.5px),
-        transparent calc(var(--ds-size-danger-bevel) * 0.7071 + 0.5px)
-      )
-      no-repeat,
-    var(--ds-color-bg-canvas);
-  box-shadow: inset 0 0 0 var(--ds-line-control) var(--ds-color-danger-default);
-  color: var(--ds-color-danger-text);
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--ds-size-danger-bevel)) 0,
-    100% var(--ds-size-danger-bevel),
-    100% 100%,
-    0 100%
-  );
-}
-
-.btn.danger:hover {
-  background-color: var(--ds-color-danger-fill);
+.nv-callout {
+  margin: var(--sb-space-2) var(--sb-space-4) 0;
 }
 
 /* ------------------------------------------------- action zone (status) */
-/* The bottom action zone (sebaro D46): 56 px under a 2 px ink line, the state
-   sentence on the left, the one lime primary action on the right. */
-.statusbar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-6);
-  flex: 0 0 auto;
-  height: var(--ds-size-action-zone);
-  padding: 0 var(--ds-space-5) 0 var(--ds-space-6);
-  background: var(--ds-color-bg-canvas);
-  border-top: var(--ds-line-ink) solid var(--ds-color-line-ink);
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-}
+/* sebaro.css builds the zone (`.sb-bottom-block > .sb-primary-action-bar`,
+   spec/02 §4.17, spec/03 §12): the 2 px ink line, the counter line on a row
+   of its own (`__counts`, D102 (1)), the message, the state sentence, the
+   56 px primary action at the end, the wrap that lets it grow with its text
+   (ZUG-09), the lower minimum of the sentences beside their glyph (NV-F3,
+   NV-F7), the message's basis in rem (D102 (11)), the sentence of several
+   parts with its inline warning part (D104 (35)), the error glyph on the
+   first line at every text size (NV-J11) and the break of a long word in
+   the zone (NV-J). Nothing of novalis' own is left here. */
 
-.statusbar .btn.primary {
-  flex: 0 0 auto;
-}
+/* ---------------------------------------------------------------- dialog */
+/* sebaro.css builds the dialog (`.sb-dialog`, spec/02 §4.6, spec/03 §7), its
+   field (`.sb-field`, §2.1) and its actions, 32 px in the window's density
+   (NV-L2), and since D105 also what novalis added here: the break of a long
+   word, the field's input that grows with the text, and the glyphs of the
+   field error and of the failure sentence on their first line (NV-L,
+   NV-J11). Nothing of novalis' own is left here. */
 
-.status-item {
-  flex: 0 0 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.status-item.warn {
-  color: var(--ds-color-warning-text);
-}
-
-.status-item.sync {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  color: var(--ds-color-fg-default);
-}
-
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-color-success-default);
-}
-
-.status-spacer {
-  flex: 1;
-}
-
-/* ----------------------------------------------- palette, search, dialog */
-.scrim {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 96px;
-  background: var(--ds-color-bg-scrim);
-  z-index: 10;
-}
-
-.dialog {
-  width: var(--ds-size-palette);
-  max-width: calc(100vw - 2 * var(--ds-space-9));
-  background: var(--ds-color-bg-canvas);
-  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
-  border-radius: var(--ds-radius-container);
-  overflow: hidden;
-  padding: var(--ds-space-6);
-}
-
-.dialog-title {
-  margin: 0 0 var(--ds-space-5);
-  font-size: 16px;
-  font-weight: var(--ds-font-weight-strong);
-  color: var(--ds-color-fg-default);
-}
-
-/* A confirmation shows this line where an input dialog shows its field. */
-.dialog-body {
-  margin: 0;
-  color: var(--ds-color-fg-muted);
-  line-height: var(--ds-line-height-ui);
-}
-
-.dialog-input {
-  width: 100%;
-  height: var(--ds-size-control);
-  padding: 0 var(--ds-space-4);
-  border: 1px solid var(--ds-color-border-control);
-  border-radius: var(--ds-radius-control);
-  background: var(--ds-color-bg-surface);
-  color: var(--ds-color-fg-default);
-  font: inherit;
-  outline: none;
-}
-
-.dialog-input:focus {
-  border-color: var(--ds-color-focus);
-  box-shadow: inset 0 0 0 1px var(--ds-color-focus);
-}
-
-.dialog-hint {
-  margin: var(--ds-space-3) 0 0;
-  font-size: var(--ds-font-size-ui-sm);
-  line-height: var(--ds-line-height-ui);
-  color: var(--ds-color-fg-subtle);
-  overflow-wrap: anywhere;
-}
-
-/* The multi-line form of the one dialog (card description, ADR-0013). */
-.dialog-textarea {
-  height: auto;
-  min-height: calc(var(--ds-size-control) * 4);
-  padding: var(--ds-space-4);
-  line-height: var(--ds-line-height-ui);
-  resize: vertical;
-}
-
-/* A failed OK (sebaro D48): the reason as a sentence in danger, above the
-   buttons; OK says "Try Again". */
-.dialog-error {
-  margin: var(--ds-space-4) 0 0;
-  font-size: var(--ds-font-size-ui-sm);
-  line-height: var(--ds-line-height-ui);
-  color: var(--ds-color-danger-text);
-  overflow-wrap: anywhere;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--ds-space-4);
-  margin-top: var(--ds-space-6);
-}
-
-.toast {
-  position: fixed;
-  right: var(--ds-space-6);
-  bottom: calc(var(--ds-size-action-zone) + var(--ds-space-5));
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-5);
-  max-width: 520px;
-  padding: var(--ds-space-4) var(--ds-space-5);
-  background: var(--ds-color-bg-canvas);
-  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
-  border-radius: var(--ds-radius-control);
-  color: var(--ds-color-fg-default);
-  z-index: 20;
-}
-
-.toast-body {
-  flex: 1;
-  min-width: 0;
-}
-
-/* ------------------------------------------------------------ scrollbars */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--ds-color-bg-fill-strong);
-  border: 3px solid transparent;
-  border-radius: var(--ds-radius-pill);
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* A boot that failed. Rule 5 (fail loud): the window must never be blank, and
-   the code has to be readable without a console. */
+/* A boot that failed. Rule 5 (fail loud): the window must never be blank,
+   and the code has to be readable without a console. sebaro's error callout
+   in `sb-start-error` (components/BootError.tsx, spec/09 §13.1) places it
+   and its „Details“; the window has no other scroller, so a callout taller
+   than the window at large text scrolls here. */
 .boot-error {
-  display: grid;
-  place-items: center;
-  padding: 48px;
-}
-
-.boot-error-card {
-  max-width: 52ch;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.boot-error-card h1 {
-  font-size: 17px;
-  font-weight: 550;
-  letter-spacing: -0.022em;
-  color: var(--ds-color-fg-default);
-}
-
-.boot-error-detail {
-  font-family: var(--ds-font-mono);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--ds-color-fg-muted);
-  user-select: text;
-  overflow-wrap: anywhere;
-}
-
-.boot-error-card button {
-  margin-top: 4px;
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--ds-color-border-control);
-  border-radius: var(--ds-radius-control);
-  background: var(--ds-color-bg-raised);
-  color: var(--ds-color-fg-default);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: default;
-}
-
-/* A failure before React mounts (main.tsx `reportFatal`). */
-/* The overlay form of `.fatal`, used once React has mounted: a render error
-   empties the tree and the window goes white, so the reason has to sit on top
-   of whatever is left rather than inside a container React owns. */
-#fatal-banner {
-  position: fixed;
-  inset: auto 0 0 0;
-  z-index: 100;
-  max-height: 40vh;
   overflow: auto;
-  padding: var(--ds-space-5);
-  border-top: 1px solid var(--ds-color-warning-line);
-  background: var(--ds-color-bg-raised);
-  color: var(--ds-color-warning-text);
 }
 
-.fatal {
-  margin: 0;
-  padding: 48px;
-  font-family: var(--ds-font-mono);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--ds-color-fg-default);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+/* A failure before React mounts or after it (main.tsx `reportFatal`) is
+   sebaro's last-resort notice `sb-fatal` (spec/09 §13.1): one layer above
+   everything, the message in the code role. The window is not selectable
+   (body above); the message is, so it can be copied. */
+.sb-fatal > samp {
+  -webkit-user-select: text;
   user-select: text;
 }

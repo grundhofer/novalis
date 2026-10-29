@@ -85,7 +85,7 @@ const LINK_SCHEMES = /^(?:https?|mailto|tel):/i;
 /**
  * Whether a link's destination may be kept. A fragment and a relative path
  * stay because they point inside the book; an outside URL stays because the
- * reader answers a click on it with the preview's toast, and a link the
+ * reader answers a click on it with the preview's refusal, and a link the
  * reader silently swallowed would look broken instead.
  */
 function keepHref(href: string): boolean {

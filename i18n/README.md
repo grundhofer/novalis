@@ -27,8 +27,8 @@ English-only, PLAN.md D9).
 
 | Prefix | Covers |
 |---|---|
-| `app` | Shared verbs (OK, Cancel, Close), the Open Vault screen, the Install Command-Line Tool dialog |
-| `menu` | Native menu bar: `menu.app.*`, `menu.file.*`, `menu.edit.*`, `menu.view.*`, `menu.go.*`, `menu.window.title`. Predefined items (Quit, Hide, Services, Minimize, Zoom, Enter Full Screen) get their system names and have no key |
+| `app` | Shared verbs (Cancel, Close, the input dialogs' submit verbs), the Open Vault screen, the Install Command-Line Tool dialog |
+| `menu` | Native menu bar: `menu.app.*`, `menu.file.*`, `menu.edit.*`, `menu.view.*`, `menu.window.*`, `menu.help.title`. Predefined items (Quit, Hide, Services, Minimize, Zoom, Enter Full Screen) get their system names and have no key |
 | `tree` | Sidebar tree: badges (board, online only, conflict copy), context menu, footer counts, relative-day words |
 | `editor` | Editor chrome: find/replace bar, goto line, link dialog, completion, backlinks panel, vault search panel, banners that are editor-local states |
 | `board` | Kanban pane: columns, cards, switcher, the §8.4 conflict notices |

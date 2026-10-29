@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands, NovalisError } from "../ipc/client";
 import { useUi } from "../stores/ui";
+import { useVault } from "../stores/vault";
 import CbzViewer, { comicPages } from "./CbzViewer";
 
 vi.mock("react-i18next", () => ({
@@ -107,7 +108,7 @@ describe("CbzViewer", () => {
       return url;
     });
     URL.revokeObjectURL = vi.fn((url: string) => void revoked.push(url));
-    useUi.setState({ toast: null });
+    useUi.setState({ message: null });
     vi.mocked(commands.readPacked).mockImplementation(reply(COMIC));
   });
   afterEach(() => {
@@ -115,11 +116,22 @@ describe("CbzViewer", () => {
   });
 
   it("shows the first page and counts the pages the archive carries", async () => {
-    render(<CbzViewer path="comics/moon.cbz" />);
-    expect(screen.getByText("editor.loading")).toBeTruthy();
+    const { container } = render(<CbzViewer path="comics/moon.cbz" />);
+    // Listing a local archive is silent: an empty, busy pane (STA-06).
+    expect(container.querySelector('.sb-view__content[aria-busy="true"]')).toBeTruthy();
+    expect(container.textContent).toBe("");
     await flush();
 
-    expect(screen.getByText("viewer.cbz.pageOf:1,3")).toBeTruthy();
+    expect(screen.getByText("viewer.cbz.pageOf:1,3").className).toBe("sb-doc-bar__count");
+    // The page tools are sebaro's, with the sprite's chevrons (ICO-06); a
+    // comic takes no viewer keys, so they name none.
+    const previous = screen.getByRole("button", { name: "viewer.previousPage" });
+    expect(previous.className).toBe("sb-icon-button sb-icon-button--compact");
+    expect(previous.querySelector("use")?.getAttribute("href")).toBe("#chevron-left");
+    expect(previous.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(screen.getByRole("button", { name: "viewer.nextPage" }).querySelector("use")?.getAttribute("href")).toBe(
+      "#chevron-right",
+    );
     // The listing, then the page shown and the one after it, in one read.
     expect(asked()).toEqual([["moon/page-1.jpg", "moon/page-2.jpg"]]);
     expect(screen.getByRole("img").getAttribute("src")).toBe("blob:0");
@@ -147,7 +159,7 @@ describe("CbzViewer", () => {
     await flush();
 
     expect(screen.getByText("viewer.cbz.pageOf:3,3")).toBeTruthy();
-    expect((screen.getByLabelText("viewer.nextPage") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByLabelText("viewer.nextPage").getAttribute("aria-disabled")).toBe("true");
     unmount();
     expect(revoked.length).toBe(created.length);
   });
@@ -157,7 +169,7 @@ describe("CbzViewer", () => {
     render(<CbzViewer path="comics/empty.cbz" />);
     await flush();
 
-    expect(screen.getByText("viewer.cbz.empty")).toBeTruthy();
+    expect(screen.getByText("viewer.cbz.empty").closest(".sb-callout")?.className).toContain("sb-callout--note");
     expect(asked()).toEqual([]);
   });
 
@@ -165,14 +177,48 @@ describe("CbzViewer", () => {
     vi.mocked(commands.readPacked).mockRejectedValue(new FakeError("protected"));
     const { unmount } = render(<CbzViewer path="comics/drm.cbz" />);
     await flush();
-    expect(screen.getByText("viewer.cbz.protected")).toBeTruthy();
-    expect(useUi.getState().toast).toBeNull();
+    expect(screen.getByText("viewer.cbz.protected").closest(".sb-callout")?.className).toContain("sb-callout--warning");
+    expect(useUi.getState().message).toBeNull();
     unmount();
 
     vi.mocked(commands.readPacked).mockRejectedValue(new FakeError("io"));
     render(<CbzViewer path="comics/torn.cbz" />);
     await flush();
-    expect(screen.getByText("viewer.cbz.unreadable")).toBeTruthy();
-    expect(useUi.getState().toast?.key).toBe("errors.internal");
+    expect(screen.getByText("viewer.cbz.unreadable").closest(".sb-callout")?.className).toContain("sb-callout--error");
+    expect(useUi.getState().message?.key).toBe("errors.internal");
+  });
+
+  // read_packed downloads a cloud-only comic first: named after a second,
+  // a local one stays silent however long it takes (STA-06, ADR-0051 #27.8).
+  it("names the wait only for a cloud-only comic", () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(commands.readPacked).mockReturnValue(new Promise(() => {}));
+      useVault.setState({
+        children: { comics: [{ path: "comics/moon.cbz", name: "moon.cbz", dir: false, cloudOnly: false } as never] },
+      });
+      const local = render(<CbzViewer path="comics/moon.cbz" />);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(local.container.textContent).toBe("");
+      local.unmount();
+
+      useVault.setState({
+        children: { comics: [{ path: "comics/moon.cbz", name: "moon.cbz", dir: false, cloudOnly: true } as never] },
+      });
+      const cloud = render(<CbzViewer path="comics/moon.cbz" />);
+      act(() => {
+        vi.advanceTimersByTime(999);
+      });
+      expect(cloud.container.textContent).toBe("");
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(cloud.container.querySelector('.sb-view__content[aria-busy="true"]')?.textContent).toBe("editor.loading");
+    } finally {
+      vi.useRealTimers();
+      useVault.setState({ children: {} });
+    }
   });
 });

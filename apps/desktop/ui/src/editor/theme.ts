@@ -1,262 +1,259 @@
-import { HighlightStyle } from "@codemirror/language";
+import { HighlightStyle, type TagStyle } from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type Tag, tags as t } from "@lezer/highlight";
 
+import { sebaroEditorTheme, sebaroHighlight, sebaroMarkdownHighlight } from "../sebaro/editor/sebaro-codemirror";
 import { codeTag, noteTag } from "./markdownExt";
 
 /**
- * The editor's looks, entirely in semantic tokens (`--ds-*`).
+ * The editor's looks, entirely in tokens.
  *
  * Decorated source mode (PLAN.md §5.3): the markers stay visible and are only
- * dimmed, headings are sized, emphasis is styled, links and tags are coloured.
- * Nothing here hides syntax — that is the "hide-syntax live preview" that was
- * explicitly declined (§4.4).
+ * dimmed, headings are sized, emphasis is styled, links and tags are
+ * underlined. Nothing here hides syntax — that is the "hide-syntax live
+ * preview" that was explicitly declined (§4.4).
+ *
+ * Around the text it is sebaro's editor, imported from the export's
+ * `editor/sebaro-codemirror.ts` and never copied (DSK-03, spec/01 §1.8,
+ * spec/09 §17; ADR-0051 #59): `sebaroEditorTheme` gives the selection in
+ * `selection`, a 2 px accent caret, the current line on `hover-fill`, line
+ * numbers `text-muted` (the current one `text`), search matches and the
+ * bracket pair a 1 px `border-strong` frame without fill, the invisibles,
+ * inline code's look and the completion list; `sebaroSelectionMark`
+ * (setup.ts) takes the current line's and inline code's grounds away under
+ * a selection. Nothing else puts a colour behind text (FAR-02). What stands
+ * here is novalis' own: the writing area's measure and room, the code
+ * dress's width, the panels, the decorated lines, the task box.
  */
 
-export const editorTheme = EditorView.theme({
-  "&": {
-    color: "var(--ds-color-fg-default)",
-    backgroundColor: "var(--ds-color-bg-canvas)",
-    height: "100%",
-    fontSize: "var(--ds-font-size-editor)",
-  },
+/** novalis' own rules on top of `sebaroEditorTheme`, exported for the test beside this file. */
+export const EDITOR_LOOKS: Readonly<Record<string, Record<string, string>>> = {
+  // The writing area fills its pane; its size is sebaro's product variable
+  // (spec/01 §1.8.2, D102 (27)), which the shell sets from
+  // `editor.fontSize` (stores/ui.ts).
+  "&": { height: "100%" },
   ".cm-scroller": {
-    fontFamily: "var(--ds-font-sans)",
-    lineHeight: "var(--ds-line-height-editor)",
-    padding: "var(--ds-space-7) var(--ds-space-9) 40vh",
+    padding: "var(--sb-space-5) var(--sb-space-8) 40vh",
   },
   ".cm-content": {
-    caretColor: "var(--ds-color-editor-cursor)",
-    maxWidth: "var(--ds-measure-editor)",
+    maxWidth: "var(--sb-size-measure-prose)",
     margin: "0 auto",
     paddingBottom: "0",
   },
   // The code dress (ADR-0022): every preset but prose sets `nv-mono` on the
-  // editor — sebaro Mono with its tracking, the full width instead of the
-  // measure. Size and line height stay the editor's; there is one of each.
-  "&.nv-mono .cm-scroller": {
-    fontFamily: "var(--ds-font-mono)",
-    letterSpacing: "var(--ds-letter-spacing-mono)",
-  },
+  // editor and takes sebaro's `sebaroCodeFileTheme` (setup.ts) — sebaro
+  // Mono with its tracking — and the full width instead of the measure.
+  // Size and line height stay the editor's; there is one of each.
   "&.nv-mono .cm-content": { maxWidth: "none", margin: "0" },
   "&.cm-editor.cm-focused": { outline: "none" },
-  ".cm-cursor, .cm-dropCursor": {
-    borderLeft: "1.5px solid var(--ds-color-editor-cursor)",
+  // Inline code's room beside its ground; the look is sebaro's `.sb-cm-code`.
+  ".sb-cm-code": { padding: "0 var(--sb-space-1)" },
+  // The room beside the numbers grows with the editor's text, not in px.
+  ".cm-lineNumbers .cm-gutterElement": {
+    padding: "0 0.75em 0 0.5em",
   },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "var(--ds-color-editor-selection)",
-  },
-  ".cm-selectionMatch": { backgroundColor: "var(--ds-color-editor-selection-match)" },
-  ".cm-activeLine": { backgroundColor: "var(--ds-color-editor-active-line)" },
-  ".cm-gutters": {
-    backgroundColor: "var(--ds-color-bg-canvas)",
-    color: "var(--ds-color-editor-gutter)",
-    border: "none",
-    fontFamily: "var(--ds-font-mono)",
-    fontSize: "var(--ds-font-size-mono)",
-  },
-  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ds-color-fg-muted)" },
-  ".cm-foldPlaceholder": { backgroundColor: "var(--ds-color-bg-fill)", border: "none" },
-  ".cm-searchMatch": { backgroundColor: "var(--ds-color-editor-match)" },
-  // A `[[link]]` to no note (ADR-0038): dimmed and dashed, over the link
-  // colour the highlighter gives its parts.
+  // A `[[link]]` to no note (ADR-0038, amended by ADR-0051 #17): grey, no
+  // line — not the link style, and no dash (FOR-03).
   ".nv-link-unresolved, .nv-link-unresolved span": {
-    color: "var(--ds-color-fg-subtle)",
-    textDecoration: "underline dashed var(--ds-color-fg-subtle)",
+    color: "var(--sb-color-text-muted)",
+    textDecoration: "none",
   },
-  // Invisibles (ADR-0029): CodeMirror's defaults hard-code #aaa, #888 in an
-  // SVG and #ff332255; a space is a token-coloured dot, a tab a thin rule
-  // across its width, trailing whitespace the warning fill.
-  ".cm-highlightSpace": {
-    background:
-      "radial-gradient(circle at 50% 55%, var(--ds-color-fg-subtle) 20%, transparent 0) no-repeat",
-    backgroundSize: ".4em",
-    backgroundPosition: "calc(min(50%, 0px)) center",
-  },
-  ".cm-highlightTab": {
-    backgroundImage: "linear-gradient(var(--ds-color-fg-subtle), var(--ds-color-fg-subtle))",
-    backgroundSize: "calc(100% - 0.3em) 1px",
-    backgroundPosition: "left center",
-    backgroundRepeat: "no-repeat",
-  },
-  ".cm-trailingSpace": { backgroundColor: "var(--ds-color-warning-fill)" },
-  ".cm-searchMatch.cm-searchMatch-selected": {
-    backgroundColor: "var(--ds-color-accent-fill)",
-    outline: "1px solid var(--ds-color-accent-line)",
-  },
-  ".cm-matchingBracket, .cm-nonmatchingBracket": {
-    backgroundColor: "var(--ds-color-bg-fill-strong)",
-    outline: "none",
-  },
-  ".cm-tooltip": {
-    backgroundColor: "var(--ds-color-bg-canvas)",
-    border: "var(--ds-line-ink) solid var(--ds-color-line-ink)",
-    borderRadius: "var(--ds-radius-control)",
-    color: "var(--ds-color-fg-default)",
-    fontFamily: "var(--ds-font-sans)",
-    fontSize: "var(--ds-font-size-ui)",
-  },
-  ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
-    backgroundColor: "var(--ds-color-bg-fill-strong)",
-    color: "var(--ds-color-fg-default)",
-  },
+  // The find bar and Go to Line (./findPanel) are sebaro's find bar over
+  // the text (spec/02 §4.25.2): its rows carry their own ground and
+  // hairline; the panels only keep the editor's text colour.
   ".cm-panels": {
-    backgroundColor: "var(--ds-color-bg-surface)",
-    color: "var(--ds-color-fg-default)",
-    borderTop: "1px solid var(--ds-color-border-strong)",
+    backgroundColor: "var(--sb-color-bg)",
+    color: "var(--sb-color-text)",
   },
-  // The find and Go to Line panels: CodeMirror's own buttons and fields are a
-  // light-grey gradient with #888 borders, unreadable under the dark theme's
-  // text colour; they wear the app's controls instead.
-  // The find panel sits on top; CodeMirror draws its edge in #ddd.
-  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--ds-color-border-strong)" },
-  ".cm-panels .cm-button": {
-    backgroundImage: "none",
-    backgroundColor: "var(--ds-color-bg-fill)",
-    border: "1px solid var(--ds-color-border-control)",
-    borderRadius: "var(--ds-radius-chip)",
-    color: "var(--ds-color-fg-default)",
-    fontSize: "var(--ds-font-size-ui-sm)",
+  ".cm-panels.cm-panels-top": { borderBottom: "none" },
+  // Decorated source mode: line-level classes the plugin adds. Headings on
+  // sebaro's scale relative to the editor's size (ADR-0051 #27.4):
+  // headline 28 / 16, title 20 / 16, and from h3 on body-strong, each with
+  // its role's tracking; the weight is the highlighter's, by level.
+  ".cm-line.nv-heading-1": {
+    fontSize: "1.75em",
+    letterSpacing: "var(--sb-type-headline-tracking)",
   },
-  ".cm-panels .cm-button:active": {
-    backgroundImage: "none",
-    backgroundColor: "var(--ds-color-bg-fill-strong)",
+  ".cm-line.nv-heading-2": {
+    fontSize: "1.25em",
+    letterSpacing: "var(--sb-type-title-tracking)",
   },
-  ".cm-panels .cm-textfield": {
-    backgroundColor: "var(--ds-color-bg-canvas)",
-    border: "1px solid var(--ds-color-border-control)",
-    borderRadius: "var(--ds-radius-chip)",
-    color: "var(--ds-color-fg-default)",
-    fontSize: "var(--ds-font-size-ui-sm)",
+  ".cm-line.nv-heading-3": {
+    letterSpacing: "var(--sb-type-body-strong-tracking)",
   },
-  ".cm-panels .cm-textfield:focus": {
-    outline: "1px solid var(--ds-color-accent-line)",
-  },
-  ".cm-panels label": {
-    color: "var(--ds-color-fg-muted)",
-    fontSize: "var(--ds-font-size-ui-sm)",
-  },
-  // Decorated source mode: line-level classes the plugin adds.
-  ".cm-line.nv-heading-1": { fontSize: "1.55em", letterSpacing: "var(--ds-letter-spacing-title)" },
-  ".cm-line.nv-heading-2": { fontSize: "1.24em", letterSpacing: "-0.02em" },
-  ".cm-line.nv-heading-3": { fontSize: "1.1em" },
+  // The quote's line is sebaro's: the 2 px ink line, 16 px to the text
+  // (TXT-17, `.sb-quote__text`); the text is `text-muted` from its tag.
   ".cm-line.nv-quote": {
-    borderLeft: "2px solid var(--ds-color-fg-subtle)",
-    paddingLeft: "var(--ds-space-5)",
-    color: "var(--ds-color-fg-muted)",
+    borderLeft: "var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color)",
+    paddingLeft: "var(--sb-space-4)",
   },
+  // Front matter and a code block's lines read in sebaro Mono at the code
+  // role's size (14 / 16); their colours are the five looks of their
+  // grammar (spec/01 §1.8), plain where there is none.
   ".cm-line.nv-frontmatter": {
-    fontFamily: "var(--ds-font-mono)",
-    fontSize: "0.85em",
-    color: "var(--ds-color-fg-subtle)",
+    fontFamily: "var(--sb-font-family-mono)",
+    fontSize: "0.875em",
+    letterSpacing: "var(--sb-type-code-tracking)",
   },
   // A code block's lines, plain or with a grammar: the face inline code
   // gets from its tag, here on the line (markdownExt.ts `codeTag`).
-  ".cm-line.nv-code": { fontFamily: "var(--ds-font-mono)", fontSize: "0.9em" },
-  ".cm-line.nv-task-done": { color: "var(--ds-color-fg-subtle)" },
+  ".cm-line.nv-code": {
+    fontFamily: "var(--sb-font-family-mono)",
+    fontSize: "0.875em",
+    letterSpacing: "var(--sb-type-code-tracking)",
+  },
+  // A done task (spec/01 §1.8, D102 (28)): grey, its spans too, which the
+  // highlighter's `t.list` rule gives `text`.
+  ".cm-line.nv-task-done, .cm-line.nv-task-done span": { color: "var(--sb-color-text-muted)" },
+  // The task box looks like sebaro's checkbox (spec/02 §2.4, EIN-03): a
+  // 2 px `border-strong` edge, radius 4; done, the edge and the drawn check
+  // in accent, no fill. Sized to the text, not 20 px. The check is out of
+  // flow, so a done box sits on the line as an open one does.
   ".nv-checkbox": {
+    position: "relative",
     display: "inline-block",
-    width: "0.85em",
-    height: "0.85em",
+    boxSizing: "border-box",
+    width: "0.875em",
+    height: "0.875em",
     verticalAlign: "-0.08em",
     marginRight: "0.15em",
-    border: "1px solid var(--ds-color-border-control)",
-    borderRadius: "var(--ds-radius-chip)",
+    border: "2px solid var(--sb-color-border-strong)",
+    borderRadius: "var(--sb-radius-small)",
     cursor: "pointer",
-    position: "relative",
   },
   ".nv-checkbox.nv-checked": {
-    backgroundColor: "var(--ds-color-accent-default)",
-    borderColor: "var(--ds-color-accent-default)",
+    borderColor: "var(--sb-color-accent)",
   },
-});
+  ".nv-checkbox.nv-checked::after": {
+    content: '""',
+    position: "absolute",
+    insetInlineStart: "50%",
+    insetBlockStart: "45%",
+    width: "0.25em",
+    height: "0.5em",
+    translate: "-50% -50%",
+    boxSizing: "border-box",
+    border: "solid var(--sb-color-accent)",
+    borderWidth: "0 2px 2px 0",
+    transform: "rotate(45deg)",
+  },
+};
+
+/** sebaro's editor theme with novalis' own rules on top: the earlier theme outranks the later one. */
+export const editorTheme: Extension = [EditorView.theme(EDITOR_LOOKS), sebaroEditorTheme];
 
 /** One look the code grammars can ask for: the tags that get it, its name, its style. */
 export interface CodeRule {
   readonly tag: Tag | readonly Tag[];
-  /** The class the preview's fences wear (`tok-<name>`, styles/preview.css). */
+  /** The class the preview's fences wear (`sb-tok-<name>`, colored by sebaro.css §6). */
   readonly name: string;
-  /** What the look is, in tokens; the editor styles it, the stylesheet mirrors it. */
+  /** What the look is, in tokens; the editor styles it, sebaro.css says the same. */
   readonly style: Readonly<Record<string, string>>;
 }
 
-/**
- * The code rules (ADR-0022 point 4), on the tokens that exist: function
- * names by weight, not colour; operators and punctuation dimmed like markers;
- * the rest borrowed from the nearest of the twelve. A plain `variableName`
- * stays uncoloured on purpose. Loaded lazily per grammar (PLAN.md §7.3),
- * the same rules colour the editor and the preview's fences (point 8), so
- * the two surfaces never disagree about what a keyword looks like.
- */
-export const CODE_RULES: readonly CodeRule[] = [
-  {
-    tag: [t.keyword, t.meta, t.annotation, t.macroName],
-    name: "keyword",
-    style: { color: "var(--ds-color-syntax-keyword)" },
-  },
-  {
-    tag: [t.string, t.special(t.string), t.regexp, t.escape],
-    name: "string",
-    style: { color: "var(--ds-color-syntax-string)" },
-  },
-  {
-    tag: [t.comment, t.lineComment, t.blockComment],
-    name: "comment",
-    style: { color: "var(--ds-color-syntax-comment)" },
-  },
-  {
-    tag: [t.number, t.bool, t.null, t.changed],
-    name: "number",
-    style: { color: "var(--ds-color-syntax-number)" },
-  },
-  {
-    tag: [t.typeName, t.className, t.definition(t.variableName), t.namespace],
-    name: "type",
-    style: { color: "var(--ds-color-syntax-type)" },
-  },
-  { tag: [t.propertyName, t.attributeName], name: "property", style: { color: "var(--ds-color-fg-muted)" } },
-  { tag: t.invalid, name: "invalid", style: { color: "var(--ds-color-syntax-invalid)" } },
-  {
-    tag: [t.function(t.variableName), t.function(t.propertyName), t.function(t.definition(t.variableName))],
-    name: "function",
-    style: { fontWeight: "var(--ds-font-weight-medium)" },
-  },
-  { tag: [t.operator, t.punctuation], name: "marker", style: { color: "var(--ds-color-syntax-marker)" } },
-  { tag: t.inserted, name: "inserted", style: { color: "var(--ds-color-success-text)" } },
-  { tag: t.deleted, name: "deleted", style: { color: "var(--ds-color-warning-text)" } },
-];
+/** The name of each of sebaro's code looks in sebaro.css's `sb-tok-<name>`, by the look's value. */
+const LOOK_NAMES: Readonly<Record<string, string>> = {
+  "var(--sb-syntax-keyword)": "keyword",
+  "var(--sb-syntax-string)": "string",
+  "var(--sb-syntax-constant)": "constant",
+  "var(--sb-color-text-muted)": "comment",
+  "underline wavy var(--sb-color-danger) 2px": "invalid",
+};
 
+/**
+ * sebaro's code looks (D67, D69; spec/01 §1.8, TEC-08): three tones, comments
+ * grey, everything else plain ink, no bold or italic in code. They are the
+ * export's `sebaroHighlight` (spec/09 §17), read from its specs; a tag not
+ * listed is plain. The same rules colour the editor and the preview's
+ * fences, which wear them as `sb-tok-<name>` (editor/fences.ts) for
+ * sebaro.css to colour, so the two surfaces never disagree about what a
+ * keyword looks like. A look the names do not know fails here, at load.
+ */
+export const CODE_RULES: readonly CodeRule[] = sebaroHighlight.specs.map(({ tag, ...style }) => {
+  const look = Object.values(style).join(" ");
+  const name = LOOK_NAMES[look];
+  if (!name) throw new Error(`sebaroHighlight: no sb-tok name for ${look}`);
+  return { tag, name, style: style as Record<string, string> };
+});
+
+/** A code file's looks: sebaro's code rules and nothing of the Markdown source. */
+export const codeHighlight = sebaroHighlight;
+
+/** The heading tags: their size is the line's (ADR-0051 #27.4), so sebaro's heading rules stay out. */
+const HEADING_TAGS: readonly Tag[] = [t.heading, t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6];
+
+const tagsOf = (spec: TagStyle): readonly Tag[] => (Array.isArray(spec.tag) ? spec.tag : [spec.tag as Tag]);
+
+/**
+ * The rules of the export's `sebaroMarkdownHighlight` (spec/09 §17) novalis
+ * shares (ADR-0051 #63): all but the headings, whose size sebaro puts on
+ * the tag and novalis on the line; both together would grow an H1 to
+ * 1.75² em.
+ */
+export const SHARED_MARKDOWN_RULES: readonly TagStyle[] = sebaroMarkdownHighlight.specs.filter(
+  (spec) => !tagsOf(spec).some((tag) => HEADING_TAGS.includes(tag)),
+);
+
+/** sebaro's rule for `tag`, from the shared ones; a rule the export no longer has fails here, at load. */
+const sebaros = (tag: Tag): TagStyle => {
+  const spec = SHARED_MARKDOWN_RULES.find((rule) => tagsOf(rule).includes(tag));
+  if (!spec) throw new Error(`sebaroMarkdownHighlight: no rule for ${tag.toString()}`);
+  return spec;
+};
+
+/** sebaro's link style (LNK-01), as its link rule writes it. */
+const { tag: _linkTags, ...LINK_STYLE } = sebaros(t.link);
+
+/**
+ * A note's looks: the Markdown source's rules (headings, emphasis, links,
+ * tags, inline code, markers), then the code rules for its fenced blocks.
+ * Emphasis, strikethrough, links, inline code, the quote and the markers
+ * are the export's `sebaroMarkdownHighlight` (ADR-0051 #63); novalis' own
+ * are the headings' weight, the `#tag`, a code block's text and lists.
+ * Only Markdown files get it (setup.ts): in a code file a heading, strong
+ * or emphasis tag of its grammar stays plain, and a processing instruction
+ * (`<?php`, `<?xml`) takes the code look of `meta`, its parent tag, instead
+ * of the markers' grey.
+ */
 export const markdownHighlight = HighlightStyle.define([
-  // Markers stay visible, only dimmed — the decorated-source rule.
-  { tag: t.processingInstruction, color: "var(--ds-color-syntax-marker)" },
-  { tag: t.heading, color: "var(--ds-color-syntax-heading)", fontWeight: "var(--ds-font-weight-strong)" },
-  { tag: t.strong, fontWeight: "var(--ds-font-weight-medium)" },
-  { tag: t.emphasis, fontStyle: "italic" },
-  { tag: t.strikethrough, textDecoration: "line-through" },
-  // Links in text colour with the 2 px cobalt line (sebaro D52/D55): the
-  // text of `[text](url)`, and a URL, bare in the text or as its target.
+  // Heading text in `text` at its role's weight: h1 headline, h2 title,
+  // h3–h6 body-strong (ADR-0051 #27.4); a Setext heading too. Size and
+  // tracking are the line's (EDITOR_LOOKS).
   {
-    tag: [t.link, t.url],
-    textDecoration: "underline var(--ds-line-link) var(--ds-color-accent-default)",
-    textUnderlineOffset: "0.2em",
+    tag: t.heading,
+    color: "var(--sb-color-text)",
+    fontWeight: "var(--sb-type-title-weight)",
   },
   {
-    tag: noteTag,
-    color: "var(--ds-color-syntax-tag)",
-    backgroundColor: "var(--ds-color-accent-fill)",
-    border: "1px solid var(--ds-color-accent-line)",
-    borderRadius: "var(--ds-radius-chip)",
-    padding: "0 0.28em",
-    fontSize: "0.86em",
+    tag: t.heading1,
+    color: "var(--sb-color-text)",
+    fontWeight: "var(--sb-type-headline-weight)",
   },
   {
-    tag: t.monospace,
-    fontFamily: "var(--ds-font-mono)",
-    fontSize: "0.9em",
-    color: "var(--ds-color-syntax-code)",
+    tag: [t.heading3, t.heading4, t.heading5, t.heading6],
+    color: "var(--sb-color-text)",
+    fontWeight: "var(--sb-type-body-strong-weight)",
   },
-  { tag: codeTag, color: "var(--ds-color-syntax-code)" },
-  { tag: t.quote, color: "var(--ds-color-syntax-quote)" },
-  { tag: t.list, color: "var(--ds-color-fg-default)" },
-  ...CODE_RULES.map(({ tag, style }) => ({ tag, ...style })),
+  sebaros(t.strong),
+  sebaros(t.emphasis),
+  sebaros(t.strikethrough),
+  // Links in sebaro's link style: the text of `[text](url)`, a `[[link]]`,
+  // and a URL, bare in the text or as its target.
+  sebaros(t.link),
+  // A `#tag` in the link style too (ADR-0037, amended by ADR-0051 #18):
+  // its `#` is a marker (markdownExt.ts `TagMark`), the word is underlined.
+  { tag: noteTag, ...LINK_STYLE },
+  // Inline code: its look is the theme's `.sb-cm-code` (spec/09 §17, NV-I14).
+  sebaros(t.monospace),
+  // A code block's text is plain where its grammar says nothing.
+  { tag: codeTag, color: "var(--sb-color-text)" },
+  sebaros(t.quote),
+  { tag: t.list, color: "var(--sb-color-text)" },
+  // Markers stay visible, only dimmed — the decorated-source rule (DSK-03).
+  // After the heading, link and list rules, whose marks (`#`, `[`, `-`)
+  // carry both classes: the marker's colour wins, and a link's marks lose
+  // its line — the word is underlined, not its markup (LNK-01).
+  sebaros(t.processingInstruction),
+  ...sebaroHighlight.specs,
 ]);

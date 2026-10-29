@@ -41,6 +41,12 @@ Everything else follows PLAN.md §7.4: Apple standard (`Cmd-Z`, `Shift-Cmd-Z`, `
 - `Cmd-E` is reserved for the v1.1 read-only preview (PLAN.md §4.4) and is not bound in v1.
 - Editor chords are scoped (`editor`, `editor:markdown`, `editor:code`); the same key outside its scope falls through to the system.
 
+**Amended 2026-10-24** — ADR-0051: sebaro's fixed chords. `Cmd-K` opens the command palette and `Shift-Cmd-P` stays its second chord; Insert Link moves to `Shift-Cmd-K` (over CodeMirror's own Delete Line, which stays `Ctrl-Shift-K`); the sidebar is `Ctrl-Cmd-S` instead of `Cmd-\`; tabs are `Ctrl-Tab` / `Ctrl-Shift-Tab` instead of `Shift-Cmd-[` / `]`; font size is `Cmd-+` / `Cmd--` (the page's, the menu items carry no accelerator) with `Cmd-0`; New Folder is `Alt-Cmd-N` and `Shift-Cmd-N` stays free; `Cmd-,` comes with the settings view.
+
+**Amended 2026-10-26** — ADR-0051 #1 (built in sebaro view step 13): `Cmd-,` is bound to `settings.open` (global), sebaro's fixed Settings chord (DSK-09): the settings view in the main window, also App menu ▸ Settings … with the same accelerator. The row in the Decision table („Unbound (no preferences window, ADR-0004)“) is superseded; the `docs/KEYMAP.md` row changed from `unbound`. Owner's yes: „Ansicht mit ⌘, (Empfohlen)“ (ADR-0051).
+
+**Amended 2026-10-26** — ADR-0051 #36: Back / Forward are `Cmd-←` / `Cmd-→`, sebaro's fixed Zurück / Vor (D102 (14)). A text field keeps `Cmd-←` / `Cmd-→` for the line's start and end, the editor (CodeMirror) too, so there they are `Ctrl-Cmd-←` / `Ctrl-Cmd-→`, which work everywhere. `Cmd-[` / `Cmd-]` go: `[` and `]` need ⌥ on the German keyboard. The arrows are the same key on every layout, so reading the key's position stays right for them. The page handles the four chords; Window ▸ Back / Forward carry no accelerator, which could take `Cmd-←` / `Cmd-→` from the text fields (spec/09 §13.1), like Font Larger / Smaller and Move to Trash. This settles what ADR-0051 #10 left open. Owner's yes: „sebaro-Kürzel (Empfohlen)“ (ADR-0051).
+
 **Owner approval:** 2026-09-05 — "section 4 please make your recommedations" (docs/DECISIONS.md: "`Cmd-P`: quick-open (no Print in v1)", "`Cmd-K`: insert/wrap Markdown link", "Board toggle: `Cmd-Shift-B`", "Sidebar toggle: `Cmd-\`", "Preferences window: no").
 
 ## Sources

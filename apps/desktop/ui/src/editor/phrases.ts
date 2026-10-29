@@ -27,11 +27,23 @@ const KEYS: Record<string, string> = {
   "replaced match on line $": "editor.find.replacedMatchOnLine",
   "Go to line": "editor.find.gotoLine",
   go: "editor.find.go",
+  // The suffix of Go to Line's number field (./findPanel, spec/02 §4.25.2).
+  "of $": "editor.find.lineOf",
+  // Its field error for a line it cannot go to (spec/02 §4.25.2, ADR-0051 #54).
+  "Enter a line from 1 to $.": "editor.find.lineRange",
+  // novalis's own find bar (./findPanel) names its group of toggles.
+  "search options": "editor.find.options",
 };
 
 /** The phrases for the current language; the view is rebuilt when it changes. */
 export function editorPhrases(): Extension {
+  // A word the catalog does not give (i18next not yet set up) is left to
+  // CodeMirror's English: a phrase with `$` would throw on `undefined`.
   return EditorState.phrases.of(
-    Object.fromEntries(Object.entries(KEYS).map(([phrase, key]) => [phrase, i18next.t(key)])),
+    Object.fromEntries(
+      Object.entries(KEYS)
+        .map(([phrase, key]) => [phrase, i18next.t(key)] as const)
+        .filter(([, word]) => typeof word === "string"),
+    ),
   );
 }

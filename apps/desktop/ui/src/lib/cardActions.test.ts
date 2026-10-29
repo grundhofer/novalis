@@ -73,10 +73,22 @@ describe("the card context menu", () => {
   it("runs the hover actions on it", async () => {
     await openCardContextMenu(board.cards[0] as never, board as never);
     runCardMenuAction("card.rename");
-    expect(useUi.getState().prompt?.titleKey).toBe("menu.file.rename");
+    expect(useUi.getState().prompt?.titleKey).toBe("board.renameCardTitle");
+    expect(useUi.getState().prompt?.submitKey).toBe("app.rename");
     runCardMenuAction("card.delete");
-    expect(useUi.getState().prompt?.confirm?.confirmKey).toBe("board.deleteCard");
+    expect(useUi.getState().prompt?.confirm?.confirmKey).toBe("app.delete");
     expect(useBoard.getState().apply).not.toHaveBeenCalled();
+  });
+
+  // ADR-0051 #41: Link Note… in the native menu too, as in the card's „Mehr“.
+  it("opens the note picker for the remembered card, its own links left out", async () => {
+    await openCardContextMenu(board.cards[0] as never, board as never);
+    expect(runCardMenuAction("card.linkNote")).toBe(true);
+    const overlay = useUi.getState().overlay;
+    expect(overlay).toMatchObject({ kind: "pickNote", exclude: ["a.md"] });
+    if (overlay.kind !== "pickNote") throw new Error("no picker");
+    await overlay.onPick("b.md");
+    expect(useBoard.getState().apply).toHaveBeenCalledWith({ kind: "linkNote", id: "c1", path: "b.md" });
   });
 
   it("does nothing for a card that is gone, and leaves other ids alone", async () => {

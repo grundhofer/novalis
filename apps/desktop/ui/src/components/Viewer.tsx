@@ -1,11 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
 import { mimeOf, type ViewKind } from "../lib/fileTypes";
 import { stemOf } from "../lib/paths";
 import { report } from "../stores/ui";
 import "../styles/viewer.css";
+import Waiting from "./Waiting";
 import ZoomableImage from "./ZoomableImage";
 
 /**
@@ -41,9 +41,8 @@ function decode(base64: string): Uint8Array<ArrayBuffer> {
 type Loaded = { path: string; bytes: Uint8Array<ArrayBuffer>; url: string | null };
 
 export default function Viewer({ path, kind }: { path: string; kind: ViewKind }) {
-  const { t } = useTranslation();
-  // Keyed by path, so switching tabs shows "loading" rather than the previous
-  // file until the new one arrives.
+  // Keyed by path, so switching tabs shows an empty pane rather than the
+  // previous file until the new one arrives.
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
   useEffect(() => {
@@ -65,10 +64,14 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
     };
   }, [path, kind]);
 
+  // Reading a local file and loading a reader's chunk: an empty, busy pane.
+  // A file only in the cloud is downloaded first, and after a second that
+  // wait is named (STA-06, ADR-0051 #27.8).
+  const waiting = <Waiting />;
   if (packed(kind)) {
     return (
       <section className="viewer">
-        <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+        <Suspense fallback={waiting}>
           {/* Keyed by path: another container is another reader, with no
               state of the last one — the same rule the other two follow
               through `loaded.path`. */}
@@ -77,13 +80,13 @@ export default function Viewer({ path, kind }: { path: string; kind: ViewKind })
       </section>
     );
   }
-  if (loaded?.path !== path) return <div className="pane-loading">{t("editor.loading")}</div>;
+  if (loaded?.path !== path) return <Waiting key={path} path={path} />;
   return (
     <section className="viewer">
       {kind === "pdf" || kind === "docx" ? (
-        <Suspense fallback={<div className="pane-loading">{t("editor.loading")}</div>}>
+        <Suspense fallback={waiting}>
           {kind === "pdf" ? (
-            <PdfViewer bytes={loaded.bytes} />
+            <PdfViewer bytes={loaded.bytes} name={stemOf(path)} />
           ) : (
             <DocxViewer bytes={loaded.bytes} />
           )}

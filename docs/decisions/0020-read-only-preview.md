@@ -138,3 +138,43 @@ preview is no longer refused; a click hands it to macOS, which opens it in
 the default browser or mail app. "Not opened — there is no opener plugin
 and no outbound anything" above is superseded for those two schemes;
 novalis itself still opens no connection.
+
+**Amended 2026-10-25** — ADR-0051 #16 (sebaro view step 4): the eye glyph
+goes. The toggle is sebaro's compact tool (`sb-icon-button--compact`) with
+the sprite's `book` icon, one name „Vorschau“ / „Preview“ with its state in
+`aria-pressed` instead of a name that switched between „Ansehen“ and
+„Bearbeiten“, and sebaro's tooltip „Vorschau ⌘E“. It stays in its fixed cell
+beside the scrolling tab strip and only for a file with a second
+representation; `Cmd+E` and the command are unchanged. The sprite has no eye;
+`book` is what sebaro's own draft of the novalis views took for the reading
+view (docs/sebaro-luecken.md H).
+
+**Amended 2026-10-25 (2)** — ADR-0051 #17, #18, #24, #27.2, #27.4–#27.6,
+#27.8 (sebaro view step 6): the body is sebaro's `.sb-prose` (line height
+1.5, headings on sebaro's scale relative to the editor's size as the editor
+draws them, sebaro's link style with the external-link icon, the quote's ink
+line, the hairline rule, inline code on `surface-sunken`). The core's
+fragment is dressed in the WebView, not in the renderer: a code block is the
+bare `pre.sb-code` without a copy button, a table `table.sb-table` in a
+focusable `sb-table-wrap` region, a task box sebaro's checkbox box, its
+click unchanged (ADR-0039). Mermaid draws with its `base` theme in sebaro's
+colours, read from the tokens when a diagram is drawn, instead of its own
+`default` / `dark` themes. The find bar is the editor's — sebaro's compact
+search field and 32 px tools instead of the glyphs ‹ › × — its hits sebaro's
+`mark` with `aria-current` on the current one and the count „Treffer 1 von
+2“ / „Match 1 of 2“ in a status line. A jump's target carries the 3 px place
+line for a moment and lets it fade, instead of a fill. While the fragment is
+on its way the pane is empty, without „Wird geladen …“: rendering is local
+work (STA-06). The preview still has no `#tag` and no mark for an
+unresolved link: pulldown-cmark knows neither (ADR-0037, ADR-0038), and
+#17 / #18 have nothing there to restyle (docs/sebaro-luecken.md K).
+
+**Amended 2026-10-26** — ADR-0051 #40 (D102 (32)): footnotes in the preview
+are sebaro's. The WebView turns the core's footnote markup into the digit
+`a.sb-note-ref` („Fußnote n“ / „Footnote n“) and the list `section.sb-notes`
+„Fußnoten“ / „Footnotes“ at the end of the text, each note led by its way
+back „Zurück zur Stelle n“ / „Back to place n“ to the digit it was reached
+from. A jump moves focus to the note or back to the digit and marks the
+place until the next key or press. The ids are the fragment's own, unique
+in the window. The core's HTML and the CLI are unchanged. Owner's yes: „Ja,
+in der Vorschau (Empfohlen)“ (ADR-0051).

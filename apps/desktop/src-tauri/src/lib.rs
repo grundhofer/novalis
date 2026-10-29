@@ -124,6 +124,14 @@ pub fn run() {
             // made; the window is therefore built here (`"create": false` in
             // tauri.conf.json), after the key is written (§7.5).
             spelling::seed(settings.spellcheck);
+            // The look before the page paints (DSK-14, ADR-0051 #22): the
+            // stored choice for theme-init.js, the window's own mode, and the
+            // ground for an explicit mode now; `system` is corrected once the
+            // window can report it.
+            let init_script = window::init_script(&settings);
+            let first_ground =
+                window::ground(settings.tone, window::is_dark(settings.appearance, None));
+            let first_theme = window::native_theme(settings.appearance);
 
             app.manage(AppState::new(config_dir, settings));
             let config = app
@@ -134,7 +142,29 @@ pub fn run() {
                 .find(|w| w.label == "main")
                 .cloned()
                 .ok_or("tauri.conf.json has no main window")?;
-            let main = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?.build()?;
+            let main = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+                .background_color(first_ground)
+                .theme(first_theme)
+                .initialization_script(init_script);
+            // Review pictures at 200 % text (docs/sebaro-umbau.md §4): a debug
+            // build started with NOVALIS_DEV_ROOT_FONT=200% sets the page's
+            // root font size before the first paint. Not a setting; not in a
+            // release build.
+            #[cfg(debug_assertions)]
+            let main = match std::env::var("NOVALIS_DEV_ROOT_FONT") {
+                Ok(size)
+                    if (2..=4).contains(&size.len())
+                        && size.ends_with('%')
+                        && size[..size.len() - 1].bytes().all(|b| b.is_ascii_digit()) =>
+                {
+                    main.initialization_script(format!(
+                        "document.documentElement.style.fontSize = '{size}';"
+                    ))
+                }
+                _ => main,
+            };
+            let main = main.build()?;
+            window::paint_ground(&main, &app.state::<AppState>().settings());
             window::restore(&main, &app.state::<AppState>());
             Ok(())
         })
@@ -151,6 +181,13 @@ pub fn run() {
             }
             tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
                 window::track(window, &window.state::<AppState>());
+            }
+            // macOS switched light and dark: the ground follows while the
+            // appearance is `system` (DSK-14).
+            tauri::WindowEvent::ThemeChanged(_) => {
+                if let Some(main) = window.app_handle().get_webview_window(window.label()) {
+                    window::paint_ground(&main, &window.state::<AppState>().settings());
+                }
             }
             _ => {}
         })

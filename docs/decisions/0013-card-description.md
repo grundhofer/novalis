@@ -71,3 +71,7 @@ Dialog als Mehrzeiler (Cmd+Enter speichert). CLI: card add/set
 **Amended 2026-09-23** — ADR-0033: the description is rendered on the card
 (the preview's renderer, links and boxes inert, still three lines). "No
 Markdown rendering in v1" above is superseded; the rest stands.
+
+**Amended 2026-10-26** — ADR-0051 #24 and sebaro's card text (spec/02
+§3.16, D102 (40)): the card shows the whole description, wrapping, in
+sebaro's `sb-card__text`; the three-line clamp is gone. The rest stands.

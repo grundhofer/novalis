@@ -206,6 +206,11 @@ export type BacklinkDto = {
 	 *  same note can be told apart; empty when the note could not be read.
 	 */
 	snippet: string,
+	/**
+	 *  The snippet ends before the line does, as in a search hit (the core's
+	 *  `snippet_cut_end`).
+	 */
+	snippetCutEnd: boolean,
 };
 
 export type BacklinksDto = {
@@ -361,8 +366,11 @@ export type ColumnDto = {
 
 /**  Which native context menu to pop at the pointer (ADR-0021, ADR-0032). */
 export type ContextMenuDto = 
-/**  A tree row; a board row gets "Show in Finder" only. */
-{ kind: "tree"; board: boolean } | 
+/**
+ *  A tree row; a board row gets "Show in Finder" only, and a folder no
+ *  "Move To…", since folders do not move (ADR-0018).
+ */
+{ kind: "tree"; board: boolean; folder: boolean } | 
 /**
  *  A card of the open board: its actions and the board's columns, the
  *  card's own one shown but not offered.
@@ -445,7 +453,10 @@ export type IpcError = {
 	code: string,
 	/**  Vault-relative path the failure is about, when there is one. */
 	path: string | null,
-	/**  Free text for `parse`/`io`/`internal`; never shown on its own. */
+	/**
+	 *  Free text for `parse`/`io`/`internal`, and for `invalid_path` why the
+	 *  path was refused (`empty`, `symlink`, …); never shown on its own.
+	 */
 	detail: string | null,
 	/**  `ambiguous` only: the note name that matched more than once. */
 	name: string | null,
@@ -464,9 +475,60 @@ export type MenuAction = {
 };
 
 /**
+ *  Which of the native menu's commands have a target at the moment (sebaro
+ *  D102 (9), spec/02 §4.24): an item whose command would do nothing is
+ *  switched off, never hidden and never a silent no-op. The UI knows the
+ *  targets (its tabs, the tree's row, the history) and sends them with every
+ *  `state_save`; the menu says which item needs which (`menu::has_target`).
+ *  All false until the UI's first save.
+ */
+export type MenuTargetsDto = {
+	/**
+	 *  A vault is open: New Note, New Folder, New Board, Quick Open, Today's
+	 *  Note, Find in Vault.
+	 */
+	vault?: boolean,
+	/**  A tab or the board to close (⌘W). */
+	close?: boolean,
+	/**  An active tab with text to save (not a viewer). */
+	save?: boolean,
+	/**  The editor shows a text: Find …, the editor's and Markdown's items. */
+	editor?: boolean,
+	/**  A row or tab the tree commands act on: Show in Finder. */
+	path?: boolean,
+	/**  The same, inside the vault: Rename …, Move to Trash …. */
+	vaultPath?: boolean,
+	/**  A file that can move: Move To …. */
+	movable?: boolean,
+	back?: boolean,
+	forward?: boolean,
+	/**  A closed tab to reopen. */
+	reopen?: boolean,
+	/**  Another tab to go to: Next / Previous Tab. */
+	cycle?: boolean,
+	/**  The current tab can move one place to the front / to the back. */
+	earlier?: boolean,
+	later?: boolean,
+	/**
+	 *  The window is too narrow for the sidebar beside the content: it lies
+	 *  over it (spec/02 §4.17). View ▸ Sidebar then checks whether that
+	 *  overlay is open, not the choice `state.json` keeps for a wider window.
+	 */
+	sidebarOverlay?: boolean,
+	sidebarOverlayOpen?: boolean,
+	/**
+	 *  The current tab has a preview (a note, a CSV or TSV, an SVG; ADR-0020,
+	 *  ADR-0025): View ▸ Preview (ADR-0051 #43).
+	 */
+	preview?: boolean,
+	/**  It shows: View ▸ Preview carries its check. */
+	previewing?: boolean,
+};
+
+/**
  *  One thing to open. The UI decides what it means: a file the vault lists
  *  becomes its tab, another file the app opens a tab of its own outside the
- *  vault (ADR-0047), anything else is said in a toast.
+ *  vault (ADR-0047), anything else is said in the action zone.
  */
 export type OpenRequestDto = 
 /**  An absolute file path. */
@@ -545,6 +607,8 @@ export type SearchHitDto = {
 	path: string,
 	line: number,
 	snippet: string,
+	/**  The snippet ends before the line does (the core's `snippet_cut_end`). */
+	snippetCutEnd: boolean,
 };
 
 export type SearchQueryDto = {
@@ -575,6 +639,7 @@ export type SettingsDto = {
 	version: number,
 	language: LanguageDto,
 	appearance: AppearanceDto,
+	tone: ToneDto,
 	editor: EditorSettingsDto,
 	spellcheck: boolean,
 	reduceMotion: boolean,
@@ -583,12 +648,14 @@ export type SettingsDto = {
 
 /**
  *  A partial settings update. Absent fields stay as they are; there are only
- *  the four settings of PLAN.md §4.1 and `reduceMotion` (ADR-0049) plus the
- *  `lastVault` state key, which the shell writes itself when a vault opens.
+ *  the four settings of PLAN.md §4.1, `reduceMotion` (ADR-0049) and `tone`
+ *  (ADR-0051) plus the `lastVault` state key, which the shell writes itself
+ *  when a vault opens.
  */
 export type SettingsPatchDto = {
 	language: LanguageDto | null,
 	appearance: AppearanceDto | null,
+	tone: ToneDto | null,
 	fontSize: number | null,
 	spellcheck: boolean | null,
 	reduceMotion: boolean | null,
@@ -616,6 +683,8 @@ export type TagListDto = {
 	 */
 	indexed: boolean,
 };
+
+export type ToneDto = "cool" | "warm";
 
 /**
  *  The two file orders of the tree: by name ascending (PLAN.md §4.2), or by
@@ -663,6 +732,12 @@ export type UiStateDto = {
 	 *  never sets it.
 	 */
 	window?: WindowRectDto | null,
+	/**
+	 *  What the native menu's commands have to act on now (sebaro D102 (9),
+	 *  spec/02 §4.24): an item without a target is switched off. A runtime
+	 *  fact, not state: never written to `state.json`.
+	 */
+	menuTargets?: MenuTargetsDto,
 };
 
 export type VaultDto = {

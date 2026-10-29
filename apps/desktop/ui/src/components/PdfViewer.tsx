@@ -1,12 +1,14 @@
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { chordOf, commandForChord } from "../lib/keymap";
+import { focusInTabList } from "../lib/areas";
+import { ariaKeyshortcutsOfScope, chordOf, commandForChord } from "../lib/keymap";
 import { currentRow, outlineOf, type OutlineRow } from "../lib/pdfOutline";
 import { report } from "../stores/ui";
 import ContentsPopover from "./ContentsPopover";
+import Tool from "./Tool";
 
 /**
  * The PDF pane (ADR-0016): pdf.js draws one page onto a canvas and lays its
@@ -17,7 +19,21 @@ import ContentsPopover from "./ContentsPopover";
  * ADR-0025 added the document's outline, in the popover the EPUB reader
  * uses for its contents, and the `viewer` rows of docs/KEYMAP.md: while the
  * pane has focus — it takes it when it opens, and a click on the page gives
- * it back — the arrows, PageUp/PageDown and Home/End turn the page.
+ * it back — the arrows, PageUp/PageDown and Home/End turn the page. The
+ * pane is a region named after the file, and it announces those keys in
+ * `aria-keyshortcuts`.
+ *
+ * The pane is sebaro's document reader (`sb-reader`, spec/02 §4.25.3,
+ * D104 (5)–(7)): its tools in a row of their own over the document
+ * (`sb-doc-bar`), first the page, then the zoom, wrapping at a large root
+ * font; the page on the sunken ground of `sb-reader__view` in its 1 px
+ * frame. The tools previous, next, zoom out, zoom in and „Seitenbreite“
+ * are `sb-icon-button--compact` with their tooltips (`zoom-out`, `zoom-in`,
+ * `zoom-fit`; „Seitenbreite“ `aria-pressed`), „Inhalt“ a compact secondary
+ * action with `aria-expanded` (NAV-10), the page field sebaro's
+ * `sb-field--number` „Seite [n] von m“ (EIN-01), the zoom value
+ * `sb-doc-bar__value` in tabular figures (SCH-03), all in sebaro Sans
+ * (SCH-01).
  *
  * pdf.js runs its parser in a worker; the worker file is bundled as an asset
  * and loaded from the app itself, so the CSP stays at `script-src 'self'`.
@@ -41,17 +57,23 @@ const PAGE_KEYS: Readonly<Record<string, (page: number, count: number) => number
   "viewer.lastPage": (_, count) => count,
 };
 
-export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
+export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: string }) {
   const { t } = useTranslation();
+  // The tools' tooltips and the page field's label need ids unique in the page.
+  const uid = useId();
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState<Zoom>("width");
   const [scale, setScale] = useState(1);
   const [outline, setOutline] = useState<readonly OutlineRow[]>([]);
   const [contentsOpen, setContentsOpen] = useState(false);
+  // The width a page may take at „Seitenbreite“: the scroller less its
+  // padding (in rem, so it grows with the root font) and the sheet's frame.
+  const [room, setRoom] = useState(0);
   const pane = useRef<HTMLElement | null>(null);
   const toggle = useRef<HTMLButtonElement | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const sheet = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const textLayer = useRef<HTMLDivElement | null>(null);
 
@@ -89,10 +111,40 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
   }, [bytes]);
 
   // The keys are the pane's while it has focus, so it takes focus when it
-  // opens, as the editor does for a note.
+  // opens, as the editor does for a note; not from the tab list that chose
+  // it with the keys (spec/02 §4.21).
   useEffect(() => {
-    pane.current?.focus({ preventScroll: true });
+    if (!focusInTabList()) pane.current?.focus({ preventScroll: true });
   }, []);
+
+  // The room, measured and measured again when the pane or the root font
+  // changes (the padding shrinks the scroller's content box).
+  useEffect(() => {
+    const host = scroller.current;
+    const frame = sheet.current;
+    if (!host || !frame) return undefined;
+    const px = (value: string) => parseFloat(value) || 0;
+    const measure = () => {
+      // A pane that is not shown keeps the room it had.
+      if (host.clientWidth <= 0) return;
+      const pad = getComputedStyle(host);
+      const edge = getComputedStyle(frame);
+      setRoom(
+        host.clientWidth -
+          px(pad.paddingLeft) -
+          px(pad.paddingRight) -
+          px(edge.borderLeftWidth) -
+          px(edge.borderRightWidth),
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
+  // Only fit to width follows the room; a set zoom stays where it is.
+  const fitRoom = zoom === "width" ? room : null;
 
   // One page: the canvas at device resolution, the text layer over it.
   useEffect(() => {
@@ -104,10 +156,9 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
       .then(async (current) => {
         const surface = canvas.current;
         const text = textLayer.current;
-        const host = scroller.current;
-        if (cancelled || !surface || !text || !host) return;
+        if (cancelled || !surface || !text) return;
         const base = current.getViewport({ scale: 1 });
-        const fit = zoom === "width" ? Math.max(ZOOM_MIN, (host.clientWidth - 32) / base.width) : zoom;
+        const fit = zoom === "width" ? Math.max(ZOOM_MIN, (fitRoom ?? 0) / base.width) : zoom;
         setScale(fit);
         const viewport = current.getViewport({ scale: fit });
         const dpr = window.devicePixelRatio || 1;
@@ -137,7 +188,7 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
       cancelled = true;
       render?.cancel();
     };
-  }, [doc, page, zoom]);
+  }, [doc, page, zoom, fitRoom]);
 
   const count = doc?.numPages ?? 0;
   const goTo = (next: number) => {
@@ -162,94 +213,101 @@ export default function PdfViewer({ bytes }: { bytes: Uint8Array }) {
   };
 
   return (
-    <section className="pdf" ref={pane} tabIndex={-1} onKeyDown={onKeyDown}>
-      <header className="pdf-bar">
-        {outline.length > 0 && (
-          <button
-            className={contentsOpen ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
-            type="button"
-            ref={toggle}
-            aria-expanded={contentsOpen}
-            onClick={() => setContentsOpen((open) => !open)}
-          >
-            {t("viewer.outline")}
-          </button>
+    <section
+      className="pdf sb-reader"
+      ref={pane}
+      tabIndex={-1}
+      aria-label={name}
+      aria-keyshortcuts={ariaKeyshortcutsOfScope("viewer")}
+      data-sb-own-shortcut=""
+      onKeyDown={onKeyDown}
+    >
+      <div className="viewer-head">
+        <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
+          {outline.length > 0 && (
+            <button
+              className="sb-secondary-action sb-secondary-action--compact"
+              type="button"
+              ref={toggle}
+              aria-expanded={contentsOpen}
+              aria-controls={contentsOpen ? `${uid}-contents` : undefined}
+              onClick={() => setContentsOpen((open) => !open)}
+            >
+              {t("viewer.outline")}
+            </button>
+          )}
+          <Tool
+            id={`${uid}-previous`}
+            icon="chevron-left"
+            label={t("viewer.previousPage")}
+            command="viewer.previousPage"
+            disabled={page <= 1}
+            onClick={() => goTo(page - 1)}
+          />
+          <div className="sb-field sb-field--compact sb-field--number">
+            <label className="sb-field__label" htmlFor={`${uid}-page`}>
+              {t("viewer.page")}
+            </label>
+            <div className="sb-field__control">
+              <input
+                id={`${uid}-page`}
+                type="number"
+                min={1}
+                max={Math.max(1, count)}
+                value={page}
+                onChange={(event) => goTo(Number(event.target.value))}
+              />
+              <span className="sb-field__suffix">{t("viewer.pageOf", { count })}</span>
+            </div>
+          </div>
+          <Tool
+            id={`${uid}-next`}
+            icon="chevron-right"
+            label={t("viewer.nextPage")}
+            command="viewer.nextPage"
+            disabled={page >= count}
+            onClick={() => goTo(page + 1)}
+          />
+          <span className="sb-doc-bar__sep" aria-hidden="true" />
+          <div className="viewer-bar__group">
+            <Tool
+              id={`${uid}-zoom-out`}
+              icon="zoom-out"
+              label={t("viewer.zoomOut")}
+              onClick={() => zoomBy(1 / ZOOM_STEP)}
+            />
+            <span className="sb-doc-bar__value" role="status">
+              <span className="sb-visually-hidden">{t("viewer.zoomName")} </span>
+              <span>{t("viewer.zoom", { percent: Math.round(scale * 100) })}</span>
+            </span>
+            <Tool id={`${uid}-zoom-in`} icon="zoom-in" label={t("viewer.zoomIn")} onClick={() => zoomBy(ZOOM_STEP)} />
+            <Tool
+              id={`${uid}-fit`}
+              icon="zoom-fit"
+              label={t("viewer.fitWidth")}
+              pressed={zoom === "width"}
+              onClick={() => setZoom("width")}
+            />
+          </div>
+        </div>
+        {contentsOpen && (
+          <ContentsPopover
+            id={`${uid}-contents`}
+            label={t("viewer.outline")}
+            rows={outline}
+            current={currentRow(outline, page)}
+            toggle={toggle}
+            onPick={(index) => {
+              setContentsOpen(false);
+              goTo(outline[index]?.page ?? page);
+              pane.current?.focus({ preventScroll: true });
+            }}
+            onClose={closeContents}
+          />
         )}
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.previousPage")}
-          aria-label={t("viewer.previousPage")}
-          disabled={page <= 1}
-          onClick={() => goTo(page - 1)}
-        >
-          &#8249;
-        </button>
-        <input
-          className="pdf-page"
-          type="number"
-          min={1}
-          max={Math.max(1, count)}
-          value={page}
-          aria-label={t("viewer.page")}
-          onChange={(event) => goTo(Number(event.target.value))}
-        />
-        <span className="pdf-count">{t("viewer.pageOf", { count })}</span>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.nextPage")}
-          aria-label={t("viewer.nextPage")}
-          disabled={page >= count}
-          onClick={() => goTo(page + 1)}
-        >
-          &#8250;
-        </button>
-        <span className="pdf-spacer" />
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.zoomOut")}
-          aria-label={t("viewer.zoomOut")}
-          onClick={() => zoomBy(1 / ZOOM_STEP)}
-        >
-          &#8722;
-        </button>
-        <span className="pdf-zoom">{t("viewer.zoom", { percent: Math.round(scale * 100) })}</span>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.zoomIn")}
-          aria-label={t("viewer.zoomIn")}
-          onClick={() => zoomBy(ZOOM_STEP)}
-        >
-          +
-        </button>
-        <button
-          className={zoom === "width" ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
-          type="button"
-          aria-pressed={zoom === "width"}
-          onClick={() => setZoom("width")}
-        >
-          {t("viewer.fitWidth")}
-        </button>
-      </header>
-      {contentsOpen && (
-        <ContentsPopover
-          label={t("viewer.outline")}
-          rows={outline}
-          current={currentRow(outline, page)}
-          toggle={toggle}
-          onPick={(index) => {
-            setContentsOpen(false);
-            goTo(outline[index]?.page ?? page);
-            pane.current?.focus({ preventScroll: true });
-          }}
-          onClose={closeContents}
-        />
-      )}
-      <div className="pdf-scroll" ref={scroller}>
-        <div className="pdf-sheet" style={{ "--total-scale-factor": scale } as React.CSSProperties}>
+      </div>
+      <div className="pdf-scroll sb-reader__view" ref={scroller}>
+        <div className="pdf-sheet" ref={sheet} style={{ "--total-scale-factor": scale } as React.CSSProperties}>
           <canvas className="pdf-canvas" ref={canvas} />
           <div className="textLayer" ref={textLayer} />
         </div>

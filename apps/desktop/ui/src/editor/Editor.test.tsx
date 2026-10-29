@@ -131,3 +131,34 @@ describe("Editor keeps the place", () => {
   });
 });
 
+
+// spec/02 §4.21: ← → in the tab list choose and focus a tab; the note it
+// shows mounts its editor, which must not take the focus from the tab list.
+describe("Editor takes the focus", () => {
+  beforeEach(() => {
+    forgetPositions();
+    deferLine(null);
+    doc("a.md", TEXT);
+  });
+
+  it("when it is built for a note", async () => {
+    const { view, unmount } = await mount("a.md");
+    expect(document.activeElement).toBe(view.contentDOM);
+    unmount();
+  });
+
+  it("but leaves it in the tab list that chose the note", async () => {
+    const strip = document.createElement("div");
+    strip.setAttribute("role", "tablist");
+    const tab = document.createElement("button");
+    tab.setAttribute("role", "tab");
+    strip.append(tab);
+    document.body.append(strip);
+    tab.focus();
+
+    const { unmount } = await mount("a.md");
+    expect(document.activeElement).toBe(tab);
+    unmount();
+    strip.remove();
+  });
+});

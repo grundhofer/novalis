@@ -14,7 +14,7 @@ import { isSupported } from "./fileTypes";
  * it is (ADR-0047); `novalis://today` is Today's Note;
  * `novalis://open?path=<vault path>` opens that file or board. Everything
  * else — a type novalis does not open, a link it does not know — is said in
- * a toast; nothing switches vaults.
+ * the action zone; nothing switches vaults.
  */
 export function handleOpenRequests(items: readonly OpenRequestDto[]): void {
   for (const item of items) {
@@ -37,7 +37,7 @@ function openFile(absolute: string): void {
     void useTabs.getState().open(absolute).catch(report);
     return;
   }
-  useUi.getState().showToast("app.openUnsupported", { path: absolute });
+  useUi.getState().showMessage("app.openUnsupported", { path: absolute });
 }
 
 function openLink(raw: string): void {
@@ -45,7 +45,7 @@ function openLink(raw: string): void {
   try {
     url = new URL(raw);
   } catch {
-    useUi.getState().showToast("app.openLinkRefused", { url: raw });
+    useUi.getState().showMessage("app.openLinkRefused", { url: raw });
     return;
   }
   if (url.hostname === "today") {
@@ -63,5 +63,5 @@ function openLink(raw: string): void {
     void useBoard.getState().load(board.slug).catch(report);
     return;
   }
-  useUi.getState().showToast("app.openLinkRefused", { url: raw });
+  useUi.getState().showMessage("app.openLinkRefused", { url: raw });
 }
