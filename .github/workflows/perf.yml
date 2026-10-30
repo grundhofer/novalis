@@ -45,7 +45,7 @@ jobs:
           toolchain: "1.96.0"
 
       - name: Cargo cache
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: "."
 
@@ -85,7 +85,7 @@ jobs:
       - name: Upload perf.json
         # `always()`: a breach is exactly when the numbers are worth keeping.
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.0
         with:
           # The commit only: an artifact name may not contain a slash, and
           # `ref_name` is `fix/perf-gate` on a branch. The ref is recorded
