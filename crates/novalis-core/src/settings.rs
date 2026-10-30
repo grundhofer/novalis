@@ -1,6 +1,7 @@
-//! The settings file (PLAN.md §5.5, ADR-0004): four settings plus the
-//! `version` stamp and `lastVault` state. `deny_unknown_fields` and a parity
-//! test against `docs/SETTINGS.md` keep the allow-list honest (rule 11).
+//! The settings file (PLAN.md §5.5, ADR-0004): six settings (ADR-0049,
+//! ADR-0051) plus the `version` stamp and `lastVault` state.
+//! `deny_unknown_fields` and a parity test against `docs/SETTINGS.md` keep
+//! the allow-list honest (rule 11).
 
 use std::path::Path;
 
@@ -30,6 +31,15 @@ pub enum Appearance {
     Dark,
 }
 
+/// sebaro's colour tone „Farbton: Kühl · Warm“ (FAR-15, ADR-0051).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Tone {
+    #[default]
+    Cool,
+    Warm,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields, default)]
 pub struct EditorSettings {
@@ -48,6 +58,8 @@ pub struct Settings {
     pub version: u32,
     pub language: Language,
     pub appearance: Appearance,
+    /// The colour tone beside the appearance (ADR-0051).
+    pub tone: Tone,
     pub editor: EditorSettings,
     pub spellcheck: bool,
     /// Always reduce motion, whatever macOS says (ADR-0049).
@@ -61,6 +73,7 @@ impl Default for Settings {
             version: SETTINGS_VERSION,
             language: Language::System,
             appearance: Appearance::System,
+            tone: Tone::Cool,
             editor: EditorSettings::default(),
             spellcheck: true,
             reduce_motion: false,
@@ -138,7 +151,7 @@ mod tests {
         assert_eq!(
             json,
             serde_json::json!({
-                "version": 1, "language": "system", "appearance": "system",
+                "version": 1, "language": "system", "appearance": "system", "tone": "cool",
                 "editor": {"fontSize": 16}, "spellcheck": true, "reduceMotion": false,
                 "lastVault": null
             })
@@ -156,6 +169,17 @@ mod tests {
         assert_eq!(s.appearance, Appearance::Dark);
         assert_eq!(s.editor.font_size, 16);
         assert!(serde_json::from_str::<Settings>(r#"{"language":"fr"}"#).is_err());
+    }
+
+    // ADR-0051: a file written before the tone existed loads as cool, and
+    // only the two values load.
+    #[test]
+    fn tone_defaults_to_cool_and_takes_warm() {
+        let s: Settings = serde_json::from_str(r#"{"version":1,"appearance":"dark"}"#).unwrap();
+        assert_eq!(s.tone, Tone::Cool);
+        let s: Settings = serde_json::from_str(r#"{"version":1,"tone":"warm"}"#).unwrap();
+        assert_eq!(s.tone, Tone::Warm);
+        assert!(serde_json::from_str::<Settings>(r#"{"tone":"paper"}"#).is_err());
     }
 
     #[test]

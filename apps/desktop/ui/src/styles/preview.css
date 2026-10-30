@@ -1,253 +1,162 @@
 /* The read-only preview (ADR-0020). Loaded with the Preview chunk, never with
-   the shell: index.html's stylesheet is at the 20 kB budget (PLAN.md §11.3).
-   Tokens only, like every other stylesheet here. The type mirrors the editor
-   (editor/theme.ts): the same measure, size, line height and heading scale,
-   so `Cmd+E` changes the rendering, not the page. */
+   the shell (PLAN.md §11.3). Tokens only, like every other stylesheet here.
+
+   The body is sebaro's `.sb-prose` (ADR-0051, TXT-06): the 70ch measure,
+   the 12 px stack, H2 and H3 with their room above, the link style with its
+   visited line and the external-link icon (LNK-01, LNK-02), the quote's ink
+   line (TXT-17), the hairline rule and the column-wide image; sebaro's
+   element rules give inline code its `surface-sunken` (FAR-05) and `mark`
+   the search hit (FAR-12). The core's fragment is dressed for the rest in
+   Preview.tsx (`dressFragment`): `pre.sb-code`, `table.sb-table` in its
+   wrap, the task box in `span.sb-checkbox`.
+
+   What stays here is what sebaro sets in rem, where the preview needs the
+   editor's size (`editor.fontSize`): the type mirrors the editor
+   (editor/theme.ts) — the same size, line height and heading scale in em —
+   so `Cmd+E` changes the rendering, not the page (ADR-0051 #27.2, #27.4;
+   docs/sebaro-luecken.md B "Editor", K). */
 
 /* --------------------------------------------------------------- preview */
 .preview {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--ds-space-7) var(--ds-space-9) 40vh;
-  background: var(--ds-color-bg-canvas);
+  padding: var(--sb-space-5) var(--sb-space-8) 40vh;
+  background: var(--sb-color-bg);
 }
 
 .preview-body {
-  max-width: var(--ds-measure-editor);
   margin: 0 auto;
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-font-size-editor);
-  line-height: var(--ds-line-height-editor);
-  color: var(--ds-color-fg-default);
+  font-family: var(--sb-font-family-ui);
+  font-size: var(--sb-x-sebaro-editor-size);
+  line-height: var(--sb-type-body-line-height);
+  letter-spacing: var(--sb-type-body-tracking);
+  color: var(--sb-color-text);
   overflow-wrap: break-word;
 }
 
-.preview-body > :first-child {
-  margin-top: 0;
-}
-
 /* ------------------------------------------------------------------ text */
-.preview-body h1,
-.preview-body h2,
-.preview-body h3,
-.preview-body h4,
-.preview-body h5,
-.preview-body h6 {
-  margin: 1.4em 0 0.5em;
-  font-weight: var(--ds-font-weight-strong);
-  line-height: 1.25;
-  color: var(--ds-color-syntax-heading);
+/* Headings on sebaro's scale relative to the editor's size, as the editor
+   draws them (ADR-0051 #27.4): h1 headline (1.75em), h2 title (1.25em),
+   h3 to h6 body-strong (1em), each with its role's weight, line and
+   tracking. sebaro's element rules set h1 to display and h2 to headline in
+   rem. */
+.preview-body :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--sb-font-family-ui);
+  color: var(--sb-color-text);
 }
 
 .preview-body h1 {
-  font-size: 1.55em;
-  letter-spacing: var(--ds-letter-spacing-title);
+  font-size: 1.75em;
+  font-weight: var(--sb-type-headline-weight);
+  line-height: var(--sb-type-headline-line-height);
+  letter-spacing: var(--sb-type-headline-tracking);
 }
 
 .preview-body h2 {
-  font-size: 1.24em;
-  letter-spacing: -0.02em;
+  font-size: 1.25em;
+  font-weight: var(--sb-type-title-weight);
+  line-height: var(--sb-type-title-line-height);
+  letter-spacing: var(--sb-type-title-tracking);
 }
 
-.preview-body h3 {
-  font-size: 1.1em;
-}
-
-.preview-body h4,
-.preview-body h5,
-.preview-body h6 {
+.preview-body :is(h3, h4, h5, h6) {
   font-size: 1em;
+  font-weight: var(--sb-type-body-strong-weight);
+  line-height: var(--sb-type-body-strong-line-height);
+  letter-spacing: var(--sb-type-body-strong-tracking);
 }
 
-.preview-body p,
-.preview-body ul,
-.preview-body ol,
-.preview-body pre,
-.preview-body table,
-.preview-body blockquote,
-.preview-body .preview-diagram {
-  margin: 0 0 0.9em;
-}
+/* An H1 inside a note stands 48 px under the block above it (`* + h1`,
+   NV-K2, D105), and the first block, an H2 or H3 too, has no room above
+   (D108, NV-Y2): both from sebaro.css. */
 
-.preview-body ul,
-.preview-body ol {
-  padding-left: 1.6em;
-}
+/* The quote and the bare code block keep the prose's 12 px stack above
+   them: sebaro.css writes their margin resets in `:where()` (NV-K6). */
 
-.preview-body li > ul,
-.preview-body li > ol,
-.preview-body li > p {
-  margin-bottom: 0;
-}
-
-/* Links in text colour with the 2 px cobalt line (sebaro D52/D55). */
-.preview-body a {
-  color: inherit;
-  text-decoration: underline var(--ds-line-link) var(--ds-color-accent-default);
-  text-underline-offset: 0.2em;
-}
-
-.preview-body a:hover {
-  color: var(--ds-color-accent-text);
-}
-
-/* The external-link icon after a link that leaves the app (sebaro D56):
-   16 px, 2 px from the word, in the link's colour, outside its underline. */
-.preview-body a .icon-16 {
-  display: inline-block;
-  margin-left: 2px;
-  vertical-align: -0.15em;
-  stroke-width: 1.5;
-}
+/* Lists: sebaro.css indents a list of the body, one in a list item and
+   one in a quote 1.5em, in em of the editor's size here, so a task box,
+   which sebaro moves 1.5em back into the marker's place, lands there
+   (NV-K3, D105, D108 NV-Y2, CHECKS §38); it draws the quote line (TXT-17) on a
+   quote in a list item too. */
 
 .preview-body strong {
-  font-weight: var(--ds-font-weight-medium);
+  font-weight: var(--sb-type-body-strong-weight);
 }
 
-.preview-body blockquote {
-  padding-left: var(--ds-space-5);
-  border-left: 2px solid var(--ds-color-fg-subtle);
-  color: var(--ds-color-syntax-quote);
+/* A task box: sebaro's `span.sb-checkbox` in a list item (EIN-03;
+   Preview.tsx): sebaro.css takes the marker away, gives the 20 px box a
+   24 px target on the text's foot and moves it into the marker's place, so
+   that box and the renderer's space after it fill the 1.5em indent and the
+   words of every line start at the content edge (NV-K5, D105; D108 NV-Y1,
+   NV-Z2-1). Its margins are in em of the box's own font, which is the
+   line's here (the editor's size), not body's rem. */
+.preview-body .sb-checkbox {
+  font: inherit;
+  letter-spacing: inherit;
 }
 
-.preview-body hr {
-  height: 0;
-  margin: 1.4em 0;
-  border: 0;
-  border-top: 1px solid var(--ds-color-border-default);
-}
-
-/* Task lists: the core writes the boxes `disabled`; a list item's box is
-   enabled and clickable, the one write the preview makes (ADR-0039). */
-.preview-body input[type="checkbox"] {
-  margin: 0 0.4em 0 0;
-  vertical-align: -0.08em;
-  accent-color: var(--ds-color-accent-default);
-}
-
-.preview-body sup {
+/* Footnotes: sebaro's digit `sb-note-ref` and list `sb-notes` (spec/03
+   §5.2, §5.3, D102 (32), ADR-0051 #40; Preview.tsx `dressFootnotes`), at
+   the editor's size where sebaro sets rem: the digit 0.75em of its line,
+   the title in the label role and the notes in caption, both 0.875em, the
+   notes in `text` (sebaro's `sb-note`; before, `text-muted`, #27.1). The
+   list's indent, the gap between notes and the ring a focused note does
+   not show while its edge stands are sebaro.css's (D108 NV-X4, NV-X6). */
+.preview-body .sb-note-ref {
   font-size: 0.75em;
-  line-height: 0;
 }
 
-.preview-body .footnote-definition {
-  display: flex;
-  gap: var(--ds-space-3);
-  font-size: 0.9em;
-  color: var(--ds-color-fg-muted);
+.preview-body .sb-notes__title {
+  margin: 0 0 var(--sb-space-2);
+  font-size: 0.875em;
+  font-weight: var(--sb-type-label-weight);
+  line-height: var(--sb-type-label-line-height);
+  letter-spacing: var(--sb-type-label-tracking);
 }
 
-.preview-body .footnote-definition p {
-  margin: 0;
+.preview-body .sb-note {
+  font-size: 0.875em;
 }
 
 /* ------------------------------------------------------------------ code */
-.preview-body code {
-  padding: 0 0.28em;
-  border-radius: var(--ds-radius-chip);
-  background: var(--ds-color-bg-raised);
-  font-family: var(--ds-font-mono);
-  font-size: 0.9em;
-  letter-spacing: var(--ds-letter-spacing-mono);
-  color: var(--ds-color-syntax-code);
+/* Inline code and the bare `pre.sb-code` (TXT-08, spec/02 §3.10) at the
+   code role's size relative to the editor's (sebaro sets 0.875rem). */
+.preview-body code,
+.preview-body pre.sb-code {
+  font-size: 0.875em;
 }
 
-.preview-body pre {
-  padding: var(--ds-space-5) var(--ds-space-6);
-  border: 1px solid var(--ds-color-border-default);
-  border-radius: var(--ds-radius-control);
-  background: var(--ds-color-bg-raised);
-  overflow-x: auto;
+.preview-body pre.sb-code code {
+  font-size: inherit;
 }
 
-.preview-body pre code {
-  padding: 0;
-  border-radius: 0;
-  background: none;
-  font-size: 0.86em;
-  color: var(--ds-color-fg-default);
-}
-
-/* A fence's tokens (ADR-0022 point 8): one class per look of the editor's
-   code rules (editor/theme.ts CODE_RULES), on the same tokens; the test
-   beside editor/fences.ts reads these rules and compares them. */
-.preview-body .tok-keyword {
-  color: var(--ds-color-syntax-keyword);
-}
-
-.preview-body .tok-string {
-  color: var(--ds-color-syntax-string);
-}
-
-.preview-body .tok-comment {
-  color: var(--ds-color-syntax-comment);
-}
-
-.preview-body .tok-number {
-  color: var(--ds-color-syntax-number);
-}
-
-.preview-body .tok-type {
-  color: var(--ds-color-syntax-type);
-}
-
-.preview-body .tok-property {
-  color: var(--ds-color-fg-muted);
-}
-
-.preview-body .tok-invalid {
-  color: var(--ds-color-syntax-invalid);
-}
-
-.preview-body .tok-function {
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.preview-body .tok-marker {
-  color: var(--ds-color-syntax-marker);
-}
-
-.preview-body .tok-inserted {
-  color: var(--ds-color-success-text);
-}
-
-.preview-body .tok-deleted {
-  color: var(--ds-color-warning-text);
-}
+/* A fence's tokens (ADR-0022 point 8) wear sebaro's `sb-tok-<look>`
+   classes (editor/fences.ts), which sebaro.css §6 colours (TEC-08); the
+   test beside editor/fences.ts holds the editor's code rules to them. */
 
 /* ----------------------------------------------------------------- table */
-.preview-body table {
-  border-collapse: collapse;
-  font-size: 0.94em;
+/* `table.sb-table` in its wrap (DAT-05; Preview.tsx): sebaro's cells, heads
+   and lines, at the editor's size instead of the rem of body and label. A
+   column of numbers is `.sb-num`, which sebaro.css sets end-aligned with
+   tabular figures (spec/02 §3.9, ADR-0051 #53); the other cells keep the
+   text's figures. */
+.preview-body .sb-table {
+  font-size: 1em;
 }
 
-.preview-body th,
-.preview-body td {
-  padding: var(--ds-space-2) var(--ds-space-5);
-  border: 1px solid var(--ds-color-border-default);
-  text-align: left;
-  vertical-align: top;
-}
-
-.preview-body th {
-  font-weight: var(--ds-font-weight-strong);
-  background: var(--ds-color-bg-raised);
+.preview-body .sb-table th {
+  font-size: 0.875em;
 }
 
 /* ---------------------------------------------------------------- images */
-.preview-body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--ds-radius-chip);
-}
-
 /* One the viewer shows opens there on a click (ADR-0025). */
 .preview-body img[data-open] {
   cursor: pointer;
 }
 
-/* A mermaid diagram: centred, and a wide one scrolls rather than the page. */
+/* A mermaid diagram: centred, and a wide one scrolls rather than the page.
+   Its colours are sebaro's tokens (Preview.tsx `mermaidVariables`). */
 .preview-diagram {
   display: flex;
   justify-content: center;
@@ -260,86 +169,74 @@
 }
 
 /* ------------------------------------------------------------------ find */
-/* `Cmd+F` over the rendered note: a bar above the scrolling pane, its
-   buttons the `.btn.ghost.tool` glyphs of the tab strip, its field the
-   dialog's at row height. The hits are marked like the editor's
-   (editor/theme.ts): every match in the match colour, the current one in
-   the accent. */
-.preview-find {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-3);
-  flex: 0 0 auto;
-  padding: var(--ds-space-3) var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  background: var(--ds-color-bg-surface);
-  font-size: var(--ds-font-size-ui-sm);
-}
+/* `Cmd+F` over the rendered note is sebaro's find bar over the text
+   (`.sb-find-bar`, `.sb-doc-bar`, `__count`; spec/02 §4.25.2, D104 (3)),
+   all from sebaro.css. */
 
-/* As wide as the sidebar, never the whole pane; a narrow pane shrinks it. */
-.preview-find-input {
-  flex: 0 1 var(--ds-size-sidebar);
-  min-width: 0;
-  height: 24px;
-  padding: 0 var(--ds-space-4);
-  border: 1px solid var(--ds-color-border-control);
-  border-radius: var(--ds-radius-chip);
-  background: var(--ds-color-bg-surface);
-  color: var(--ds-color-fg-default);
-  font: inherit;
-  outline: none;
-}
-
-.preview-find-input:focus {
-  border-color: var(--ds-color-accent-default);
-}
-
-.preview-find-count {
-  flex: 0 0 auto;
-  font-family: var(--ds-font-mono);
-  letter-spacing: var(--ds-letter-spacing-mono);
-  color: var(--ds-color-fg-subtle);
-  white-space: nowrap;
-}
-
-mark.preview-hit {
-  background: var(--ds-color-editor-match);
-  color: inherit;
-}
-
-mark.preview-hit.current {
-  background: var(--ds-color-accent-fill);
-  outline: 1px solid var(--ds-color-accent-line);
-}
-
-/* The block a jump (a backlink's) landed on, lit for a moment: the preview
-   has no cursor to show the place. */
+/* The block a jump (a backlink's) landed on: the preview has no cursor to
+   show the place, so the block carries the 3 px place line until the next
+   key or press (spec/02 §5, D102 (32)), 12 px before its text, the text not
+   moving; a list item's line stands 12 px before its list, so before its
+   marker. sebaro.css draws it for `:target` and its direct children of
+   `.sb-prose`; a jump here lands on any block with a source span, so the
+   line is drawn here, the same 3 px, 12 px and accent. It goes as it fades
+   (BEW-01: no movement, only the line's opacity, on sebaro's duration, 1 ms
+   under reduced motion). */
 .preview [data-pos] {
-  transition: background-color var(--ds-motion-duration) var(--ds-motion-ease);
+  position: relative;
 }
 
-.preview [data-pos].preview-target {
-  background-color: var(--ds-color-editor-match);
+.preview [data-pos]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(-1 * (var(--sb-space-3) + var(--sb-border-width-strong)));
+  inline-size: var(--sb-border-width-strong);
+  background: var(--sb-color-accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sb-motion-duration-medium) var(--sb-motion-easing-standard);
+}
+
+.preview li[data-pos]::before {
+  inset-inline-start: calc(-1.5em - var(--sb-space-3) - var(--sb-border-width-strong));
+}
+
+.preview [data-pos].preview-target::before {
+  opacity: 1;
 }
 
 /* ----------------------------------------------------------------- table */
-/* A CSV or TSV behind the eye (`TablePreview.tsx`, ADR-0025). The inner box
-   is as wide as the header's grid, so the absolutely placed rows under it
-   are too, and the pane scrolls both ways; the header sticks to the top. */
+/* A CSV or TSV behind the preview switch (`TablePreview.tsx`, ADR-0025) in
+   sebaro's table look (`div.sb-table[role=table]`, spec/02 §3.9, DAT-05): sebaro.css
+   gives the cells their padding, hairlines and fonts — heads in `label`
+   over `border-strong`, rows in `body` — at zero weight under this layout.
+   The inner box is as wide as the header's grid, so the absolutely placed
+   rows under it are too, and the pane scrolls both ways; the header sticks
+   to the top on the view's ground, so rows do not show through it. */
 .table-preview {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: var(--ds-color-bg-canvas);
+  padding-inline: var(--sb-space-4);
+  background: var(--sb-color-bg);
+}
+
+/* One line whose height follows the root font; never seen. */
+.table-probe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  font: var(--sb-type-body);
 }
 
 .table-inner {
   display: inline-block;
   min-width: 100%;
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-font-size-ui);
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-color-fg-default);
+  inline-size: auto;
+  font-variant-numeric: var(--sb-type-numeric-variant);
+  color: var(--sb-color-text);
 }
 
 .table-head {
@@ -347,14 +244,7 @@ mark.preview-hit.current {
   position: sticky;
   top: 0;
   z-index: 1;
-  border-bottom: 1px solid var(--ds-color-border-strong);
-  background: var(--ds-color-bg-raised);
-}
-
-/* On the cells, not the row: the columns are in `ch` of the row's own font,
-   and a bolder row would have wider columns than the body's. */
-.table-head .table-cell {
-  font-weight: var(--ds-font-weight-strong);
+  background: var(--sb-color-bg);
 }
 
 .table-body {
@@ -367,27 +257,28 @@ mark.preview-hit.current {
   top: 0;
   left: 0;
   right: 0;
-  border-bottom: 1px solid var(--ds-color-border-default);
 }
 
-.table-cell {
-  padding: var(--ds-space-2) var(--ds-space-3);
+/* One line each (ADR-0051 #24): the full value is the cell's `title`. In
+   the window the block padding is `space-1`, not the page's 12 px
+   (docs/sebaro-luecken.md K); `tableRowHeight` counts with it. */
+.table-preview .table-cell {
+  padding-block: var(--sb-space-1);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  border-right: 1px solid var(--ds-color-border-default);
 }
 
 /* ------------------------------------------------------------------- svg */
-/* An SVG behind the eye (`SvgPreview.tsx`, ADR-0025): the picture, fitted. */
+/* An SVG behind the preview switch (`SvgPreview.tsx`, ADR-0025): the picture, fitted. */
 .svg-preview {
   display: flex;
   flex: 1;
   min-height: 0;
   align-items: center;
   justify-content: center;
-  padding: var(--ds-space-6);
-  background: var(--ds-color-bg-canvas);
+  padding: var(--sb-space-4);
+  background: var(--sb-color-bg);
 }
 
 .svg-preview-image {

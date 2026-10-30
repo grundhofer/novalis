@@ -5,7 +5,84 @@
   min-height: 0;
   align-items: center;
   justify-content: center;
-  background: var(--ds-color-bg-canvas);
+  background: var(--sb-color-bg);
+}
+
+/* ------------------------------------------------------------------- bar */
+/* The bar of every reader (the PDF's, the book's, and the image zoom's that
+   the comic shares; ADR-0016, ADR-0023, ADR-0025) is sebaro's reader row
+   (`sb-doc-bar`, spec/02 §4.25.3, D104 (5)–(7)) from sebaro.css: tools,
+   the page field `sb-field--number`, the count `__count`, the zoom value
+   `__value`, the divider `__sep`; it wraps at a large root font. The head
+   carries the contents popover over the reader, so it lies on sebaro's
+   dropdown layer. */
+.viewer-head {
+  position: relative;
+  z-index: var(--sb-layer-dropdown);
+  flex: 0 0 auto;
+}
+
+/* The zoom tools, their value and the fit tool wrap as one unit, also on a
+   row of their own at a large root font; only when the unit is wider than
+   the whole bar do its parts wrap. sebaro's row has no such unit
+   (docs/sebaro-luecken.md O „Werkzeugleiste beim Umbruch“). */
+.viewer-bar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sb-space-0-5);
+}
+
+/* The book's title takes the room between „Inhalt“ and the chapter tools
+   and wraps (ADR-0051 #24): no „…“. */
+.viewer-bar__title {
+  flex: 1 1 8em;
+  min-inline-size: 0;
+  padding-inline: var(--sb-space-1);
+  overflow-wrap: break-word;
+}
+
+/* The PDF's page field takes a number input; its spin buttons go, as
+   sebaro's field (a text input) has none. */
+.sb-reader .sb-field--number input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.sb-reader .sb-field--number input[type="number"]::-webkit-inner-spin-button,
+.sb-reader .sb-field--number input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* The table of contents (`ContentsPopover.tsx`), the PDF outline's too
+   (ADR-0025): sebaro's contents over a reader (`.sb-toc--overlay`, D102
+   (34)). It hangs under the bar and over the text, so opening it moves
+   nothing, no wider than sebaro's overlay and the bar less its gutter
+   (the end margin narrows the room an absolute box shrinks into), at most
+   60vh high, then it scrolls. What sebaro has no rule for: a wrapped title
+   keeps the room above and below that the one-line row has, at least
+   `--sb-space-1` in rem, and an entry is indented 16 px per level at any
+   depth, as the tree is, by an empty first flex item ahead of sebaro's own
+   padding (sebaro.css indents one nested `ol`). */
+.viewer-contents {
+  position: absolute;
+  top: 100%;
+  inset-inline-start: var(--sb-space-3);
+  margin-inline-end: var(--sb-space-3);
+  max-block-size: 60vh;
+  overflow-y: auto;
+}
+
+.viewer-contents.sb-toc--overlay[data-sb-density="window"] a {
+  padding-block: max(
+    var(--sb-space-1),
+    calc((var(--sb-size-control-sm) - var(--sb-type-label-size) * var(--sb-type-label-line-height)) / 2)
+  );
+}
+
+.viewer-contents.sb-toc--overlay a::before {
+  content: "";
+  flex: none;
+  inline-size: calc(var(--depth, 0) * var(--sb-space-4));
 }
 
 /* ------------------------------------------------------------------ zoom */
@@ -23,29 +100,18 @@
   align-self: stretch;
 }
 
-.zoom-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  flex: 0 0 auto;
-  height: var(--ds-size-tabstrip);
-  padding: 0 var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-muted);
-}
-
+/* The view is sebaro's `sb-reader__view` without an `sb-reader` around it
+   (docs/sebaro-luecken.md O): its grid sets a lone image in the middle
+   both ways (D108 NV-Y7); the sheet's auto margins keep a zoomed image that
+   is larger than the view at its start, so all of it scrolls into view.
+   Here it only fills the viewer's column. */
 .zoom-scroll {
-  display: flex;
   flex: 1;
   min-height: 0;
-  overflow: auto;
 }
 
 .zoom-sheet {
   margin: auto;
-  padding: var(--ds-space-5);
 }
 
 .zoom-image {
@@ -59,92 +125,20 @@
 }
 
 /* ------------------------------------------------------------------- pdf */
+/* sebaro's reader (`.sb-reader`, a grid of the bar and the view) fills the
+   viewer pane; the view (`sb-reader__view`) is the sunken ground the page
+   stands on, and scrolls. */
 .pdf {
-  display: flex;
   flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
   align-self: stretch;
   position: relative;
   outline: none;
 }
 
-.pdf-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  flex: 0 0 auto;
-  height: var(--ds-size-tabstrip);
-  padding: 0 var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-muted);
-}
-
-.btn.ghost.pdf-tool {
-  height: 22px;
-  min-width: 22px;
-  padding: 0 var(--ds-space-2);
-  justify-content: center;
-  border-radius: var(--ds-radius-chip);
-  font-size: var(--ds-font-size-ui-sm);
-  color: var(--ds-color-fg-subtle);
-}
-
-.btn.ghost.pdf-tool.wide {
-  padding: 0 var(--ds-space-3);
-}
-
-.btn.ghost.pdf-tool:disabled {
-  opacity: 0.35;
-}
-
-.btn.ghost.pdf-tool.on {
-  border-color: var(--ds-color-accent-line);
-  background: var(--ds-color-accent-fill);
-  color: var(--ds-color-accent-text);
-}
-
-.pdf-page {
-  width: 3.5em;
-  height: 22px;
-  padding: 0 var(--ds-space-2);
-  border: 1px solid var(--ds-color-border-control);
-  border-radius: var(--ds-radius-chip);
-  background: var(--ds-color-bg-surface);
-  color: var(--ds-color-fg-default);
-  font: inherit;
-  text-align: center;
-  outline: none;
-  -moz-appearance: textfield;
-}
-
-.pdf-page::-webkit-inner-spin-button,
-.pdf-page::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-}
-
-.pdf-page:focus {
-  border-color: var(--ds-color-accent-default);
-}
-
-.pdf-spacer {
-  flex: 1;
-}
-
-.pdf-zoom {
-  min-width: 4em;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
+/* The gutter stays when a classic scrollbar comes and goes, so fit width
+   does not flip between two scales as the page's height crosses the pane's. */
 .pdf-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: var(--ds-space-6);
+  scrollbar-gutter: stable;
 }
 
 /* The page: canvas below, text above. pdf.js sizes the text layer from
@@ -155,16 +149,17 @@
   position: relative;
   margin: 0 auto;
   width: fit-content;
-  border: 1px solid var(--ds-color-border-strong);
+  border: var(--sb-border-width-hairline) solid var(--sb-color-border-strong);
 }
 
 .pdf-canvas {
   display: block;
-  background: var(--ds-color-bg-surface);
+  background: var(--sb-color-surface);
 }
 
 /* pdf.js text layer (its own class name, which the library sets up) —
-   the rules its viewer stylesheet has, reduced to selection. */
+   the rules its viewer stylesheet has, reduced to selection. The selection
+   is sebaro's own `::selection` (`--sb-color-selection`, FAR-03). */
 .textLayer {
   position: absolute;
   inset: 0;
@@ -185,6 +180,7 @@
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -201,10 +197,6 @@
   display: contents;
 }
 
-.textLayer ::selection {
-  background: var(--ds-color-accent-fill);
-}
-
 /* ------------------------------------------------------------------ epub */
 /* The reader (ADR-0023). The chapter itself is dressed inside the shadow
    root (`EpubViewer.tsx`); what is here is the pane around it. */
@@ -216,79 +208,6 @@
   min-height: 0;
   align-self: stretch;
   position: relative;
-}
-
-.epub-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  flex: 0 0 auto;
-  height: var(--ds-size-tabstrip);
-  padding: 0 var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono);
-  color: var(--ds-color-fg-muted);
-}
-
-.epub-title {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--ds-color-fg-subtle);
-}
-
-.epub-count {
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-/* The table of contents (`ContentsPopover.tsx`), the PDF outline's too
-   (ADR-0025). It hangs under the bar and over the text, so opening it moves
-   nothing; a nested entry is indented by its depth. */
-.contents {
-  position: absolute;
-  z-index: 2;
-  top: var(--ds-size-tabstrip);
-  left: var(--ds-space-5);
-  max-width: 32em;
-  max-height: 60%;
-  overflow-y: auto;
-  padding: var(--ds-space-2);
-  border: var(--ds-line-ink) solid var(--ds-color-line-ink);
-  border-radius: var(--ds-radius-container);
-  background: var(--ds-color-bg-canvas);
-}
-
-.contents-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.contents-row {
-  display: block;
-  width: 100%;
-  padding: var(--ds-space-2) var(--ds-space-3);
-  padding-left: calc(var(--ds-space-3) + var(--depth, 0) * var(--ds-space-4));
-  border: 0;
-  border-radius: var(--ds-radius-control);
-  background: none;
-  color: var(--ds-color-fg-default);
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-font-size-ui);
-  text-align: left;
-  cursor: pointer;
-}
-
-.contents-row:hover {
-  background: var(--ds-color-bg-hover);
-}
-
-.contents-row.on {
-  color: var(--ds-color-accent-text);
-  background: var(--ds-color-accent-fill);
 }
 
 .epub-scroll {
@@ -311,12 +230,6 @@
   min-width: 0;
   min-height: 0;
   align-self: stretch;
-}
-
-.cbz-count {
-  min-width: 8em;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------------ docx */

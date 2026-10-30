@@ -33,7 +33,7 @@ use novalis_core::vault::path::{
 use novalis_core::vault::walk::walk_files;
 use novalis_core::{CoreError, PathReason};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::dto::*;
@@ -231,8 +231,8 @@ pub(crate) fn read_ui_state(path: &Path) -> UiStateDto {
     serde_json::from_value(value).unwrap_or_default()
 }
 
-/// Write `state.json` atomically. `quit` is a request, not state: it never
-/// reaches the file.
+/// Write `state.json` atomically. `quit` is a request and `menuTargets` a
+/// runtime fact, not state: neither reaches the file.
 pub(crate) fn write_ui_state(path: &Path, ui_state: &UiStateDto) -> Result<(), CoreError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| CoreError::from_io(parent, e))?;
@@ -240,6 +240,7 @@ pub(crate) fn write_ui_state(path: &Path, ui_state: &UiStateDto) -> Result<(), C
     let mut value = serde_json::to_value(ui_state).map_err(CoreError::from)?;
     if let Some(fields) = value.as_object_mut() {
         fields.remove("quit");
+        fields.remove("menuTargets");
     }
     let mut bytes = serde_json::to_vec_pretty(&value).map_err(CoreError::from)?;
     bytes.push(b'\n');
@@ -253,15 +254,29 @@ pub(crate) fn write_ui_state(path: &Path, ui_state: &UiStateDto) -> Result<(), C
 /// AppKit requires the application menu to be replaced on the main thread. The
 /// rebuild is handed there explicitly rather than relying on the platform layer
 /// to forward it.
-fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state: &UiStateDto) {
+///
+/// `targets` are the UI's, sent with `state_save`; `None` (a settings change,
+/// whose `ui_state` comes from `state.json`) keeps the ones the menu has.
+fn refresh_menu(
+    app: &AppHandle,
+    state: &AppState,
+    settings: &Settings,
+    ui_state: &UiStateDto,
+    targets: Option<MenuTargetsDto>,
+) {
+    let targets = targets.unwrap_or_else(|| state.menu_targets());
+    let sidebar_visible = menu::sidebar_checked(ui_state.sidebar_visible, &targets);
     let shape = MenuShape {
         language: settings.language,
         appearance: settings.appearance,
+        tone: settings.tone,
         spellcheck: settings.spellcheck,
         reduce_motion: settings.reduce_motion,
-        sidebar_visible: ui_state.sidebar_visible,
+        sidebar_visible,
         board_visible: ui_state.board_visible,
         backlinks_visible: ui_state.backlinks_visible,
+        sidebar_width: menu::sidebar_width_step(ui_state.sidebar_width),
+        targets,
     };
     if !state.menu_needs_rebuild(shape) {
         return;
@@ -269,9 +284,11 @@ fn refresh_menu(app: &AppHandle, state: &AppState, settings: &Settings, ui_state
     let catalog = Catalog::load(resolve_locale(settings.language));
     let settings = settings.clone();
     let flags = menu::MenuFlags {
-        sidebar_visible: ui_state.sidebar_visible,
+        sidebar_visible,
         board_visible: ui_state.board_visible,
         backlinks_visible: ui_state.backlinks_visible,
+        sidebar_width: shape.sidebar_width,
+        targets,
     };
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
@@ -891,7 +908,9 @@ pub async fn context_menu(
     let handle = app.clone();
     app.run_on_main_thread(move || {
         let built = match &target {
-            ContextMenuDto::Tree { board } => menu::tree_context(&handle, &catalog, *board),
+            ContextMenuDto::Tree { board, folder } => {
+                menu::tree_context(&handle, &catalog, *board, *folder)
+            }
             ContextMenuDto::Card {
                 columns,
                 column,
@@ -1041,11 +1060,12 @@ pub async fn backlinks(state: State<'_, AppState>, path: String) -> IpcResult<Ba
             notes: rows
                 .into_iter()
                 .zip(snippets)
-                .map(|(row, snippet)| BacklinkDto {
+                .map(|(row, (snippet, snippet_cut_end))| BacklinkDto {
                     title: stem_of(&row.src).to_string(),
                     line: row.line as u32,
                     path: row.src,
                     snippet,
+                    snippet_cut_end,
                 })
                 .collect(),
             cards,
@@ -1305,17 +1325,28 @@ pub async fn settings_set(
 ) -> IpcResult<SettingsDto> {
     let mut settings: Settings = state.settings();
     let spellcheck_before = settings.spellcheck;
+    let look_before = (settings.appearance, settings.tone);
     patch.apply(&mut settings);
     settings.save(&state.settings_path())?;
     if settings.spellcheck != spellcheck_before {
         crate::spelling::seed(settings.spellcheck);
     }
     state.set_settings(settings.clone());
+    // The window's own mode and its ground follow the new choice (DSK-14,
+    // ADR-0051 #22). The mode first: for `system` the ground asks the window
+    // which mode it shows.
+    if (settings.appearance, settings.tone) != look_before {
+        for window in app.webview_windows().values() {
+            let _ = window.set_theme(crate::window::native_theme(settings.appearance));
+            crate::window::paint_ground(window, &settings);
+        }
+    }
     refresh_menu(
         &app,
         &state,
         &settings,
         &read_ui_state(&state.ui_state_path()),
+        None,
     );
     Ok(SettingsDto::from(&settings))
 }
@@ -1334,7 +1365,13 @@ pub async fn state_save(
     // The window's place is the shell's to know (`window.rs`).
     ui_state.window = state.window().or(ui_state.window);
     if !quit {
-        refresh_menu(&app, &state, &state.settings(), &ui_state);
+        refresh_menu(
+            &app,
+            &state,
+            &state.settings(),
+            &ui_state,
+            Some(ui_state.menu_targets),
+        );
     }
     let path = state.ui_state_path();
     let written = blocking(move || Ok(write_ui_state(&path, &ui_state)?)).await;

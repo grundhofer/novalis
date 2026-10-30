@@ -15,11 +15,12 @@ import {
   indentUnit,
   LanguageDescription,
   LanguageSupport,
+  syntaxHighlighting,
   type LRLanguage,
 } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import { EditorState, type Extension } from "@codemirror/state";
+import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { styleTags, tags as t } from "@lezer/highlight";
 import {
   crosshairCursor,
@@ -37,14 +38,18 @@ import {
 
 import { grammarNameOf, presentationOf, PRESETS } from "../lib/fileTypes.presentation";
 import { resolveWikiTarget } from "../lib/links";
+import { sebaroCodeFileTheme, sebaroMarkdownMarkers, sebaroSelectionMark } from "../sebaro/editor/sebaro-codemirror";
 import { attachments } from "./attachments";
+import { insertLink } from "./commands";
 import { decorations, linkAt, tagAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { fenceLanguage } from "./fences";
+import { createFindPanel, goToLine, gotoLinePanel } from "./findPanel";
 import { headingsOf, parseHeadingLink } from "./headingCompletion";
 import { detectIndent } from "./indentDetect";
 import { indentationGuides } from "./indentationGuides";
 import { lineSeparatorFor } from "./lineBreak";
 import { editorPhrases } from "./phrases";
+import { codeHighlight, markdownHighlight } from "./theme";
 import { unresolvedLinks } from "./unresolvedLinks";
 import { CodeText, Tag, WikiLink } from "./markdownExt";
 
@@ -62,7 +67,7 @@ export interface EditorHooks {
   /** The buffer changed. No text: the store reads it once, when it needs it. */
   onChange: () => void;
   onFollowLink: (target: string) => void;
-  /** `Cmd`-click on a `#tag` chip (ADR-0037): the tag, without its `#`. */
+  /** `Cmd`-click on a `#tag` (ADR-0037): the tag, without its `#`. */
   onFollowTag: (tag: string) => void;
   onSave: () => void;
   /** Every note in the vault, for `[[` completion. */
@@ -92,7 +97,10 @@ async function languageFor(path: string): Promise<Extension | null> {
       content: markdown({
         base: markdownLanguage,
         codeLanguages: fenceLanguage,
-        extensions: [WikiLink, Tag, CodeText],
+        // sebaro's markers (spec/09 §17, spec/01 §1.8.1, NV-I4): escapes,
+        // entities, link titles and a task's `[ ]` / `[x]` are markup, grey
+        // like the other markers; fenced code keeps its own escapes.
+        extensions: [WikiLink, Tag, CodeText, sebaroMarkdownMarkers],
       }),
     });
     // The frontmatter's `---` lines are `meta` upstream, which the code rules
@@ -174,8 +182,13 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
   const isMarkdown = grammarNameOf(path) === "Markdown";
 
   const base: Extension[] = [
+    // The Markdown source's looks only in a note; a code file gets sebaro's
+    // code looks alone (spec/01 §1.8.1: a tag not listed is plain).
+    syntaxHighlighting(isMarkdown ? markdownHighlight : codeHighlight),
     history(),
     drawSelection(),
+    // The current line and inline code drop their grounds over a selection (NV-I14).
+    sebaroSelectionMark,
     dropCursor(),
     EditorState.allowMultipleSelections.of(true),
     rectangularSelection(),
@@ -190,10 +203,18 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
     indentUnit.of(options.indent === "\t" ? "\t" : (detectIndent(hooks.text) ?? options.indent)),
     // CRLF stays CRLF (PLAN.md §5.5); the buffer is read with `sliceDoc()`.
     lineSeparatorFor(hooks.text),
-    search({ top: true }),
+    // The find bar and Go to Line in sebaro's parts (ADR-0051 #27.19).
+    search({ top: true, createPanel: createFindPanel }),
+    gotoLinePanel,
     editorPhrases(),
     keymap.of([
       ...closeBracketsKeymap,
+      // Insert Link (ADR-0051) ahead of the default keymap, whose
+      // `Shift-Mod-k` is Delete Line; that one stays on `Ctrl+Shift+K`
+      // through the menu (docs/KEYMAP.md).
+      { key: "Shift-Mod-k", run: insertLink },
+      // The search keymap's own Go to Line, onto the panel `Ctrl+G` opens.
+      { key: "Mod-Alt-g", run: goToLine },
       ...defaultKeymap,
       ...searchKeymap,
       ...historyKeymap,
@@ -221,9 +242,14 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
   // nothing here trims (ADR-0029). The looks are the theme's, in tokens.
   if (hooks.invisibles) base.push(highlightWhitespace(), highlightTrailingWhitespace());
   if (options.numbers) base.push(lineNumbers(), highlightActiveLineGutter());
-  // The code dress (ADR-0022): the class the theme keys its mono rules on,
-  // and indentation guides (PLAN.md §4.3).
-  if (options.mono) base.push(EditorView.editorAttributes.of({ class: "nv-mono" }), indentationGuides);
+  // The code dress (ADR-0022): sebaro's code-file theme (Mono with its
+  // tracking, spec/01 §1.8.2), the class the theme keys its full width on,
+  // and indentation guides (PLAN.md §4.3). The theme is high: it must
+  // outrank `sebaroEditorTheme`'s UI face (theme.ts `editorTheme`), whose
+  // rule is as specific and comes first.
+  if (options.mono) {
+    base.push(Prec.high(sebaroCodeFileTheme), EditorView.editorAttributes.of({ class: "nv-mono" }), indentationGuides);
+  }
 
   // Plain mode: the buffer is the source of truth and nothing decorates it.
   if (hooks.plainMode) return base;

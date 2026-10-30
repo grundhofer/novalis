@@ -59,7 +59,7 @@ pub fn take_pending() -> Vec<OpenRequestDto> {
 
 /// One thing to open. The UI decides what it means: a file the vault lists
 /// becomes its tab, another file the app opens a tab of its own outside the
-/// vault (ADR-0047), anything else is said in a toast.
+/// vault (ADR-0047), anything else is said in the action zone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum OpenRequestDto {
@@ -99,7 +99,7 @@ pub fn opened(app: &AppHandle, urls: &[Url]) {
         return;
     }
     // Only a file the app opens is granted: `open -a novalis` takes any
-    // file, and the UI refuses the others with a toast anyway.
+    // file, and the UI refuses the others in the action zone anyway.
     for item in &items {
         if let OpenRequestDto::File { path } = item {
             if file_types::kind_of(path).is_some() {

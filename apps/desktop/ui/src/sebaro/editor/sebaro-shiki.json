@@ -1,0 +1,154 @@
+{
+  "name": "sebaro",
+  "displayName": "sebaro (spec/01 §1.8, D67)",
+  "type": "light",
+  "colors": {
+    "editor.background": "var(--sb-color-surface-sunken)",
+    "editor.foreground": "var(--sb-color-text)"
+  },
+  "tokenColors": [
+    {
+      "settings": {
+        "foreground": "var(--sb-color-text)"
+      }
+    },
+    {
+      "scope": [
+        "keyword",
+        "storage",
+        "punctuation.decorator",
+        "meta.decorator entity.name.function",
+        "entity.name.function.decorator",
+        "punctuation.definition.decorator",
+        "entity.name.type.annotation",
+        "meta.attribute.rust",
+        "entity.name.function.macro",
+        "meta.preprocessor",
+        "entity.name.tag",
+        "keyword.control.at-rule",
+        "keyword.other.important"
+      ],
+      "settings": {
+        "foreground": "var(--sb-syntax-keyword)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "keyword.operator"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "keyword.operator.expression",
+        "keyword.operator.new",
+        "keyword.operator.word"
+      ],
+      "settings": {
+        "foreground": "var(--sb-syntax-keyword)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "string",
+        "string.regexp",
+        "punctuation.definition.string"
+      ],
+      "settings": {
+        "foreground": "var(--sb-syntax-string)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "constant.numeric",
+        "constant.language",
+        "constant.character",
+        "constant.other",
+        "variable.other.constant",
+        "variable.other.enummember",
+        "keyword.other.unit",
+        "support.constant.color"
+      ],
+      "settings": {
+        "foreground": "var(--sb-syntax-constant)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "meta.template.expression",
+        "meta.embedded.line",
+        "punctuation.definition.template-expression",
+        "punctuation.section.embedded",
+        "variable.string-escape",
+        "constant.character.format.placeholder",
+        "string.unquoted.argument.shell",
+        "string.unquoted.shell",
+        "constant.other.option",
+        "markup.inline.raw",
+        "string.other.link"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "comment",
+        "punctuation.definition.comment"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text-muted)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "punctuation.definition.heading",
+        "punctuation.definition.bold",
+        "punctuation.definition.italic",
+        "punctuation.definition.list",
+        "punctuation.definition.quote",
+        "punctuation.definition.raw",
+        "punctuation.definition.link",
+        "punctuation.definition.metadata",
+        "punctuation.definition.markdown",
+        "meta.separator.markdown",
+        "constant.character.escape.markdown",
+        "string.other.link.description.title.markdown",
+        "punctuation.definition.string.begin.markdown",
+        "punctuation.definition.string.end.markdown"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text-muted)",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "markup.underline.link"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text)",
+        "fontStyle": "underline"
+      }
+    },
+    {
+      "scope": [
+        "invalid",
+        "invalid.illegal"
+      ],
+      "settings": {
+        "foreground": "var(--sb-color-text)",
+        "fontStyle": "underline"
+      }
+    }
+  ]
+}

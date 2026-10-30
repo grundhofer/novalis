@@ -1,104 +1,54 @@
 /* The backlinks pane sits under the editor and never grows past a third of
-   the pane, so the note it is about stays the larger half. */
+   the pane, so the note it is about stays the larger half. sebaro's window
+   has no part under the content (docs/sebaro-luecken.md B „Rückverweise“):
+   the pane is a layer of its own on the ground, with the 2 px ink line above
+   it (EBE-01). sebaro.css builds the head (`sb-list-header`), the rows
+   (`sb-row`) and the empty sentence (`sb-list-end`). Tokens only. */
 .backlinks {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  max-height: 33%;
-  border-top: 1px solid var(--ds-color-border-default);
-  background: var(--ds-color-bg-surface);
+  min-block-size: 0;
+  max-block-size: 33%;
+  border-block-start: var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color);
+  background: var(--sb-color-bg);
 }
 
-.backlinks-head {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-4);
-  height: 28px;
-  flex: 0 0 auto;
-  padding: 0 var(--ds-space-5);
-  border-bottom: 1px solid var(--ds-color-border-default);
+/* An area of F6 (lib/areas.ts, spec/02 §4.20): with no row to press it
+   takes focus itself and shows the 2 px ring inside its edge, as
+   sebaro.css draws it for the window's own areas, which do not name this
+   one (docs/sebaro-luecken.md U). */
+.backlinks:focus-visible {
+  outline: var(--sb-focus-ring);
+  outline-offset: calc(-1 * var(--sb-focus-width));
 }
 
-.backlinks-title {
-  font-size: var(--ds-font-size-ui-sm);
-  font-weight: var(--ds-font-weight-strong);
-  letter-spacing: var(--ds-letter-spacing-ui);
-  text-transform: uppercase;
-  color: var(--ds-color-fg-muted);
+.backlinks > .sb-list-header {
+  flex: none;
 }
 
-.backlinks-counts {
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-color-fg-subtle);
-}
-
+/* The head stays, the rows scroll under it. */
 .backlinks-list {
   flex: 1;
-  min-height: 0;
+  min-block-size: 0;
   overflow-y: auto;
-  padding: var(--ds-space-3) 0;
+  padding-block-end: var(--sb-space-2);
 }
 
-.backlinks-empty {
-  margin: 0;
-  padding: var(--ds-space-4) var(--ds-space-5);
-  color: var(--ds-color-fg-subtle);
+/* The rows wrap their name and their line instead of cutting them
+   (ADR-0051 #24, ZUG-09): the list is not virtualised, so sebaro.css's wrap
+   rule of spec/02 §4.13 holds (D102 (35)), and a wrapped row keeps
+   `--sb-space-1` above and below (D108 NV-Z2-7). A word wider than the
+   line breaks (no sebaro rule; docs/sebaro-luecken.md N). */
+.backlinks .sb-row__main {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.backlink {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-4);
-  width: 100%;
-  padding: var(--ds-space-3) var(--ds-space-5);
-  border: none;
-  background: none;
-  color: var(--ds-color-fg-default);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.backlinks :is(.sb-row__name, .sb-row__sub) {
+  overflow-wrap: break-word;
 }
 
-.backlink:hover {
-  background: var(--ds-color-bg-fill);
-}
-
-.backlink-glyph {
-  flex: 0 0 auto;
-  width: 7px;
-  height: 9px;
-  border: 1px solid var(--ds-color-fg-subtle);
-  border-radius: 1.5px;
-}
-
-/* A card is a different kind of thing from a note, so it gets a different
-   mark rather than the same one with a label. */
-.backlink-glyph.card {
-  width: 9px;
-  height: 7px;
-  border-radius: 1px;
-  border-color: var(--ds-color-accent-default);
-}
-
-.backlink-name {
-  flex: 0 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The line the link sits on, right after the name: it is what tells two
-   links from one note apart, so it reads with the name, not at the far edge
-   of a wide pane. */
-.backlink-meta {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-size-mono-sm);
-  color: var(--ds-color-fg-subtle);
+/* A note whose line could not be read shows its path instead, in sebaro
+   Mono as ADR-0048 keeps paths, at the caption's size. */
+.backlinks .sb-row__sub > .sb-file-name {
+  font-family: var(--sb-font-family-mono);
 }

@@ -11,8 +11,9 @@ import {
 import { resolveWikiTarget } from "../lib/links";
 
 /**
- * `[[links]]` that resolve to no note are drawn dimmed and dashed
- * (ADR-0038), so a link written before its note exists is visible as one;
+ * `[[links]]` that resolve to no note are drawn text-muted without a line
+ * (ADR-0038, amended by ADR-0051 #17), so a link written before its note
+ * exists is visible as one;
  * `Cmd`-click on it offers to create the note.
  */
 

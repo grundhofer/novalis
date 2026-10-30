@@ -103,7 +103,7 @@ describe("useEditorSave.rename", () => {
 describe("useEditorSave.setText", () => {
   beforeEach(() => {
     useEditorSave.setState({ docs: {} });
-    useUi.setState({ toast: null });
+    useUi.setState({ message: null });
     vi.useFakeTimers();
   });
   afterEach(() => {
@@ -114,8 +114,10 @@ describe("useEditorSave.setText", () => {
   // handler. A save that fails for any reason but a conflict (§5.3 handles
   // that one inside `save`) rethrows, and from a timer there is nobody to
   // rethrow to: it went to `unhandledrejection` and painted the fatal overlay
-  // while the user was typing. It is a toast now (`report`, stores/ui.ts).
-  it("reports a failed autosave as a toast", async () => {
+  // while the user was typing. It is said in the action zone now (`report`,
+  // stores/ui.ts).
+  // No action of the user started it: it stays at least 10 s (D102 (11)).
+  it("reports a failed autosave in the action zone, as a failure without a trigger", async () => {
     const boom = new Error("EROFS");
     useEditorSave.setState({
       docs: { "a.md": doc("a.md") },
@@ -126,9 +128,11 @@ describe("useEditorSave.setText", () => {
     await vi.runAllTimersAsync();
 
     expect(useEditorSave.getState().save).toHaveBeenCalledWith("a.md");
-    expect(useUi.getState().toast).toEqual({
+    expect(useUi.getState().message).toEqual({
       key: "errors.internal",
       values: { detail: String(boom) },
+      background: true,
+      since: expect.any(Number),
     });
   });
 });

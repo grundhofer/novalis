@@ -138,3 +138,17 @@ Asked with all viewer questions bundled, the owner chose:
   first, `take()` second), the shell refuses a single `read_packed` call
   whose parts exceed `HUGE_FILE_BYTES` (50 MB) — the same reason
   `read_blob` has one, the IPC carries base64 in a JSON string.
+
+**Amended 2026-10-25** — ADR-0051 (sebaro view step 10): a book or comic
+that will not open is said in sebaro's callout instead of the banner
+(STA-05): a protected one as a warning, an unreadable one as an error, a
+comic without pages as a note. Opening a book or a comic shows an empty,
+busy pane; „Wird geladen …“ only for a cloud-only file after 1 s (STA-06,
+ADR-0051 #27.8). Cloud-only is what the file's tree row says, followed
+while the pane waits: a file opened before its folder is listed (quick
+open, a link, search, the restored session) has its folder listed without
+opening it in the tree, and a wait once named stays named. The chapter's
+dress follows sebaro's prose on its tokens (`lib/documentCss.ts`): the
+link style, the quote's ink line, code on `surface-sunken`, tables in a
+named, focusable scrolling region. The bar is ADR-0025's amendment of the
+same day.

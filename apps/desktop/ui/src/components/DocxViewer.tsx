@@ -2,9 +2,11 @@ import mammoth from "mammoth";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { DOCUMENT_CSS } from "../lib/documentCss";
+import { DOCUMENT_CSS, dressDocument } from "../lib/documentCss";
 import { sanitizeInto } from "../lib/sanitize";
+import { TABLE_HEADING, TABLE_NUMBER } from "../lib/tableNames";
 import { useUi } from "../stores/ui";
+import { Callout } from "./Banner";
 
 /**
  * The Word reader (ADR-0024): `mammoth` turns `word/document.xml` into
@@ -16,7 +18,7 @@ import { useUi } from "../stores/ui";
  * no editing, no printing, and nothing is fetched. The document's pictures
  * arrive from mammoth as `data:` URIs, which the CSP allows and which fetch
  * nothing; everything else the document points at stays a dead link with
- * the preview's toast behind it.
+ * the preview's refusal in the action zone behind it.
  *
  * mammoth needs no `eval`: it was run once against the real CSP in a built
  * app (the ADR's condition), where `Function()` is refused and the
@@ -41,6 +43,10 @@ export default function DocxViewer({ bytes }: { bytes: Uint8Array<ArrayBuffer> }
   const tooLarge = bytes.length > MAX_BYTES;
   const [state, setState] = useState<State>("loading");
   const host = useRef<HTMLDivElement>(null);
+  // A table's region is named as in the preview (ADR-0051 #57).
+  const tableUnder = t("preview.tableUnder", { heading: TABLE_HEADING });
+  const tableUnderNumbered = t("preview.tableUnderNumbered", { n: TABLE_NUMBER, heading: TABLE_HEADING });
+  const tableNumbered = t("preview.tableNumbered", { n: TABLE_NUMBER });
 
   // The shadow root is the effect's alone: React renders no children into the
   // host, so every run starts from an empty root.
@@ -59,6 +65,7 @@ export default function DocxViewer({ bytes }: { bytes: Uint8Array<ArrayBuffer> }
       const body = document.createElement("div");
       body.className = "body";
       body.append(sanitizeInto(parsed.body, document));
+      dressDocument(body, { under: tableUnder, underNumbered: tableUnderNumbered, numbered: tableNumbered });
       // A picture is the whole `data:` URI the sanitizer carried over; what
       // an `<img>` shows stays the reader's decision, as in the book reader.
       for (const img of body.querySelectorAll<HTMLImageElement>("img[data-src]")) {
@@ -73,14 +80,14 @@ export default function DocxViewer({ bytes }: { bytes: Uint8Array<ArrayBuffer> }
       setState("ready");
     })().catch(() => {
       // A document mammoth cannot read is not an app failure to report: the
-      // banner says what it is, and there is nothing else to show.
+      // callout says what it is, and there is nothing else to show.
       if (!cancelled) setState("unreadable");
     });
 
     return () => {
       cancelled = true;
     };
-  }, [bytes, tooLarge]);
+  }, [bytes, tooLarge, tableUnder, tableUnderNumbered, tableNumbered]);
 
   // A click inside the shadow root reaches the host retargeted, so the anchor
   // is found on the composed path and not on the event's target.
@@ -98,23 +105,20 @@ export default function DocxViewer({ bytes }: { bytes: Uint8Array<ArrayBuffer> }
       if (target && typeof target.scrollIntoView === "function") target.scrollIntoView();
       return;
     }
-    // Mode 1 opens nothing outside the vault (docs/PRIVACY.md); the toast
-    // says so rather than letting the click look broken.
-    if (SCHEME.test(href)) useUi.getState().showToast("editor.previewExternalLink");
+    // Mode 1 opens nothing outside the vault (docs/PRIVACY.md); the action
+    // zone says so rather than letting the click look broken.
+    if (SCHEME.test(href)) useUi.getState().showMessage("editor.previewExternalLink");
   };
 
   return (
-    <div className="docx">
-      {tooLarge || state === "unreadable" ? (
-        <div className="banner" role="status">
-          <span className="banner-body">
-            {t(tooLarge ? "viewer.docx.tooLarge" : "viewer.docx.unreadable")}
-          </span>
-        </div>
+    // Converting a local file: an empty, busy pane until it stands, no
+    // „Wird geladen …“ (STA-06, ADR-0051 #27.8).
+    <div className="docx" aria-busy={!tooLarge && state === "loading" ? true : undefined}>
+      {tooLarge ? (
+        <Callout kind="warning" text={t("viewer.docx.tooLarge")} />
+      ) : state === "unreadable" ? (
+        <Callout kind="error" text={t("viewer.docx.unreadable")} />
       ) : null}
-      {!tooLarge && state === "loading" && (
-        <div className="pane-loading">{t("editor.loading")}</div>
-      )}
       <div className="docx-scroll">
         <div className="docx-host" ref={host} onClick={onClick} />
       </div>

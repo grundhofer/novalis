@@ -1,0 +1,6 @@
+The folder sebaro/ next to this file is the sebaro design export, written by
+sebaroDesign's tools/export_system.py and never edited here
+(docs/sebaro-umbau.md, ADR-0051). It is not under this repository's licence.
+Its terms are in sebaro/LICENSE.md: MIT for the CSS, tokens, icons and
+scripts; SIL Open Font License 1.1 for the fonts (texts in sebaro/fonts/web/);
+all rights reserved for the name sebaro, the signs, tiles and app icons.

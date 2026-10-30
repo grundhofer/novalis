@@ -5,7 +5,7 @@ import { useEditorSave } from "../stores/editorSave";
 import "../styles/preview.css";
 
 /**
- * An SVG as its picture (`Cmd+E` / the eye glyph, ADR-0025), drawn from the
+ * An SVG as its picture (`Cmd+E` / the preview switch, ADR-0025), drawn from the
  * buffer as an `<img>` of a `blob:` URL. SVG as an image is inert by the
  * WebView's own rules — no script runs and nothing outside the file is
  * fetched — so the file needs no sanitizing to be shown. The editor keeps

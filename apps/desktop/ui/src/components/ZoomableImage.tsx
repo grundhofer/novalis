@@ -1,19 +1,26 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+
+import Tool from "./Tool";
 
 /**
  * An image with zoom (ADR-0025), for the image viewer and the comic reader:
- * the bar's − / % / + / fit, a pinch on the trackpad or a `Ctrl`-wheel, and
- * a click that toggles between fitting the pane and 1:1. A plain wheel
- * scrolls, as in every other pane. `Cmd+=` / `Cmd+-` / `Cmd+0` are not
- * claimed: they stay the global font-size chords (ADR-0004/0008).
+ * the bar's tools (zoom out, the percentage, zoom in, „Einpassen“), a pinch
+ * on the trackpad or a `Ctrl`-wheel, and a click that toggles between
+ * fitting the pane and 1:1. A plain wheel scrolls, as in every other pane. `Cmd+Plus` / `Cmd+Minus` / `Cmd+0` are
+ * not claimed: they stay the global font-size chords (ADR-0004/0008/0051).
  *
  * The image is always sized by its natural size times the scale, so fitting
  * is only a scale computed from the pane — never upscaled past 1:1 — and a
  * zoom keeps the point under the pointer where it was.
  *
- * The bar is this component's; `children` are what a reader puts on its
- * left (the comic's page controls).
+ * The bar is this component's, sebaro's reader row (`sb-doc-bar`, spec/02
+ * §4.25.3, D104 (5)–(7)): `children` are what a reader puts first (the
+ * comic's page controls), then the divider and the zoom — `zoom-out`, the
+ * value, `zoom-in`, `zoom-fit` for „Einpassen“ (`aria-pressed`). The image
+ * stands on the sunken ground of `sb-reader__view`, which is a focus stop
+ * named after the image, so it scrolls by keys too (spec/02 §4.25.3,
+ * sebaro D108 NV-Y7).
  */
 
 type Zoom = "fit" | number;
@@ -49,6 +56,8 @@ export default function ZoomableImage({
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
+  // The tools' tooltips need ids unique in the page.
+  const uid = useId();
   const [zoom, setZoom] = useState<Zoom>("fit");
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [room, setRoom] = useState<{ width: number; height: number } | null>(null);
@@ -57,16 +66,25 @@ export default function ZoomableImage({
   const image = useRef<HTMLImageElement | null>(null);
   const anchor = useRef<Anchor | null>(null);
 
-  // The room the image may fill: the pane less the sheet's padding.
+  // The room the image may fill: the pane's content box, less its own
+  // padding (`sb-reader__view` gives it space-4 on each side) and the
+  // sheet's, so the fitted image leaves the view without a scrollbar
+  // (spec/02 §4.25.3 LE-3; docs/sebaro-luecken.md Z).
   useEffect(() => {
     const pane = scroller.current;
     const inner = sheet.current;
     if (!pane || !inner) return undefined;
+    const padding = (element: Element) => {
+      const style = getComputedStyle(element);
+      return {
+        x: parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) || 0,
+        y: parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) || 0,
+      };
+    };
     const measure = () => {
-      const style = getComputedStyle(inner);
-      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) || 0;
-      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) || 0;
-      setRoom({ width: pane.clientWidth - padX, height: pane.clientHeight - padY });
+      const outer = padding(pane);
+      const own = padding(inner);
+      setRoom({ width: pane.clientWidth - outer.x - own.x, height: pane.clientHeight - outer.y - own.y });
     };
     measure();
     if (typeof ResizeObserver === "undefined") return undefined;
@@ -157,38 +175,36 @@ export default function ZoomableImage({
 
   return (
     <div className="zoom">
-      <header className="zoom-bar">
+      <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
         {children}
-        <span className="pdf-spacer" />
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.zoomOut")}
-          aria-label={t("viewer.zoomOut")}
-          onClick={() => zoomTo(clamp(scale / ZOOM_STEP))}
-        >
-          &#8722;
-        </button>
-        <span className="pdf-zoom">{t("viewer.zoom", { percent: Math.round(scale * 100) })}</span>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.zoomIn")}
-          aria-label={t("viewer.zoomIn")}
-          onClick={() => zoomTo(clamp(scale * ZOOM_STEP))}
-        >
-          +
-        </button>
-        <button
-          className={zoom === "fit" ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
-          type="button"
-          aria-pressed={zoom === "fit"}
-          onClick={() => zoomTo("fit")}
-        >
-          {t("viewer.fit")}
-        </button>
-      </header>
-      <div className="zoom-scroll" ref={scroller}>
+        {children && <span className="sb-doc-bar__sep" aria-hidden="true" />}
+        <div className="viewer-bar__group">
+          <Tool
+            id={`${uid}-zoom-out`}
+            icon="zoom-out"
+            label={t("viewer.zoomOut")}
+            onClick={() => zoomTo(clamp(scale / ZOOM_STEP))}
+          />
+          <span className="sb-doc-bar__value" role="status">
+            <span className="sb-visually-hidden">{t("viewer.zoomName")} </span>
+            <span>{t("viewer.zoom", { percent: Math.round(scale * 100) })}</span>
+          </span>
+          <Tool
+            id={`${uid}-zoom-in`}
+            icon="zoom-in"
+            label={t("viewer.zoomIn")}
+            onClick={() => zoomTo(clamp(scale * ZOOM_STEP))}
+          />
+          <Tool
+            id={`${uid}-fit`}
+            icon="zoom-fit"
+            label={t("viewer.fit")}
+            pressed={zoom === "fit"}
+            onClick={() => zoomTo("fit")}
+          />
+        </div>
+      </div>
+      <div className="zoom-scroll sb-reader__view" ref={scroller} tabIndex={0} role="region" aria-label={alt}>
         <div className="zoom-sheet" ref={sheet}>
           {src && (
             <img

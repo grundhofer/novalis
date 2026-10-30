@@ -125,3 +125,25 @@ carries the day's record.
 with `Cmd+J`, and the palette gains Previous Day / Next Day, on the owner's
 yes of 2026-09-20. "No new chord, no new menu item" above describes what
 this ADR shipped.
+
+**Amended 2026-10-25** — ADR-0051 #1, #5, #12, #24, #27.9 (sebaro view step
+3): the controls keep their commands and take sebaro's parts. The three head
+controls are 32 px tools (`sb-icon-button--compact`) beside the vault's name,
+with sebaro's tooltip „Name Kürzel“ and `aria-keyshortcuts`; the board tool
+stays an icon and is named „Board“ with `aria-pressed`, instead of a name that
+switched between Show Board and Hide Board. Today's Note is a place above the
+tree, the `home` icon and its word (NAV-02, NAV-10). The settings button
+becomes the place „Einstellungen“ bottom left, icon and word (DSK-02); until
+the settings view exists it still opens the palette on the settings. The
+legend's two words stay the sort switch, the chosen one with an arrow from
+the sprite. The tree is sebaro's `sb-tree`, and a vault with nothing in it
+shows the tree's empty state.
+
+**Amended 2026-10-26** — ADR-0051 #1 (sebaro view step 13): the place
+„Einstellungen“ opens the settings view in the main window instead of the
+palette on the settings; while the view shows it is the current place (the
+place line and the filled `settings` icon, NAV-01) and it announces `Cmd+,`.
+"No preferences window and `Cmd+,` stays unbound" above is superseded: the
+view is no second window, and `Cmd+,` opens it. The palette keeps its
+settings rows as a second way (DSK-05), and the palette's settings-only mode
+is gone. Owner's yes: „Ansicht mit ⌘, (Empfohlen)“ (ADR-0051).

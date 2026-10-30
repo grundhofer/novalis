@@ -8,7 +8,7 @@
 
 use novalis_core::boards::{Board, BoardRef, Card, Column};
 use novalis_core::search::{SearchHit, SearchQuery, SearchReport};
-use novalis_core::settings::{Appearance, EditorSettings, Language, Settings};
+use novalis_core::settings::{Appearance, EditorSettings, Language, Settings, Tone};
 use novalis_core::vault::cloud::VaultKind;
 use novalis_core::vault::fs::{DirEntry, EntryKind, FileContent, FileStat, Precondition, TextRead};
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,13 @@ pub enum AppearanceDto {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum ToneDto {
+    Cool,
+    Warm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EditorSettingsDto {
     pub font_size: u32,
@@ -50,6 +57,7 @@ pub struct SettingsDto {
     pub version: u32,
     pub language: LanguageDto,
     pub appearance: AppearanceDto,
+    pub tone: ToneDto,
     pub editor: EditorSettingsDto,
     pub spellcheck: bool,
     pub reduce_motion: bool,
@@ -57,13 +65,15 @@ pub struct SettingsDto {
 }
 
 /// A partial settings update. Absent fields stay as they are; there are only
-/// the four settings of PLAN.md §4.1 and `reduceMotion` (ADR-0049) plus the
-/// `lastVault` state key, which the shell writes itself when a vault opens.
+/// the four settings of PLAN.md §4.1, `reduceMotion` (ADR-0049) and `tone`
+/// (ADR-0051) plus the `lastVault` state key, which the shell writes itself
+/// when a vault opens.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsPatchDto {
     pub language: Option<LanguageDto>,
     pub appearance: Option<AppearanceDto>,
+    pub tone: Option<ToneDto>,
     pub font_size: Option<u32>,
     pub spellcheck: Option<bool>,
     pub reduce_motion: Option<bool>,
@@ -83,6 +93,10 @@ impl From<&Settings> for SettingsDto {
                 Appearance::Light => AppearanceDto::Light,
                 Appearance::Dark => AppearanceDto::Dark,
             },
+            tone: match s.tone {
+                Tone::Cool => ToneDto::Cool,
+                Tone::Warm => ToneDto::Warm,
+            },
             editor: EditorSettingsDto {
                 font_size: s.editor.font_size,
             },
@@ -95,7 +109,7 @@ impl From<&Settings> for SettingsDto {
 
 impl SettingsPatchDto {
     /// Apply the patch in place. Font size is clamped to a sane range: the
-    /// only way to change it is `Cmd+=` / `Cmd+-` / `Cmd+0`, and a stored 0 or
+    /// only way to change it is `Cmd+Plus` / `Cmd+Minus` / `Cmd+0`, and a stored 0 or
     /// 400 would be unreadable with no preferences window to fix it in.
     pub fn apply(&self, settings: &mut Settings) {
         if let Some(language) = self.language {
@@ -110,6 +124,12 @@ impl SettingsPatchDto {
                 AppearanceDto::System => Appearance::System,
                 AppearanceDto::Light => Appearance::Light,
                 AppearanceDto::Dark => Appearance::Dark,
+            };
+        }
+        if let Some(tone) = self.tone {
+            settings.tone = match tone {
+                ToneDto::Cool => Tone::Cool,
+                ToneDto::Warm => Tone::Warm,
             };
         }
         if let Some(size) = self.font_size {
@@ -208,6 +228,56 @@ pub struct UiStateDto {
     /// never sets it.
     #[serde(default)]
     pub window: Option<WindowRectDto>,
+    /// What the native menu's commands have to act on now (sebaro D102 (9),
+    /// spec/02 §4.24): an item without a target is switched off. A runtime
+    /// fact, not state: never written to `state.json`.
+    #[serde(default)]
+    pub menu_targets: MenuTargetsDto,
+}
+
+/// Which of the native menu's commands have a target at the moment (sebaro
+/// D102 (9), spec/02 §4.24): an item whose command would do nothing is
+/// switched off, never hidden and never a silent no-op. The UI knows the
+/// targets (its tabs, the tree's row, the history) and sends them with every
+/// `state_save`; the menu says which item needs which (`menu::has_target`).
+/// All false until the UI's first save.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", default)]
+pub struct MenuTargetsDto {
+    /// A vault is open: New Note, New Folder, New Board, Quick Open, Today's
+    /// Note, Find in Vault.
+    pub vault: bool,
+    /// A tab or the board to close (⌘W).
+    pub close: bool,
+    /// An active tab with text to save (not a viewer).
+    pub save: bool,
+    /// The editor shows a text: Find …, the editor's and Markdown's items.
+    pub editor: bool,
+    /// A row or tab the tree commands act on: Show in Finder.
+    pub path: bool,
+    /// The same, inside the vault: Rename …, Move to Trash ….
+    pub vault_path: bool,
+    /// A file that can move: Move To ….
+    pub movable: bool,
+    pub back: bool,
+    pub forward: bool,
+    /// A closed tab to reopen.
+    pub reopen: bool,
+    /// Another tab to go to: Next / Previous Tab.
+    pub cycle: bool,
+    /// The current tab can move one place to the front / to the back.
+    pub earlier: bool,
+    pub later: bool,
+    /// The window is too narrow for the sidebar beside the content: it lies
+    /// over it (spec/02 §4.17). View ▸ Sidebar then checks whether that
+    /// overlay is open, not the choice `state.json` keeps for a wider window.
+    pub sidebar_overlay: bool,
+    pub sidebar_overlay_open: bool,
+    /// The current tab has a preview (a note, a CSV or TSV, an SVG; ADR-0020,
+    /// ADR-0025): View ▸ Preview (ADR-0051 #43).
+    pub preview: bool,
+    /// It shows: View ▸ Preview carries its check.
+    pub previewing: bool,
 }
 
 /// The window's outer top-left corner and inner size, in physical pixels of
@@ -227,7 +297,7 @@ impl Default for UiStateDto {
             open_tabs: Vec::new(),
             active_tab: None,
             sidebar_visible: true,
-            sidebar_width: 256,
+            sidebar_width: 240,
             board_visible: false,
             active_board: None,
             tree_sort: TreeSortDto::Name,
@@ -236,6 +306,7 @@ impl Default for UiStateDto {
             recent_files: Vec::new(),
             quit: false,
             window: None,
+            menu_targets: MenuTargetsDto::default(),
         }
     }
 }
@@ -485,6 +556,9 @@ pub struct BacklinkDto {
     /// That line as the vault search would show it, so two links from the
     /// same note can be told apart; empty when the note could not be read.
     pub snippet: String,
+    /// The snippet ends before the line does, as in a search hit (the core's
+    /// `snippet_cut_end`).
+    pub snippet_cut_end: bool,
 }
 
 /// A card whose `notes[]` references the open note (§4.4: the backlinks list
@@ -546,6 +620,8 @@ pub struct SearchHitDto {
     pub path: String,
     pub line: u32,
     pub snippet: String,
+    /// The snippet ends before the line does (the core's `snippet_cut_end`).
+    pub snippet_cut_end: bool,
 }
 
 impl From<SearchHit> for SearchHitDto {
@@ -554,6 +630,7 @@ impl From<SearchHit> for SearchHitDto {
             path: hit.path,
             line: hit.line as u32,
             snippet: hit.snippet,
+            snippet_cut_end: hit.snippet_cut_end,
         }
     }
 }
@@ -739,8 +816,9 @@ pub enum SystemOpenDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum ContextMenuDto {
-    /// A tree row; a board row gets "Show in Finder" only.
-    Tree { board: bool },
+    /// A tree row; a board row gets "Show in Finder" only, and a folder no
+    /// "Move To…", since folders do not move (ADR-0018).
+    Tree { board: bool, folder: bool },
     /// A card of the open board: its actions and the board's columns, the
     /// card's own one shown but not offered.
     #[serde(rename_all = "camelCase")]
@@ -856,5 +934,42 @@ mod tests {
         )
         .expect("a card");
         assert_eq!(CardDto::from(&plain).description_html, None);
+    }
+
+    // The settings view offers every size the patch keeps (ADR-0051 #1):
+    // the UI's `FONT_SIZE` and this clamp must not drift apart.
+    #[test]
+    fn the_font_sizes_are_the_settings_views() {
+        let mut settings = Settings::default();
+        for (asked, kept) in [(1, 9), (9, 9), (32, 32), (99, 32)] {
+            SettingsPatchDto {
+                font_size: Some(asked),
+                ..SettingsPatchDto::default()
+            }
+            .apply(&mut settings);
+            assert_eq!(settings.editor.font_size, kept, "{asked}");
+        }
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/src/stores/ui.ts");
+        let ui = std::fs::read_to_string(&path).expect("stores/ui.ts must be readable");
+        assert!(
+            ui.contains("FONT_SIZE = { min: 9, max: 32 }"),
+            "stores/ui.ts has another FONT_SIZE"
+        );
+    }
+
+    // ADR-0051: the tone travels both ways, and a patch without it leaves it.
+    #[test]
+    fn the_tone_is_patched_and_reported() {
+        let mut settings = Settings::default();
+        SettingsPatchDto {
+            tone: Some(ToneDto::Warm),
+            ..SettingsPatchDto::default()
+        }
+        .apply(&mut settings);
+        assert_eq!(settings.tone, Tone::Warm);
+        SettingsPatchDto::default().apply(&mut settings);
+        assert_eq!(SettingsDto::from(&settings).tone, ToneDto::Warm);
+        let wire = serde_json::to_value(SettingsDto::from(&Settings::default())).unwrap();
+        assert_eq!(wire["tone"], "cool");
     }
 }

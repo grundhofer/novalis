@@ -143,3 +143,29 @@ rendered SVG yes, both read-only behind the existing eye glyph.
   and ≈30 lines in the lazy viewer/preview chunks.
 - ADR-0020's "not built" sentence for non-Markdown previews is amended by
   this record: CSV/TSV and SVG have one; everything else still does not.
+
+**Amended 2026-10-25** — ADR-0051 #24 (sebaro view step 6): the CSV / TSV
+table looks like sebaro's table (`div.sb-table[role=table]`, DAT-05): heads
+in `label` over the `border-strong` line, rows on hairlines, no vertical
+lines, no fill on the head, figures in table width; the last column takes
+the rest of the width. A cell stays one line with its full value in the
+tooltip; the row height is no longer a fixed 28 px but one `body` line with
+its padding at the root font in use, measured again when that changes, as
+the tree's rows are. The pane is the table's named, focusable scrolling
+region. The SVG picture is unchanged.
+
+**Amended 2026-10-25** — ADR-0051 (sebaro view step 10): the bars of the
+PDF, the book, the comic and the image zoom are sebaro's parts (spec/02
+§4.18). Previous and next, zoom out and zoom in are 32 px tools with the
+sprite's `chevron-left`, `chevron-right`, `minus` and `plus` and sebaro's
+tooltip, instead of the characters ‹ › − +; „Inhalt“, „Einpassen“ and
+„Seitenbreite“ stay words, as compact secondary actions with
+`aria-expanded` or `aria-pressed`, pressed shown by a check in the link
+colour without a fill. The page field has its visible label „Seite“, the
+counters are in sebaro Sans with tabular figures instead of Mono, and the
+bar wraps at a large root font instead of keeping a fixed 40 px. The
+contents popover of this record's point 2 is sebaro's overlay with window
+rows; the reader's place is `aria-current`, drawn as the place line, and
+titles wrap. The PDF pane is a region named after the file and carries
+the `viewer` keys in `aria-keyshortcuts`. Keys, gestures, the click
+between fit and 1:1 and the zoom cursors are unchanged.

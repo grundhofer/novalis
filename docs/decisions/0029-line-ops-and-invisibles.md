@@ -56,3 +56,9 @@ were a no) and `texteditor-show-invisibles` (rows B35 and B51 of
 - `docs/KEYMAP.md` names the three chordless commands under "Not listed".
 - `editor/commands.test.ts` covers both line commands, `setup.test.ts`
   that the marks come and go with the flag and leave the text alone.
+
+**Amended 2026-10-25** — ADR-0051 (sebaro view step 5): trailing whitespace
+loses the warning fill, which sebaro does not allow behind text (FAR-02). Its
+dots and tab rule are drawn in `text-muted`, a step darker than the
+`text-subtle` of every other space and tab. The toggle and what it shows are
+unchanged; nothing is trimmed.

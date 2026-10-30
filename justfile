@@ -50,7 +50,7 @@ dev:
     cd "{{desktop}}" && cargo tauri dev
 
 # Everything CI checks, in CI's order. Green here means green there.
-check: _versions _ui-check _test-ui _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
+check: _versions _sebaro-export _ui-check _test-ui _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
 
 # Rust and UI tests.
 test: _test-rust _test-ui
@@ -111,22 +111,17 @@ bump version: && _versions
     });
     stamp("package.json", jsonVersion("package.json"));
     stamp("apps/desktop/src-tauri/tauri.conf.json", jsonVersion("tauri.conf.json"));
-    // The two workspace packages are private and ship in no artefact, but a
-    // stale number there reads as a second version of the app (2026-09-18).
+    // The workspace package is private and ships in no artefact, but a stale
+    // number there reads as a second version of the app (2026-09-18).
     stamp("apps/desktop/ui/package.json", jsonVersion("apps/desktop/ui/package.json"));
-    stamp("packages/tokens/package.json", jsonVersion("packages/tokens/package.json"));
-
-# Vendor designSprache's generated tokens.css into packages/tokens/ (not available yet, see PLAN.md §5.9).
-tokens-sync slug="" commit="":
-    @echo "tokens-sync: nothing to sync yet."
-    @echo "packages/tokens/tokens.css is hand-written for the chosen style and carries the header"
-    @echo "GENERATED-PENDING until designSprache ships DTCG tokens (PLAN.md §5.9, D13). Once its Style"
-    @echo "Dictionary build exists, this recipe vendors tokens.css for <slug> at <commit> together with a"
-    @echo "SHA-256 manifest, and CI fails on drift. Until then edit the file by hand and keep the header."
-    @exit 1
 
 _versions:
     node "{{root}}/scripts/check-versions.mjs"
+
+# ADR-0051 #37: the sebaro export folder matches the sha256 of every file in its
+# sebaro-export.json and holds no other file (never edited by hand).
+_sebaro-export:
+    node "{{root}}/scripts/check-sebaro-export.mjs"
 
 _ui-check:
     pnpm -C "{{ui}}" run typecheck

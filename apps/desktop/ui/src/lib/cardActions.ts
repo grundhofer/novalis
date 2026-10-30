@@ -4,8 +4,9 @@ import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 
 /**
- * What can be done to a card, for the pane's hover buttons and for the
- * card's context menu (ADR-0032) alike: one implementation of each.
+ * What can be done to a card, for the card's „Mehr“ menu in the pane and for
+ * its native context menu (ADR-0032, ADR-0051 #19) alike: one
+ * implementation of each.
  */
 
 /**
@@ -21,8 +22,10 @@ export function openCardNote(card: CardDto): void {
 
 export function renameCard(card: CardDto): void {
   useUi.getState().ask({
-    titleKey: "menu.file.rename",
-    placeholderKey: "board.cardTitlePlaceholder",
+    titleKey: "board.renameCardTitle",
+    submitKey: "app.rename",
+    busyKey: "app.renaming",
+    labelKey: "board.cardTitleLabel",
     initial: card.title,
     submit: async (title) => {
       if (title === card.title) return;
@@ -35,8 +38,11 @@ export function renameCard(card: CardDto): void {
 // field is the way to clear the text, so it is submitted like any other.
 export function editDescription(card: CardDto): void {
   useUi.getState().ask({
-    titleKey: "board.editDescription",
-    placeholderKey: "board.cardDescriptionPlaceholder",
+    titleKey: "board.editDescriptionTitle",
+    submitKey: "app.save",
+    labelKey: "board.cardDescriptionLabel",
+    // The text is Markdown, rendered on the card (ADR-0033).
+    hint: { key: "board.cardDescriptionHint" },
     initial: card.description ?? "",
     multiline: true,
     submit: async (description) => {
@@ -46,13 +52,33 @@ export function editDescription(card: CardDto): void {
   });
 }
 
+/**
+ * Link Note… (ADR-0030): the note picker, any note, the open one first;
+ * the notes the card already links are left out, and the pick is the write.
+ */
+export function linkNote(card: CardDto): void {
+  useUi.getState().setOverlay({
+    kind: "pickNote",
+    exclude: card.notes,
+    onPick: (path) => useBoard.getState().apply({ kind: "linkNote", id: card.id, path }),
+  });
+}
+
+/** Move to Column (ADR-0032): last in the column, the way without dragging (DSK-11). */
+export function moveCardToColumn(card: CardDto, column: string): void {
+  void useBoard
+    .getState()
+    .apply({ kind: "move", id: card.id, column, position: { kind: "last" } })
+    .catch(report);
+}
+
 export function deleteCard(card: CardDto): void {
   useUi.getState().ask({
-    titleKey: "board.deleteCard",
+    titleKey: "board.deleteCardTitle",
     confirm: {
       bodyKey: "board.deleteCardBody",
       values: { title: card.title },
-      confirmKey: "board.deleteCard",
+      confirmKey: "app.delete",
     },
     submit: async () => {
       await useBoard.getState().apply({ kind: "remove", id: card.id });
@@ -98,11 +124,7 @@ export function runCardMenuAction(id: string): boolean {
   const card = menuCardNow();
   if (!card) return true;
   if (id.startsWith(MOVE_TO_COLUMN)) {
-    const column = id.slice(MOVE_TO_COLUMN.length);
-    void useBoard
-      .getState()
-      .apply({ kind: "move", id: card.id, column, position: { kind: "last" } })
-      .catch(report);
+    moveCardToColumn(card, id.slice(MOVE_TO_COLUMN.length));
     return true;
   }
   switch (id) {
@@ -114,6 +136,9 @@ export function runCardMenuAction(id: string): boolean {
       break;
     case "card.editDescription":
       editDescription(card);
+      break;
+    case "card.linkNote":
+      linkNote(card);
       break;
     case "card.delete":
       deleteCard(card);

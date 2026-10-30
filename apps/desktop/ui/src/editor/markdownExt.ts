@@ -47,9 +47,11 @@ const TAG_BODY = /[\p{L}\p{N}_/-]/u;
 const WORD_BEFORE = /[\p{L}\p{N}_]/u;
 
 /**
- * The chip's own highlight tag. It has no parent and no grammar node carries
+ * The tag's own highlight tag. It has no parent and no grammar node carries
  * it, so a CSS `#id`, a YAML anchor or a Rust loop label — all `labelName`
- * upstream — can never wear the chip (ADR-0022).
+ * upstream — can never look like a tag (ADR-0022). The `#` is a marker of
+ * its own (`TagMark`), dimmed like every other, the word in the link style
+ * (ADR-0051 #18).
  */
 export const noteTag = HighlightTag.define("noteTag");
 
@@ -59,7 +61,10 @@ export const noteTag = HighlightTag.define("noteTag");
  * been consumed by the heading block parser before inline parsing runs.
  */
 export const Tag: MarkdownConfig = {
-  defineNodes: [{ name: "TagRef", style: noteTag }],
+  defineNodes: [
+    { name: "TagRef", style: noteTag },
+    { name: "TagMark", style: tags.processingInstruction },
+  ],
   parseInline: [
     {
       name: "TagRef",
@@ -72,7 +77,7 @@ export const Tag: MarkdownConfig = {
         // not tags.
         const body = cx.slice(pos + 1, end);
         if (body.length === 0 || /^[\d/-]+$/.test(body)) return -1;
-        return cx.addElement(cx.elt("TagRef", pos, end));
+        return cx.addElement(cx.elt("TagRef", pos, end, [cx.elt("TagMark", pos, pos + 1)]));
       },
       before: "Escape",
     },

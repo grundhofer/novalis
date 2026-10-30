@@ -52,6 +52,21 @@ function remember(recent: string[], path: string): string[] {
   return [path, ...recent.filter((p) => p !== path)].slice(0, MAX_RECENT);
 }
 
+/**
+ * The tab made current is the tree's chosen row, its one place (NAV-11);
+ * the keys' row goes along unless the arrows had moved it elsewhere or
+ * the tree holds the keyboard, where it stays the row with the ring. A
+ * file from outside the vault has no row (ADR-0047).
+ */
+function chooseRow(path: string | null): void {
+  if (!path || isExternal(path)) return;
+  const inTree = !!document.activeElement?.closest("[role=tree]");
+  useVault.setState((s) => ({
+    selected: path,
+    focused: !inTree && s.focused === s.selected ? path : s.focused,
+  }));
+}
+
 export const useTabs = create<TabsState>((set, get) => ({
   tabs: [],
   active: null,
@@ -65,7 +80,7 @@ export const useTabs = create<TabsState>((set, get) => ({
   // The last session's tabs, opened in the background, then the active one
   // made current. A tab whose file is gone since — deleted on the phone, the
   // same path in another vault — is skipped, and the first failure is one
-  // toast; nothing here may take the window with it, which is what the
+  // message; nothing here may take the window with it, which is what the
   // boot's catch did. The tree is interactive while this runs, so a note
   // the user opened meanwhile is saved by `activate`; that save can fail too.
   reopen: async (paths, active) => {
@@ -122,7 +137,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     // A file from outside the vault has no row to show (ADR-0047).
     if (options?.background || isExternal(path)) return;
     // Opening from quick-open or a link should show where the note lives.
-    useVault.getState().select(path);
+    chooseRow(path);
     void useVault.getState().reveal(path).catch(report);
   },
 
@@ -135,18 +150,22 @@ export const useTabs = create<TabsState>((set, get) => ({
       const history = [...s.history.slice(0, s.historyIndex + 1), path].slice(-MAX_HISTORY);
       return { active: path, history, historyIndex: history.length - 1, recent };
     });
+    chooseRow(path);
     // The board pane covers the editor while it is visible, so a note made
     // current from the tree, quick-open, a new note or a tab click stayed
     // invisible behind it. Making a tab current means showing it (D21); the
     // board toggle brings the board back. A background open — how boot
-    // restores the last session — makes nothing current and leaves it.
+    // restores the last session — makes nothing current and leaves it. The
+    // settings view gives way the same way (ADR-0051 #1).
     useUi.getState().hideBoard();
+    useUi.getState().setSettingsView(false);
   },
 
   close: async (path) => {
     await useEditorSave.getState().close(path);
     // A closed note reopens in the editor, not in the preview it was closed in.
     useUi.getState().endPreview(path);
+    const wasActive = get().active === path;
     set((s) => {
       const index = s.tabs.indexOf(path);
       const tabs = s.tabs.filter((t) => t !== path);
@@ -160,6 +179,8 @@ export const useTabs = create<TabsState>((set, get) => ({
         historyIndex: Math.max(-1, s.historyIndex - 1),
       };
     });
+    // The neighbour that becomes current is chosen like any current tab.
+    if (wasActive) chooseRow(get().active);
   },
 
   closeActive: async () => {
@@ -228,7 +249,9 @@ export const useTabs = create<TabsState>((set, get) => ({
       tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path],
       recent: remember(s.recent, path),
     }));
+    chooseRow(path);
     useUi.getState().hideBoard();
+    useUi.getState().setSettingsView(false);
   },
 
   forward: async () => {
@@ -243,7 +266,9 @@ export const useTabs = create<TabsState>((set, get) => ({
       tabs: s.tabs.includes(path) ? s.tabs : [...s.tabs, path],
       recent: remember(s.recent, path),
     }));
+    chooseRow(path);
     useUi.getState().hideBoard();
+    useUi.getState().setSettingsView(false);
   },
 
   rename: (from, to) =>

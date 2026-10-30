@@ -1,0 +1,197 @@
+/* sebaro.css: reference component implementation of the sebaro design system (D36-D44).
+ *
+ * Load order (spec/09 §1): fonts/fonts.css, dist/tokens.css, icons/dist/sprite.css, then this file.
+ * Only var(--sb-*) and var(--sb-x-sebaro-*): no raw colours, no remote URLs (lint L5, L6).
+ * Every colour has exactly one job (spec/01 §1.1, spec/03 §1):
+ *   place      accent / link / focus: 3 px current-place edge, links, focus ring, switch / radio / range / checkbox marks
+ *   next step  primary-action*: only inside .sb-primary-action rules (lint L1)
+ *   state      success / warning / danger / info: glyphs, the 2 px error baseline, the danger word
+ *   product    family colours: only inside the inlined sign tile (.sb-sign-tile > svg.sb-app-sign, D40); the snippet
+ *              carries one fixed colour pair per family in every mode (fix stage AD03), no product-theme scope
+ *   the rest   grey: grounds, text, lines
+ * Dark mode comes from the tokens only (TOKEN-CONTRACT §9); this file has no mode rules.
+ * Type: always `font: var(--sb-type-<role>)` together with `letter-spacing: var(--sb-type-<role>-tracking)`
+ * (dark adds +0.01 em, D40; fix stage AD01 halved D44's +0.02 em; the shorthand cannot carry it).
+ * Hover and pressed fills: --sb-color-hover-fill / --sb-color-pressed-fill (one step from the ground in the same
+ * direction in both modes; fix stage AD14).
+ * Round-3 signature (D46, D48, D52; spec/03 §10-§18): 2 px ink layer lines instead of tone or shadow, the 45° cut on
+ * destructive actions and final steps only (D102 (43)), the bottom action zone, one entry motion from below (with the app setting
+ * html[data-sb-motion="reduce"], or data-sb-motion="reduce" on any container, D80), progress inside the primary
+ * action, the start with the tile moving into the header, and one link style (text-coloured word, 2 px cobalt
+ * underline).
+ * Layout follows its place, not the screen (D80, spec/02 §5.1-§5.3): sb-stack, sb-cluster, sb-form-grid; the
+ * containers sb-page, sb-content, sb-view and sb-window. Windows are denser: data-sb-density="window" (section 7a).
+ * Round 6 stage 2b (D91, 2026-10-21): category, mark and signed numbers, charts and classed scales (section 6); board,
+ * sticky group head, timeline, diff, rating, calendar, quote, intro, about head, audio, video, place (section 6);
+ * website patterns (sections 2, 3, 6, 9); the window frame of the sketch answers F1a-F14a (section 7b).
+ * Static state hooks for the component sheet and screenshot tests: .is-hover, .is-pressed, .is-focus, .is-visited.
+ * State itself is carried by ARIA (aria-current, aria-expanded, aria-pressed, aria-checked, aria-selected,
+ * aria-invalid, aria-busy, :disabled) wherever ARIA has it; the one data attribute for states ARIA has no word for is
+ * data-sb-state (D85: "done", "retry"; data-state on progress steps is a deprecated alias). Anatomy and states: spec/02.
+ */
+/* ===================================================================== 1 base */
+
+/* the root carries the page ground too: body.sb-page is a size container, and layout containment stops the body's
+   background from reaching the canvas, so a short page showed white under it (spec/02 §5) */
+:root:has(> body.sb-page) { background-color: var(--sb-color-bg); }
+body.sb-page {
+  margin: 0; background: var(--sb-color-bg); color: var(--sb-color-text);
+  font: var(--sb-type-body); letter-spacing: var(--sb-type-body-tracking);
+  font-synthesis: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  /* large text (D100 (5), D101 (9), (10)): a word, a name or inline code that alone does not fit its line breaks there,
+     without a hyphen, so no page scrolls sideways; sb-fit.js wraps such a word, and only that word, in
+     span.sb-hyphenate (hyphens: auto there) unless it is a name or code. Identifiers (.sb-id, D80) never break */
+  overflow-wrap: break-word;
+}
+.sb-hyphenate { -webkit-hyphens: auto; hyphens: auto; }
+/* machine values never take a hyphen, not even inside a part that hyphenates (spec/07 §3.1, D101 (10)) */
+code, kbd, samp, var { -webkit-hyphens: none; hyphens: none; }
+/* sb-fit.js measures a word in a hidden copy of this class (spec/02 §7); never shown, removed in the same task */
+.sb-fit-probe {
+  position: absolute; inset-block-start: 0; inset-inline-start: 0; display: block; margin: 0; padding: 0; border: 0;
+  visibility: hidden; pointer-events: none; white-space: normal; overflow-wrap: normal; text-transform: none;
+}
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
+h1 { font: var(--sb-type-display); letter-spacing: var(--sb-type-display-tracking); }
+h2 { font: var(--sb-type-headline); letter-spacing: var(--sb-type-headline-tracking); }
+h3 { font: var(--sb-type-title); letter-spacing: var(--sb-type-title-tracking); }
+h1, h2, h3 { margin: 0; text-wrap: balance; hyphens: manual; }
+h1 code, h2 code, h3 code { hyphens: none; font-size: 0.875em; }
+
+/* type roles as classes (spec/02 §5.2, D80): the look of a heading independent of its level (an h2 inside a card that
+   should read as a title, an h4 or h5 in a nested page); the element rules h1-h3 stay the default. Each class pairs the
+   font with its tracking, so dark mode gets its +30 weight and +0.01 em from the tokens (D40, D44). The heading roles
+   wrap balanced and hyphenate by hand only (SCH-06). A role class sets no margin (spacing comes from sb-stack or the
+   component) and no colour. On a page narrower than 640 px .sb-type-display takes the mobile display role like h1 (§2).
+   One look per element: a component title class (sb-section__title, sb-card__title …) and a role class are not combined */
+.sb-type-display { font: var(--sb-type-display); letter-spacing: var(--sb-type-display-tracking); }
+.sb-type-headline { font: var(--sb-type-headline); letter-spacing: var(--sb-type-headline-tracking); }
+.sb-type-title { font: var(--sb-type-title); letter-spacing: var(--sb-type-title-tracking); }
+.sb-type-body-strong { font: var(--sb-type-body-strong); letter-spacing: var(--sb-type-body-strong-tracking); }
+.sb-type-label { font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking); }
+.sb-type-display, .sb-type-headline, .sb-type-title { text-wrap: balance; hyphens: manual; }
+.sb-type-display code, .sb-type-headline code, .sb-type-title code { hyphens: none; font-size: 0.875em; }
+p { max-inline-size: var(--sb-size-measure-prose); }
+/* one link style everywhere (D52): the word in text colour, a 2 px cobalt underline; pointer/press turn the word
+   cobalt. Running text marks visited links by the underline colour. An external link ends in the external-link icon */
+a { color: var(--sb-color-text); text-decoration: underline var(--sb-color-link) var(--sb-x-sebaro-link-underline-width); text-underline-offset: 0.2em; }
+a:hover, a.is-hover, a:active { color: var(--sb-color-link); }
+.sb-prose a:visited, a.is-visited { text-decoration-color: var(--sb-color-link-visited); }
+a > .sb-icon--16:last-child { margin-inline-start: var(--sb-space-0-5); vertical-align: -0.125em; }
+code, kbd, samp, .sb-mono { font: var(--sb-type-code); letter-spacing: var(--sb-type-code-tracking); }
+:not(pre) > code { padding: 0 var(--sb-space-1); border-radius: var(--sb-radius-small); background: var(--sb-color-surface-sunken); }
+.sb-num, time { font-variant-numeric: var(--sb-type-numeric-variant); }
+::selection { background: var(--sb-color-selection); }
+:focus-visible, .is-focus { outline: var(--sb-focus-ring); outline-offset: var(--sb-focus-offset); }
+
+.sb-visually-hidden {
+  position: absolute !important; inline-size: 1px; block-size: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.sb-skip-link {
+  position: absolute; inset-block-start: var(--sb-space-2); inset-inline-start: var(--sb-space-2); z-index: var(--sb-layer-tooltip);
+  display: inline-flex; align-items: center; min-block-size: var(--sb-size-target-touch); padding: 0 var(--sb-space-4); box-sizing: border-box;
+  background: var(--sb-elevation-overlay-surface); color: var(--sb-color-text);
+  border: var(--sb-elevation-overlay-border-width) solid var(--sb-elevation-overlay-border-color); border-radius: var(--sb-radius-control);
+  font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking); text-decoration: none;
+  transform: translateY(-200%);
+}
+.sb-skip-link:focus-visible { transform: none; }
+
+/* ===================================================================== 2 page and layout */
+
+.sb-container {
+  box-sizing: border-box; inline-size: 100%; max-inline-size: var(--sb-size-container-max); margin-inline: auto;
+  padding-inline: var(--sb-spacing-gutter);
+}
+/* containers (spec/02 §5.3, D80): components switch by the width of their place, not of the screen. sb-page = the page
+   (body.sb-page, or a frame that shows a page at another width); sb-content = the content column a component sits in
+   (.sb-container, falling back to the page); sb-view = a wide app view. A container takes its width from its parent and
+   never from its content: do not put body-level frames, .sb-container or .sb-view--wide into a shrink-to-fit box
+   (inline-block, float, fit-content, a grid cell with justify-items: start) without giving them a width. Position:
+   fixed and sticky are not affected. Every @container rule keeps the viewport rule it replaced inside @supports not
+   (container-type: inline-size) as its fallback */
+body.sb-page { container: sb-page sb-content / inline-size; }
+.sb-container { container: sb-content / inline-size; }
+/* a part that reaches past the text by design (a footnote digit's invisible target) must not make the page scroll
+   sideways: the container clips sideways at its padding edge, so its gutter and every focus ring inside it stay
+   visible; clip makes no scroll container, sticky still works (spec/02 §5.1) */
+.sb-container { overflow-x: clip; }
+.sb-view--wide { container: sb-view / inline-size; }
+.sb-section { padding-block: var(--sb-spacing-section); }
+.sb-section + .sb-section { border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border); }
+.sb-section__title { margin: 0 0 var(--sb-spacing-group); font: var(--sb-type-headline); letter-spacing: var(--sb-type-headline-tracking); }
+.sb-section__actions { display: flex; flex-wrap: wrap; gap: var(--sb-space-3); margin-block-start: var(--sb-spacing-group); }
+.sb-page-lead__title { margin: 0 0 var(--sb-space-4); font: var(--sb-type-display); letter-spacing: var(--sb-type-display-tracking); }
+.sb-page-lead__text { margin: 0; font: var(--sb-type-body); letter-spacing: var(--sb-type-body-tracking); }
+/* phones: the 40 px display role wraps a page title into three lines at 390 px; use the mobile display role (32/40) */
+@supports not (container-type: inline-size) {
+  @media (max-width: 639.98px) {
+    h1, .sb-page-lead__title, .sb-type-display { font: var(--sb-type-mobile-display); letter-spacing: var(--sb-type-mobile-display-tracking); }
+  }
+}
+@container sb-page (width < 640px) {
+  h1, .sb-page-lead__title, .sb-type-display { font: var(--sb-type-mobile-display); letter-spacing: var(--sb-type-mobile-display-tracking); }
+}
+/* the lead keeps one text column with the rest of the page (fix stage AD20): about 68 characters at 20 px */
+.sb-page-lead__text { max-inline-size: 34em; }
+/* from 1024 px of the page: wide gutters and sections, the lead in the title size */
+@supports not (container-type: inline-size) {
+  @media (min-width: 1024px) {
+    .sb-container { padding-inline: var(--sb-spacing-gutter-wide); }
+    .sb-section { padding-block: var(--sb-spacing-section-wide); }
+    .sb-page-lead__text { font: var(--sb-type-title); letter-spacing: var(--sb-type-title-tracking); font-weight: var(--sb-type-body-weight); }
+  }
+}
+@container sb-page (width >= 1024px) {
+  .sb-container { padding-inline: var(--sb-spacing-gutter-wide); }
+  .sb-section { padding-block: var(--sb-spacing-section-wide); }
+  .sb-page-lead__text { font: var(--sb-type-title); letter-spacing: var(--sb-type-title-tracking); font-weight: var(--sb-type-body-weight); }
+}
+
+/* layout building blocks (spec/02 §5.1, D80). stack: children one below the other, the gap from a spacing role (spec/01
+   §3.1): stack 12 between the elements of one group (field to field, paragraph to note), --group 24 between groups,
+   --section 48 (64 on a page from 1024 px) between sections. The stack owns the spacing: its children keep no block
+   margins of their own. Children take the stack's width; --start keeps each child at its own width (buttons, links,
+   tags) */
+.sb-stack { display: flex; flex-direction: column; gap: var(--sb-spacing-stack); min-inline-size: 0; }
+.sb-stack > * { margin-block: 0; min-inline-size: 0; }
+.sb-stack--group { gap: var(--sb-spacing-group); }
+.sb-stack--section { gap: var(--sb-spacing-section); }
+.sb-stack--start { align-items: flex-start; }
+.sb-stack--start > * { max-inline-size: 100%; }
+@supports not (container-type: inline-size) {
+  @media (min-width: 1024px) { .sb-stack--section { gap: var(--sb-spacing-section-wide); } }
+}
+@container sb-page (width >= 1024px) { .sb-stack--section { gap: var(--sb-spacing-section-wide); } }
+
+/* cluster: items side by side that wrap (tags, meta words, a toolbar group, filters beside a sort choice): 8 px
+   (inline) between items, 12 px (stack) between wrapped lines; --group puts 24 px between the items. Visual order
+   is DOM order (no `order`, no row-reverse; D83 (5)). Action groups use their own containers: sb-section__actions
+   on pages, sb-form-grid__actions in forms, sb-primary-action-bar in app views */
+.sb-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sb-spacing-stack) var(--sb-spacing-inline); min-inline-size: 0; }
+.sb-cluster > * { margin: 0; }
+.sb-cluster--group { column-gap: var(--sb-spacing-group); }
+
+/* form grid: labels above the fields (sb-field), one column; two columns as soon as the grid itself is
+   2 × 16 rem + 24 px wide (536 px), never three. Fields fill the rows in DOM order (reading order = visual order).
+   Row gap stack 12 (field to field), column gap group 24 (the web grid gutter, spec/01 §3.2). __wide spans both
+   columns (a textarea, a choice row with long options, a callout); __actions always spans both and ends the form as
+   its own group (24 px above it): secondary actions first, the primary action last in DOM order and visually at the
+   end (D83 (5)). While the actions row is narrower than 30 rem (480 px), every action takes the full width, so the
+   primary action is the lowest line, as on a phone. In app views the primary action belongs to the bottom block,
+   not into __actions (spec/03 §2) */
+.sb-form-grid {
+  display: grid; align-items: start; gap: var(--sb-spacing-stack) var(--sb-spacing-group); min-inline-size: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(16rem, calc((100% - var(--sb-spacing-group)) / 2))), 1fr));
+}
+.sb-form-grid > * { margin: 0; min-inline-size: 0; }
+.sb-form-grid__wide, .sb-form-grid__actions { grid-column: 1 / -1; }
+.sb-form-grid__actions {
+  container: sb-actions / inline-size;
+  display: flex; flex-wrap: wrap; gap: var(--sb-spacing-stack);
+  margin-block-start: calc(var(--sb-spacing-group) - var(--sb-spacing-stack));
+}
+@container sb-actions (width < 30rem) {
+  .sb-form-grid__actions > * { flex: 1 1 100%; }
+}

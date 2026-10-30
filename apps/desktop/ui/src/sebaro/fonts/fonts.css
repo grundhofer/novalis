@@ -1,0 +1,31 @@
+/* generated — do not edit: tools/fonts.py build from fonts.json (sha256 c6a5ee5f38668d1b). */
+/* Self-hosted OFL fonts (D18). URLs are relative to this file: serve it together with web/. */
+/* font-feature-settings is deliberately not set: enable tnum, zero, case … per role in your CSS. */
+
+/* sebaro Sans — roles: ui, display; licence: web/sebaro-sans-OFL.txt */
+@font-face {
+  font-family: "sebaro Sans";
+  src: url("web/sebaro-sans-latin-de.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+1E9E, U+2010, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2032-2033, U+2039-203A, U+203F, U+2044, U+2052, U+20AC, U+2122, U+2190-2193, U+21A9, U+21E5, U+21E7, U+2212, U+2215, U+2303, U+2318, U+2325, U+232B, U+238B;
+}
+@font-face {
+  font-family: "sebaro Sans";
+  src: url("web/sebaro-sans-italic-latin-de.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+1E9E, U+2010, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2032-2033, U+2039-203A, U+203F, U+2044, U+2052, U+20AC, U+2122, U+2190-2193, U+21A9, U+21E5, U+21E7, U+2212, U+2215, U+2303, U+2318, U+2325, U+232B, U+238B;
+}
+
+/* sebaro Mono — roles: mono; licence: web/sebaro-mono-OFL.txt; a renamed Modified Version of "IBM Plex Mono" (OFL condition 3: its licence reserves a font name) */
+@font-face {
+  font-family: "sebaro Mono";
+  src: url("web/sebaro-mono-latin-de.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000, U+000D, U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+1E9E, U+2013-2014, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2032-2033, U+2039-203A, U+2044, U+20AC, U+2122, U+2190-2193, U+21A9, U+21E5, U+21E7, U+2212, U+2215, U+2303, U+2318, U+2325, U+232B, U+238B;
+}

@@ -2,12 +2,14 @@ import { useTranslation } from "react-i18next";
 
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
+import { Callout } from "./Banner";
 
 /**
- * PLAN.md §5.6 step 1: a vault in a cloud folder is said once — one line
- * above the editor, dismissed for good (`cloudHintShown` in `state.json`);
- * the status bar keeps naming the provider after that. Not the
- * external-change banner, which belongs to a document.
+ * PLAN.md §5.6 step 1: a vault in a cloud folder is said once — a note
+ * above the editor (./Banner `Callout`), dismissed for good
+ * (`cloudHintShown` in `state.json`); the status bar keeps naming the
+ * provider after that. Not the external-change banner, which belongs to a
+ * document.
  */
 export default function CloudHint() {
   const { t } = useTranslation();
@@ -16,13 +18,6 @@ export default function CloudHint() {
 
   if (kind === "local" || shown) return null;
   return (
-    <div className="banner" role="status">
-      <span className="banner-body">{t("status.cloud.hintOnce")}</span>
-      <div className="banner-actions">
-        <button className="btn ghost" type="button" onClick={() => useUi.getState().dismissCloudHint()}>
-          {t("banner.dismiss")}
-        </button>
-      </div>
-    </div>
+    <Callout kind="note" text={t("status.cloud.hintOnce")} onHide={() => useUi.getState().dismissCloudHint()} />
   );
 }

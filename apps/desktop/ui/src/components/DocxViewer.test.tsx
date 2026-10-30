@@ -67,7 +67,7 @@ function bytesOf(base64: string): Uint8Array<ArrayBuffer> {
 
 describe("DocxViewer", () => {
   beforeEach(() => {
-    useUi.setState({ toast: null });
+    useUi.setState({ message: null });
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -75,9 +75,14 @@ describe("DocxViewer", () => {
 
   it("shows the document's headings, emphasis, links and pictures", async () => {
     const { container } = render(<DocxViewer bytes={bytesOf(SMALL_DOCX)} />);
-    expect(screen.getByText("editor.loading")).toBeTruthy();
+    // Converting a local file is silent: an empty, busy pane (STA-06).
+    expect(container.querySelector('.docx[aria-busy="true"]')).toBeTruthy();
+    expect(container.textContent).toBe("");
 
     const root = await shown(container);
+    // The root is filled before React renders the „ready“ state, so the busy
+    // mark goes a render later.
+    await vi.waitFor(() => expect(container.querySelector("[aria-busy]")).toBeNull());
     expect(root.querySelector("h1")?.textContent).toBe("Reiseplan");
     expect(root.querySelector("strong")?.textContent).toBe("fettem");
     expect(root.querySelector("a")?.getAttribute("href")).toBe("https://example.com/");
@@ -90,12 +95,12 @@ describe("DocxViewer", () => {
     expect(screen.queryByText("viewer.docx.unreadable")).toBeNull();
   });
 
-  it("answers a link out of the vault with the toast, and follows one inside", async () => {
+  it("answers a link out of the vault in the action zone, and follows one inside", async () => {
     const { container } = render(<DocxViewer bytes={bytesOf(SMALL_DOCX)} />);
     const root = await shown(container);
 
     fireEvent.click(root.querySelector("a")!, { bubbles: true, composed: true });
-    expect(useUi.getState().toast?.key).toBe("editor.previewExternalLink");
+    expect(useUi.getState().message?.key).toBe("editor.previewExternalLink");
   });
 
   it("says so instead of converting a document above the cap", async () => {
@@ -103,14 +108,17 @@ describe("DocxViewer", () => {
     // allocation and nothing else.
     render(<DocxViewer bytes={new Uint8Array(new ArrayBuffer(15 * 1024 * 1024 + 1))} />);
 
-    expect(await screen.findByText("viewer.docx.tooLarge")).toBeTruthy();
+    const text = await screen.findByText("viewer.docx.tooLarge");
+    expect(text.closest(".sb-callout")?.className).toContain("sb-callout--warning");
   });
 
   it("says so when the file is not a document at all", async () => {
     render(<DocxViewer bytes={bytesOf(btoa("this is not a Word document"))} />);
 
-    expect(await screen.findByText("viewer.docx.unreadable")).toBeTruthy();
+    const text = await screen.findByText("viewer.docx.unreadable");
+    expect(text.closest(".sb-callout")?.className).toContain("sb-callout--error");
+    expect(text.closest('[aria-busy="true"]')).toBeNull();
     // A file that cannot be read is the file's business, not an app failure.
-    expect(useUi.getState().toast).toBeNull();
+    expect(useUi.getState().message).toBeNull();
   });
 });

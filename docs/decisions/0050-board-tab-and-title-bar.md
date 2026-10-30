@@ -33,3 +33,20 @@ The owner looked at the sebaro pilot (ADR-0048) in the real window. Three things
 ## Sources
 
 ADR-0007 · ADR-0048 · D21 · sebaroDesign `systems/sebaro/spec/02-components.md` §1.1–1.2, `DECISIONS.md` D39
+
+**Amended 2026-10-26** — ADR-0051 #19 and sebaro D102 (36): New Card stays
+in each column's foot, outside its scrolling cards, as sebaro's
+`sb-board__add`, a secondary action that names its column („Neue Karte in
+„…““). New Column is the compact secondary action in the board's head.
+
+**Amended 2026-10-26** — ADR-0051 #35 and sebaro D102 (5): the board's tab
+is sebaro's pinned tab (`sb-doc-tabs__item--pinned`, spec/02 §4.21). It
+stays first, is not draggable and has no ×; `Delete`, `Cmd+W`, a middle
+click and Close All Tabs leave it, and it says „angeheftet“ as a hidden
+word. The board comes and goes through the board tool and View ▸ Board:
+showing the board brings its tab, hiding it takes the tab with it.
+Showing it names the board it shows as `activeBoard`. A note tab made
+current only hides the board and keeps its tab, so a click on it shows the
+board again. While the board shows, `Cmd+W` has nothing to close
+and File ▸ Close is off. `state.json` is unchanged: a hidden board's tab
+comes back at the next start from `activeBoard`.

@@ -17,8 +17,8 @@ describe("editorPhrases", () => {
     });
     const state = EditorState.create({ extensions: [editorPhrases()] });
     expect(state.phrase("Find")).toBe("Suchen");
-    expect(state.phrase("replace all")).toBe("alle ersetzen");
+    expect(state.phrase("replace all")).toBe("Alle ersetzen");
     expect(state.phrase("replaced $ matches", 3)).toBe("3 Treffer ersetzt");
-    expect(state.phrase("Go to line")).toBe("Gehe zu Zeile");
+    expect(state.phrase("Go to line")).toBe("Zu Zeile springen");
   });
 });

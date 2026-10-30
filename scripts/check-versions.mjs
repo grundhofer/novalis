@@ -6,7 +6,6 @@
 //   package.json                           -> version
 //   apps/desktop/src-tauri/tauri.conf.json -> version
 //   apps/desktop/ui/package.json           -> version  (private workspace package)
-//   packages/tokens/package.json           -> version  (private workspace package)
 // Prints them all and exits 1 on any mismatch or missing file. No dependencies.
 
 import { existsSync, readFileSync } from "node:fs";
@@ -30,7 +29,6 @@ const stamps = [
     extract: (text) => JSON.parse(text).version ?? null,
   },
   { file: "apps/desktop/ui/package.json", extract: (text) => JSON.parse(text).version ?? null },
-  { file: "packages/tokens/package.json", extract: (text) => JSON.parse(text).version ?? null },
 ];
 
 const rows = stamps.map(({ file, label, extract }) => {

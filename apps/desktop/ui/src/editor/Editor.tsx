@@ -1,10 +1,10 @@
-import { syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
+import { afterDialog, focusInTabList } from "../lib/areas";
 import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
 import { useCursor } from "../stores/cursor";
@@ -14,7 +14,7 @@ import { report, useUi } from "../stores/ui";
 import { setActiveView } from "./commands";
 import { buildExtensions } from "./setup";
 import { notesChanged } from "./unresolvedLinks";
-import { editorTheme, markdownHighlight } from "./theme";
+import { editorTheme } from "./theme";
 
 /**
  * A note's text for `[[note#` completion: the buffer when the note is open
@@ -121,7 +121,7 @@ export default function Editor({
       const extensions = await buildExtensions(path, {
         onChange: () => useEditorSave.getState().touch(path),
         onFollowLink,
-        // The chip opens the vault search filtered by its tag (ADR-0037).
+        // A #tag opens the vault search filtered by its tag (ADR-0037).
         onFollowTag: (tag) => useUi.getState().setOverlay({ kind: "search", tag }),
         onSave: () => void useEditorSave.getState().save(path).catch(report),
         notePaths,
@@ -137,7 +137,6 @@ export default function Editor({
         doc: useEditorSave.getState().docs[path]?.text ?? doc.text,
         extensions: [
           editorTheme,
-          syntaxHighlighting(markdownHighlight),
           ...extensions,
           EditorView.updateListener.of((update) => {
             if (update.selectionSet || update.docChanged) reportCursor(path, update.state);
@@ -180,7 +179,13 @@ export default function Editor({
       read = () => created.state.sliceDoc();
       useEditorSave.getState().attach(path, read);
       setActiveView(view);
-      view.focus();
+      // A note chosen from the tab list with the keys leaves focus there, so
+      // the next arrow chooses the next tab (spec/02 §4.21). A note the New
+      // Note dialog opened takes the keyboard once the dialog has closed.
+      if (!focusInTabList())
+        afterDialog(() => {
+          if (!cancelled) created.focus();
+        });
       const target = takeDeferredLine();
       // A jump (a search hit, a backlink) wins over the kept place.
       if (target) goToEditorLine(resolveLine(view.state.doc.toString(), target));

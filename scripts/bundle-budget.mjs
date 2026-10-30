@@ -11,7 +11,9 @@
 // that file belong to other gates and are ignored here):
 //   "eagerJsGzipKb"        sum of eager JS, gzipped
 //   "maxEagerChunkGzipKb"  largest single eager JS file, gzipped
-//   "eagerCssKb"           sum of eager CSS, raw
+//   "eagerCssGzipKb"       sum of eager CSS, gzipped (ADR-0051 #3: sebaro.css is
+//                          large and repetitive, so the wire size is what counts;
+//                          the raw size is printed beside it)
 //   "fontsKb"              sum of bundled font files, raw
 //   "previewChunkGzipKb"   the Preview chunk plus what it imports statically
 //                          beyond the eager set, gzipped (ADR-0022 point 8:
@@ -27,7 +29,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "apps/desktop/ui/dist");
 const indexHtml = join(dist, "index.html");
 const budgetFile = join(root, "docs/BUDGET.json");
-const BUDGET_KEYS = ["eagerJsGzipKb", "maxEagerChunkGzipKb", "eagerCssKb", "fontsKb", "previewChunkGzipKb"];
+const BUDGET_KEYS = ["eagerJsGzipKb", "maxEagerChunkGzipKb", "eagerCssGzipKb", "fontsKb", "previewChunkGzipKb"];
 const FONT_EXTENSIONS = new Set([".woff2", ".woff", ".ttf", ".otf"]);
 const KB = 1024;
 
@@ -76,7 +78,10 @@ const resolveAsset = (ref) => {
 
 const gzipBytes = (file) => gzipSync(readFileSync(file)).length;
 const jsSizes = [...new Set(eagerJs)].map((ref) => ({ ref, bytes: gzipBytes(resolveAsset(ref)) }));
-const cssSizes = [...new Set(eagerCss)].map((ref) => ({ ref, bytes: statSync(resolveAsset(ref)).size }));
+const cssSizes = [...new Set(eagerCss)].map((ref) => {
+  const file = resolveAsset(ref);
+  return { ref, bytes: gzipBytes(file), rawBytes: statSync(file).size };
+});
 
 const fontFiles = [];
 const walk = (dir) => {
@@ -117,7 +122,12 @@ const largestJs = jsSizes.reduce((max, item) => (item.bytes > max.bytes ? item :
 const rows = [
   { metric: "eager JS (gzip)", bytes: sum(jsSizes), limitKb: budget.eagerJsGzipKb, detail: `${jsSizes.length} file(s)` },
   { metric: "largest eager JS chunk (gzip)", bytes: largestJs.bytes, limitKb: budget.maxEagerChunkGzipKb, detail: largestJs.ref },
-  { metric: "eager CSS (raw)", bytes: sum(cssSizes), limitKb: budget.eagerCssKb, detail: `${cssSizes.length} file(s)` },
+  {
+    metric: "eager CSS (gzip)",
+    bytes: sum(cssSizes),
+    limitKb: budget.eagerCssGzipKb,
+    detail: `${cssSizes.length} file(s), raw ${(cssSizes.reduce((total, { rawBytes }) => total + rawBytes, 0) / KB).toFixed(1)} kB`,
+  },
   { metric: "fonts (raw)", bytes: sum(fontFiles), limitKb: budget.fontsKb, detail: `${fontFiles.length} file(s)` },
   {
     metric: "preview chunk + static (gzip)",

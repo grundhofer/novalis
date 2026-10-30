@@ -1,12 +1,13 @@
-import { indentUnit, language, syntaxTree } from "@codemirror/language";
+import { highlightingFor, indentUnit, language, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, runScopeHandlers } from "@codemirror/view";
 import { getStyleTags, tags as t } from "@lezer/highlight";
 import { describe, expect, it, vi } from "vitest";
 
 import { fenceLanguage } from "./fences";
-import { codeTag } from "./markdownExt";
+import { codeTag, noteTag } from "./markdownExt";
 import { buildExtensions, type EditorHooks } from "./setup";
+import { codeHighlight, markdownHighlight } from "./theme";
 
 vi.mock("../ipc/client", () => ({
   commands: {},
@@ -175,6 +176,23 @@ describe("buildExtensions", () => {
 
   // Upstream marks the frontmatter's `---` as `meta`, which the code rules
   // colour as a keyword; here it is a marker like every other.
+  // spec/01 §1.8.1, TEC-08: a code file gets the code looks alone; the
+  // Markdown source's rules (muted markers, bold headings, the sunken fill)
+  // are a note's. `<?php` is a processing instruction, which lezer derives
+  // from `meta`: in code it takes sebaroHighlight's keyword look, not the
+  // markers' grey.
+  it("highlights a code file with the code rules only", async () => {
+    const php = await stateFor("a.php", "<?php echo 1; ?>\n");
+    for (const tag of [t.heading, t.strong, t.emphasis, t.monospace, t.quote, t.link]) {
+      expect(highlightingFor(php, [tag]), tag.toString()).toBeNull();
+    }
+    expect(highlightingFor(php, [t.keyword])).toBe(codeHighlight.style([t.keyword]));
+    expect(highlightingFor(php, [t.processingInstruction])).toBe(codeHighlight.style([t.keyword]));
+    const note = await stateFor("a.md", "# Title\n");
+    expect(highlightingFor(note, [t.heading])).toBe(markdownHighlight.style([t.heading]));
+    expect(highlightingFor(note, [t.processingInstruction])).not.toBeNull();
+  });
+
   it("keeps the frontmatter's dashes a marker", async () => {
     const state = await stateFor("a.md", "---\ntitle: x\n---\n\n# Title\n");
     const dashes: string[] = [];
@@ -186,11 +204,63 @@ describe("buildExtensions", () => {
     expect(dashes).toEqual([String(t.processingInstruction), String(t.processingInstruction)]);
   });
 
-  // ADR-0037: a `#tag` chip is found where a ⌘-click lands, and a link is not a tag.
-  it("finds the tag chip under a position", async () => {
+  // ADR-0037: a `#tag` is found where a ⌘-click lands, and a link is not a tag.
+  it("finds the tag under a position", async () => {
     const { tagAt } = await import("./decorations");
     const state = await stateFor("a.md", "see #atlas and [x](#anchor)\n");
     expect(tagAt(state, 6)).toBe("atlas");
+    expect(tagAt(state, 4)).toBe("atlas");
     expect(tagAt(state, 20)).toBeNull();
+  });
+
+  // ADR-0051 #18: the tag in the link style, its `#` a marker of its own.
+  it("gives a tag's `#` the marker's tag and its word the tag's", async () => {
+    const state = await stateFor("a.md", "see #atlas\n");
+    const found: [string, number, number, string][] = [];
+    syntaxTree(state).iterate({
+      enter: (node) => {
+        if (node.name === "TagRef" || node.name === "TagMark") {
+          found.push([node.name, node.from, node.to, String(getStyleTags(node)?.tags[0])]);
+        }
+      },
+    });
+    expect(found).toEqual([
+      ["TagRef", 4, 10, String(noteTag)],
+      ["TagMark", 4, 5, String(t.processingInstruction)],
+    ]);
+  });
+
+  // ADR-0051 #27.19: the find bar and Go to Line are novalis's panels, also
+  // on the search keymap's own ⌥⌘G.
+  it("opens the sebaro find bar and Go to Line panels", async () => {
+    const { openSearchPanel } = await import("@codemirror/search");
+    const view = new EditorView({ state: await stateFor("a.md", "one\ntwo\n"), parent: document.body });
+    openSearchPanel(view);
+    expect(view.dom.querySelector(".cm-panels-top .sb-find-bar .sb-search")).not.toBeNull();
+
+    const mac = /Mac/.test(navigator.platform);
+    const init = { key: "g", code: "KeyG", keyCode: 71, altKey: true, metaKey: mac, ctrlKey: !mac };
+    expect(runScopeHandlers(view, new KeyboardEvent("keydown", init), "editor")).toBe(true);
+    // Under the tabs, over the text, as the find row (spec/02 §4.25.2).
+    expect(view.dom.querySelector(".cm-panels-top form.sb-find-bar [data-sb-find-row=line]")).not.toBeNull();
+    expect(view.dom.querySelector(".cm-goto-line, .cm-dialog")).toBeNull();
+    view.destroy();
+  });
+
+  // ADR-0051: ⌘K is the palette, and Insert Link moved to ⇧⌘K, which
+  // CodeMirror's default keymap spends on Delete Line.
+  it("inserts a link on Shift-Mod-k instead of deleting the line", async () => {
+    const state = await stateFor("a.md", "one\ntwo\n");
+    const view = new EditorView({ state, parent: document.body });
+    view.dispatch({ selection: { anchor: 0, head: 3 } });
+    // `Mod` is ⌘ on a Mac and Ctrl in jsdom; CodeMirror names a shifted
+    // letter by its `keyCode`.
+    const mac = /Mac/.test(navigator.platform);
+    const init = { key: "K", code: "KeyK", keyCode: 75, shiftKey: true, metaKey: mac, ctrlKey: !mac };
+    const event = new KeyboardEvent("keydown", init);
+
+    expect(runScopeHandlers(view, event, "editor")).toBe(true);
+    expect(view.state.doc.toString()).toBe("[one]()\ntwo\n");
+    view.destroy();
   });
 });

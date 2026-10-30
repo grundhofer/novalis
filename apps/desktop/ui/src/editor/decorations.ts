@@ -193,7 +193,7 @@ export function wrapSelection(marker: string): StateCommand {
   };
 }
 
-/** The `#tag` chip at `pos`, without its `#`, if any (ADR-0037). */
+/** The `#tag` at `pos`, without its `#`, if any (ADR-0037). */
 export function tagAt(state: EditorState, pos: number): string | null {
   let found: string | null = null;
   syntaxTree(state).iterate({

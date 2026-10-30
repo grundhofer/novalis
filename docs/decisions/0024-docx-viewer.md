@@ -116,3 +116,9 @@ Zeilen-Walker" with mammoth recommended, the owner chose:
   stays under ≈70 MB at the cap.
 - Open until the pull request: the exact transitive closure of `mammoth`
   (counted offline as ≈26; the lockfile diff tells) and the CSP run above.
+
+**Amended 2026-10-25** — ADR-0051 (sebaro view step 10): a document above
+the cap is said in sebaro's warning callout and one mammoth cannot read in
+its error callout, instead of the banner (STA-05); while mammoth converts,
+the pane is empty, with no „Wird geladen …“ (STA-06). The document wears
+the dress of ADR-0023's amendment of the same day.

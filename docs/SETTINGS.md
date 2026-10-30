@@ -1,8 +1,8 @@
 # Settings
 
 The complete list of persisted settings. ADR-0004 is the allow-list, ADR-0049
-added `reduceMotion`; nothing ships beyond this table without a new ADR
-carrying a quoted owner yes.
+added `reduceMotion`, ADR-0051 added `tone`; nothing ships beyond this table
+without a new ADR carrying a quoted owner yes.
 
 - File: `~/Library/Application Support/io.github.grundhofer.novalis/settings.json` (ADR-0003).
 - Written by an atomic read-modify-write; the Rust `Settings` struct uses
@@ -14,21 +14,28 @@ carrying a quoted owner yes.
 - Not in this file, by design: window size and position, open tabs, sidebar
   width and every other transient value. Those live in `<app-data>/state.json`,
   free-form, disposable, and are never documented here.
-- No preferences window. Each setting has exactly one persisted place where it
-  changes (the "Changed via" column); the command palette is a second launcher
-  for the same command ids, not a second place (ADR-0012), and the sidebar's
-  settings button opens that palette on the settings alone.
+- Where they are shown: the settings view in the main window (ADR-0051 #1,
+  sebaro DSK-02) holds exactly the settings of this table, each with one help
+  sentence, and applies a change at once. `Cmd+,`, App menu ▸ Settings …,
+  the palette's „Einstellungen …“ and the sidebar's place „Einstellungen“
+  open it in the content area; `Escape`, `Cmd+W` and „Zurück zu <Ort>“ leave
+  it. It is never a second window. Each setting has exactly one persisted
+  place (`settings.json`); the menu item in the "Changed via" column, the
+  palette's rows (ADR-0012) and the view are launchers for the same command
+  ids, not more places. The view offers every `editor.fontSize` the shell
+  keeps, 9–32 px.
 
 <!-- settings-table:start -->
 | Key | Kind | Type | Values | Default | Changed via | ADR |
 |---|---|---|---|---|---|---|
 | `version` | schema | integer | `1` | `1` | code only (schema stamp, bumped with a migration) | 0004 |
 | `language` | setting | string | `system` · `de` · `en` | `system` | View ▸ Language (fallback; macOS per-app language is primary) | 0004 |
-| `appearance` | setting | string | `system` · `light` · `dark` | `system` | View ▸ Appearance | 0004 |
-| `editor.fontSize` | setting | integer | CSS px | `16` | `Cmd+=` / `Cmd+-` / `Cmd+0` | 0004 |
+| `appearance` | setting | string | `system` · `light` · `dark` | `system` | View ▸ Light or Dark (ADR-0051) | 0004 |
+| `tone` | setting | string | `cool` · `warm` | `cool` | View ▸ Tone | 0051 |
+| `editor.fontSize` | setting | integer | CSS px, 9–32 | `16` | `Cmd+Plus` / `Cmd+Minus` / `Cmd+0` (ADR-0051) | 0004 |
 | `spellcheck` | setting | boolean | `true` · `false` | `true` | Edit ▸ Spelling ▸ Check Spelling While Typing | 0004 |
 | `reduceMotion` | setting | boolean | `true` · `false` | `false` | View ▸ Always Reduce Motion | 0049 |
-| `lastVault` | state | string or null | absolute path | `null` | Open Vault… (`Cmd+O`) | 0004 |
+| `lastVault` | state | string or null | absolute path | `null` | File ▸ Open Vault … (`Cmd+O`) | 0004 |
 <!-- settings-table:end -->
 
 ## Example
@@ -38,6 +45,7 @@ carrying a quoted owner yes.
   "version": 1,
   "language": "system",
   "appearance": "system",
+  "tone": "cool",
   "editor": { "fontSize": 16 },
   "spellcheck": true,
   "reduceMotion": false,
@@ -57,8 +65,14 @@ carrying a quoted owner yes.
   recent-vaults list (PLAN.md §4.4).
 - Hard-coded defaults that would otherwise be settings are listed in PLAN.md
   §4.2 and are not persisted anywhere.
+- `tone` is sebaro's „Farbton: Kühl · Warm“ (FAR-15). `warm` stamps
+  `data-sb-tone="warm"` on the root element; `cool` removes it. Unlike
+  sebaro's web key `sb-tone`, which keeps only „warm“, the file always names
+  the value, like `appearance`; a file without the key loads as `cool`. It
+  changes the window ground before the page paints (DSK-14) and, through
+  the export's `--sb-*` grey roles, every view.
 - `spellcheck` applies to prose — Markdown, plain text and the prose formats
   (ADR-0022); a code or data file is never checked, whatever the setting says.
 - The tree's file order (`treeSort`: by name, or by modified time newest
   first, chosen in the sidebar legend, ADR-0012) is state in `state.json` next
-  to the sidebar width, not a fifth setting: losing it costs one click.
+  to the sidebar width, not a setting: losing it costs one click.

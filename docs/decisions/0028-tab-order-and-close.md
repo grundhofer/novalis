@@ -44,3 +44,12 @@ B18 and B33 of `docs/research/2026-09-20-feature-gaps.md`).
   the two chordless commands; `tabs.test.ts` covers `move`,
   `closeOthers` and `closeAll`. jsdom cannot drag, so the gesture itself
   is checked by hand in the app.
+
+**Amended 2026-10-25** — ADR-0051 #21 (sebaro view step 4): the tab strip
+is sebaro's `sb-doc-tabs`. Where a dragged tab lands is no longer the accent
+fill but sebaro's drop line (spec/02 §4.22, DSK-11): a 3 px cobalt line on
+the side of the tab it takes the place of where it lands, after that tab
+when dragged rightward and before it when dragged leftward, or at the
+strip's empty end, and the dragged tab wears the 2 px ink frame. The board's
+tab stays pinned first and cannot be dragged (ADR-0050). Nothing else here
+changes.

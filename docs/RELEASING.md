@@ -19,10 +19,11 @@ until this document is revised ship unsigned** (ADR-0010).
   `legacy-final` tag. Nothing under those versions is offered any more, so
   no binary is distributed without its corresponding source.
 - One `VERSION` file is the source. `just bump <version>` propagates it to the
-  five stamps (`Cargo.toml` workspace version, `package.json`,
+  four stamps (`Cargo.toml` workspace version, `package.json`,
   `apps/desktop/src-tauri/tauri.conf.json`, and — since 2026-09-18, so no
   second number of the app is left lying around — the private
-  `apps/desktop/ui/package.json` and `packages/tokens/package.json`) and
+  `apps/desktop/ui/package.json`; `packages/tokens/package.json` went with
+  the package, ADR-0051) and
   `Cargo.lock` is refreshed with `cargo update -w`; `scripts/check-versions.mjs`
   fails CI when any differ.
 - Minimum macOS 14, arm64 only (PLAN.md §4.5).

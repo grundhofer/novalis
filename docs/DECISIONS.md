@@ -813,6 +813,101 @@ Seen in the real window:
 Recorded as **ADR-0050** (the open board is a tab, the `⇧⌘P` badge goes,
 New Card stays at the column's foot; amends ADR-0007).
 
+## Answered 2026-10-24
+
+After a read-only inventory of novalis against sebaro up to D100
+(`docs/sebaro-umbau.md`), the owner answered 27 gathered questions about the
+full sebaro adoption, each time choosing the recommendation (verbatim answers
+in ADR-0051).
+
+Recorded as **ADR-0051**:
+- a settings view with ⌘, and a sixth setting `tone`
+- gzip for the eager-CSS budget
+- local building until a name-filtered export exists
+- sebaro's menu groups and fixed shortcuts (⌘K palette, ⇧⌘K Insert Link, ⌃⌘S, ⌃⇥, ⌘+ / ⌘−, ⌥⌘N)
+- Return opens in the tree
+- errors in the action zone
+- „Mehr“ menus on the board
+- React counterparts with sebaro's markup
+
+Amends ADR-0004, ADR-0008, ADR-0012, ADR-0037, ADR-0038, ADR-0048 and ADR-0049. Built on the `sebaro-umbau` branch (steps 0–15); not yet merged to `main`.
+
+## Answered 2026-10-25
+
+While views 1–10 were rebuilt, the owner answered seven more questions, each
+time choosing the recommendation (verbatim answers in ADR-0051, amendment
+2026-10-25, #28–#34):
+- sebaro's tab overflow kept as it is
+- the sidebar width stays px at large text
+- the preview still marks no unresolved link or #tag
+- the gap between the traffic lights and the tile waits for sebaro
+- warnings above the editor as `sb-callout--warning`, information as `--note`
+- code files scroll sideways at 200 % text, like the tree and the CSV table
+- search-cache files the picture runs leave are deleted
+
+Recorded as amendments to **ADR-0051**; no other ADR changes.
+
+## Answered 2026-10-26
+
+After the view steps 11–15 and the adoption of sebaro D102, the owner
+answered thirteen more questions, each time choosing the recommendation
+(verbatim answers in ADR-0051, amendment 2026-10-26, #35–#47):
+- the board tab becomes a pinned tab (no ×, not closed by ⌘W)
+- Back / Forward on ⌘← / ⌘→, ⌃⌘← / ⌃⌘→ in text; ⌘[ / ⌘] go
+- `scripts/check-sebaro-export.mjs` checks the export in `just check` and CI
+- `docs/GLOSSARY.md` with „Vault“ and „Board“
+- „Rückgängig“ in the toast after „Verschieben nach …“
+- sebaro's footnotes in the preview
+- „Notiz verknüpfen …“ in the card's context menu
+- a card dropped on a card's upper half lands before it
+- View ▸ „Vorschau“ ⌘E as a checkbox item; „Reiter nach vorn / nach hinten“ stay
+- „Board in den Papierkorb legen …“
+- the scrollbar under the tab row stays visible
+- ten points kept as built (#47)
+
+Recorded as amendments to **ADR-0051**; they amend ADR-0008 (shortcuts) and
+ADR-0050 (the board tab).
+
+## Answered 2026-10-27
+
+After sebaro D104 and D105 and the final reviews, the owner answered nine
+more questions, each time choosing the recommendation (verbatim answers in
+ADR-0051, amendment 2026-10-27, #48–#56):
+- ⌃⌘S counts as the menu: the sidebar overlay opens without focus; the tool
+  and the palette take focus in (amends #47)
+- review pictures at 200 % in the web view only, the editor font at its
+  default (amends #25)
+- the rebuild reaches `main` as one squash commit after a name search;
+  `sebaro-umbau` stays local, no PR or push without the owner's OK
+- another product's name in the quotes of this index and ADR-0048 stays
+- tables in the preview are named after the heading before them
+- number columns end-aligned with tabular figures, Markdown preview only
+- Go to Line shows sebaro's field error for a line it cannot go to
+- `CFBundleLocalizations` (de, en) in Info.plist for macOS's own menu items
+- five smaller points (sidebar foot without a vault, the toast keeps an
+  Escape a dialog owns, the directory map, three unused keys, two commit
+  texts left to the squash)
+
+Recorded as amendments to **ADR-0051**.
+
+## Answered 2026-10-29
+
+After sebaro D108, D110 and D111 and the final reviews, the owner answered six
+more questions, each time choosing the recommendation (verbatim answers in
+ADR-0051, amendment 2026-10-29, #57–#62):
+- tables in the EPUB and DOCX readers are named as in the preview (#52)
+- an empty vault says only „Keine Notiz offen.“ under the tabs
+- the editor's code colours, looks and selection mark come from the
+  export's `editor/sebaro-codemirror.ts`; the export folder is typechecked
+- CLAUDE.md says no `--nv-*` value is left and a new one needs a gap row
+- the branch history is not rewritten: the rebuild lands as one squash
+  commit, as #50
+- five points kept as built (novalis' own export check, `sb-fatal` as the
+  last resort, no `CFBundleDevelopmentRegion = de`, Go to Line past the end
+  goes to the end, the menu bar follows macOS's appearance)
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

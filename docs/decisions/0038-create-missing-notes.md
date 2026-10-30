@@ -49,3 +49,9 @@ the research suggested).
 - Tests: the Create row and its absence for an existing name, a `#` name
   and in other modes; the pre-filled dialog; the decoration and its
   refresh.
+
+**Amended 2026-10-25** — ADR-0051 #17 (sebaro view step 5): an unresolved
+link is no longer dimmed and dashed. It is `text-muted` without any line:
+not the link style, which is kept for links that lead somewhere (LNK-01),
+and no dash, which sebaro does not draw (FOR-03). The decoration, its
+refresh and the `Cmd`-click that offers to create the note are unchanged.

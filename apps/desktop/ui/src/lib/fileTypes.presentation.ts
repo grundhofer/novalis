@@ -28,7 +28,7 @@ export interface Presentation {
 
 /**
  * What a preset means in the editor. `mono` is the code dress of ADR-0022:
- * Geist Mono at full width, indentation guides, no spellcheck. `data` and
+ * sebaro Mono at full width, indentation guides, no spellcheck. `data` and
  * `code2` read the same; the rows use the plan's vocabulary so the widened
  * list (F3a) lands without renaming.
  */

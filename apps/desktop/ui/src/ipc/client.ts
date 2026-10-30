@@ -55,6 +55,9 @@ export function errorKey(error: unknown): string {
     invalid_path: "errors.invalidPath",
     bad_request: "errors.badRequest",
   };
+  // A parse error of no particular file (any `serde_json` error) has no
+  // path for the sentence to start with.
+  if (error.code === "parse" && !error.ipc.path) return "errors.parseUnknown";
   return map[error.code] ?? "errors.internal";
 }
 

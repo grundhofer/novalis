@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { commands, NovalisError, unwrap } from "../ipc/client";
-import { DOCUMENT_CSS } from "../lib/documentCss";
+import { DOCUMENT_CSS, dressDocument } from "../lib/documentCss";
 import {
   parseContainer,
   parseNav,
@@ -15,8 +15,13 @@ import {
 import { mimeOf } from "../lib/fileTypes";
 import { extensionOf, stemOf } from "../lib/paths";
 import { sanitizeInto } from "../lib/sanitize";
+import { TABLE_HEADING, TABLE_NUMBER } from "../lib/tableNames";
 import { report, useUi } from "../stores/ui";
+import { Callout } from "./Banner";
 import ContentsPopover from "./ContentsPopover";
+import { FileName } from "./FileName";
+import Tool from "./Tool";
+import Waiting from "./Waiting";
 
 /**
  * The EPUB reader (ADR-0023) — the app's own, not a library's.
@@ -126,6 +131,8 @@ function parseChapter(xhtml: string): Document {
 
 export default function EpubViewer({ path }: { path: string }) {
   const { t } = useTranslation();
+  // The tools' tooltips need ids unique in the page.
+  const uid = useId();
   const [book, setBook] = useState<Book | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [chapter, setChapter] = useState(0);
@@ -147,8 +154,8 @@ export default function EpubViewer({ path }: { path: string }) {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        // A DRM-protected book is not a failure to report: the banner says
-        // what it is. Anything else is, and the banner says only that much.
+        // A DRM-protected book is not a failure to report: the callout says
+        // what it is. Anything else is, and the callout says only that much.
         if (error instanceof NovalisError && error.code === "protected") setRefusal("protected");
         else {
           setRefusal("unreadable");
@@ -161,6 +168,10 @@ export default function EpubViewer({ path }: { path: string }) {
   }, [path]);
 
   // ---- the chapter ---------------------------------------------------------
+  // A table's region is named as in the preview (ADR-0051 #57).
+  const tableUnder = t("preview.tableUnder", { heading: TABLE_HEADING });
+  const tableUnderNumbered = t("preview.tableUnderNumbered", { n: TABLE_NUMBER, heading: TABLE_HEADING });
+  const tableNumbered = t("preview.tableNumbered", { n: TABLE_NUMBER });
   // The shadow root is the effect's alone: React renders no children into
   // the host, so every run starts from an empty root and the previous
   // chapter's nodes and URLs are gone before the next ones arrive.
@@ -188,6 +199,7 @@ export default function EpubViewer({ path }: { path: string }) {
       if (xhtml !== null) {
         const parsed = parseChapter(xhtml);
         body.append(sanitizeInto(parsed.body ?? parsed.documentElement, document));
+        dressDocument(body, { under: tableUnder, underNumbered: tableUnderNumbered, numbered: tableNumbered });
 
         const images = [...body.querySelectorAll<HTMLImageElement>("img[data-src]")];
         const wanted = [
@@ -222,7 +234,7 @@ export default function EpubViewer({ path }: { path: string }) {
       cancelled = true;
       free();
     };
-  }, [book, chapter, path]);
+  }, [book, chapter, path, tableUnder, tableUnderNumbered, tableNumbered]);
 
   const closeContents = useCallback(() => setContentsOpen(false), []);
   const count = book?.spine.length ?? 0;
@@ -250,9 +262,9 @@ export default function EpubViewer({ path }: { path: string }) {
       return;
     }
     if (SCHEME.test(href)) {
-      // Mode 1 opens nothing outside the vault (docs/PRIVACY.md); the toast
-      // says so rather than letting the click look broken.
-      useUi.getState().showToast("editor.previewExternalLink");
+      // Mode 1 opens nothing outside the vault (docs/PRIVACY.md); the action
+      // zone says so rather than letting the click look broken.
+      useUi.getState().showMessage("editor.previewExternalLink");
       return;
     }
     const target = resolveEntry(book.spine[chapter] ?? "", href);
@@ -266,15 +278,17 @@ export default function EpubViewer({ path }: { path: string }) {
   if (refusal) {
     return (
       <div className="epub">
-        <div className="banner" role="status">
-          <span className="banner-body">
-            {t(refusal === "protected" ? "viewer.epub.protected" : "viewer.epub.unreadable")}
-          </span>
-        </div>
+        {refusal === "protected" ? (
+          <Callout kind="warning" text={t("viewer.epub.protected")} />
+        ) : (
+          <Callout kind="error" text={t("viewer.epub.unreadable")} />
+        )}
       </div>
     );
   }
-  if (!book) return <div className="pane-loading">{t("editor.loading")}</div>;
+  // Three small reads inside the file: silent while local, named after a
+  // second while a cloud-only book downloads (STA-06, ADR-0051 #27.8).
+  if (!book) return <Waiting path={path} />;
 
   const rows =
     book.chapters.length > 0
@@ -286,52 +300,54 @@ export default function EpubViewer({ path }: { path: string }) {
 
   return (
     <div className="epub">
-      <header className="epub-bar">
-        <button
-          className={contentsOpen ? "btn ghost pdf-tool wide on" : "btn ghost pdf-tool wide"}
-          type="button"
-          ref={toggle}
-          aria-expanded={contentsOpen}
-          onClick={() => setContentsOpen((open) => !open)}
-        >
-          {t("viewer.epub.contents")}
-        </button>
-        <span className="epub-title">{book.title || stemOf(path)}</span>
-        <span className="pdf-spacer" />
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.epub.previousChapter")}
-          aria-label={t("viewer.epub.previousChapter")}
-          disabled={chapter <= 0}
-          onClick={() => goTo(chapter - 1)}
-        >
-          &#8249;
-        </button>
-        <span className="epub-count">
-          {t("viewer.epub.chapterOf", { current: chapter + 1, count })}
-        </span>
-        <button
-          className="btn ghost pdf-tool"
-          type="button"
-          title={t("viewer.epub.nextChapter")}
-          aria-label={t("viewer.epub.nextChapter")}
-          disabled={chapter >= count - 1}
-          onClick={() => goTo(chapter + 1)}
-        >
-          &#8250;
-        </button>
-      </header>
-      {contentsOpen && (
-        <ContentsPopover
-          label={t("viewer.epub.contents")}
-          rows={rows}
-          current={rows.findIndex((row) => row.index === chapter)}
-          toggle={toggle}
-          onPick={(index) => goTo(rows[index]?.index ?? chapter)}
-          onClose={closeContents}
-        />
-      )}
+      <div className="viewer-head">
+        <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
+          <button
+            className="sb-secondary-action sb-secondary-action--compact"
+            type="button"
+            ref={toggle}
+            aria-expanded={contentsOpen}
+            aria-controls={contentsOpen ? `${uid}-contents` : undefined}
+            onClick={() => setContentsOpen((open) => !open)}
+          >
+            {t("viewer.epub.contents")}
+          </button>
+          {/* The title wraps (ADR-0051 #24); a book without one shows its
+              file name, which breaks after - . _ / only. */}
+          <span className="viewer-bar__title">{book.title || <FileName name={stemOf(path)} />}</span>
+          <Tool
+            id={`${uid}-previous`}
+            icon="chevron-left"
+            label={t("viewer.epub.previousChapter")}
+            disabled={chapter <= 0}
+            onClick={() => goTo(chapter - 1)}
+          />
+          <span className="sb-doc-bar__count">{t("viewer.epub.chapterOf", { current: chapter + 1, count })}</span>
+          <Tool
+            id={`${uid}-next`}
+            icon="chevron-right"
+            label={t("viewer.epub.nextChapter")}
+            disabled={chapter >= count - 1}
+            onClick={() => goTo(chapter + 1)}
+          />
+        </div>
+        {contentsOpen && (
+          <ContentsPopover
+            id={`${uid}-contents`}
+            label={t("viewer.epub.contents")}
+            rows={rows}
+            current={rows.findIndex((row) => row.index === chapter)}
+            toggle={toggle}
+            onPick={(index) => {
+              goTo(rows[index]?.index ?? chapter);
+              // The picked row goes with the popover: the focus returns to
+              // the toggle instead of falling to the page (spec/02 §4.10).
+              toggle.current?.focus();
+            }}
+            onClose={closeContents}
+          />
+        )}
+      </div>
       <div className="epub-scroll" ref={scroller}>
         <div className="epub-host" ref={host} onClick={onClick} />
       </div>

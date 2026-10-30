@@ -11,11 +11,11 @@ const OPENABLE = /^(https?|mailto):/i;
  * A link out of the vault, clicked in the preview or `Cmd`-clicked in the
  * editor (ADR-0044): a web or mail link goes to macOS, which opens it in the
  * default browser or mail app — novalis itself opens no connection
- * (docs/PRIVACY.md). Any other scheme is refused, and a toast says so.
+ * (docs/PRIVACY.md). Any other scheme is refused, and the action zone says so.
  */
 export function openExternal(url: string): void {
   if (!OPENABLE.test(url.trim())) {
-    useUi.getState().showToast("editor.externalLinkRefused");
+    useUi.getState().showMessage("editor.externalLinkRefused");
     return;
   }
   void unwrap(commands.systemOpen({ kind: "url", url: url.trim() })).catch(report);

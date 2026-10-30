@@ -21,6 +21,14 @@ describe("CloudHint", () => {
     useVault.setState({ vault: vault("fileProvider") });
     const { container } = render(<CloudHint />);
     expect(screen.getByText("status.cloud.hintOnce")).toBeTruthy();
+    // sebaro's note callout (STA-05), its action a secondary one.
+    // A polite live region around it announces it when it appears.
+    expect(container.firstElementChild?.getAttribute("role")).toBe("status");
+    const callout = container.querySelector(".sb-callout")!;
+    expect(callout.className).toBe("sb-callout sb-callout--note nv-callout");
+    expect(callout.getAttribute("role")).toBe("note");
+    expect(callout.querySelector(".sb-callout__text")?.textContent).toBe("callout.note status.cloud.hintOnce");
+    expect(screen.getByText("banner.dismiss").className).toBe("sb-text-action sb-text-action--compact sb-callout__hide");
 
     fireEvent.click(screen.getByText("banner.dismiss"));
     expect(useUi.getState().cloudHintShown).toBe(true);

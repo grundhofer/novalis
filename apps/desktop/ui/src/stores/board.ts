@@ -62,8 +62,14 @@ interface BoardState {
   notices: Record<string, BoardNotice>;
 
   setBoards: (boards: BoardRefDto[]) => void;
-  load: (slug: string) => Promise<void>;
+  /**
+   * `background` for a read no action of the user started (a watcher batch,
+   * the boot): its failed tidy-up is then a failure without a trigger
+   * (spec/02 §4.17, D102 (11)).
+   */
+  load: (slug: string, background?: boolean) => Promise<void>;
   dismissNotice: (slug: string) => void;
+  /** Re-read the active board after a watcher batch; see `load`'s `background`. */
   refresh: () => Promise<void>;
   /**
    * Re-read the list of boards. `setBoards` is what the vault open brings;
@@ -104,7 +110,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   // board until the user picked one of the new vault's.
   setBoards: (boards) => set({ boards, slug: null, board: null, notices: {} }),
 
-  load: async (slug) => {
+  load: async (slug, background = false) => {
     const previous = get().slug;
     set({ busy: true, slug });
     try {
@@ -123,7 +129,7 @@ export const useBoard = create<BoardState>((set, get) => ({
       // reported the same way, because silence is how it went unnoticed.
       if (board.resolveError) {
         const error = new NovalisError(board.resolveError);
-        useUi.getState().showToast(errorKey(error), errorValues(error));
+        useUi.getState().showMessage(errorKey(error), errorValues(error), background);
       }
     } catch (error) {
       // The board that could not be read is not the active one. Left as it
@@ -151,7 +157,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   refresh: async () => {
     const slug = get().slug;
-    if (slug) await get().load(slug);
+    if (slug) await get().load(slug, true);
   },
 
   refreshList: async () => {

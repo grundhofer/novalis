@@ -27,10 +27,22 @@ export interface VaultState {
   children: Record<string, EntryDto[]>;
   expanded: Record<string, boolean>;
   loading: Record<string, boolean>;
+  /** The chosen row (`aria-selected`): clicked, opened with Enter or Space, or revealed. */
   selected: string | null;
+  /**
+   * The row the tree's keys are on, its one tab stop (NAV-11): the arrows
+   * move it and leave `selected` alone, so focus never opens anything.
+   * Choosing a row moves it there too. Tree commands act on it.
+   */
+  focused: string | null;
+  /** Set with `focus(path, true)`: the tree gives the row the keyboard focus once it is drawn. */
+  takeFocus: boolean;
+  /** Set with `focus(path, take, true)`, and with `take`: the tree scrolls the row into view once it is drawn. */
+  showFocused: boolean;
 
   setVault: (vault: VaultDto | null, tree: EntryDto[]) => void;
   select: (path: string | null) => void;
+  focus: (path: string | null, take?: boolean, show?: boolean) => void;
   toggleFolder: (path: string) => Promise<void>;
   reveal: (path: string) => Promise<void>;
   reload: (folder: string) => Promise<void>;
@@ -65,11 +77,25 @@ export const useVault = create<VaultState>((set, get) => ({
   expanded: {},
   loading: {},
   selected: null,
+  focused: null,
+  takeFocus: false,
+  showFocused: false,
 
   setVault: (vault, tree) =>
-    set({ vault, children: { "": sortEntries(tree) }, expanded: {}, loading: {}, selected: null }),
+    set({
+      vault,
+      children: { "": sortEntries(tree) },
+      expanded: {},
+      loading: {},
+      selected: null,
+      focused: null,
+      takeFocus: false,
+      showFocused: false,
+    }),
 
-  select: (path) => set({ selected: path }),
+  select: (path) => set({ selected: path, focused: path }),
+
+  focus: (path, take = false, show = take) => set({ focused: path, takeFocus: take, showFocused: show }),
 
   toggleFolder: async (path) => {
     const open = !get().expanded[path];
@@ -204,6 +230,16 @@ export function treeRows(
     rows.push({ entry: boardEntry(board), depth: 0, expanded: false });
   }
   return rows;
+}
+
+/**
+ * The vault's root is listed and the tree draws nothing in it, no file, no
+ * folder and no board: the tree's empty state (DAT-07). Then nothing can be
+ * chosen in the sidebar and ⌘P finds nothing (spec/07 §4.8, ADR-0051 #58).
+ */
+export function vaultIsEmpty(children: Record<string, EntryDto[]>, boards: BoardRefDto[]): boolean {
+  const root = children[""];
+  return root !== undefined && treeRows({ "": root }, {}, "name", boards).length === 0;
 }
 
 /**

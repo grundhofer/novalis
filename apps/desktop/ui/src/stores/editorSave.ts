@@ -9,7 +9,7 @@ import {
   type PreconditionDto,
   type VaultKindDto,
 } from "../ipc/client";
-import { report } from "./ui";
+import { reportBackground } from "./ui";
 import { useVault } from "./vault";
 
 /**
@@ -143,7 +143,7 @@ function armAutosave(path: string, save: (path: string) => Promise<void>): void 
     path,
     setTimeout(() => {
       timers.delete(path);
-      void save(path).catch(report);
+      void save(path).catch(reportBackground);
     }, AUTOSAVE_MS),
   );
 }

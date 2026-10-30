@@ -55,3 +55,11 @@ four: they are one pull request.
 - Tests cover the seed and its limits, the headings overlay, the recent
   list (order, cap, rename), the palette's recent-first pool and `@`, and
   finding the chip under a position.
+
+**Amended 2026-10-25** — ADR-0051 #18 (sebaro view step 5): the `#tag` is no
+longer a cobalt chip. It is drawn in sebaro's link style: the `#` a marker in
+`text-muted` like every other (a node of its own, `TagMark`), the word in the
+text colour with the 2 px link-coloured line 0.2em below (LNK-01). sebaro's
+`.sb-tag` is not interactive (STA-04), a tag here is, so it takes the link's
+form. `Cmd`-click still opens the vault search filtered by the tag, and
+`tagAt` still finds it from the `#` on.

@@ -9,7 +9,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
  * The plugin only counts. Each visible line gets `--nv-guides: n`, and the
  * line's background paints `n` hairlines out of a repeating gradient whose
  * period is the indent unit in columns — measured in CSS, as a glyph plus the
- * tracking `--ds-letter-spacing-mono` adds, so the guides sit on the columns
+ * tracking `--sb-type-code-tracking` adds, so the guides sit on the columns
  * at every font size without a pixel being read. A tab is `tab-size` columns
  * wide for the browser and for `getIndentUnit`, so a Makefile lines up too.
  */
@@ -126,12 +126,12 @@ export const indentationGuides: Extension = [
     { decorations: (plugin) => plugin.decorations },
   ),
   EditorView.editorAttributes.compute([indentUnit, EditorState.tabSize], (state) => ({
-    style: `--nv-indent: calc(${getIndentUnit(state)} * (1ch + var(--ds-letter-spacing-mono)))`,
+    style: `--nv-indent: calc(${getIndentUnit(state)} * (1ch + var(--sb-type-code-tracking)))`,
   })),
   EditorView.baseTheme({
     ".cm-line": {
       backgroundImage:
-        "repeating-linear-gradient(to right, var(--ds-color-border-default) 0, var(--ds-color-border-default) 1px, transparent 1px, transparent var(--nv-indent))",
+        "repeating-linear-gradient(to right, var(--sb-color-border) 0, var(--sb-color-border) var(--sb-border-width-hairline), transparent var(--sb-border-width-hairline), transparent var(--nv-indent))",
       backgroundSize: "calc(var(--nv-guides, 0) * var(--nv-indent)) 100%",
       backgroundRepeat: "no-repeat",
       backgroundOrigin: "content-box",

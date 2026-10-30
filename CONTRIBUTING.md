@@ -19,8 +19,7 @@ AI agents. One Rust core, a thin shell, one web UI.
 crates/novalis-core/       UI-free Rust core: vault, atomic saves, cache, search, links, boards
 crates/novalis-cli/        the `novalis` binary: the same core, headless, --json
 apps/desktop/src-tauri/    Tauri v2 shell: the IPC surface, the native menu, the watcher
-apps/desktop/ui/           React 19 + CodeMirror 6
-packages/tokens/           the design tokens the UI is allowed to use
+apps/desktop/ui/           React 19 + CodeMirror 6; src/sebaro/ is the sebaro design export, never edited
 i18n/                      en.json and de.json — the only place user-visible strings live
 docs/                      the plan, the decisions, the settings and keymap contracts
 ```
