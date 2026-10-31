@@ -2652,6 +2652,15 @@ button.sb-side-nav__item {
 }
 .sb-dialog:has(.sb-dialog__body) :is(.sb-dialog__title, .sb-dialog__actions) { flex: none; }
 .sb-dialog__actions[data-sb-fit="stack"] { flex-direction: column; align-items: stretch; }
+/* an action with its data-path line (D98 V4, spec/10 §3.4; spec/02 §4.6, the unsaved dialog's „Sichern“):
+   div.sb-dialog__action holds the key and its p.sb-action-hint right after it, so a screen reader reads the line right
+   after the key. In one row the keys stand top-aligned and the line starts with its key; stacked (data-sb-fit="stack")
+   the key takes the full width and the line is centred under it */
+.sb-dialog__actions:not([data-sb-fit="stack"]):has(> .sb-dialog__action) { align-items: flex-start; }
+.sb-dialog__action { display: flex; flex-direction: column; align-items: flex-start; min-inline-size: 0; max-inline-size: 100%; }
+.sb-dialog__action > .sb-action-hint { text-align: start; }
+.sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action { align-items: stretch; }
+.sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action > .sb-action-hint { text-align: center; }
 /* the input dialog (D102 (38), spec/02 §4.6): an sb-field under the title (and its text), the submit verb a secondary action */
 .sb-dialog__text + .sb-field { margin-block-start: var(--sb-space-4); }
 /* a failure without a field (D102 (23); spec/02 §4.6): above the actions, built like the action zone's message: the
@@ -2851,7 +2860,8 @@ dialog.sb-sheet > form { margin: 0; }
 /* a dialog of a window (spec/02 §4.12; per D103 the denser form, provisional, agent): the dialog carries data-sb-density="window"
    itself (it opens in the top layer, outside the window) or stands in the scope; its actions take the compact
    secondary action's 32 px and label type, the danger action too (its 45° cut stays); 48 px again under touch */
-:is(.sb-dialog[data-sb-density="window"], [data-sb-density="window"] .sb-dialog) .sb-dialog__actions > :is(.sb-secondary-action, .sb-danger-action) {
+:is(.sb-dialog[data-sb-density="window"], [data-sb-density="window"] .sb-dialog) .sb-dialog__actions > :is(.sb-secondary-action, .sb-danger-action),
+:is(.sb-dialog[data-sb-density="window"], [data-sb-density="window"] .sb-dialog) .sb-dialog__action > :is(.sb-secondary-action, .sb-danger-action) {
   min-block-size: var(--sb-size-control-sm); padding-inline: var(--sb-space-3);
   font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking);
 }
@@ -3311,7 +3321,7 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
   [data-sb-density="window"] :is(.sb-side-nav__item, .sb-menu__item, .sb-list-row), .sb-row { min-block-size: var(--sb-size-target-touch); }
   .sb-icon-button--compact { inline-size: var(--sb-size-target-touch); block-size: var(--sb-size-target-touch); }
   .sb-secondary-action--compact { min-block-size: var(--sb-size-target-touch); }
-  :is(.sb-dialog[data-sb-density="window"], [data-sb-density="window"] .sb-dialog) .sb-dialog__actions > :is(.sb-secondary-action, .sb-danger-action) { min-block-size: var(--sb-size-target-touch); }
+  :is(.sb-dialog[data-sb-density="window"], [data-sb-density="window"] .sb-dialog) :is(.sb-dialog__actions, .sb-dialog__action) > :is(.sb-secondary-action, .sb-danger-action) { min-block-size: var(--sb-size-target-touch); }
 }
 
 /* ===================================================================== 7b desktop windows, round 6 sketch answers (spec/02 §4.19-§4.24) */

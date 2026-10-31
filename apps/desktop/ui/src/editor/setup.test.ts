@@ -183,13 +183,13 @@ describe("buildExtensions", () => {
   // markers' grey.
   it("highlights a code file with the code rules only", async () => {
     const php = await stateFor("a.php", "<?php echo 1; ?>\n");
-    for (const tag of [t.heading, t.strong, t.emphasis, t.monospace, t.quote, t.link]) {
+    for (const tag of [t.heading1, t.strong, t.emphasis, t.monospace, t.quote, t.link]) {
       expect(highlightingFor(php, [tag]), tag.toString()).toBeNull();
     }
     expect(highlightingFor(php, [t.keyword])).toBe(codeHighlight.style([t.keyword]));
     expect(highlightingFor(php, [t.processingInstruction])).toBe(codeHighlight.style([t.keyword]));
     const note = await stateFor("a.md", "# Title\n");
-    expect(highlightingFor(note, [t.heading])).toBe(markdownHighlight.style([t.heading]));
+    expect(highlightingFor(note, [t.heading1])).toBe(markdownHighlight.style([t.heading1]));
     expect(highlightingFor(note, [t.processingInstruction])).not.toBeNull();
   });
 
