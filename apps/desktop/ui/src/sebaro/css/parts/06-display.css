@@ -1546,6 +1546,15 @@ button.sb-side-nav__item {
 }
 .sb-dialog:has(.sb-dialog__body) :is(.sb-dialog__title, .sb-dialog__actions) { flex: none; }
 .sb-dialog__actions[data-sb-fit="stack"] { flex-direction: column; align-items: stretch; }
+/* an action with its data-path line (D98 V4, spec/10 §3.4; spec/02 §4.6, the unsaved dialog's „Sichern“):
+   div.sb-dialog__action holds the key and its p.sb-action-hint right after it, so a screen reader reads the line right
+   after the key. In one row the keys stand top-aligned and the line starts with its key; stacked (data-sb-fit="stack")
+   the key takes the full width and the line is centred under it */
+.sb-dialog__actions:not([data-sb-fit="stack"]):has(> .sb-dialog__action) { align-items: flex-start; }
+.sb-dialog__action { display: flex; flex-direction: column; align-items: flex-start; min-inline-size: 0; max-inline-size: 100%; }
+.sb-dialog__action > .sb-action-hint { text-align: start; }
+.sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action { align-items: stretch; }
+.sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action > .sb-action-hint { text-align: center; }
 /* the input dialog (D102 (38), spec/02 §4.6): an sb-field under the title (and its text), the submit verb a secondary action */
 .sb-dialog__text + .sb-field { margin-block-start: var(--sb-space-4); }
 /* a failure without a field (D102 (23); spec/02 §4.6): above the actions, built like the action zone's message: the

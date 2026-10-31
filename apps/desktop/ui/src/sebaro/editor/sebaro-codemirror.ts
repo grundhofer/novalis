@@ -28,14 +28,29 @@ export const sebaroMarkdownMarkers: MarkdownConfig = {
 
 const LINK = { textDecoration: "underline var(--sb-color-link) var(--sb-x-sebaro-link-underline-width)", textUnderlineOffset: "0.2em" };
 
+/** The headings' weights and tracking alone, without their size (spec/01 §1.8.2): for an app that sets a heading's
+ *  size elsewhere (on its line) and takes the rest of sebaroMarkdownHighlight from its specs. One rule per tag group:
+ *  headline for H1, title for H2, body-strong for H3–H6. sebaroMarkdownHighlight is these rules plus the sizes below. */
+export const sebaroMarkdownHeadingWeights = [
+  { tag: t.heading1, fontWeight: "var(--sb-type-headline-weight)", letterSpacing: "var(--sb-type-headline-tracking)" },
+  { tag: t.heading2, fontWeight: "var(--sb-type-title-weight)", letterSpacing: "var(--sb-type-title-tracking)" },
+  { tag: [t.heading3, t.heading4, t.heading5, t.heading6], fontWeight: "var(--sb-type-body-strong-weight)", letterSpacing: "var(--sb-type-body-strong-tracking)" },
+] as const;
+
+/** The headings' sizes alone, on the em scale (spec/01 §1.8.2), by the index of their rule in sebaroMarkdownHeadingWeights:
+ *  H1 1.75em, H2 1.25em, H3–H6 the text's size. */
+export const sebaroMarkdownHeadingSizes = ["1.75em", "1.25em", null] as const;
+
 /** A Markdown file's looks (spec/01 §1.8, §1.8.2): headings on the em scale with their roles' weights, real italic,
  *  bold and strikethrough, links in the link style, inline code in Mono; markers last, so they stay grey and lose a
  *  link's line. A product's own #tag node takes LINK (its # a marker, D102 (29)); a wiki link without a target takes
- *  { color: "var(--sb-color-text-muted)", textDecoration: "none" }; a done task's line { color: text-muted } (D102 (28)). */
+ *  { color: "var(--sb-color-text-muted)", textDecoration: "none" }; a done task's line { color: text-muted } (D102 (28)).
+ *  Each heading rule is its rule of sebaroMarkdownHeadingWeights with its size, so every tag has one rule. */
 export const sebaroMarkdownHighlight = HighlightStyle.define([
-  { tag: t.heading1, fontSize: "1.75em", fontWeight: "var(--sb-type-headline-weight)", letterSpacing: "var(--sb-type-headline-tracking)" },
-  { tag: t.heading2, fontSize: "1.25em", fontWeight: "var(--sb-type-title-weight)", letterSpacing: "var(--sb-type-title-tracking)" },
-  { tag: [t.heading3, t.heading4, t.heading5, t.heading6], fontWeight: "var(--sb-type-body-strong-weight)", letterSpacing: "var(--sb-type-body-strong-tracking)" },
+  ...sebaroMarkdownHeadingWeights.map((rule, i) => {
+    const size = sebaroMarkdownHeadingSizes[i];
+    return size ? { tag: rule.tag, fontSize: size, fontWeight: rule.fontWeight, letterSpacing: rule.letterSpacing } : { ...rule };
+  }),
   { tag: t.strong, fontWeight: "var(--sb-type-body-strong-weight)" },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strikethrough, textDecoration: "line-through" },
