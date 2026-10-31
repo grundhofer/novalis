@@ -74,19 +74,14 @@ export const EDITOR_LOOKS: Readonly<Record<string, Record<string, string>>> = {
   ".cm-panels.cm-panels-top": { borderBottom: "none" },
   // Decorated source mode: line-level classes the plugin adds. Headings on
   // sebaro's scale relative to the editor's size (ADR-0051 #27.4):
-  // headline 28 / 16, title 20 / 16, and from h3 on body-strong, the text
-  // in `text`; weight and tracking are the highlighter's, by level, from
-  // sebaro's `sebaroMarkdownHeadingWeights` (#63).
+  // headline 28 / 16, title 20 / 16, and from h3 on body-strong at the
+  // text's size; weight and tracking are the highlighter's, by level, from
+  // sebaro's `sebaroMarkdownHeadingWeights` (#63), the colour the editor's.
   ".cm-line.nv-heading-1": {
     fontSize: "1.75em",
-    color: "var(--sb-color-text)",
   },
   ".cm-line.nv-heading-2": {
     fontSize: "1.25em",
-    color: "var(--sb-color-text)",
-  },
-  ".cm-line.nv-heading-3": {
-    color: "var(--sb-color-text)",
   },
   // The quote's line is sebaro's: the 2 px ink line, 16 px to the text
   // (TXT-17, `.sb-quote__text`); the text is `text-muted` from its tag.
@@ -227,8 +222,9 @@ const { tag: _linkTags, ...LINK_STYLE } = sebaros(t.link);
 export const markdownHighlight = HighlightStyle.define([
   // Headings at their role's weight and tracking: h1 headline, h2 title,
   // h3–h6 body-strong; a Setext heading too. sebaro's rules as they are;
-  // size and colour are the line's (EDITOR_LOOKS, ADR-0051 #27.4), a
-  // Setext heading's the text's.
+  // the size is the line's (EDITOR_LOOKS, ADR-0051 #27.4), the colour the
+  // editor's `text`. The generic `t.heading`, which the GFM table gives
+  // its header cells, has no rule, as in sebaro: a header cell is plain.
   ...sebaroMarkdownHeadingWeights,
   sebaros(t.strong),
   sebaros(t.emphasis),

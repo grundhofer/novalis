@@ -1,10 +1,10 @@
 import { autocompletion } from "@codemirror/autocomplete";
-import { markdown } from "@codemirror/lang-markdown";
-import { bracketMatching, syntaxHighlighting, type TagStyle } from "@codemirror/language";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { bracketMatching, ensureSyntaxTree, syntaxHighlighting, type TagStyle } from "@codemirror/language";
 import { highlightSelectionMatches, search } from "@codemirror/search";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { drawSelection, EditorView } from "@codemirror/view";
-import { type Tag, tags as t } from "@lezer/highlight";
+import { highlightTree, type Tag, tags as t } from "@lezer/highlight";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -138,8 +138,8 @@ describe("markdownHighlight", () => {
 
   // ADR-0051 #63, sebaro-luecken Z5: the headings' weight and tracking are
   // the export's `sebaroMarkdownHeadingWeights` themselves; the size stays
-  // at the line (#27.4), and so does the colour, which sebaro's rules leave
-  // to the text.
+  // at the line (#27.4); the colour is the editor's, which sebaro's rules
+  // leave to the text.
   it("takes the headings' weight and tracking from sebaroMarkdownHeadingWeights, the size from the line", () => {
     const headings = [t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6];
     const tagsOf = (spec: TagStyle) => (Array.isArray(spec.tag) ? [...spec.tag] : [spec.tag]) as Tag[];
@@ -163,16 +163,29 @@ describe("markdownHighlight", () => {
       expect(rules()).toContain(`.${style(tag)} {${looks}}`);
     }
     expect(style(t.heading6)).toBe(style(t.heading3));
-    // The line sizes and colours the heading; weight and tracking are not its.
-    for (const level of [1, 2, 3]) {
-      const line = EDITOR_LOOKS[`.cm-line.nv-heading-${level}`]!;
-      expect(line.color, String(level)).toBe("var(--sb-color-text)");
-      expect(Object.keys(line), String(level)).not.toContain("letterSpacing");
-      expect(Object.keys(line), String(level)).not.toContain("fontWeight");
-    }
-    expect(EDITOR_LOOKS[".cm-line.nv-heading-1"]!.fontSize).toBe("1.75em");
-    expect(EDITOR_LOOKS[".cm-line.nv-heading-2"]!.fontSize).toBe("1.25em");
-    expect(EDITOR_LOOKS[".cm-line.nv-heading-3"]!.fontSize).toBeUndefined();
+    // The line sizes the heading and does nothing else; from h3 on it has
+    // the text's size and no rule.
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-1"]).toEqual({ fontSize: "1.75em" });
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-2"]).toEqual({ fontSize: "1.25em" });
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-3"]).toBeUndefined();
+  });
+
+  // sebaro-luecken Z5: the GFM table tags its header cells with the generic
+  // `t.heading`. sebaro has no rule for it, and neither has novalis since
+  // `sebaroMarkdownHeadingWeights` (it was title weight before): a header
+  // cell in the source is plain text, its pipes markers.
+  it("leaves a table's header cells plain", () => {
+    expect(markdownHighlight.style([t.heading])).toBeNull();
+    const doc = "| A | B |\n|---|---|\n| c | d |\n";
+    const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
+    // The class at each character, so a rule over the whole header row shows.
+    const classAt: string[] = Array.from(doc, () => "");
+    highlightTree(ensureSyntaxTree(state, doc.length)!, markdownHighlight, (from, to, cls) => {
+      for (let pos = from; pos < to; pos++) classAt[pos] = cls;
+    });
+    expect(classAt[doc.indexOf("A")]).toBe("");
+    expect(classAt[doc.indexOf("B")]).toBe("");
+    expect(classAt[0]).toBe(style(t.processingInstruction));
   });
 
   it("dims markers after the rules whose marks carry them, so `#`, `[` and `-` stay grey", () => {
