@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   sebaroCodeFileTheme,
   sebaroHighlight,
+  sebaroMarkdownHeadingWeights,
   sebaroMarkdownHighlight,
   sebaroMarkdownMarkers,
   sebaroSelectionMark,
@@ -117,19 +118,61 @@ describe("markdownHighlight", () => {
     for (const spec of shared) {
       expect(markdownHighlight.specs.filter((own) => own === spec), tagsOf(spec).join(" ")).toHaveLength(1);
     }
-    // No tag has two rules, so nothing is set twice; a heading tag only in
-    // novalis' weight rules, and no rule sizes text or spaces letters.
+    // No tag has two rules, so nothing is set twice; no rule sizes text,
+    // and only sebaro's heading rules space letters.
     const counts = new Map<Tag, number>();
     for (const spec of markdownHighlight.specs) {
       for (const tag of tagsOf(spec)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
     for (const [tag, count] of counts) expect(count, tag.toString()).toBe(1);
+    const headingRules: readonly TagStyle[] = sebaroMarkdownHeadingWeights;
     for (const spec of markdownHighlight.specs) {
       expect(Object.keys(spec), tagsOf(spec).join(" ")).not.toContain("fontSize");
-      expect(Object.keys(spec), tagsOf(spec).join(" ")).not.toContain("letterSpacing");
+      if (!headingRules.includes(spec)) {
+        expect(Object.keys(spec), tagsOf(spec).join(" ")).not.toContain("letterSpacing");
+      }
     }
     expect(rules()).not.toContain("font-size");
     expect(rules()).not.toContain("1.75em");
+  });
+
+  // ADR-0051 #63, sebaro-luecken Z5: the headings' weight and tracking are
+  // the export's `sebaroMarkdownHeadingWeights` themselves; the size stays
+  // at the line (#27.4), and so does the colour, which sebaro's rules leave
+  // to the text.
+  it("takes the headings' weight and tracking from sebaroMarkdownHeadingWeights, the size from the line", () => {
+    const headings = [t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6];
+    const tagsOf = (spec: TagStyle) => (Array.isArray(spec.tag) ? [...spec.tag] : [spec.tag]) as Tag[];
+    expect(sebaroMarkdownHeadingWeights.flatMap((spec) => tagsOf(spec))).toEqual(headings);
+    for (const spec of sebaroMarkdownHeadingWeights) {
+      expect(markdownHighlight.specs.filter((own) => own === spec), tagsOf(spec).join(" ")).toHaveLength(1);
+      expect(Object.keys(spec)).not.toContain("fontSize");
+    }
+    // A heading tag has sebaro's rule and no other.
+    const own = markdownHighlight.specs.filter(
+      (spec) => !(sebaroMarkdownHeadingWeights as readonly TagStyle[]).includes(spec),
+    );
+    for (const spec of own) {
+      for (const tag of tagsOf(spec)) expect(headings, tag.toString()).not.toContain(tag);
+    }
+    for (const [tag, looks] of [
+      [t.heading1, "font-weight: var(--sb-type-headline-weight); letter-spacing: var(--sb-type-headline-tracking);"],
+      [t.heading2, "font-weight: var(--sb-type-title-weight); letter-spacing: var(--sb-type-title-tracking);"],
+      [t.heading3, "font-weight: var(--sb-type-body-strong-weight); letter-spacing: var(--sb-type-body-strong-tracking);"],
+    ] as const) {
+      expect(rules()).toContain(`.${style(tag)} {${looks}}`);
+    }
+    expect(style(t.heading6)).toBe(style(t.heading3));
+    // The line sizes and colours the heading; weight and tracking are not its.
+    for (const level of [1, 2, 3]) {
+      const line = EDITOR_LOOKS[`.cm-line.nv-heading-${level}`]!;
+      expect(line.color, String(level)).toBe("var(--sb-color-text)");
+      expect(Object.keys(line), String(level)).not.toContain("letterSpacing");
+      expect(Object.keys(line), String(level)).not.toContain("fontWeight");
+    }
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-1"]!.fontSize).toBe("1.75em");
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-2"]!.fontSize).toBe("1.25em");
+    expect(EDITOR_LOOKS[".cm-line.nv-heading-3"]!.fontSize).toBeUndefined();
   });
 
   it("dims markers after the rules whose marks carry them, so `#`, `[` and `-` stay grey", () => {
@@ -137,7 +180,7 @@ describe("markdownHighlight", () => {
     const marker = style(t.processingInstruction)!;
     // `processingInstruction` is a `meta`; the marker rule still wins.
     expect(marker).not.toBe(style(t.meta));
-    for (const tag of [t.heading, t.heading1, t.link, t.list]) {
+    for (const tag of [t.heading1, t.heading2, t.link, t.list]) {
       expect(css.indexOf(`.${marker} `), tag.toString()).toBeGreaterThan(css.indexOf(`.${style(tag)} `));
     }
     expect(css).toContain(`.${marker} {color: var(--sb-color-text-muted); text-decoration: none;}`);

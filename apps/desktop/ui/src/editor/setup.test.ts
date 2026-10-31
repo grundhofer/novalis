@@ -189,7 +189,7 @@ describe("buildExtensions", () => {
     expect(highlightingFor(php, [t.keyword])).toBe(codeHighlight.style([t.keyword]));
     expect(highlightingFor(php, [t.processingInstruction])).toBe(codeHighlight.style([t.keyword]));
     const note = await stateFor("a.md", "# Title\n");
-    expect(highlightingFor(note, [t.heading])).toBe(markdownHighlight.style([t.heading]));
+    expect(highlightingFor(note, [t.heading1])).toBe(markdownHighlight.style([t.heading1]));
     expect(highlightingFor(note, [t.processingInstruction])).not.toBeNull();
   });
 

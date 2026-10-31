@@ -3,7 +3,12 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type Tag, tags as t } from "@lezer/highlight";
 
-import { sebaroEditorTheme, sebaroHighlight, sebaroMarkdownHighlight } from "../sebaro/editor/sebaro-codemirror";
+import {
+  sebaroEditorTheme,
+  sebaroHighlight,
+  sebaroMarkdownHeadingWeights,
+  sebaroMarkdownHighlight,
+} from "../sebaro/editor/sebaro-codemirror";
 import { codeTag, noteTag } from "./markdownExt";
 
 /**
@@ -69,18 +74,19 @@ export const EDITOR_LOOKS: Readonly<Record<string, Record<string, string>>> = {
   ".cm-panels.cm-panels-top": { borderBottom: "none" },
   // Decorated source mode: line-level classes the plugin adds. Headings on
   // sebaro's scale relative to the editor's size (ADR-0051 #27.4):
-  // headline 28 / 16, title 20 / 16, and from h3 on body-strong, each with
-  // its role's tracking; the weight is the highlighter's, by level.
+  // headline 28 / 16, title 20 / 16, and from h3 on body-strong, the text
+  // in `text`; weight and tracking are the highlighter's, by level, from
+  // sebaro's `sebaroMarkdownHeadingWeights` (#63).
   ".cm-line.nv-heading-1": {
     fontSize: "1.75em",
-    letterSpacing: "var(--sb-type-headline-tracking)",
+    color: "var(--sb-color-text)",
   },
   ".cm-line.nv-heading-2": {
     fontSize: "1.25em",
-    letterSpacing: "var(--sb-type-title-tracking)",
+    color: "var(--sb-color-text)",
   },
   ".cm-line.nv-heading-3": {
-    letterSpacing: "var(--sb-type-body-strong-tracking)",
+    color: "var(--sb-color-text)",
   },
   // The quote's line is sebaro's: the 2 px ink line, 16 px to the text
   // (TXT-17, `.sb-quote__text`); the text is `text-muted` from its tag.
@@ -180,7 +186,7 @@ export const CODE_RULES: readonly CodeRule[] = sebaroHighlight.specs.map(({ tag,
 /** A code file's looks: sebaro's code rules and nothing of the Markdown source. */
 export const codeHighlight = sebaroHighlight;
 
-/** The heading tags: their size is the line's (ADR-0051 #27.4), so sebaro's heading rules stay out. */
+/** The heading tags: their size is the line's (ADR-0051 #27.4), so sebaro's sized heading rules stay out. */
 const HEADING_TAGS: readonly Tag[] = [t.heading, t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6];
 
 const tagsOf = (spec: TagStyle): readonly Tag[] => (Array.isArray(spec.tag) ? spec.tag : [spec.tag as Tag]);
@@ -189,7 +195,8 @@ const tagsOf = (spec: TagStyle): readonly Tag[] => (Array.isArray(spec.tag) ? sp
  * The rules of the export's `sebaroMarkdownHighlight` (spec/09 §17) novalis
  * shares (ADR-0051 #63): all but the headings, whose size sebaro puts on
  * the tag and novalis on the line; both together would grow an H1 to
- * 1.75² em.
+ * 1.75² em. The headings' weight and tracking come from
+ * `sebaroMarkdownHeadingWeights` instead, sebaro's rules without the size.
  */
 export const SHARED_MARKDOWN_RULES: readonly TagStyle[] = sebaroMarkdownHighlight.specs.filter(
   (spec) => !tagsOf(spec).some((tag) => HEADING_TAGS.includes(tag)),
@@ -208,33 +215,21 @@ const { tag: _linkTags, ...LINK_STYLE } = sebaros(t.link);
 /**
  * A note's looks: the Markdown source's rules (headings, emphasis, links,
  * tags, inline code, markers), then the code rules for its fenced blocks.
- * Emphasis, strikethrough, links, inline code, the quote and the markers
- * are the export's `sebaroMarkdownHighlight` (ADR-0051 #63); novalis' own
- * are the headings' weight, the `#tag`, a code block's text and lists.
+ * The headings' weight and tracking are the export's
+ * `sebaroMarkdownHeadingWeights`; emphasis, strikethrough, links, inline
+ * code, the quote and the markers its `sebaroMarkdownHighlight` (ADR-0051
+ * #63); novalis' own are the `#tag`, a code block's text and lists.
  * Only Markdown files get it (setup.ts): in a code file a heading, strong
  * or emphasis tag of its grammar stays plain, and a processing instruction
  * (`<?php`, `<?xml`) takes the code look of `meta`, its parent tag, instead
  * of the markers' grey.
  */
 export const markdownHighlight = HighlightStyle.define([
-  // Heading text in `text` at its role's weight: h1 headline, h2 title,
-  // h3–h6 body-strong (ADR-0051 #27.4); a Setext heading too. Size and
-  // tracking are the line's (EDITOR_LOOKS).
-  {
-    tag: t.heading,
-    color: "var(--sb-color-text)",
-    fontWeight: "var(--sb-type-title-weight)",
-  },
-  {
-    tag: t.heading1,
-    color: "var(--sb-color-text)",
-    fontWeight: "var(--sb-type-headline-weight)",
-  },
-  {
-    tag: [t.heading3, t.heading4, t.heading5, t.heading6],
-    color: "var(--sb-color-text)",
-    fontWeight: "var(--sb-type-body-strong-weight)",
-  },
+  // Headings at their role's weight and tracking: h1 headline, h2 title,
+  // h3–h6 body-strong; a Setext heading too. sebaro's rules as they are;
+  // size and colour are the line's (EDITOR_LOOKS, ADR-0051 #27.4), a
+  // Setext heading's the text's.
+  ...sebaroMarkdownHeadingWeights,
   sebaros(t.strong),
   sebaros(t.emphasis),
   sebaros(t.strikethrough),
