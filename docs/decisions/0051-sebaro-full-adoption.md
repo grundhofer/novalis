@@ -104,7 +104,7 @@ The view steps 11–15 and the adoption of sebaro D102 raised more questions. Th
 | 43 | View ▸ „Vorschau“ ⌘E | A checkbox item in View; no new shortcut |
 | 44 | „Reiter nach vorn / nach hinten“ | The two menu items stay |
 | 45 | Deleting a board | „Board in den Papierkorb legen …“; columns and cards keep „Löschen …“ |
-| 46 | Scrollbar under the tab row | Stays visible (D102 (10)) |
+| 46 | Scrollbar under the tab row | Stays visible (D102 (10)); changed by #67: hidden |
 | 47 | Ten points as built | Help holds only the search field; no „Befehle ⌘K“ tool in the title bar; cards are not renamed by key or double click; ⌘W without a tab does not quit; ⌘⌦ no longer moves to the Trash, only ⌘⌫; an empty board has no own „Neues Board“ button; the settings view keeps the sidebar with „Einstellungen“ as the current place; the sidebar overlay takes focus from the tool, the palette and ⌃⌘S but not from the menu, and stays open when a note is opened until sebaro decides; after a failed open the callout shows only the latest reason; the old „No preferences window“ sentences in PLAN.md and DECISIONS.md stay as history |
 
 **Owner approval:** 2026-10-26, verbatim: „Anheften (Empfohlen)“, „sebaro-Kürzel (Empfohlen)“, „Eigenes kleines Skript (Empfohlen)“, „Kurzes Glossar anlegen (Empfohlen)“; „Ja, bauen (Empfohlen)“, „Ja, in der Vorschau (Empfohlen)“, „Ja (Empfohlen)“, „Ja, nach Hälften (Empfohlen)“; „Ja (Empfohlen)“, „Behalten (Empfohlen)“, „„Board in den Papierkorb legen …“ (Empfohlen)“, „Sichtbar lassen (Empfohlen)“; „Alle so lassen (Empfohlen)“.
@@ -150,3 +150,15 @@ The final reviews raised more questions. The owner answered them on 2026-10-27, 
 | 66 | Landing | The squash branch is prepared locally (new branch from main, one commit, name search, `just check`) with a PR text; nothing is pushed without the owner's further OK |
 
 **Owner approval:** 2026-10-29, verbatim: „Gemeinsames von sebaro (Empfohlen)“, „Nur „not given“ ergänzen (Empfohlen)“, „So lassen (Empfohlen)“, „Ja, lokal vorbereiten (Empfohlen)“.
+
+## Amendment 2026-11-01: the tab row with classic scroll bars
+
+Seen by the owner in a release build of `main`: with macOS's classic scroll bars ("Show scroll bars: Always", or automatic with a mouse attached) a tab row that overflows got the system's 17 px bar under or into its 32 px tabs, and the preview switch, 32 px high in a 32 px row, slid 9.5 px below the tabs' names. The review pictures of the rebuild never showed it: a 2560 pt window with no row that overflowed. Measured in WebKit with `scripts/measure-tab-row.mjs`.
+
+| # | Question | Decision |
+|---|---|---|
+| 67 | Scroll bar of the tab row (changes #46) | Hidden (`scrollbar-width: none`, and `::-webkit-scrollbar` for WebKit before Safari 18.2); the row stays 32 px. A wheel over the row scrolls it sideways, the current tab is scrolled into view, ⌃⇥ and ⌘1…9 reach every tab. Departs from sebaro's spec/02 §4.21, NV-J and DSK-10 (the system's bar under the row); no bar of its own, so D102 (10) holds |
+| 68 | Place of the preview switch | At the row's end with its frame, 24 px high (`--sb-size-target-pointer`), its word on the tabs' names; its line as high as its word, so at 200 % it is 30 px and the row keeps the tabs' height. Under touch sebaro's 48 px stay. Departs from sebaro's D102 (2) / NV-A12 (the compact switch is 32 px in a window), RAU-06 and ZUG-03 |
+| 69 | Keeping it | This amendment, a gap row for sebaro, a rule in `docs/sebaro-umbau.md` §4 (pictures also with classic scroll bars and an overflowing tab row) and `scripts/measure-tab-row.mjs`, which measures the row in WebKit |
+
+**Owner approval:** 2026-11-01, verbatim: „Balken ausblenden (Empfohlen)“, „Kleiner, mittig zur Schrift (Empfohlen)“, „Alles (Empfohlen)“.

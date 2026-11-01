@@ -7,7 +7,8 @@ import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import TabStrip, { DOC_PANEL_ID, DocPanel, revealTab } from "./TabStrip";
+import appCss from "../styles/app.css?raw";
+import TabStrip, { DOC_PANEL_ID, DocPanel, revealTab, scrollRowByWheel } from "./TabStrip";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -639,5 +640,97 @@ describe("revealTab", () => {
     a.getBoundingClientRect = () => box(-50, 150);
     revealTab(a.querySelector("button")!);
     expect(list.scrollLeft).toBe(0);
+  });
+});
+
+// ADR-0051 #67: the row shows no scroll bar, so a wheel turned over it
+// scrolls it sideways, towards its end in either direction of writing.
+describe("scrollRowByWheel", () => {
+  function row(scrollWidth = 900) {
+    const list = document.createElement("div");
+    Object.defineProperty(list, "scrollWidth", { value: scrollWidth });
+    Object.defineProperty(list, "clientWidth", { value: 300 });
+    document.body.append(list);
+    return list;
+  }
+  const wheel = (deltaY: number, deltaX = 0, deltaMode = 0) => ({ deltaX, deltaY, deltaMode });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("turns a wheel down into a scroll towards the row's end", () => {
+    const list = row();
+    scrollRowByWheel(list, wheel(40));
+    expect(list.scrollLeft).toBe(40);
+    scrollRowByWheel(list, wheel(-15));
+    expect(list.scrollLeft).toBe(25);
+  });
+
+  it("scrolls towards the end on the left in a right-to-left row", () => {
+    const list = row();
+    list.style.direction = "rtl";
+    scrollRowByWheel(list, wheel(40));
+    expect(list.scrollLeft).toBe(-40);
+  });
+
+  it("counts a delta in lines as lines of the row's text", () => {
+    const list = row();
+    list.style.fontSize = "14px";
+    list.style.lineHeight = "20px";
+    scrollRowByWheel(list, wheel(3, 0, WheelEvent.DOM_DELTA_LINE));
+    expect(list.scrollLeft).toBe(60);
+  });
+
+  it("keeps fractions of a pixel until they make one", () => {
+    const list = row();
+    for (let i = 0; i < 5; i++) scrollRowByWheel(list, wheel(0.4));
+    expect(list.scrollLeft).toBe(2);
+  });
+
+  it("leaves a sideways swipe and a row that does not scroll to WebKit", () => {
+    const list = row();
+    scrollRowByWheel(list, wheel(10, 30));
+    expect(list.scrollLeft).toBe(0);
+    const still = row(300);
+    scrollRowByWheel(still, wheel(40));
+    expect(still.scrollLeft).toBe(0);
+  });
+
+  it("is what the strip does with a wheel over its row", () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md" });
+    render(<TabStrip />);
+    const list = screen.getByRole("tablist");
+    Object.defineProperty(list, "scrollWidth", { value: 900 });
+    Object.defineProperty(list, "clientWidth", { value: 300 });
+    fireEvent.wheel(list, { deltaY: 50 });
+    expect(list.scrollLeft).toBe(50);
+  });
+});
+
+// ADR-0051 #67, #68: read as text, jsdom computes no style (ADR-0011).
+describe("the head's CSS", () => {
+  const block = (selector: string) => {
+    const start = appCss.indexOf(`${selector} {`);
+    expect(start, selector).toBeGreaterThanOrEqual(0);
+    return appCss.slice(start, appCss.indexOf("}", start));
+  };
+
+  it("hides the row's scroll bar", () => {
+    expect(block(".nv-doc-head > .sb-doc-tabs")).toContain("scrollbar-width: none;");
+    // WebKit before Safari 18.2 (macOS 14) knows only the pseudo-element.
+    expect(block(".nv-doc-head > .sb-doc-tabs::-webkit-scrollbar")).toContain("display: none;");
+  });
+
+  it("makes the preview switch 24 px high for a pointer, on the names, and leaves touch its 48", () => {
+    const at = appCss.indexOf("@media not (pointer: coarse) {\n  .nv-doc-head__tools {");
+    expect(at).toBeGreaterThanOrEqual(0);
+    const media = appCss.slice(at, appCss.indexOf("\n}\n", at));
+    expect(media).toContain(
+      "padding-block-end: calc(var(--sb-border-width-strong) - var(--sb-border-width-hairline));",
+    );
+    expect(media).toMatch(
+      /\.nv-doc-head__tools > \.sb-secondary-action--compact \{\n {4}min-block-size: var\(--sb-size-target-pointer\);\n {4}line-height: 1;/,
+    );
   });
 });

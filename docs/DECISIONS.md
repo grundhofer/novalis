@@ -908,6 +908,18 @@ ADR-0051, amendment 2026-10-29, #57–#62):
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-01
+
+After the owner saw a release build of `main` with classic scroll bars, three
+more answers, each time the recommendation (verbatim answers in ADR-0051,
+amendment 2026-11-01, #67–#69):
+- the tab row hides its scroll bar; a wheel scrolls it sideways (changes #46)
+- the preview switch is 24 px high, its word on the tabs' names
+- pictures also with classic scroll bars and an overflowing tab row, and
+  `scripts/measure-tab-row.mjs` measures the row in WebKit
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

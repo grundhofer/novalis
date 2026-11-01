@@ -214,12 +214,24 @@ button {
 /* The scroll padding keeps that start when the first tab is scrolled back
    into view. The row scrolls sideways only: sebaro.css sets `overflow-x`
    alone, so with the system's classic scroll bar (D102 (10)) the block axis
-   scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q). */
+   scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q).
+   It shows no scroll bar (ADR-0051 #67): a classic one took 17 px of the
+   32 px row, or the row grew by them, and the preview switch beside it slid
+   below the names. A wheel scrolls the row sideways (TabStrip.tsx), the
+   current tab is scrolled into view, ⌃⇥ and ⌘1…9 reach every tab. */
 .nv-doc-head > .sb-doc-tabs {
   flex: 1 1 auto;
   min-inline-size: 0;
   overflow-y: hidden;
   scroll-padding-inline-start: var(--sb-space-4);
+  scrollbar-width: none;
+}
+
+/* The same for WebKit before Safari 18.2, which macOS 14 may still have
+   (`scrollbar-width` came with 18.2): it hides the system's bar, it draws
+   none of its own (D102 (10)). */
+.nv-doc-head > .sb-doc-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 /* The 16 px start is the first tab's margin, not the row's padding, as
@@ -239,6 +251,27 @@ button {
   padding-inline: var(--sb-space-1);
   border-inline-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
   border-block-end: var(--sb-border-width-hairline) solid var(--sb-color-border);
+}
+
+/* The preview switch is 24 px high, not sebaro's compact 32 (ADR-0051
+   #68, against D102 (2), RAU-06; docs/sebaro-luecken.md Z7): at 32 it
+   filled the 32 px row from hairline to hairline. It is centred on the
+   tabs' names, not on the row: a tab keeps the 3 px of its place line
+   below its name, so the tools keep the same 3 px (less their own
+   hairline) below the switch. Its word then stands on the names' middle,
+   2.5 px above it and 5.5 px below at 100 %. Its one line is as high as
+   its word, not the label's line: at 200 % the label's 40 px line made it
+   42 px, as high as a tab, so it touched the line above and the row grew
+   to 45 px. Under touch sebaro's 48 px target stays. */
+@media not (pointer: coarse) {
+  .nv-doc-head__tools {
+    padding-block-end: calc(var(--sb-border-width-strong) - var(--sb-border-width-hairline));
+  }
+
+  .nv-doc-head__tools > .sb-secondary-action--compact {
+    min-block-size: var(--sb-size-target-pointer);
+    line-height: 1;
+  }
 }
 
 /* The board's tab carries the board icon before its name (ADR-0050); its

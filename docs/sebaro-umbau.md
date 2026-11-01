@@ -81,6 +81,7 @@ Der vollständige Umbau ersetzt den handgemachten Nachbau durch den Export und b
 
 Für jeden Schritt gilt:
 - Bilder vorher und nachher, hell und dunkel, bei 100 % und 200 % Schrift
+- Bilder auch mit klassischen Rollbalken („Rollbalken einblenden: Immer“, oder eine Maus angeschlossen) und mit einer Reiterleiste, die überläuft; dazu `node scripts/measure-tab-row.mjs` nach `pnpm --dir apps/desktop/ui build` (ADR-0051 #69). Ein breites Fenster mit überlagernden Leisten zeigt nicht, was Leisten wegnehmen. Das Skript ist kein Gate (macOS mit Bildschirm, nicht in CI); das Gate bleibt `just check`
 - `just check` grün
 - Prüfung gegen die passenden Regel-IDs durch einen unabhängigen Agenten
 
@@ -1166,3 +1167,4 @@ Stand 2026-10-29, nach der Übernahme von D110 und D111. Die Punkte der Bestands
 - ⌘[ und ⌘] auf der deutschen Tastatur: beantwortet durch ADR-0051 #36. Zurück und Vor sind ⌘← / ⌘→, im Editor und in Textfeldern ⌃⌘← / ⌃⌘→ (`docs/KEYMAP.md`).
 - Regel-IDs: Die Bestandsaufnahme nahm sie aus dem Guide 2.9.0; geprüft sind die zitierten IDs gegen den Guide 2.11.0, jede gibt es dort.
 - Die Prüfabschnitte „Prüfung“ am Ende von §5–§8 nennen, was die unabhängigen Prüfer berichtigt haben und was sie nicht prüfen konnten.
+- **Klassische Rollbalken (2026-11-01):** Keine Bildrunde des Umbaus hatte sie: Die Fenster waren 2560 pt breit, die Reiterleiste lief nie über. Der Inhaber sah im Release-Build eine Systemleiste in der 32-px-Reiterzeile und den Umschalter „Vorschau“ unter den Namen ([`sebaro-luecken.md`](sebaro-luecken.md) Z7, ADR-0051 #67–#69). Behoben und in WebKit gemessen (`scripts/measure-tab-row.mjs`); andere Ansichten mit klassischen Leisten (Board, Betrachter, Palette) sind in Bildern noch nicht geprüft; in der Seitenleiste zeigen die Messbilder bei 200 % zwei Leisten nebeneinander (Z7, offen).

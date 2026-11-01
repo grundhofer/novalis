@@ -24,7 +24,7 @@ i18n/en.json  i18n/de.json                      # every user-visible string, fla
 fixtures/demo-vault/  fixtures/gen/             # vendored demo vault; fixture generator
 design/variants/                                # the mockup frames (reference, not shipped)
 docs/                                           # DECISIONS.md decisions/ SETTINGS.md KEYMAP.md GLOSSARY.md PRIVACY.md RELEASING.md BUDGET.json research/ sebaro-umbau.md sebaro-luecken.md
-scripts/                                        # check-versions.mjs bundle-budget.mjs lockfile-adr-check.mjs check-sebaro-export.mjs
+scripts/                                        # check-versions.mjs bundle-budget.mjs lockfile-adr-check.mjs check-sebaro-export.mjs measure-tab-row.mjs (+ webkit/, macOS, not in CI)
 .github/workflows/                              # ci.yml (check (macos-latest), check (ubuntu-latest), audit)  release.yml  perf.yml
 ```
 

@@ -55,6 +55,33 @@ export function revealTab(tab: HTMLElement): void {
   if (delta) list.scrollLeft += delta;
 }
 
+/** What a row's wheel scrolling has not yet moved: less than a pixel. */
+const wheelRest = new WeakMap<HTMLElement, number>();
+
+/**
+ * A wheel turned over the tab row scrolls it sideways (ADR-0051 #67). The
+ * row shows no scroll bar, and WebKit does not scroll a row that only
+ * scrolls sideways with an up-and-down wheel. A sideways swipe is WebKit's
+ * own; a delta in lines (a mouse set to scroll by lines) counts as a line
+ * of the row's text. A trackpad's slow swipe sends fractions of a pixel,
+ * which a scroll position in whole pixels would drop one by one: they are
+ * kept until they make a pixel.
+ */
+export function scrollRowByWheel(
+  list: HTMLElement,
+  event: { deltaX: number; deltaY: number; deltaMode: number },
+): void {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  if (list.scrollWidth <= list.clientWidth) return;
+  const style = getComputedStyle(list);
+  const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? parseFloat(style.lineHeight) || parseFloat(style.fontSize) : 1;
+  // Towards the row's end: right in LTR, left (a falling `scrollLeft`) in RTL.
+  const delta = (wheelRest.get(list) ?? 0) + (style.direction === "rtl" ? -1 : 1) * event.deltaY * unit;
+  const whole = Math.trunc(delta);
+  wheelRest.set(list, delta - whole);
+  if (whole) list.scrollLeft += whole;
+}
+
 /** The one panel the current tab shows (App.tsx); every tab controls it. */
 export const DOC_PANEL_ID = "doc-panel";
 const BOARD_TAB_ID = "doc-tab-board";
@@ -281,6 +308,7 @@ export default function TabStrip() {
             role="tablist"
             aria-label={t("tabs.label")}
             onDragLeave={() => setDropAt(null)}
+            onWheel={(event) => scrollRowByWheel(event.currentTarget, event)}
           >
             {entries.map((entry, index) => {
               // Index among the notes: the board's tab is not one of them.
