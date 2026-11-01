@@ -233,8 +233,9 @@ it back).
 - `markdown.code` and `markdown.quote` (Code, Quote; ADR-0051 #72, #76)
   have no chord and no menu item: tools of a Markdown file's tool row under
   the tabs and palette entries. Code puts backticks round the selection, or
-  a fenced block round a selection over several lines; Quote toggles `> `
-  per line (#77). The tool row's format tools are off while the preview
+  a fenced block round a selection over several lines (lines inside a
+  fenced block leave it instead); Quote toggles `> ` per line, round the
+  line's other marks, which the other formats change behind it (#77). The tool row's format tools are off while the preview
   shows (#74); the chords still act there as described above.
 - `board.newCard` (New Card, ADR-0030) has no chord: it is a palette entry,
   listed only while a board is active or the vault has exactly one.

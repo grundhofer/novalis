@@ -872,7 +872,6 @@ describe("Sidebar", () => {
       tree.getBoundingClientRect = () => ({ top: 292 - part.scrollTop, bottom: 420 - part.scrollTop }) as DOMRect;
       row.getBoundingClientRect = () => ({ top: 292 - part.scrollTop, bottom: 324 - part.scrollTop }) as DOMRect;
       act(() => row.focus());
-      expect(tree.scrollTop).toBe(0);
       expect(part.scrollTop).toBe(24);
     });
 

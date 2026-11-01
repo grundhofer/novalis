@@ -105,11 +105,23 @@ describe("the line formats", () => {
     expect(run("markdown.list", "1. a", EditorSelection.single(0)).text).toBe("- a");
   });
 
-  it("replaces one block mark with another: a line is a heading, an item or a quote", () => {
-    expect(run("markdown.quote", "# A\n- b", all("# A\n- b")).text).toBe("> A\n> b");
-    expect(run("markdown.heading1", "> a", EditorSelection.single(0)).text).toBe("# a");
+  it("replaces one block mark with another: a line is a heading or an item", () => {
+    expect(run("markdown.heading1", "- a", EditorSelection.single(0)).text).toBe("# a");
+    expect(run("markdown.list", "## a", EditorSelection.single(0)).text).toBe("- a");
     // A tag at the line's start is no heading.
     expect(run("markdown.heading1", "#tag", EditorSelection.single(0)).text).toBe("# #tag");
+  });
+
+  // A quote holds the line's other marks, as Markdown reads `> - a`.
+  it("puts a quote round the other marks and acts behind the quote marks", () => {
+    expect(run("markdown.quote", "# A\n- b", all("# A\n- b")).text).toBe("> # A\n> - b");
+    expect(run("markdown.quote", "> # A\n> - b", all("> # A\n> - b")).text).toBe("# A\n- b");
+    expect(run("markdown.quote", "> > a", EditorSelection.single(0)).text).toBe("> a");
+    expect(run("markdown.heading1", "> a", EditorSelection.single(0)).text).toBe("> # a");
+    expect(run("markdown.list", "> - a", EditorSelection.single(0)).text).toBe("> a");
+    expect(run("markdown.heading2", "> ## a", EditorSelection.single(0)).text).toBe("> a");
+    expect(run("markdown.task", "> - [ ] a", EditorSelection.single(0)).text).toBe("> a");
+    expect(run("markdown.task", "> > - a", EditorSelection.single(0)).text).toBe("> > - [ ] a");
   });
 
   it("acts on the lines of every cursor", () => {
@@ -168,6 +180,34 @@ describe("markdown.code", () => {
     const inner = EditorSelection.single(doc.indexOf("let a"), doc.indexOf("b;") + 2);
     expect(run(doc, inner).text).toBe("let a;\nlet b;");
     expect(run(doc, EditorSelection.single(0, doc.length)).text).toBe("let a;\nlet b;");
+  });
+
+  // Found in review: the lines round the selection were read as a block's
+  // fences, though they closed one block and opened the next.
+  it("fences lines between two blocks, and leaves both blocks as they are", () => {
+    const doc = "```js\nx\n```\np1\np2\n```\ny\n```";
+    const between = EditorSelection.single(doc.indexOf("p1"), doc.indexOf("p2") + 2);
+    expect(run(doc, between).text).toBe("```js\nx\n```\n```\np1\np2\n```\n```\ny\n```");
+  });
+
+  it("takes lines out of a block where they are, with the block's own fence", () => {
+    const doc = "````\na\nb\nc\n````";
+    const tail = EditorSelection.single(doc.indexOf("b"), doc.indexOf("c") + 1);
+    expect(run(doc, tail).text).toBe("````\na\n````\nb\nc");
+    const middle = EditorSelection.single(doc.indexOf("a"), doc.indexOf("b") + 1);
+    expect(run("```\na\nb\nc\n```", middle).text).toBe("a\nb\n```\nc\n```");
+    const one = "```\na\nb\nc\nd\n```";
+    expect(run(one, EditorSelection.single(one.indexOf("b"), one.indexOf("c") + 1)).text).toBe(
+      "```\na\n```\nb\nc\n```\nd\n```",
+    );
+  });
+
+  it("leaves a selection that reaches past the block it touches", () => {
+    const doc = "p\n```\na\n```";
+    const v = view(doc, EditorSelection.single(0, doc.indexOf("a") + 1));
+    expect(runEditorCommand("markdown.code")).toBe(false);
+    expect(v.state.doc.toString()).toBe(doc);
+    v.destroy();
   });
 });
 
