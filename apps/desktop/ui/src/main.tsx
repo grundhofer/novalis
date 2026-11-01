@@ -53,7 +53,14 @@ function reportFatal(what: string): void {
   notice.replaceChildren(message);
   if (!existing) document.body.appendChild(notice);
 }
-window.addEventListener("error", (event) => reportFatal(String(event.message)));
+// An `error` event without an error object is no failure of the app, as
+// sebaro's start reads it (WA-R2, spec/03 §14.1): the web view's
+// "ResizeObserver loop completed with undelivered notifications" is one, and
+// the notice would lie over a working window.
+window.addEventListener("error", (event) => {
+  if (event.error == null) return;
+  reportFatal(String(event.message));
+});
 window.addEventListener("unhandledrejection", (event) => {
   const reason: unknown = event.reason;
   reportFatal(reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason));
