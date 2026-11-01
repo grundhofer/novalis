@@ -170,3 +170,17 @@ After an independent review of #67–#69 the owner answered one more question (t
 | 70 | A sign that more tabs lie beyond an end of the row, now that it has no scroll bar | A 16 px fade into the ground at each end with tabs beyond it (`data-nv-more` on the row, `markMore` in `TabStrip.tsx`); after the pinned board tab when there is one. sebaro has no part for it |
 
 **Owner approval:** 2026-11-01, verbatim: „Verlauf an den Rändern“.
+
+## Amendment 2026-11-01 (2): the sidebar's scrolling and a tool row for documents
+
+| # | Question | Decision |
+|---|---|---|
+| 71 | Two vertical scroll bars in the sidebar (its upper block and the tree), at 200 % or in windows under about 460 px | One scroller: the tree scrolls with the sidebar's upper block (`sb-side-nav__scroll`), one system bar at the sidebar's edge (NAV-04, D102 (10)); the virtualizer scrolls that block. With a long tree the places, the vault head and the sort choice scroll away with it. Departs from sebaro's NV-Z9 (the tree's own scroller with a four-row minimum) |
+| 72 | A tool row under the tabs, like the viewers' | Markdown gets one with Preview; Bold, Italic, Link; Heading 1–3, List, Task, Code, Quote; Find; text size − / +. Bold, Italic, Link, Find and the text size are existing commands; the formats are new commands |
+| 73 | Which files have the row | Every file with tools: Markdown with its tools; CSV, TSV and SVG with Preview alone; the viewers keep their row; code and text files have none. The preview switch leaves the end of the tab row (#68 then applies to the row's switch) |
+| 74 | The format tools while the preview shows | Disabled, in their place; the row does not jump |
+| 75 | Tools without a sebaro icon (bold, italic, heading, list, task) | A gap row asks sebaro for the icons; until they are in the export these tools are compact word buttons, then icon tools with a tooltip |
+| 76 | Shortcuts for the new formats | Only where free and usual: ⌥⌘1 / ⌥⌘2 / ⌥⌘3 Heading 1–3, ⇧⌘8 List, ⇧⌘9 Task; Code and Quote without a shortcut. Collisions checked before, `docs/KEYMAP.md` and the parity test follow |
+| 77 | How Heading, List, Task and Quote act | They toggle per line: on every selected line the prefix („# “, „- “, „- [ ] “, „> “) is set, or removed when it is there; a heading replaces another level. Code puts backticks round the selection, a fenced block round several lines |
+
+**Owner approval:** 2026-11-01, verbatim: „Ein Scrollbereich (Empfohlen)“; „Dazu neue Formate“, „Jede Datei mit Werkzeugen (Empfohlen)“, „Ausgegraut lassen (Empfohlen)“; „Bei sebaro anfragen, solange Wort (Empfohlen)“, „Nur wo frei und üblich (Empfohlen)“, „Umschalten pro Zeile (Empfohlen)“. The tool row itself came from the owner: „ich finde der vorschau button und andere styling button sollten in eine solche dokumenteneliste. speziell markdowns etc. sollten hier ein paar sinnvolle formatierungs/steuerungsoptionen bekommen.“
