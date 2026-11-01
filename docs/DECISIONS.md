@@ -922,6 +922,18 @@ ADR-0051, amendment 2026-11-01, #67–#70):
 
 Recorded as amendments to **ADR-0051**.
 
+Later the same day, after the sidebar was measured with classic scroll bars
+and the owner asked for a tool row under the tabs (verbatim answers in
+ADR-0051, amendment 2026-11-01 (2), #71–#77):
+- the tree scrolls with the sidebar's upper block: one scroll bar (#71)
+- a tool row for Markdown with Preview, Bold, Italic, Link, Heading 1–3,
+  List, Task, Code, Quote, Find and text size; CSV, TSV and SVG with
+  Preview alone (#72, #73); format tools disabled in the preview (#74)
+- word buttons until sebaro has icons for them (#75); ⌥⌘1–3, ⇧⌘8, ⇧⌘9
+  where free (#76); the formats toggle per line (#77)
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
