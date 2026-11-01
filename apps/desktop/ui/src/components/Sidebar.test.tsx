@@ -22,15 +22,24 @@ const estimated = vi.hoisted(() => ({ size: 0 }));
 /** Asked when the rows must be placed again (a new row height). */
 const measure = vi.hoisted(() => vi.fn());
 const measureElement = vi.hoisted(() => vi.fn());
+/** What the tree last gave the virtualizer: its scroll element, `scrollMargin`, `measureElement`. */
+const given = vi.hoisted(() => ({ options: {} as Record<string, unknown> }));
 vi.mock("@tanstack/react-virtual", () => ({
   defaultRangeExtractor: () => [],
-  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => {
+  // The library's own measure: the row's border box from the observer's entry.
+  measureElement: (_element: Element, entry: ResizeObserverEntry | undefined) =>
+    Math.round(entry?.borderBoxSize[0]?.blockSize ?? 0),
+  useVirtualizer: (options: { count: number; estimateSize: () => number; scrollMargin?: number }) => {
+    given.options = options;
+    const { count, estimateSize, scrollMargin = 0 } = options;
     estimated.size = estimateSize();
     const size = estimated.size;
     return {
       getTotalSize: () => count * size,
+      // As the library does, a row's start counts from the scroll element's
+      // content, so it includes `scrollMargin`.
       getVirtualItems: () =>
-        Array.from({ length: count }, (_, index) => ({ index, key: index, size, start: index * size })),
+        Array.from({ length: count }, (_, index) => ({ index, key: index, size, start: scrollMargin + index * size })),
       scrollToIndex,
       measure,
       measureElement,
@@ -62,7 +71,7 @@ vi.mock("../lib/attachments", () => ({
 }));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-/** The tree's scroll box, which also holds its empty state. */
+/** The tree's box in the sidebar's scrolled block (the vault root's drop space), which also holds its empty state. */
 const treeBox = () => document.querySelector<HTMLElement>(".nv-tree")!;
 
 /**
@@ -422,17 +431,17 @@ describe("Sidebar", () => {
     it("moves a file dropped on the tree's empty space into the vault root", () => {
       const { container } = render(<Sidebar />);
       const dataTransfer = dragStore();
-      const scroller = container.querySelector(".nv-tree") as HTMLElement;
+      const space = container.querySelector(".nv-tree") as HTMLElement;
       const inner = container.querySelector(".sb-tree") as HTMLElement;
 
       fireEvent.dragStart(row("a.md"), { dataTransfer });
-      expect(fireEvent.dragOver(scroller, { dataTransfer })).toBe(false);
+      expect(fireEvent.dragOver(space, { dataTransfer })).toBe(false);
       // The whole tree takes the drop frame (spec/02 §4.22, NV-G6); over a
       // row that takes nothing it goes again.
       expect(inner.getAttribute("data-sb-state")).toBe("drop-into");
       fireEvent.dragOver(row("a.md"), { dataTransfer });
       expect(inner.hasAttribute("data-sb-state")).toBe(false);
-      fireEvent.dragOver(scroller, { dataTransfer });
+      fireEvent.dragOver(space, { dataTransfer });
       fireEvent.drop(inner, { dataTransfer });
 
       expect(moveEntry).toHaveBeenCalledWith("a.md", "");
@@ -474,11 +483,11 @@ describe("Sidebar", () => {
       it("places a board dropped on the tree's empty space last", () => {
         const { container } = render(<Sidebar />);
         const dataTransfer = dragStore();
-        const scroller = container.querySelector(".nv-tree") as HTMLElement;
+        const space = container.querySelector(".nv-tree") as HTMLElement;
         const inner = container.querySelector(".sb-tree") as HTMLElement;
 
         fireEvent.dragStart(row("Atlas"), { dataTransfer });
-        expect(fireEvent.dragOver(scroller, { dataTransfer })).toBe(false);
+        expect(fireEvent.dragOver(space, { dataTransfer })).toBe(false);
         fireEvent.drop(inner, { dataTransfer });
 
         expect(useBoard.getState().placeBoard).toHaveBeenCalledWith("atlas", { kind: "last" });
@@ -545,13 +554,13 @@ describe("Sidebar", () => {
       it("takes no card on a folder row or the tree's empty space", () => {
         const { container } = render(<Sidebar />);
         const dataTransfer = cardDrag();
-        const scroller = container.querySelector(".nv-tree") as HTMLElement;
+        const space = container.querySelector(".nv-tree") as HTMLElement;
         const inner = container.querySelector(".sb-tree") as HTMLElement;
 
         expect(fireEvent.dragOver(row("Notes"), { dataTransfer })).toBe(true);
         expect(row("Notes").dataset.sbState).toBeUndefined();
         fireEvent.drop(row("Notes"), { dataTransfer });
-        expect(fireEvent.dragOver(scroller, { dataTransfer })).toBe(true);
+        expect(fireEvent.dragOver(space, { dataTransfer })).toBe(true);
         fireEvent.drop(inner, { dataTransfer });
 
         expect(useBoard.getState().moveCardToBoard).not.toHaveBeenCalled();
@@ -781,41 +790,90 @@ describe("Sidebar", () => {
       expect(focusedName()).toBe("Other");
     });
 
-    // ZUG-09, NV-Z9: with large text the upper block scrolls; a row the tree
-    // scrolls into view brings the tree's end up to the scroll part's edge,
-    // not under the foot (sebaro's `revealInSideNav`). jsdom has no
-    // layout, so the boxes are given.
-    it("scrolls the sidebar's scroll part so the tree ends at its edge", () => {
-      const { container } = render(<Sidebar />);
-      const part = container.querySelector<HTMLElement>(".sb-side-nav__scroll")!;
-      const tree = container.querySelector<HTMLElement>(".nv-tree")!;
-      Object.defineProperty(part, "clientHeight", { configurable: true, value: 300 });
-      part.getBoundingClientRect = () => ({ top: 0, bottom: 300 }) as DOMRect;
-      tree.getBoundingClientRect = () => ({ top: 292 - part.scrollTop, bottom: 420 - part.scrollTop }) as DOMRect;
-      act(() => useVault.getState().focus("a.md", false, true));
-      expect(part.scrollTop).toBe(120);
-      act(() => useVault.getState().focus("Other", true));
-      expect(part.scrollTop).toBe(120);
+    // ADR-0051 #71 (departs from NV-Z9): one scroller. The virtualizer
+    // scrolls the sidebar's upper block and counts the places, the head and
+    // the sort above the tree (`scrollMargin`), measured again when they
+    // change height; the rows stay placed from the list's start. jsdom has
+    // no layout, so the boxes are given.
+    it("scrolls the tree with the sidebar's upper block, counting the parts above it", () => {
+      const observers: Array<{ callback: () => void; targets: Element[] }> = [];
+      const original = globalThis.ResizeObserver;
+      globalThis.ResizeObserver = class {
+        entry: { callback: () => void; targets: Element[] };
+        constructor(callback: () => void) {
+          this.entry = { callback, targets: [] };
+          observers.push(this.entry);
+        }
+        observe(target: Element) {
+          this.entry.targets.push(target);
+        }
+        unobserve() {}
+        disconnect() {}
+      } as unknown as typeof ResizeObserver;
+      try {
+        const { container } = render(<Sidebar />);
+        const part = container.querySelector<HTMLElement>(".sb-side-nav__scroll")!;
+        const tree = treeBox();
+        expect((given.options.getScrollElement as () => Element | null)()).toBe(part);
+        // The tree's start in the block's scrolled content, wherever it is scrolled.
+        part.scrollTop = 40;
+        part.getBoundingClientRect = () => ({ top: 10 }) as DOMRect;
+        let top = 134 - 40;
+        tree.getBoundingClientRect = () => ({ top }) as DOMRect;
+        // The block and the places, the head and the sort above the tree.
+        const start = observers.find((observer) => observer.targets.includes(part))!;
+        expect(start.targets.map((target) => target.className)).toEqual([
+          "sb-side-nav__scroll",
+          "sb-sort-choice",
+          "sb-side-nav__head",
+          "",
+        ]);
+        act(() => start.callback());
+        expect(given.options.scrollMargin).toBe(124);
+        const slot = (name: string) => screen.getByText(name).closest("li")!;
+        expect(slot("Notes").style.transform).toBe("translateY(0px)");
+        expect(slot("Other").style.transform).toBe(`translateY(${3 * estimated.size}px)`);
+        // The sort breaks onto a second line at large text: the tree starts lower.
+        top += 36;
+        act(() => start.callback());
+        expect(given.options.scrollMargin).toBe(160);
+        expect(slot("Notes").style.transform).toBe("translateY(0px)");
+      } finally {
+        globalThis.ResizeObserver = original;
+      }
+    });
+
+    // A row drawn while the sidebar is hidden has no box: its 0 px would
+    // stand until it is drawn again and leave the tree short, so End stopped
+    // above the last row (measured in WebKit). It keeps the window row.
+    it("keeps the window row's height for a row measured without a box", () => {
+      render(<Sidebar />);
+      const measure = given.options.measureElement as (
+        element: Element,
+        entry: ResizeObserverEntry | undefined,
+        instance: unknown,
+      ) => number;
+      const row = screen.getByText("a.md").closest<HTMLElement>("[role=treeitem]")!;
+      const entry = (blockSize: number) => ({ borderBoxSize: [{ blockSize, inlineSize: 0 }] }) as unknown as ResizeObserverEntry;
+      expect(measure(row, entry(0), null)).toBe(estimated.size);
+      expect(measure(row, entry(52), null)).toBe(52);
     });
 
     // spec/02 §4.14, §4.17: whatever in the block takes focus is brought out
-    // from under the foot, by the block alone.
+    // from under the foot, by the block alone and by the least amount; the
+    // tree has no scroller of its own (ADR-0051 #71).
     it("scrolls the scroll part when a row in it takes focus", () => {
       const { container } = render(<Sidebar />);
       const part = container.querySelector<HTMLElement>(".sb-side-nav__scroll")!;
-      const tree = container.querySelector<HTMLElement>(".nv-tree")!;
+      const tree = treeBox();
       const row = container.querySelector<HTMLElement>("[role=treeitem]")!;
       Object.defineProperty(part, "clientHeight", { configurable: true, value: 300 });
       part.getBoundingClientRect = () => ({ top: 0, bottom: 300 }) as DOMRect;
       tree.getBoundingClientRect = () => ({ top: 292 - part.scrollTop, bottom: 420 - part.scrollTop }) as DOMRect;
       row.getBoundingClientRect = () => ({ top: 292 - part.scrollTop, bottom: 324 - part.scrollTop }) as DOMRect;
-      // The tree scrolls by itself (app.css): its lower edge comes up too.
-      tree.style.overflowY = "auto";
-      Object.defineProperty(tree, "clientHeight", { configurable: true, value: 128 });
-      Object.defineProperty(tree, "scrollHeight", { configurable: true, value: 1000 });
       act(() => row.focus());
       expect(tree.scrollTop).toBe(0);
-      expect(part.scrollTop).toBe(120);
+      expect(part.scrollTop).toBe(24);
     });
 
     // The hidden sidebar stays mounted: a row a command shows while it is
@@ -1103,8 +1161,8 @@ describe("Sidebar", () => {
         expect(estimated.size).toBe(40);
         const slot = screen.getByText("a.md").closest("li")!;
         expect(slot.style.blockSize).toBe("40px");
-        // The tree's four rows are sebaro's measure in app.css (spec/02
-        // §4.14, D108), not a number of the component.
+        // The tree has no height in rows of its own (ADR-0051 #71, no
+        // longer NV-Z9's four rows), and none set by the component.
         expect(treeBox().style.minBlockSize).toBe("");
       } finally {
         root.removeAttribute("style");
@@ -1246,8 +1304,10 @@ describe("Sidebar", () => {
 
 // sebaro's `revealInSideNav` (sb-window.js, spec/02 §4.14): every scroller
 // from the row up to `sb-side-nav__scroll` moves, innermost first, by the
-// least amount; the block also shows the tree's lower edge. jsdom has no
-// layout: each box is given from the scroll positions.
+// least amount; the block also shows the tree's lower edge. A tree with a
+// scroller of its own is sebaro's (NV-Z9); novalis's has none since ADR-0051
+// #71, the counterpart keeps sebaro's behaviour. jsdom has no layout: each
+// box is given from the scroll positions.
 describe("revealInSideNav", () => {
   const box = (element: HTMLElement, top: () => number, height: number) => {
     element.getBoundingClientRect = () => ({ top: top(), bottom: top() + height }) as DOMRect;

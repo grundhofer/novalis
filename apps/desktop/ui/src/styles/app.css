@@ -128,27 +128,18 @@ button {
    D104 (36)) and the parts of a sidebar with a foot (`sb-side-nav__scroll`,
    `__foot`, D105 (46)) are sebaro.css's (spec/02 §4.17). */
 
-/* The tree scrolls by itself (the virtualizer's scroll element) and is the
-   vault root's drop space below its rows. It keeps four rows of the
-   window's row height when large text crowds the sidebar, whose upper
-   block then scrolls (spec/02 §4.14, sebaro D108; the product's
-   virtualizer sets it). */
+/* The tree has no scroller and no minimum height: it scrolls with the
+   sidebar's upper block `sb-side-nav__scroll`, the virtualizer's scroll
+   element, so the sidebar has one bar at its edge (ADR-0051 #71, NAV-04,
+   D102 (10); departs from sebaro's NV-Z9, the tree's own scroller with four
+   rows). It is the vault root's drop space below its rows and fills the
+   rest of the block when it is short, as sebaro's tree does as the block's
+   last part (D105 (46)); an empty tree's sentence stands in it the same way
+   (CHECKS §38, docs/sebaro-luecken.md Z4). */
 .nv-tree {
   position: relative;
-  flex: 1 1 0;
-  min-block-size: calc(4 * max(var(--sb-size-control-sm), 2rem));
-  overflow: auto;
-  container: nv-tree / inline-size;
-}
-
-/* An empty tree has no scroll frame and no minimum height (spec/02
-   §4.14, sebaro CHECKS §38): its sentence stands in `sb-side-nav__scroll`,
-   which scrolls at large text, so the foot never cuts it. The tree still
-   fills the rest as the root's drop space (docs/sebaro-luecken.md Z4). */
-.nv-tree:has(> .sb-empty) {
   flex: 1 0 auto;
-  min-block-size: 0;
-  overflow: visible;
+  container: nv-tree / inline-size;
 }
 
 /* Rows stay one line (ADR-0051 #24), and a day in `sb-row__meta` never
