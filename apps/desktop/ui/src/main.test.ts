@@ -181,4 +181,11 @@ describe("the last-resort notice", () => {
     expect(body).not.toContain("innerHTML");
     expect(sebaroCss).toContain(".sb-fatal {");
   });
+
+  // WA-R2: the web view's ResizeObserver loop notice is an `error` event
+  // without an error object; it lay over a working window.
+  it("leaves out an error event without an error object", () => {
+    const handler = mainSource.slice(mainSource.indexOf('window.addEventListener("error"'), mainSource.indexOf('window.addEventListener("unhandledrejection"'));
+    expect(handler).toMatch(/if \(event\.error == null\) return;\s*reportFatal\(/);
+  });
 });
