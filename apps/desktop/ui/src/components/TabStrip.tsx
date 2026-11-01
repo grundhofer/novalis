@@ -82,6 +82,38 @@ export function scrollRowByWheel(
   if (whole) list.scrollLeft += whole;
 }
 
+/**
+ * Which ends of the tab row have tabs beyond them (ADR-0051 #70): the row
+ * shows no scroll bar (#67), so a fade at that end says there are more. It
+ * is written as `data-nv-more` on the row ("start", "end", both or none),
+ * for the fades in styles/app.css; only their opacity follows it, so the
+ * row's size never does. Measured at the tabs, not the scroll width: the
+ * room after the last tab (where a dragged tab lands) is no tab, and a tab
+ * under the pinned one is out of sight as one past the row's start.
+ */
+export function markMore(list: HTMLElement): void {
+  const items = [...list.querySelectorAll<HTMLElement>(".sb-doc-tabs__item")];
+  const pinned = items[0]?.classList.contains("sb-doc-tabs__item--pinned") ? items.shift() : undefined;
+  let more = "";
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (first && last) {
+    const rtl = getComputedStyle(list).direction === "rtl";
+    const row = list.getBoundingClientRect();
+    const pin = pinned?.getBoundingClientRect();
+    const from = first.getBoundingClientRect();
+    const to = last.getBoundingClientRect();
+    // A pixel's slack: the scroll position is whole, a tab's edge need not
+    // be, so a tab scrolled fully into view can stand up to 1 px past.
+    const start = rtl ? from.right > (pin ? pin.left : row.right) + 1 : from.left < (pin ? pin.right : row.left) - 1;
+    const end = rtl ? to.left < row.left - 1 : to.right > row.right + 1;
+    more = [start ? "start" : "", end ? "end" : ""].filter(Boolean).join(" ");
+  }
+  if ((list.dataset.nvMore ?? "") === more) return;
+  if (more) list.dataset.nvMore = more;
+  else delete list.dataset.nvMore;
+}
+
 /** The one panel the current tab shows (App.tsx); every tab controls it. */
 export const DOC_PANEL_ID = "doc-panel";
 const BOARD_TAB_ID = "doc-tab-board";
@@ -187,6 +219,7 @@ export default function TabStrip() {
   const boardName = useBoard((s) => s.boards.find((b) => b.slug === boardSlug)?.name ?? boardSlug);
   const currentId = useCurrentTabId();
   const noneRef = useRef<HTMLParagraphElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const root = useVault((s) => s.children[""]);
   const boards = useBoard((s) => s.boards);
   const empty = useMemo(() => root !== undefined && vaultIsEmpty({ "": root }, boards), [root, boards]);
@@ -231,6 +264,25 @@ export default function TabStrip() {
       tab.focus();
     }
   }, [currentId]);
+
+  // The fades at the row's ends (ADR-0051 #70) follow its scrolling and its
+  // width, and every render, which is when tabs come, go or are renamed.
+  const hasRow = entries.length > 0;
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return undefined;
+    const update = () => markMore(list);
+    list.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(list);
+    return () => {
+      list.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [hasRow]);
+  useEffect(() => {
+    if (listRef.current) markMore(listRef.current);
+  });
 
   useEffect(() => {
     const gone = focused.current;
@@ -305,6 +357,7 @@ export default function TabStrip() {
         <div className="nv-doc-head">
           <div
             className="sb-doc-tabs"
+            ref={listRef}
             role="tablist"
             aria-label={t("tabs.label")}
             onDragLeave={() => setDropAt(null)}

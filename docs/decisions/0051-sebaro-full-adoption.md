@@ -162,3 +162,11 @@ Seen by the owner in a release build of `main`: with macOS's classic scroll bars
 | 69 | Keeping it | This amendment, a gap row for sebaro, a rule in `docs/sebaro-umbau.md` §4 (pictures also with classic scroll bars and an overflowing tab row) and `scripts/measure-tab-row.mjs`, which measures the row in WebKit |
 
 **Owner approval:** 2026-11-01, verbatim: „Balken ausblenden (Empfohlen)“, „Kleiner, mittig zur Schrift (Empfohlen)“, „Alles (Empfohlen)“.
+
+After an independent review of #67–#69 the owner answered one more question (the recommendation was „So lassen“):
+
+| # | Question | Decision |
+|---|---|---|
+| 70 | A sign that more tabs lie beyond an end of the row, now that it has no scroll bar | A 16 px fade into the ground at each end with tabs beyond it (`data-nv-more` on the row, `markMore` in `TabStrip.tsx`); after the pinned board tab when there is one. sebaro has no part for it |
+
+**Owner approval:** 2026-11-01, verbatim: „Verlauf an den Rändern“.

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Measures the tab row and the preview switch in WebKit (ADR-0051 #67–#69).
+// Measures the tab row, its fades and the preview switch in WebKit
+// (ADR-0051 #67–#70).
 // jsdom computes no layout (ADR-0011), and the review pictures of the
 // rebuild never showed a classic scroll bar: a wide window, no tab row that
 // overflowed. With "Show scroll bars: Always" (or a mouse attached) the bar
@@ -14,6 +15,7 @@
 //   - the row is no higher than its tabs
 //   - the switch's word stands on the tabs' names (±0.5 px), off state
 //   - the switch stays inside the row with air above; at 100 % it is 24 px
+//   - scrolled to its end, the row fades out at its start only (#70)
 // A picture of each case goes to the output folder.
 //
 // Usage: node scripts/measure-tab-row.mjs [out-dir]
@@ -83,6 +85,9 @@ const MEASURE = `(() => {
     word: middle(button),
     button: rect(button),
     pressed: button.getAttribute("aria-pressed"),
+    more: list.dataset.nvMore ?? "",
+    fadeStart: getComputedStyle(list, "::before").opacity,
+    fadeEnd: getComputedStyle(list, "::after").opacity,
   };
 })()`;
 writeFileSync(join(out, "measure.js"), MEASURE);
@@ -136,6 +141,10 @@ for (const theme of ["light", "dark"]) {
       if (m.pressed !== "false") fail(`the switch is pressed (${m.pressed}); measured is the off state`);
       if (!near(m.word, m.names, 0.5)) fail(`the switch's word stands at ${m.word.toFixed(1)} px, the names at ${m.names.toFixed(1)} px`);
       if (m.button.top < 0 || m.button.bottom > m.row) fail(`the switch (${m.button.top}–${m.button.bottom} px) leaves the row (0–${m.row} px)`);
+      // The current tab is the last, so the row stands at its end: tabs lie
+      // beyond its start only, and only the start's fade shows (#70).
+      if (m.more !== "start" || m.fadeStart !== "1" || m.fadeEnd !== "0")
+        fail(`the fades say "${m.more}" (start ${m.fadeStart}, end ${m.fadeEnd}), not "start" (1, 0)`);
       if (font === "100%" && m.button.height !== 24) fail(`the switch is ${m.button.height} px high, not 24`);
       console.log(
         `${name.padEnd(22)} row ${m.row} px, bar ${m.bar} px, names ${m.names.toFixed(1)} px, word ${m.word.toFixed(1)} px, switch ${m.button.height} px at ${m.button.top}–${m.button.bottom}`,

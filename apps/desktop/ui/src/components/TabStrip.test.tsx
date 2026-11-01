@@ -8,7 +8,7 @@ import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import appCss from "../styles/app.css?raw";
-import TabStrip, { DOC_PANEL_ID, DocPanel, revealTab, scrollRowByWheel } from "./TabStrip";
+import TabStrip, { DOC_PANEL_ID, DocPanel, markMore, revealTab, scrollRowByWheel } from "./TabStrip";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -708,10 +708,67 @@ describe("scrollRowByWheel", () => {
   });
 });
 
+// ADR-0051 #70: without a scroll bar a fade says which ends have more
+// tabs beyond them; measured at the tabs, so the drop room after the last
+// tab and the pinned tab do not count.
+describe("markMore", () => {
+  const box = (left: number, right: number) => ({ left, right }) as DOMRect;
+
+  function row(pinned: boolean, first: [number, number], last: [number, number]) {
+    const list = document.createElement("div");
+    list.innerHTML =
+      (pinned ? '<span class="sb-doc-tabs__item sb-doc-tabs__item--pinned"></span>' : "") +
+      '<span class="sb-doc-tabs__item"></span><span class="sb-doc-tabs__item"></span>' +
+      '<span class="nv-doc-tabs__end"></span>';
+    list.getBoundingClientRect = () => box(0, 300);
+    const items = [...list.querySelectorAll<HTMLElement>(".sb-doc-tabs__item")];
+    if (pinned) items.shift()!.getBoundingClientRect = () => box(0, 80);
+    items[0]!.getBoundingClientRect = () => box(...first);
+    items[1]!.getBoundingClientRect = () => box(...last);
+    document.body.append(list);
+    return list;
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("names the end with a tab beyond it, and neither when all are in view", () => {
+    const list = row(false, [16, 150], [150, 420]);
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("end");
+
+    const all = row(false, [16, 150], [150, 299.6]);
+    markMore(all);
+    expect(all.dataset.nvMore).toBeUndefined();
+  });
+
+  it("names the start when a tab lies under the pinned one, and both ends", () => {
+    const list = row(true, [40, 200], [200, 420]);
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("start end");
+  });
+
+  it("reads the ends the other way round in a right-to-left row", () => {
+    const list = row(false, [200, 330], [-90, 40]);
+    list.style.direction = "rtl";
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("start end");
+  });
+
+  it("is what the strip writes on its row", () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md" });
+    render(<TabStrip />);
+    // jsdom lays nothing out: every tab at 0–0 is in view.
+    expect(screen.getByRole("tablist").dataset.nvMore).toBeUndefined();
+  });
+});
+
 // ADR-0051 #67, #68: read as text, jsdom computes no style (ADR-0011).
 describe("the head's CSS", () => {
+  // The rule that starts a line with exactly this selector.
   const block = (selector: string) => {
-    const start = appCss.indexOf(`${selector} {`);
+    const start = appCss.indexOf(`\n${selector} {`);
     expect(start, selector).toBeGreaterThanOrEqual(0);
     return appCss.slice(start, appCss.indexOf("}", start));
   };
@@ -720,6 +777,23 @@ describe("the head's CSS", () => {
     expect(block(".nv-doc-head > .sb-doc-tabs")).toContain("scrollbar-width: none;");
     // WebKit before Safari 18.2 (macOS 14) knows only the pseudo-element.
     expect(block(".nv-doc-head > .sb-doc-tabs::-webkit-scrollbar")).toContain("display: none;");
+  });
+
+  it("fades the ends that have more tabs, and never takes room or the pointer", () => {
+    const shared = block(
+      ".nv-doc-head > .sb-doc-tabs::before,\n.nv-doc-head > .sb-doc-tabs::after,\n.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after",
+    );
+    expect(shared).toContain("pointer-events: none;");
+    expect(shared).toContain("opacity: 0;");
+    // Sticky at each end, its width given back by its margin.
+    expect(appCss).toContain(
+      "\n.nv-doc-head > .sb-doc-tabs::before {\n  inset-inline-start: 0;\n  margin-inline-end: calc(-1 * var(--sb-space-4));\n  background: linear-gradient(to right, var(--sb-color-bg), transparent);\n}",
+    );
+    expect(appCss).toContain(
+      "\n.nv-doc-head > .sb-doc-tabs::after {\n  inset-inline-end: 0;\n  margin-inline-start: calc(-1 * var(--sb-space-4));\n  background: linear-gradient(to left, var(--sb-color-bg), transparent);\n}",
+    );
+    expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,');
+    expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {\n  opacity: 1;');
   });
 
   it("makes the preview switch 24 px high for a pointer, on the names, and leaves touch its 48", () => {

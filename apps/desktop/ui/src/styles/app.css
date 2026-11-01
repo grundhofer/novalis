@@ -234,6 +234,74 @@ button {
   display: none;
 }
 
+/* Where more tabs lie beyond an end of the row, a 16 px fade into the
+   ground says so (ADR-0051 #70; sebaro has no part for it,
+   docs/sebaro-luecken.md Z7): the row shows no scroll bar (#67).
+   `data-nv-more` names the ends (TabStrip.tsx `markMore`). Each fade is a
+   sticky part of the row that takes no room (its width given back by its
+   margin) and lets the pointer through; only its opacity changes, so the
+   row's size never follows it. With the pinned board tab at the start the
+   start's fade hangs after that tab, which stays put while the row
+   scrolls. */
+.nv-doc-head > .sb-doc-tabs::before,
+.nv-doc-head > .sb-doc-tabs::after,
+.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+  content: "";
+  flex: none;
+  inline-size: var(--sb-space-4);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.nv-doc-head > .sb-doc-tabs::before,
+.nv-doc-head > .sb-doc-tabs::after {
+  position: sticky;
+  z-index: 1;
+}
+
+.nv-doc-head > .sb-doc-tabs::before {
+  inset-inline-start: 0;
+  margin-inline-end: calc(-1 * var(--sb-space-4));
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs::after {
+  inset-inline-end: 0;
+  margin-inline-start: calc(-1 * var(--sb-space-4));
+  background: linear-gradient(to left, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 100%;
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs:dir(rtl)::before,
+.nv-doc-head > .sb-doc-tabs:dir(rtl) > .sb-doc-tabs__item--pinned::after {
+  background: linear-gradient(to left, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs:dir(rtl)::after {
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"] > .sb-doc-tabs__item--pinned::after,
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {
+  opacity: 1;
+}
+
+/* Forced colours paint no ground to fade into. */
+@media (forced-colors: active) {
+  .nv-doc-head > .sb-doc-tabs::before,
+  .nv-doc-head > .sb-doc-tabs::after,
+  .nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+    display: none;
+  }
+}
+
 /* The 16 px start is the first tab's margin, not the row's padding, as
    sebaro.css gives it a row in `sb-window__content` (spec/02 §4.21, sebaro
    CHECKS §38): a sticky pinned tab is held inside a scroller's padding, so

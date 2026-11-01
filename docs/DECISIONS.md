@@ -910,13 +910,15 @@ Recorded as amendments to **ADR-0051**.
 
 ## Answered 2026-11-01
 
-After the owner saw a release build of `main` with classic scroll bars, three
-more answers, each time the recommendation (verbatim answers in ADR-0051,
-amendment 2026-11-01, #67–#69):
+After the owner saw a release build of `main` with classic scroll bars, four
+more answers, the first three the recommendation (verbatim answers in
+ADR-0051, amendment 2026-11-01, #67–#70):
 - the tab row hides its scroll bar; a wheel scrolls it sideways (changes #46)
 - the preview switch is 24 px high, its word on the tabs' names
 - pictures also with classic scroll bars and an overflowing tab row, and
   `scripts/measure-tab-row.mjs` measures the row in WebKit
+- a fade at each end of the tab row with tabs beyond it (#70, not the
+  recommendation „So lassen“)
 
 Recorded as amendments to **ADR-0051**.
 
