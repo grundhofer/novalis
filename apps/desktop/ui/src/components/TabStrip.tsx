@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { dispatchCommand } from "../lib/commands";
-import { previewKind } from "../lib/fileTypes";
-import { ariaKeyshortcutsOf, bindingFor, glyphsOf } from "../lib/keymap";
+import { glyphsOf } from "../lib/keymap";
 import { fileNameOf, stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
@@ -202,9 +200,8 @@ interface Entry {
  * §4.21), and Entf, ⌘W or a middle click do not close it;
  * the board tool and View ▸ Board show and hide it; it stays at the row's
  * start while the row scrolls (sebaro.css, D108 (4)). With nothing current the sentence `sb-doc-tabs__none` says how to
- * open a note. The preview switch (⌘E, ADR-0051 #16) is sebaro's compact
- * switch with the eye and its word (D102 (2), D105 (2)); it stands beside the row, outside its
- * scrolling, so many tabs never push it out of sight.
+ * open a note. The preview switch (⌘E, ADR-0051 #16) is no longer at the
+ * row's end: it leads the tool row under the tabs (DocTools.tsx, #73).
  */
 export default function TabStrip() {
   const { t } = useTranslation();
@@ -213,7 +210,6 @@ export default function TabStrip() {
   const tabs = useTabs((s) => s.tabs);
   const active = useTabs((s) => s.active);
   const docs = useEditorSave((s) => s.docs);
-  const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
   const boardVisible = useUi((s) => s.boardVisible);
   const boardSlug = useBoardTab();
   const boardName = useBoard((s) => s.boards.find((b) => b.slug === boardSlug)?.name ?? boardSlug);
@@ -348,8 +344,6 @@ export default function TabStrip() {
   // A tab dragged rightward lands after the one it is dropped on (`move`
   // takes it out first), leftward before it: the line stands on that side.
   const from = dragging === null ? -1 : tabs.indexOf(dragging);
-  const hasPreview = !!active && !boardVisible && !!previewKind(active);
-  const previewChord = bindingFor("note.togglePreview")?.chord;
 
   return (
     <>
@@ -456,27 +450,6 @@ export default function TabStrip() {
               onDrop={(event) => dropOn(event, tabs.length)}
             />
           </div>
-          {/* The preview switch (ADR-0020, ADR-0051 #16): sebaro's compact
-              switch with the eye before its word (spec/02 §4.17, D102 (2),
-              D105 (2): 20 px, never the eye alone), its state in
-              `aria-pressed`, `Cmd+E` in `aria-keyshortcuts`. Only a file
-              with a second representation has it — a note, a CSV or TSV, an
-              SVG (ADR-0025) — so it is not there for a PDF. */}
-          {hasPreview && (
-            <div className="nv-doc-head__tools">
-              <button
-                className="sb-secondary-action sb-secondary-action--compact"
-                type="button"
-                aria-pressed={previewing}
-                aria-keyshortcuts={previewChord ? ariaKeyshortcutsOf(previewChord) : undefined}
-                data-sb-own-shortcut=""
-                onClick={() => dispatchCommand("note.togglePreview")}
-              >
-                <Icon name="eye" size={20} />
-                {t("editor.preview")}
-              </button>
-            </div>
-          )}
         </div>
       )}
       {/* The board pane says its own empty state. In an empty vault there

@@ -138,6 +138,145 @@ function lineSpans(state: EditorState): [number, number][] {
   return merged;
 }
 
+/**
+ * The block mark a line's text starts with after its indentation: a task
+ * (a list item with a box, bullet or number), a bullet item, a numbered
+ * item, a heading or a quote. `length` is the mark with the blanks after it.
+ */
+interface LineMark {
+  kind: "task" | "list" | "ordered" | "heading" | "quote";
+  length: number;
+  /** A heading's level. */
+  level?: number;
+  /** A bullet item's or task's `-`, `*` or `+`. */
+  bullet?: string;
+}
+
+function lineMarkOf(body: string): LineMark | null {
+  let match = /^([-*+]|\d+[.)])[ \t]+\[[ xX]\](?:[ \t]+|$)/.exec(body);
+  if (match) return { kind: "task", length: match[0].length, bullet: match[1] };
+  match = /^([-*+])[ \t]+/.exec(body);
+  if (match) return { kind: "list", length: match[0].length, bullet: match[1] };
+  match = /^\d+[.)][ \t]+/.exec(body);
+  if (match) return { kind: "ordered", length: match[0].length };
+  match = /^(#{1,6})(?:[ \t]+|$)/.exec(body);
+  if (match) return { kind: "heading", length: match[0].length, level: (match[1] as string).length };
+  match = /^>[ \t]?/.exec(body);
+  if (match) return { kind: "quote", length: match[0].length };
+  return null;
+}
+
+/** A line format of the tool row (ADR-0051 #72, #77). */
+export type LineFormat = { kind: "heading"; level: 1 | 2 | 3 } | { kind: "list" } | { kind: "task" } | { kind: "quote" };
+
+function hasFormat(mark: LineMark | null, format: LineFormat): boolean {
+  if (!mark || mark.kind !== format.kind) return false;
+  return format.kind !== "heading" || mark.level === format.level;
+}
+
+/** The prefix `format` writes; a bullet item and a task keep each other's `-`, `*` or `+`. */
+function prefixOf(format: LineFormat, mark: LineMark | null): string {
+  const bullet = mark?.bullet && /^[-*+]$/.test(mark.bullet) ? mark.bullet : "-";
+  switch (format.kind) {
+    case "heading":
+      return `${"#".repeat(format.level)} `;
+    case "list":
+      return `${bullet} `;
+    case "task":
+      return `${bullet} [ ] `;
+    case "quote":
+      return "> ";
+  }
+}
+
+/**
+ * Heading 1–3, List, Task and Quote (ADR-0051 #72, #77): they toggle per
+ * line, over every line the selection touches (the lines `lineSpans`
+ * counts). When every such line has the format, it is removed from each;
+ * otherwise each line without it gets it. A line holds one block mark: the
+ * format replaces the heading, bullet, number, task box or quote mark the
+ * line has, so a heading replaces another level, List turns a task back
+ * into a bullet item (keeping its `-`, `*` or `+`) and Task gives a bullet
+ * item its box. Blank lines are left alone while the selection has text, so
+ * a list of paragraphs does not gain empty items; a cursor on a blank line
+ * starts the format there. The indentation stays. One transaction, so one
+ * undo step; a cursor at a new prefix lands after it.
+ */
+export function toggleLineFormat(format: LineFormat): StateCommand {
+  return ({ state, dispatch }) => {
+    const lines = lineSpans(state).flatMap(([first, last]) =>
+      Array.from({ length: last - first + 1 }, (_, i) => state.doc.line(first + i)),
+    );
+    const filled = lines.filter((line) => line.text.trim() !== "");
+    const marked = (filled.length > 0 ? filled : lines).map((line) => {
+      const indent = /^[ \t]*/.exec(line.text)?.[0].length ?? 0;
+      return { at: line.from + indent, mark: lineMarkOf(line.text.slice(indent)) };
+    });
+    const remove = marked.every(({ mark }) => hasFormat(mark, format));
+    const changes = [];
+    for (const { at, mark } of marked) {
+      if (remove) changes.push({ from: at, to: at + (mark?.length ?? 0) });
+      else if (!hasFormat(mark, format)) changes.push({ from: at, to: at + (mark?.length ?? 0), insert: prefixOf(format, mark) });
+    }
+    if (changes.length === 0) return false;
+    const changeSet = state.changes(changes);
+    dispatch(
+      state.update({
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
+        scrollIntoView: true,
+        userEvent: "input.format",
+      }),
+    );
+    return true;
+  };
+}
+
+/** A fence line of a code block: backticks, an opening one with its language. */
+const FENCE_OPEN = /^[ \t]*```/;
+const FENCE_CLOSE = /^[ \t]*```[ \t]*$/;
+
+/**
+ * Code (ADR-0051 #72, #77): backticks round the selection, or off when they
+ * are round it already, as Bold does with `**`; a cursor gets a pair to
+ * type into. When a selection covers several lines, every selection becomes
+ * a fenced block over its whole lines instead, or loses its fences when the
+ * lines just outside it — or its own first and last line — are fences.
+ * One transaction, so one undo step.
+ */
+export const toggleCode: StateCommand = (target) => {
+  const { state, dispatch } = target;
+  const spans = lineSpans(state);
+  if (spans.every(([first, last]) => first === last)) return wrapSelection("`")(target);
+  const lb = state.lineBreak;
+  const changes = [];
+  for (const [first, last] of spans) {
+    const top = state.doc.line(first);
+    const bottom = state.doc.line(last);
+    if (first < last && FENCE_OPEN.test(top.text) && FENCE_CLOSE.test(bottom.text)) {
+      // The fences are the selection's own first and last line.
+      if (last === first + 1) changes.push({ from: top.from, to: bottom.to });
+      else {
+        changes.push({ from: top.from, to: state.doc.line(first + 1).from });
+        changes.push({ from: state.doc.line(last - 1).to, to: bottom.to });
+      }
+    } else if (
+      first > 1 &&
+      last < state.doc.lines &&
+      FENCE_OPEN.test(state.doc.line(first - 1).text) &&
+      FENCE_CLOSE.test(state.doc.line(last + 1).text)
+    ) {
+      changes.push({ from: state.doc.line(first - 1).from, to: top.from });
+      changes.push({ from: bottom.to, to: state.doc.line(last + 1).to });
+    } else {
+      changes.push({ from: top.from, insert: `\`\`\`${lb}` });
+      changes.push({ from: bottom.to, insert: `${lb}\`\`\`` });
+    }
+  }
+  dispatch(state.update({ changes, scrollIntoView: true, userEvent: "input.format" }));
+  return true;
+};
+
 const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
 /**
@@ -215,6 +354,14 @@ const REGISTRY: Record<string, Command> = {
   "markdown.italic": wrapSelection("_"),
   "markdown.link": insertLink,
   "markdown.toggleCheckbox": toggleCheckbox,
+  // The tool row's formats (ADR-0051 #72, #76, #77).
+  "markdown.heading1": toggleLineFormat({ kind: "heading", level: 1 }),
+  "markdown.heading2": toggleLineFormat({ kind: "heading", level: 2 }),
+  "markdown.heading3": toggleLineFormat({ kind: "heading", level: 3 }),
+  "markdown.list": toggleLineFormat({ kind: "list" }),
+  "markdown.task": toggleLineFormat({ kind: "task" }),
+  "markdown.code": toggleCode,
+  "markdown.quote": toggleLineFormat({ kind: "quote" }),
   "editor.insertDateTime": insertDateTime,
   "editor.sortLines": sortLines,
   "editor.joinLines": joinLines,

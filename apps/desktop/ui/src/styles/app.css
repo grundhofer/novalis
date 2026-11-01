@@ -191,8 +191,8 @@ button {
    the row, the place line, the cross. What novalis adds is below; each is a
    row in docs/sebaro-luecken.md H. */
 
-/* The content's head: the tab row and, beside it outside its scrolling, the
-   preview tool (ADR-0051 #16). sebaro places a tab row at the top of a
+/* The content's head: the tab row; the preview switch left its end for the
+   tool row under it (ADR-0051 #73). sebaro places a tab row at the top of a
    padded `sb-window__content`; novalis's content is the editor's own
    scrolling pane, so the row keeps the 16 px start sebaro gives it there. */
 .nv-doc-head {
@@ -302,37 +302,6 @@ button {
   margin-inline-start: var(--sb-space-4);
 }
 
-/* A hairline at its start marks where the scrolling row ends. */
-.nv-doc-head__tools {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  padding-inline: var(--sb-space-1);
-  border-inline-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
-  border-block-end: var(--sb-border-width-hairline) solid var(--sb-color-border);
-}
-
-/* The preview switch is 24 px high, not sebaro's compact 32 (ADR-0051
-   #68, against D102 (2), RAU-06; docs/sebaro-luecken.md Z7): at 32 it
-   filled the 32 px row from hairline to hairline. It is centred on the
-   tabs' names, not on the row: a tab keeps the 3 px of its place line
-   below its name, so the tools keep the same 3 px (less their own
-   hairline) below the switch. Its word then stands on the names' middle,
-   2.5 px above it and 5.5 px below at 100 %. Its one line is as high as
-   its word, not the label's line: at 200 % the label's 40 px line made it
-   42 px, as high as a tab, so it touched the line above and the row grew
-   to 45 px. Under touch sebaro's 48 px target stays. */
-@media not (pointer: coarse) {
-  .nv-doc-head__tools {
-    padding-block-end: calc(var(--sb-border-width-strong) - var(--sb-border-width-hairline));
-  }
-
-  .nv-doc-head__tools > .sb-secondary-action--compact {
-    min-block-size: var(--sb-size-target-pointer);
-    line-height: 1;
-  }
-}
-
 /* The board's tab carries the board icon before its name (ADR-0050); its
    place, size and colour are sebaro.css's (spec/02 §4.21, NV-H). */
 
@@ -390,6 +359,58 @@ button {
   flex: 1;
   flex-direction: column;
   min-block-size: 0;
+}
+
+/* ------------------------------------------------------------- tool row */
+/* The tool row of a file in the editor (DocTools.tsx, ADR-0051 #72, #73)
+   is sebaro's row under the document tabs (`sb-doc-bar`, spec/02 §4.25.4)
+   from sebaro.css: 4 × 8 px, the hairline under it, wrapping at a large
+   root font. It keeps its height in the panel's column. */
+.nv-doc-tools {
+  flex: 0 0 auto;
+}
+
+/* A group of tools wraps as one unit, as the viewers' `.viewer-bar__group`
+   (styles/viewer.css, docs/sebaro-luecken.md O „Werkzeugleiste beim
+   Umbruch“): 2 px between its tools, like `.sb-window__tools`. */
+.nv-doc-tools__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sb-space-0-5);
+}
+
+/* The preview switch is 24 px high for a pointer, not sebaro's compact 32
+   (ADR-0051 #68, carried over to the tool row by #73; against D102 (2),
+   RAU-06, ZUG-03; docs/sebaro-luecken.md Z7, Z8). Its one line is as high
+   as its word, not the label's line, so at 200 % it is 30 px, not 42. The
+   row centres it with the 32 px tools, its word on the word buttons' line.
+   Under touch sebaro's 48 px target stays. */
+@media not (pointer: coarse) {
+  .nv-doc-tools > .sb-secondary-action--compact {
+    min-block-size: var(--sb-size-target-pointer);
+    line-height: 1;
+  }
+}
+
+/* Pressed, the switch writes its word in the title weight (sebaro's chosen
+   state, D102 (2)), which is wider: by 0.6 px at 100 %, 1.2 px at 200 %,
+   and every tool after it moved (ADR-0051 #74, measured in WebKit). The
+   word keeps the room of its title weight in both states: a copy of it in
+   that weight, hidden, no higher than nothing, and without a name of its
+   own (docs/sebaro-luecken.md Z8). */
+.nv-doc-tools__word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nv-doc-tools__word::after {
+  content: attr(data-nv-word) / "";
+  block-size: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: var(--sb-type-title-weight);
 }
 
 /* ---------------------------------------------------------------- editor */

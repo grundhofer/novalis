@@ -19,12 +19,21 @@ import Keys from "./Keys";
  * and its tooltip still names it; sebaro.css greys its icon to text-subtle
  * for `[aria-disabled="true"]` as for `:disabled`, never by opacity (STA-03).
  *
+ * A tool sebaro has no icon for yet (bold, italic, heading, list, task;
+ * ADR-0051 #75, docs/sebaro-luecken.md Z8) passes `word` instead of `icon`:
+ * sebaro's compact word button (`sb-secondary-action--compact`, 32 px,
+ * spec/02 §4.18) with the same chord, disabled state and tooltip. Its word
+ * is its name, so what it shows is what a screen reader and voice control
+ * call it (WCAG 2.5.3); where the word is short for the name („H1“ for
+ * „Überschrift 1“) the tooltip's name is not hidden and says the rest.
+ *
  * The title bar's sidebar tool is written out in TitleBar.tsx with the same
  * markup (it also needs `aria-expanded` / `aria-controls`).
  */
 export default function Tool({
   id,
   icon,
+  word,
   label,
   command,
   pressed,
@@ -33,22 +42,21 @@ export default function Tool({
 }: {
   /** Unique in the page: the tooltip's id is `tip-<id>`. */
   id: string;
-  icon: IconName;
   label: string;
   /** The command whose chord the tooltip and `aria-keyshortcuts` name; none for a tool without one (Close). */
   command?: string;
   pressed?: boolean;
   disabled?: boolean;
   onClick: () => void;
-}) {
+} & ({ icon: IconName; word?: never } | { word: string; icon?: never })) {
   const chord = command ? bindingFor(command)?.chord : undefined;
   const tip = `tip-${id}`;
   return (
     <>
       <button
-        className="sb-icon-button sb-icon-button--compact"
+        className={icon ? "sb-icon-button sb-icon-button--compact" : "sb-secondary-action sb-secondary-action--compact"}
         type="button"
-        aria-label={label}
+        aria-label={icon ? label : undefined}
         aria-pressed={pressed}
         aria-keyshortcuts={chord ? ariaKeyshortcutsOf(chord) : undefined}
         data-sb-own-shortcut={chord && isOwnChord(chord) ? "" : undefined}
@@ -56,10 +64,10 @@ export default function Tool({
         aria-disabled={disabled || undefined}
         onClick={disabled ? undefined : onClick}
       >
-        <Icon name={icon} size={20} />
+        {icon ? <Icon name={icon} size={20} /> : word}
       </button>
       <span className="sb-tooltip" role="tooltip" id={tip} popover="manual">
-        <span aria-hidden="true">{label}</span>
+        <span aria-hidden={icon || word === label ? "true" : undefined}>{label}</span>
         {chord && <Keys chord={chord} />}
       </span>
     </>

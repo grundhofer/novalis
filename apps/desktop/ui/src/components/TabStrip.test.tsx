@@ -20,8 +20,8 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
-// The preview button only dispatches; what the command does is the
-// dispatcher's own test (lib/commands.test.ts).
+// The dispatcher is the stores' (stores/ui.ts) and stays out of these
+// tests; what a command does is lib/commands.test.ts's.
 vi.mock("../lib/commands", () => ({
   dispatchCommand: vi.fn(),
 }));
@@ -404,52 +404,12 @@ describe("TabStrip", () => {
     });
   });
 
-  // ADR-0020, ADR-0051 #16: the tool beside the strip is `Cmd+E` for the
-  // pointer — sebaro's compact switch with the eye and its word (D102 (2), D105 (2)), outside the
-  // scrolling row so a row of many tabs never pushes it out of sight.
-  describe("the preview tool", () => {
-    it("is a compact switch with its word and its chord, and dispatches the toggle", () => {
-      render(<TabStrip />);
-
-      const button = screen.getByRole("button", { name: "editor.preview" });
-      expect(button.className).toBe("sb-secondary-action sb-secondary-action--compact");
-      expect(button.textContent).toBe("editor.preview");
-      expect(button.getAttribute("aria-pressed")).toBe("false");
-      expect(button.getAttribute("aria-keyshortcuts")).toBe("Meta+E");
-      // D105 (2): the eye at 20 px before the word.
-      expect(button.firstElementChild?.getAttribute("class")).toBe("sb-icon sb-icon--20");
-      expect(button.querySelector("use")?.getAttribute("href")).toBe("#eye");
-      expect(button.closest(".sb-doc-tabs")).toBeNull();
-
-      fireEvent.click(button);
-      expect(dispatchCommand).toHaveBeenCalledWith("note.togglePreview");
-    });
-
-    it("keeps its name and says the preview is on with aria-pressed", () => {
-      useUi.setState({ previewing: { "a.md": true } });
-      render(<TabStrip />);
-      expect(screen.getByRole("button", { name: "editor.preview" }).getAttribute("aria-pressed")).toBe("true");
-    });
-
-    it("is not there for a tab with nothing else to show", () => {
-      useTabs.setState({ tabs: ["a.md", "x.pdf", "b.txt"], active: "x.pdf" });
-      const { rerender } = render(<TabStrip />);
-      expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
-
-      useTabs.setState({ active: "b.txt" });
-      rerender(<TabStrip />);
-      expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
-    });
-
-    // ADR-0025: a CSV or TSV has its table behind the tool, an SVG its picture.
-    it("is there for a CSV, a TSV and an SVG", () => {
-      for (const active of ["d.csv", "d.tsv", "i.svg"]) {
-        useTabs.setState({ tabs: [active], active });
-        const { unmount } = render(<TabStrip />);
-        expect(screen.getByRole("button", { name: "editor.preview" }), active).toBeTruthy();
-        unmount();
-      }
-    });
+  // ADR-0051 #73: the preview switch left the row's end for the tool row
+  // under the tabs (DocTools.test.tsx).
+  it("has no preview switch at the row's end", () => {
+    render(<TabStrip />);
+    expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
+    expect(document.querySelector(".nv-doc-head")?.children).toHaveLength(1);
   });
 
   // ADR-0050: an open board is a tab like a note's, not a pane over
@@ -764,7 +724,7 @@ describe("markMore", () => {
   });
 });
 
-// ADR-0051 #67, #68: read as text, jsdom computes no style (ADR-0011).
+// ADR-0051 #67, #70: read as text, jsdom computes no style (ADR-0011).
 describe("the head's CSS", () => {
   // The rule that starts a line with exactly this selector.
   const block = (selector: string) => {
@@ -794,17 +754,5 @@ describe("the head's CSS", () => {
     );
     expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,');
     expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {\n  opacity: 1;');
-  });
-
-  it("makes the preview switch 24 px high for a pointer, on the names, and leaves touch its 48", () => {
-    const at = appCss.indexOf("@media not (pointer: coarse) {\n  .nv-doc-head__tools {");
-    expect(at).toBeGreaterThanOrEqual(0);
-    const media = appCss.slice(at, appCss.indexOf("\n}\n", at));
-    expect(media).toContain(
-      "padding-block-end: calc(var(--sb-border-width-strong) - var(--sb-border-width-hairline));",
-    );
-    expect(media).toMatch(
-      /\.nv-doc-head__tools > \.sb-secondary-action--compact \{\n {4}min-block-size: var\(--sb-size-target-pointer\);\n {4}line-height: 1;/,
-    );
   });
 });

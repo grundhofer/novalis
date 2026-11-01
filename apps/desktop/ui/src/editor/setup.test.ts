@@ -263,4 +263,27 @@ describe("buildExtensions", () => {
     expect(view.state.doc.toString()).toBe("[one]()\ntwo\n");
     view.destroy();
   });
+
+  // ADR-0051 #76: ⌥⌘1–3 and ⇧⌘8 / ⇧⌘9 by the key's position, as the
+  // German layout types them (⌥1 is „¡“, ⇧8 is „(“).
+  it("binds the formats' chords in a note, by the key's position", async () => {
+    const mac = /Mac/.test(navigator.platform);
+    const press = (view: EditorView, init: KeyboardEventInit) =>
+      runScopeHandlers(view, new KeyboardEvent("keydown", { ...init, metaKey: mac, ctrlKey: !mac }), "editor");
+    const view = new EditorView({ state: await stateFor("a.md", "one\n"), parent: document.body });
+
+    expect(press(view, { key: "¡", code: "Digit1", keyCode: 49, altKey: true })).toBe(true);
+    expect(view.state.doc.toString()).toBe("# one\n");
+    expect(press(view, { key: "(", code: "Digit8", keyCode: 56, shiftKey: true })).toBe(true);
+    expect(view.state.doc.toString()).toBe("- one\n");
+    expect(press(view, { key: ")", code: "Digit9", keyCode: 57, shiftKey: true })).toBe(true);
+    expect(view.state.doc.toString()).toBe("- [ ] one\n");
+    view.destroy();
+
+    // Not in a code file.
+    const code = new EditorView({ state: await stateFor("a.ts", "one\n"), parent: document.body });
+    press(code, { key: "¡", code: "Digit1", keyCode: 49, altKey: true });
+    expect(code.state.doc.toString()).toBe("one\n");
+    code.destroy();
+  });
 });
