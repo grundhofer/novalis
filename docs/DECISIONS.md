@@ -952,6 +952,8 @@ Then sebaro's six open questions (ADR-0051, amendment 2026-11-02, #81–#86):
 - the vault search shows a row per note, „5 matches in 3 notes.“ (#84)
 - the PDF pane names its keys in a description and the keyboard help (#85)
 - backlinks stay under the editor, no inspector (#86, as built)
+- accepted afterwards: the editor counts „5 matches“ while none is selected
+  (#83); the PDF names its keys in a description only, no keyboard help (#85)
 
 Recorded as amendments to **ADR-0051**.
 
