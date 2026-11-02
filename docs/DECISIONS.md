@@ -934,6 +934,17 @@ ADR-0051, amendment 2026-11-01 (2), #71–#77):
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-02
+
+After the first look at the tool row, three answers (verbatim in ADR-0051,
+amendment 2026-11-02, #78–#80):
+- the preview switch in the tool row is sebaro's 32 px (#78)
+- „H1“–„H3“ stay the heading tools' words (#79)
+- every tool row is one tab stop with arrow keys inside, the viewers' rows
+  too; no shortcut into a row (#80)
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

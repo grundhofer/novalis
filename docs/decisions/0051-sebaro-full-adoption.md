@@ -184,3 +184,15 @@ After an independent review of #67–#69 the owner answered one more question (t
 | 77 | How Heading, List, Task and Quote act | They toggle per line: on every selected line the prefix („# “, „- “, „- [ ] “, „> “) is set, or removed when it is there; a heading replaces another level. Code puts backticks round the selection, a fenced block round several lines |
 
 **Owner approval:** 2026-11-01, verbatim: „Ein Scrollbereich (Empfohlen)“; „Dazu neue Formate“, „Jede Datei mit Werkzeugen (Empfohlen)“, „Ausgegraut lassen (Empfohlen)“; „Bei sebaro anfragen, solange Wort (Empfohlen)“, „Nur wo frei und üblich (Empfohlen)“, „Umschalten pro Zeile (Empfohlen)“. The tool row itself came from the owner: „ich finde der vorschau button und andere styling button sollten in eine solche dokumenteneliste. speziell markdowns etc. sollten hier ein paar sinnvolle formatierungs/steuerungsoptionen bekommen.“
+
+## Amendment 2026-11-02: the tool rows, after the first look
+
+After the tool row of #72–#77 was built and reviewed, three questions came back from it and one from the owner:
+
+| # | Question | Decision |
+|---|---|---|
+| 78 | The preview switch in the tool row: 24 px (#68) beside 32 px word buttons | sebaro's 32 px compact switch (D102 (2) / NV-A12); #68's height and its line as high as its word applied to the switch beside the tabs and no longer apply in the tool row |
+| 79 | The visible word of the heading tools | „H1“, „H2“, „H3“ in both languages; the tooltip names „Heading n“ / „Überschrift n“ |
+| 80 | Moving through a tool row by keyboard (14 tab stops in the Markdown row) | Every tool row is one tab stop, as the WAI-ARIA toolbar pattern has it: `role="toolbar"`, ← → move between its tools, Home and End to the first and last, the row keeps the tool last used (roving tabindex). For the Markdown row, the CSV/TSV/SVG row and the viewers' rows (image, PDF, EPUB, CBZ) alike; the find rows are forms and keep their tab stops. No shortcut that jumps into a row. Departs from sebaro's reader specimen (each tool a tab stop) |
+
+**Owner approval:** 2026-11-02, verbatim: „1 ja, 2 ja 3 ja ist in ordnung. macht man bei sowas eine gruppe oder bietet ein überspringen an?“; then „Gruppe, alle Zeilen (Empfohlen)“, „Kein Kürzel (Empfohlen)“.
