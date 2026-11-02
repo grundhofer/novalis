@@ -942,6 +942,8 @@ amendment 2026-11-02, #78–#80):
 - „H1“–„H3“ stay the heading tools' words (#79)
 - every tool row is one tab stop with arrow keys inside, the viewers' rows
   too; no shortcut into a row (#80)
+- accepted afterwards: the pressed switch's word rises 1 px at 200 % (#78);
+  on a PDF tool the arrows move between tools, not pages (#80)
 
 Recorded as amendments to **ADR-0051**.
 

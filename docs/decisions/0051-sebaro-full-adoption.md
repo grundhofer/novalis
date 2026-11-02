@@ -196,3 +196,8 @@ After the tool row of #72–#77 was built and reviewed, three questions came bac
 | 80 | Moving through a tool row by keyboard (14 tab stops in the Markdown row) | Every tool row is one tab stop, as the WAI-ARIA toolbar pattern has it: `role="toolbar"`, ← → move between its tools, Home and End to the first and last, the row keeps the tool last used (roving tabindex). For the Markdown row, the CSV/TSV/SVG row and the viewers' rows (image, PDF, EPUB, CBZ) alike; the find rows are forms and keep their tab stops. No shortcut that jumps into a row. Departs from sebaro's reader specimen (each tool a tab stop) |
 
 **Owner approval:** 2026-11-02, verbatim: „1 ja, 2 ja 3 ja ist in ordnung. macht man bei sowas eine gruppe oder bietet ein überspringen an?“; then „Gruppe, alle Zeilen (Empfohlen)“, „Kein Kürzel (Empfohlen)“.
+
+Two consequences of the build, put to the owner afterwards and accepted 2026-11-02, verbatim: „1 und 2 sind okay, mach wie vorgeschlagen“:
+
+1. #78: at 200 % the pressed switch takes its 3 px edge out of its word's line, so it stays 42 px and the row does not grow (#74); its word rises 1 px on press, as sebaro's does at 100 %.
+2. #80: on a tool of the PDF row, ← → Home End move between the tools and no longer turn the page; Page Up / Page Down still do, and on the page itself the arrows turn it as before.
