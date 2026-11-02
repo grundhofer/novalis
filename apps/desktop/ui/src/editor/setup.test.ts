@@ -237,6 +237,10 @@ describe("buildExtensions", () => {
     const view = new EditorView({ state: await stateFor("a.md", "one\ntwo\n"), parent: document.body });
     openSearchPanel(view);
     expect(view.dom.querySelector(".cm-panels-top .sb-find-bar .sb-search")).not.toBeNull();
+    // ADR-0051 #83: the find row counts its matches.
+    expect(
+      view.dom.querySelector(".cm-panels-top .sb-find-bar [data-sb-find-row=find] .sb-doc-bar__count[role=status]"),
+    ).not.toBeNull();
 
     const mac = /Mac/.test(navigator.platform);
     const init = { key: "g", code: "KeyG", keyCode: 71, altKey: true, metaKey: mac, ctrlKey: !mac };

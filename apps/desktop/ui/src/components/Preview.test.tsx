@@ -641,10 +641,15 @@ describe("Preview", () => {
     expect(document.activeElement).toBe(container.querySelector("section.preview"));
   });
 
-  // FAR-12: the search says „Treffer 1 von 2“ in words.
-  it("words the count as the catalog's „Treffer … von …“", () => {
+  // FAR-12: the search says „Treffer 1 von 2“ in words; the preview and the
+  // editor's find bar say the same sentences (ADR-0051 #83).
+  it("words the count as the catalog's „Treffer … von …“ and „Kein Treffer“", () => {
     expect(de["editor.find.matchCount"]).toBe("Treffer {{current}} von {{count}}");
     expect(en["editor.find.matchCount"]).toBe("Match {{current}} of {{count}}");
+    expect(de["editor.find.noMatches"]).toBe("Kein Treffer");
+    expect(en["editor.find.noMatches"]).toBe("No match");
+    expect(de["editor.find.matchTotal_other"]).toBe("{{count}}\u00a0Treffer");
+    expect(en["editor.find.matchTotal_other"]).toBe("{{count}}\u00a0matches");
   });
 
   it("keeps the hits over a fragment re-rendered from a live edit", async () => {

@@ -9,15 +9,27 @@ import {
 } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import en from "../../../../../i18n/en.json";
+import i18next from "../i18n";
 import { createFindPanel, goToLine, gotoLinePanel, lineTarget } from "./findPanel";
 
 // ADR-0051 #27.19: CodeMirror's find bar and Go to Line in sebaro's parts,
 // every function and key kept. No phrases are loaded, so the words are
-// CodeMirror's own English ones.
+// CodeMirror's own English ones; the count's come from the catalog.
 
 let view: EditorView | null = null;
+
+beforeAll(async () => {
+  await i18next.init({
+    lng: "en",
+    resources: { en: { translation: en } },
+    interpolation: { escapeValue: false },
+    keySeparator: false,
+    nsSeparator: false,
+  });
+});
 
 function editor(doc: string, readOnly = false): EditorView {
   view = new EditorView({
@@ -39,6 +51,7 @@ function editor(doc: string, readOnly = false): EditorView {
 afterEach(() => {
   view?.destroy();
   view = null;
+  vi.useRealTimers();
 });
 
 const bar = (v: EditorView) => v.dom.querySelector<HTMLElement>(".sb-find-bar[role=search]")!;
@@ -185,6 +198,258 @@ describe("the find bar", () => {
     expect(field(v, "search")).not.toBeNull();
     expect(field(v, "replace")).toBeNull();
     expect(worded(v, "replace all")).toBeUndefined();
+  });
+});
+
+describe("the count", () => {
+  const count = (v: EditorView) => v.dom.querySelector<HTMLElement>(".sb-doc-bar__count")!.textContent;
+  const select = (v: EditorView, anchor: number, head = anchor) => v.dispatch({ selection: { anchor, head } });
+  const mac = /Mac/.test(navigator.platform);
+  // Every stretch of the count uses up its slice: a long text takes several.
+  const slowClock = () => {
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (clock += 10));
+  };
+
+  // spec/02 §4.25.2: the field, the count, then the tools; empty while the
+  // field is.
+  it("is sebaro's status between the field and Previous, empty while the field is", () => {
+    const v = editor("a b a\n");
+    openSearchPanel(v);
+    const span = v.dom.querySelector<HTMLElement>("[data-sb-find-row=find] .sb-doc-bar__count")!;
+    expect(span.tagName).toBe("SPAN");
+    expect(span.getAttribute("role")).toBe("status");
+    expect(span.previousElementSibling?.className).toBe("sb-field sb-field--compact");
+    expect(span.nextElementSibling).toBe(named(v, "previous"));
+    expect(span.textContent).toBe("");
+  });
+
+  // ADR-0051 #83: „m Treffer“ while no match is selected, „Treffer n von m“
+  // once one is; typing selects none, as before.
+  it("says the total while no match is selected and „Match n of m“ once one is", () => {
+    const v = editor("one two one two one\n");
+    openSearchPanel(v);
+    const input = field(v, "search");
+    type(input, "two");
+    expect(count(v)).toBe("2\u00a0matches");
+    expect(v.state.selection.main.empty).toBe(true);
+
+    key(input, { key: "Enter" });
+    expect(count(v)).toBe("Match 1 of 2");
+    key(input, { key: "Enter" });
+    expect(count(v)).toBe("Match 2 of 2");
+    key(input, { key: "Enter", shiftKey: true });
+    expect(count(v)).toBe("Match 1 of 2");
+    named(v, "next").click();
+    expect(count(v)).toBe("Match 2 of 2");
+    named(v, "previous").click();
+    expect(count(v)).toBe("Match 1 of 2");
+    key(input, { key: "g", code: "KeyG", keyCode: 71, metaKey: mac, ctrlKey: !mac });
+    expect(count(v)).toBe("Match 2 of 2");
+
+    type(input, "one");
+    expect(count(v)).toBe("3\u00a0matches");
+    type(input, "one two one");
+    expect(count(v)).toBe("1\u00a0match");
+  });
+
+  // CodeMirror's own announcement of the current match stays (ADR-0051 #83).
+  it("leaves CodeMirror's announcement of the current match as it was", () => {
+    const v = editor("one two\n");
+    openSearchPanel(v);
+    type(field(v, "search"), "two");
+    key(field(v, "search"), { key: "Enter" });
+    expect(v.dom.querySelector(".cm-announced")?.textContent).toBe("current match. one two on line 1.");
+    expect(count(v)).toBe("Match 1 of 1");
+  });
+
+  it("says „No match“ for nothing found and for an invalid regexp, and nothing for an empty field", () => {
+    const v = editor("a b\n");
+    openSearchPanel(v);
+    const input = field(v, "search");
+    type(input, "xyz");
+    expect(count(v)).toBe("No match");
+    chip(v, "re").click();
+    type(input, "(");
+    expect(getSearchQuery(v.state).valid).toBe(false);
+    expect(count(v)).toBe("No match");
+    type(input, "");
+    expect(count(v)).toBe("");
+    chip(v, "re").click();
+    // A space is a search like any other: only an empty field says nothing.
+    type(input, " ");
+    expect(count(v)).toBe("1\u00a0match");
+  });
+
+  it("counts as the options say, as CodeMirror marks", () => {
+    const v = editor("Aa aa a\n");
+    openSearchPanel(v);
+    type(field(v, "search"), "a");
+    expect(count(v)).toBe("5\u00a0matches");
+    chip(v, "case").click();
+    type(field(v, "search"), "A");
+    expect(count(v)).toBe("1\u00a0match");
+    chip(v, "case").click();
+    type(field(v, "search"), "a");
+    chip(v, "word").click();
+    expect(count(v)).toBe("1\u00a0match");
+    chip(v, "word").click();
+    chip(v, "re").click();
+    type(field(v, "search"), "a+");
+    expect(count(v)).toBe("3\u00a0matches");
+  });
+
+  it("follows the selection: a selected word, a cursor, a range that is no match, „all“", () => {
+    const v = editor("one two one\n");
+    select(v, 8, 11);
+    openSearchPanel(v);
+    // The bar opens with the selected word as its query.
+    expect(field(v, "search").value).toBe("one");
+    expect(count(v)).toBe("Match 2 of 2");
+    select(v, 5);
+    expect(count(v)).toBe("2\u00a0matches");
+    select(v, 0, 3);
+    expect(count(v)).toBe("Match 1 of 2");
+    select(v, 1, 4);
+    expect(count(v)).toBe("2\u00a0matches");
+    worded(v, "all").click();
+    expect(v.state.selection.ranges).toHaveLength(2);
+    expect(count(v)).toBe("2\u00a0matches");
+  });
+
+  // Counted without overlap, as „all“ selects: a match inside a run is none.
+  it("counts without overlap and takes no overlapping match as the current one", () => {
+    const v = editor("aaaa\n");
+    openSearchPanel(v);
+    type(field(v, "search"), "aa");
+    expect(count(v)).toBe("2\u00a0matches");
+    select(v, 2, 4);
+    expect(count(v)).toBe("Match 2 of 2");
+    select(v, 1, 3);
+    expect(count(v)).toBe("2\u00a0matches");
+  });
+
+  it("follows a query set from outside at once", () => {
+    const v = editor("one two two\n");
+    openSearchPanel(v);
+    v.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: "two" })) });
+    expect(count(v)).toBe("2\u00a0matches");
+  });
+
+  // An edit is counted after a pause in the typing; until then the last
+  // count stands, and no „Match n of m“ is made of the old text's total.
+  it("counts an edit after a pause, the last count standing until then", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const v = editor("a a a\n");
+    openSearchPanel(v);
+    type(field(v, "search"), "a");
+    expect(count(v)).toBe("3\u00a0matches");
+
+    v.dispatch({ changes: { from: 0, insert: "a " } });
+    select(v, 0, 1);
+    expect(count(v)).toBe("3\u00a0matches");
+    vi.advanceTimersByTime(150);
+    expect(count(v)).toBe("Match 1 of 4");
+
+    type(field(v, "replace"), "b");
+    key(field(v, "replace"), { key: "Enter" });
+    expect(v.state.doc.toString()).toBe("b a a a\n");
+    vi.advanceTimersByTime(150);
+    expect(count(v)).toBe("Match 1 of 3");
+  });
+
+  it("writes only what changed, so the status says nothing twice", () => {
+    const v = editor("one two one\n");
+    openSearchPanel(v);
+    type(field(v, "search"), "one");
+    const span = v.dom.querySelector<HTMLElement>(".sb-doc-bar__count")!;
+    const observer = new MutationObserver(() => {});
+    observer.observe(span, { childList: true, characterData: true, subtree: true });
+    select(v, 4);
+    select(v, 5);
+    v.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: "one", replace: "x" })) });
+    expect(observer.takeRecords()).toHaveLength(0);
+    expect(span.textContent).toBe("2\u00a0matches");
+    observer.disconnect();
+  });
+
+  it("counts a long text in slices and never shows the total of another query", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const text = `${"ab ".repeat(12_000)}c\n`;
+    const v = editor(text);
+    openSearchPanel(v);
+    type(field(v, "search"), "a");
+    vi.runAllTimers();
+    expect(count(v)).toBe("12000\u00a0matches");
+
+    slowClock();
+    type(field(v, "search"), "c");
+    expect(count(v)).toBe("");
+    vi.runAllTimers();
+    expect(count(v)).toBe("1\u00a0match");
+
+    // Which match the selection is waits for the matches before it.
+    type(field(v, "search"), "b");
+    vi.runAllTimers();
+    expect(count(v)).toBe("12000\u00a0matches");
+    select(v, text.length - 4, text.length - 3);
+    expect(count(v)).toBe("12000\u00a0matches");
+    vi.runAllTimers();
+    expect(count(v)).toBe("Match 12000 of 12000");
+
+    // The replacement finds nothing else: the count stays as it is.
+    type(field(v, "replace"), "x");
+    expect(vi.getTimerCount()).toBe(0);
+    expect(count(v)).toBe("Match 12000 of 12000");
+  });
+
+  // A stretch at a time, a match across a seam counted once, as one cursor
+  // over the whole text counts.
+  it("counts across the stretches as one cursor over the whole text", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const text = `${"ab aab ".repeat(6_000)}\n${"a".repeat(40_001)}\n`;
+    const v = editor(text);
+    openSearchPanel(v);
+    for (const [search, regexp] of [
+      ["ab a", false],
+      ["aa", false],
+      ["b a+", true],
+      ["x*", true],
+      // An empty match right after one across a seam (at 32 768).
+      ["(ab)?", true],
+      ["a{3}|b", true],
+    ] as const) {
+      const query = new SearchQuery({ search, regexp });
+      let n = 0;
+      for (const cursor = query.getCursor(v.state); !cursor.next().done; ) n += 1;
+      v.dispatch({ effects: setSearchQuery.of(query) });
+      vi.runAllTimers();
+      expect([search, count(v)]).toEqual([search, `${n}\u00a0matches`]);
+    }
+  });
+
+  it("stops counting when the bar closes", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const v = editor(`${"ab ".repeat(12_000)}\n`);
+    openSearchPanel(v);
+    const span = v.dom.querySelector<HTMLElement>(".sb-doc-bar__count")!;
+    slowClock();
+    type(field(v, "search"), "a");
+    expect(span.textContent).toBe("");
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    key(field(v, "search"), { key: "Escape" });
+    expect(searchPanelOpen(v.state)).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(span.textContent).toBe("");
+  });
+
+  it("counts the same in a read-only document", () => {
+    const v = editor("x y x\n", true);
+    select(v, 4, 5);
+    openSearchPanel(v);
+    expect(count(v)).toBe("Match 2 of 2");
+    select(v, 0);
+    expect(count(v)).toBe("2\u00a0matches");
   });
 });
 

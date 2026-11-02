@@ -9,7 +9,15 @@ import {
   selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
-import { EditorSelection, type EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
+import {
+  EditorSelection,
+  type EditorState,
+  type Extension,
+  type SelectionRange,
+  StateEffect,
+  StateField,
+  type Text,
+} from "@codemirror/state";
 import {
   type Command,
   EditorView,
@@ -48,7 +56,10 @@ import { ariaKeyshortcutsOf, bindingFor, glyphsOf, isOwnChord } from "../lib/key
  * document's line count in `data-sb-lines` on the bar, and sebaro's field
  * error under it for a line it cannot go to (ADR-0051 #54). The bar has no „Suche
  * leeren“: Escape closes it, as before. CodeMirror draws its own hits
- * (D102 (30)); it does not count them (docs/sebaro-luecken.md I).
+ * (D102 (30)); the bar counts them in sebaro's `__count` as the preview's
+ * does (ADR-0051 #83): „Treffer n von m“ while the selection is one of them,
+ * „m Treffer“ while it is none, „Kein Treffer“, and nothing while the field
+ * is empty. CodeMirror's own „Aktueller Treffer. … in Zeile n.“ stays.
  */
 
 let serial = 0;
@@ -163,6 +174,85 @@ function chip(
 
 const isPressed = (button: HTMLElement) => button.getAttribute("aria-pressed") === "true";
 
+/**
+ * The count keeps typing inside PLAN.md §11.3: it reads a stretch of the
+ * text at a time and gives the window back after a few milliseconds, and
+ * after an edit it waits for a pause before it counts again. CodeMirror's
+ * case-insensitive cursor takes some 40–80 ms a megabyte: a 1 MB note is
+ * counted within a tenth of a second, a 50 MB note in seconds in the
+ * background, with no cap, as in the preview.
+ */
+const SLICE_MS = 8;
+const STRETCH = 16_384;
+const EDIT_PAUSE_MS = 150;
+
+type Match = { from: number; to: number };
+
+/**
+ * Counts the matches of `query` in `state` from the start to `end`, one
+ * after another without overlap, as CodeMirror's „all“ and „replace all“
+ * find them, and gives `done` their number and the last of them. The first
+ * slice runs at once; the result is what stops the rest. A stretch's cursor
+ * reads a margin past its end, so a match across the seam is found whole. A
+ * regexp match longer than the margin can be counted differently there,
+ * and one `exec` cannot be cut into slices: a pattern that backtracks
+ * without end over a long line (`(a+)+b`) holds the window as it would in
+ * „all“.
+ */
+function countMatches(
+  state: EditorState,
+  query: SearchQuery,
+  end: number,
+  done: (n: number, last: Match | null) => void,
+): () => void {
+  const margin = 1_000 + query.search.length;
+  let n = 0;
+  let last: Match | null = null;
+  let pos = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const slice = () => {
+    const until = performance.now() + SLICE_MS;
+    for (;;) {
+      const seam = Math.min(end, pos + STRETCH);
+      const cursor = query.getCursor(state, pos, Math.min(end, seam + margin));
+      for (let step = cursor.next(); !step.done; step = cursor.next()) {
+        const { from, to } = step.value;
+        if (from >= seam && seam < end) break;
+        // A running cursor skips an empty match right after the last one; a
+        // new one at the seam would not.
+        if (from === to && last && last.from < last.to && from === last.to) continue;
+        n += 1;
+        last = { from, to };
+      }
+      if (seam >= end) {
+        done(n, last);
+        return;
+      }
+      pos = Math.max(seam, last?.to ?? 0);
+      if (performance.now() >= until) {
+        timer = setTimeout(slice, 0);
+        return;
+      }
+    }
+  };
+  slice();
+  return () => clearTimeout(timer);
+}
+
+/** Whether two queries find the same; the replacement plays no part. */
+const findsSame = (a: SearchQuery, b: SearchQuery) =>
+  a.search === b.search &&
+  a.caseSensitive === b.caseSensitive &&
+  a.regexp === b.regexp &&
+  a.wholeWord === b.wholeWord &&
+  a.test === b.test;
+
+/** Whether `range` is a match of `query` as it stands, from end to end. */
+function isMatch(state: EditorState, query: SearchQuery, range: SelectionRange): boolean {
+  const step = query.getCursor(state, range.from, range.to).next();
+  return !step.done && step.value.from === range.from && step.value.to === range.to;
+}
+
 class FindPanel implements Panel {
   readonly dom: HTMLElement;
   readonly top = true;
@@ -172,6 +262,16 @@ class FindPanel implements Panel {
   private readonly caseChip: HTMLButtonElement;
   private readonly reChip: HTMLButtonElement;
   private readonly wordChip: HTMLButtonElement;
+  // sebaro's count (spec/02 §4.25.2, ADR-0051 #83): a status, as in the preview.
+  private readonly count: HTMLElement;
+  /** The number of matches, with the text and the query it was counted in. */
+  private total: { doc: Text; query: SearchQuery; n: number } | null = null;
+  /** Which match the selection is, from 1; null while it is none. */
+  private current: number | null = null;
+  private locating = false;
+  private stopTotal = () => {};
+  private stopIndex = () => {};
+  private pause: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly view: EditorView) {
     const doc = view.dom.ownerDocument;
@@ -206,9 +306,11 @@ class FindPanel implements Panel {
     this.caseChip = chip(doc, phrase("match case"), "case", query.caseSensitive, commit);
     this.reChip = chip(doc, phrase("regexp"), "re", query.regexp, commit);
     this.wordChip = chip(doc, phrase("by word"), "word", query.wholeWord, commit);
+    this.count = el(doc, "span", { class: "sb-doc-bar__count", role: "status" });
 
     const find = el(doc, "div", { class: "sb-doc-bar", "data-sb-find-row": "find" }, [
       field(doc, phrase("Find"), this.searchField, true),
+      this.count,
       ...tool(doc, phrase("previous"), "chevron-up", () => findPrevious(view), "find.previous"),
       ...tool(doc, phrase("next"), "chevron-down", () => findNext(view), "find.next"),
       action(doc, phrase("all"), () => selectMatches(view)),
@@ -271,6 +373,9 @@ class FindPanel implements Panel {
         if (effect.is(setSearchQuery) && !effect.value.eq(this.query)) this.setQuery(effect.value);
       }
     }
+    if (!findsSame(getSearchQuery(update.state), getSearchQuery(update.startState))) this.recount(update.state, true);
+    else if (update.docChanged) this.recount(update.state, false);
+    else if (update.selectionSet) this.locate(update.state);
   }
 
   private setQuery(query: SearchQuery): void {
@@ -282,8 +387,103 @@ class FindPanel implements Panel {
     this.wordChip.setAttribute("aria-pressed", String(query.wholeWord));
   }
 
+  /**
+   * Counts the matches again: at once for a new query, after a pause in the
+   * typing for an edit. A new query empties the count until its total
+   * stands, so the bar never says the number of another query; after an
+   * edit the last count stands until the new one does.
+   */
+  private recount(state: EditorState, now: boolean): void {
+    this.stop();
+    this.total = null;
+    if (!getSearchQuery(state).valid) {
+      this.show(state);
+      return;
+    }
+    const start = (from: EditorState) => {
+      const query = getSearchQuery(from);
+      this.stopTotal = countMatches(from, query, from.doc.length, (n) => {
+        this.total = { doc: from.doc, query, n };
+        this.locate(this.view.state);
+      });
+    };
+    if (now) {
+      start(state);
+      if (!this.total) this.write("");
+    } else {
+      this.pause = setTimeout(() => start(this.view.state), EDIT_PAUSE_MS);
+    }
+  }
+
+  /**
+   * Which match the selection is. Only a single selection that is exactly a
+   * counted match is one: CodeMirror's next and previous select it, and so
+   * does a selected word the bar opens with. The matches before it are
+   * counted only once a cheap look says it is one.
+   */
+  private locate(state: EditorState): void {
+    this.stopIndex();
+    this.current = null;
+    this.locating = false;
+    const { total } = this;
+    const query = getSearchQuery(state);
+    const main = state.selection.main;
+    if (
+      !total ||
+      total.n === 0 ||
+      total.doc !== state.doc ||
+      !findsSame(total.query, query) ||
+      state.selection.ranges.length > 1 ||
+      main.empty ||
+      !isMatch(state, query, main)
+    ) {
+      this.show(state);
+      return;
+    }
+    this.locating = true;
+    this.stopIndex = countMatches(state, query, main.to, (n, last) => {
+      this.locating = false;
+      if (last?.from === main.from && last.to === main.to) this.current = n;
+      this.show(this.view.state);
+    });
+  }
+
+  /** The count's words; a total of another text or query is never shown. */
+  private show(state: EditorState): void {
+    const query = getSearchQuery(state);
+    const total = this.total?.doc === state.doc && findsSame(this.total.query, query) ? this.total : null;
+    if (query.search === "") {
+      this.write("");
+    } else if (!query.valid || total?.n === 0) {
+      this.write(i18next.t("editor.find.noMatches"));
+    } else if (total && !this.locating) {
+      this.write(
+        this.current
+          ? i18next.t("editor.find.matchCount", { current: this.current, count: total.n })
+          : i18next.t("editor.find.matchTotal", { count: total.n }),
+      );
+    }
+  }
+
+  // Only a change is written: a status region says every write.
+  private write(text: string): void {
+    if (this.count.textContent !== text) this.count.textContent = text;
+  }
+
+  private stop(): void {
+    clearTimeout(this.pause);
+    this.stopTotal();
+    this.stopIndex();
+    this.locating = false;
+  }
+
   mount(): void {
     this.searchField.select();
+    this.recount(this.view.state, true);
+  }
+
+  destroy(): void {
+    this.stop();
   }
 }
 
