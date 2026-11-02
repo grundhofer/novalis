@@ -290,6 +290,19 @@ it back).
   chord: the way to reorder the tabs without dragging, also palette entries
   where the current tab can move that way. The current tab moves one place;
   the board's tab stays first (ADR-0050).
+- The tool rows' own keys, when a tool in a row has focus (ADR-0051 #80,
+  the WAI-ARIA toolbar pattern): `Left` / `Right` focus the previous /
+  next tool, round, `Home` / `End` the first / last; right to left the two
+  arrows swap. Every row is one tab stop: the tool used last, by keys or
+  by the pointer, else the first. A tool that is off (`aria-disabled`)
+  still takes focus. The rows are the Markdown file's, the CSV, TSV and
+  SVG file's and the viewers' (image, comic, PDF, EPUB). In the PDF's page
+  field `Left`, `Right`, `Home` and `End` stay the field's, and `Tab`
+  leaves it and the row; on a tool of the PDF's row they move between the
+  tools instead of turning the page (`PageUp` / `PageDown` still turn
+  it). No chord jumps into a row; the find bars are forms and keep a tab
+  stop per control. They are the widget's keys, like the tree's, and not
+  parity rows.
 - The sidebar's divider (spec/02 §4.23, ADR-0051), when it has focus:
   `Left` / `Right` move it by 8 px, with `Shift` by 32 px, `Home` / `End`
   give the smallest / largest width (200 / 360 px), `Enter` collapses and

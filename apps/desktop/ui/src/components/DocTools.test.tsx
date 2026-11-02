@@ -34,6 +34,10 @@ const row = () => screen.queryByRole("toolbar", { name: "editor.tools.label" });
 const tool = (name: string) => screen.getByRole("button", { name });
 /** The tools in their order, by name. */
 const names = () => [...row()!.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? b.textContent);
+/** The tools Tab stops at, by name. */
+const stops = () =>
+  [...row()!.querySelectorAll("button")].filter((b) => b.tabIndex === 0).map((b) => b.getAttribute("aria-label") ?? b.textContent);
+const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key, code: key });
 
 describe("DocTools", () => {
   beforeEach(() => {
@@ -66,8 +70,8 @@ describe("DocTools", () => {
     // Four groups after the switch, a divider before each.
     expect(row()!.querySelectorAll(":scope > .sb-doc-bar__sep")).toHaveLength(4);
     expect(row()!.querySelectorAll(":scope > .nv-doc-tools__group")).toHaveLength(4);
-    // Every tool is a tab stop, as in sebaro's reader row.
-    for (const button of row()!.querySelectorAll("button")) expect(button.tabIndex).toBe(0);
+    // One tab stop for the row, the first tool (ADR-0051 #80).
+    expect(stops()).toEqual(["editor.preview"]);
   });
 
   // ADR-0020, ADR-0051 #16, #73: sebaro's compact switch with the eye and
@@ -220,6 +224,102 @@ describe("DocTools", () => {
       expect(row()!.querySelector(".sb-doc-bar__sep"), path).toBeNull();
       unmount();
     }
+  });
+
+  // ADR-0051 #80, the WAI-ARIA toolbar pattern: one tab stop, the arrows
+  // inside, round as sebaro's tabs (sb-tabs.js).
+  it("is one tab stop; the arrows move through every tool and go round, Pos1 and Ende to the ends", () => {
+    open("a.md");
+    render(<DocTools />);
+    tool("editor.preview").focus();
+
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("menu.edit.bold"));
+    expect(stops()).toEqual(["menu.edit.bold"]);
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("menu.edit.italic"));
+    press("ArrowLeft");
+    press("ArrowLeft");
+    expect(document.activeElement).toBe(tool("editor.preview"));
+    expect(press("ArrowLeft")).toBe(false);
+    expect(document.activeElement).toBe(tool("menu.view.fontLarger"));
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("editor.preview"));
+    press("End");
+    expect(document.activeElement).toBe(tool("menu.view.fontLarger"));
+    press("Home");
+    expect(document.activeElement).toBe(tool("editor.preview"));
+    expect(stops()).toEqual(["editor.preview"]);
+    // A chord is not the row's: ⌘← and ⌥→ stay the app's and the system's.
+    expect(fireEvent.keyDown(tool("editor.preview"), { key: "ArrowRight", metaKey: true })).toBe(true);
+    expect(fireEvent.keyDown(tool("editor.preview"), { key: "ArrowRight", altKey: true })).toBe(true);
+    expect(document.activeElement).toBe(tool("editor.preview"));
+    // Neither do the arrows act: they only move.
+    expect(dispatchCommand).not.toHaveBeenCalled();
+  });
+
+  it("swaps the arrows right to left", () => {
+    open("a.md");
+    const host = document.body.appendChild(document.createElement("div"));
+    host.dir = "rtl";
+    render(<DocTools />, { container: host });
+    tool("editor.preview").focus();
+
+    press("ArrowLeft");
+    expect(document.activeElement).toBe(tool("menu.edit.bold"));
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("editor.preview"));
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("menu.view.fontLarger"));
+    host.remove();
+  });
+
+  // A press keeps the focus in the text (NV-H9), and still makes its tool
+  // the row's stop.
+  it("keeps the tool used last as its tab stop, by keys or by the pointer", () => {
+    open("a.md");
+    const { rerender } = render(<DocTools />);
+    tool("editor.preview").focus();
+    press("End");
+    (document.activeElement as HTMLElement).blur();
+    rerender(<DocTools />);
+    expect(stops()).toEqual(["menu.view.fontLarger"]);
+
+    fireEvent.mouseDown(tool("palette.cmd.list"));
+    fireEvent.click(tool("palette.cmd.list"));
+    expect(document.activeElement).toBe(document.body);
+    expect(stops()).toEqual(["palette.cmd.list"]);
+    // Another Markdown file has the same row: the stop stays.
+    open("b.md");
+    rerender(<DocTools />);
+    expect(stops()).toEqual(["palette.cmd.list"]);
+  });
+
+  it("falls back to its first tool once the tool used last is gone", () => {
+    open("a.md");
+    const { rerender } = render(<DocTools />);
+    fireEvent.click(tool("editor.tools.find"));
+    expect(stops()).toEqual(["editor.tools.find"]);
+
+    open("d.csv");
+    rerender(<DocTools />);
+    expect(stops()).toEqual(["editor.preview"]);
+    open("a.md");
+    rerender(<DocTools />);
+    expect(stops()).toEqual(["editor.preview"]);
+  });
+
+  // #74, APG: a tool that is off keeps its place and can take focus.
+  it("reaches the format tools by the arrows while the preview shows", () => {
+    open("a.md");
+    useUi.setState({ previewing: { "a.md": true } });
+    render(<DocTools />);
+    tool("editor.preview").focus();
+
+    press("ArrowRight");
+    expect(document.activeElement).toBe(tool("menu.edit.bold"));
+    expect(tool("menu.edit.bold").getAttribute("aria-disabled")).toBe("true");
+    expect(stops()).toEqual(["menu.edit.bold"]);
   });
 
   it("is not there for a text or code file, a viewer's file, the board or a file on its way", () => {

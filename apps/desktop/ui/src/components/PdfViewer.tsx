@@ -9,6 +9,7 @@ import { currentRow, outlineOf, type OutlineRow } from "../lib/pdfOutline";
 import { report } from "../stores/ui";
 import ContentsPopover from "./ContentsPopover";
 import Tool from "./Tool";
+import ToolRow from "./ToolRow";
 
 /**
  * The PDF pane (ADR-0016): pdf.js draws one page onto a canvas and lays its
@@ -19,14 +20,15 @@ import Tool from "./Tool";
  * ADR-0025 added the document's outline, in the popover the EPUB reader
  * uses for its contents, and the `viewer` rows of docs/KEYMAP.md: while the
  * pane has focus — it takes it when it opens, and a click on the page gives
- * it back — the arrows, PageUp/PageDown and Home/End turn the page. The
+ * it back — the arrows, PageUp/PageDown and Home/End turn the page; on a
+ * tool of the row the arrows and Home/End move between the tools. The
  * pane is a region named after the file, and it announces those keys in
  * `aria-keyshortcuts`.
  *
  * The pane is sebaro's document reader (`sb-reader`, spec/02 §4.25.3,
  * D104 (5)–(7)): its tools in a row of their own over the document
  * (`sb-doc-bar`), first the page, then the zoom, wrapping at a large root
- * font; the page on the sunken ground of `sb-reader__view` in its 1 px
+ * font, one tab stop (ToolRow.tsx, ADR-0051 #80); the page on the sunken ground of `sb-reader__view` in its 1 px
  * frame. The tools previous, next, zoom out, zoom in and „Seitenbreite“
  * are `sb-icon-button--compact` with their tooltips (`zoom-out`, `zoom-in`,
  * `zoom-fit`; „Seitenbreite“ `aria-pressed`), „Inhalt“ a compact secondary
@@ -200,8 +202,9 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
   const closeContents = useCallback(() => setContentsOpen(false), []);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    // The page field keeps its own arrows and Home/End.
-    if (event.target instanceof HTMLInputElement) return;
+    // The page field keeps its own arrows and Home/End; on a tool they move
+    // through the tool row, which takes them first (ToolRow.tsx).
+    if (event.target instanceof HTMLInputElement || event.defaultPrevented) return;
     const chord = chordOf(event.nativeEvent);
     const binding = chord ? commandForChord(chord) : undefined;
     const move = binding?.scope === "viewer" ? PAGE_KEYS[binding.command] : undefined;
@@ -223,7 +226,7 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
       onKeyDown={onKeyDown}
     >
       <div className="viewer-head">
-        <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
+        <ToolRow label={t("viewer.tools")}>
           {outline.length > 0 && (
             <button
               className="sb-secondary-action sb-secondary-action--compact"
@@ -289,7 +292,7 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
               onClick={() => setZoom("width")}
             />
           </div>
-        </div>
+        </ToolRow>
         {contentsOpen && (
           <ContentsPopover
             id={`${uid}-contents`}

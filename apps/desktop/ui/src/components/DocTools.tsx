@@ -9,21 +9,22 @@ import { useTabs } from "../stores/tabs";
 import { DEFAULT_FONT_SIZE, FONT_SIZE, useUi } from "../stores/ui";
 import Icon from "./Icon";
 import Tool from "./Tool";
+import ToolRow from "./ToolRow";
 
 /**
  * A press on a tool leaves focus where it is, in the text or the find bar,
  * as the tab's cross does (spec/02 §4.21, NV-H9); the keyboard still
- * reaches every tool with Tab.
+ * reaches every tool, by Tab into the row and the arrows in it.
  */
 const keepFocus = (event: MouseEvent) => event.preventDefault();
 
 /**
  * The tool row of a file in the editor (ADR-0051 #72, #73), under the tabs
  * where a viewer has its own: sebaro's row under the document tabs
- * (`sb-doc-bar`, role `toolbar`, spec/02 §4.25.3, §4.25.4), each tool a tab
- * stop as in sebaro's reader row, groups apart by `__sep`; it wraps at a
- * large root font, a group as one unit (as the viewers' groups,
- * docs/sebaro-luecken.md O).
+ * (`sb-doc-bar`, role `toolbar`, spec/02 §4.25.3, §4.25.4), one tab stop
+ * with the arrows inside (ToolRow.tsx, ADR-0051 #80), groups apart by
+ * `__sep`; it wraps at a large root font, a group as one unit (as the
+ * viewers' groups, docs/sebaro-luecken.md O).
  *
  * First the preview switch (ADR-0020, ADR-0051 #16): sebaro's compact
  * switch with the eye before its word (spec/02 §4.17, D102 (2), D105 (2):
@@ -65,7 +66,7 @@ export default function DocTools() {
     />
   );
   return (
-    <div className="sb-doc-bar nv-doc-tools" role="toolbar" aria-label={t("editor.tools.label")}>
+    <ToolRow className="sb-doc-bar nv-doc-tools" label={t("editor.tools.label")}>
       <button
         className="sb-secondary-action sb-secondary-action--compact"
         type="button"
@@ -128,6 +129,6 @@ export default function DocTools() {
           </div>
         </>
       )}
-    </div>
+    </ToolRow>
   );
 }

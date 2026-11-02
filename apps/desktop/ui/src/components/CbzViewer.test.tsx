@@ -164,6 +164,33 @@ describe("CbzViewer", () => {
     expect(revoked.length).toBe(created.length);
   });
 
+  // ADR-0051 #80: the page tools and the image's zoom tools are one row,
+  // one tab stop, the arrows across both.
+  it("puts its page tools and the zoom in one toolbar with one tab stop", async () => {
+    render(<CbzViewer path="comics/moon.cbz" />);
+    await flush();
+
+    const bar = screen.getByRole("toolbar", { name: "viewer.tools" });
+    const tools = [...bar.querySelectorAll("button")];
+    expect(tools.map((tool) => tool.getAttribute("aria-label"))).toEqual([
+      "viewer.previousPage",
+      "viewer.nextPage",
+      "viewer.zoomOut",
+      "viewer.zoomIn",
+      "viewer.fit",
+    ]);
+    expect(tools.filter((tool) => tool.tabIndex === 0)).toEqual([tools[0]]);
+    // The first page's „Vorherige Seite“ is off and still takes focus.
+    expect(tools[0]!.getAttribute("aria-disabled")).toBe("true");
+    tools[0]!.focus();
+    fireEvent.keyDown(tools[0]!, { key: "ArrowRight" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tools[2]);
+    expect(tools.filter((tool) => tool.tabIndex === 0)).toEqual([tools[2]]);
+    // An arrow moves; it does not turn the page.
+    expect(screen.getByText("viewer.cbz.pageOf:1,3")).toBeTruthy();
+  });
+
   it("says so when the archive carries no page at all", async () => {
     vi.mocked(commands.readPacked).mockImplementation(reply({ "read.me": "nothing to see" }));
     render(<CbzViewer path="comics/empty.cbz" />);

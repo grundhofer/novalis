@@ -139,8 +139,8 @@ describe("EpubViewer", () => {
     await flush();
 
     const bar = container.querySelector(".viewer-head > .sb-doc-bar")!;
-    // The bar is a named group of tools (NAV-10).
-    expect(screen.getByRole("group", { name: "viewer.tools" })).toBe(bar);
+    // The bar is a named toolbar (NAV-10, ADR-0051 #80).
+    expect(screen.getByRole("toolbar", { name: "viewer.tools" })).toBe(bar);
     expect(bar.textContent).not.toMatch(/[‹›]/);
     const previous = screen.getByRole("button", { name: "viewer.epub.previousChapter" }) as HTMLButtonElement;
     const next = screen.getByRole("button", { name: "viewer.epub.nextChapter" });
@@ -160,6 +160,31 @@ describe("EpubViewer", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("link", { name: "The first night" }).getAttribute("aria-current")).toBe("location");
     expect(screen.getByRole("link", { name: "The second night" }).hasAttribute("aria-current")).toBe(false);
+  });
+
+  // ADR-0051 #80: one tab stop, the arrows inside; the tool used last
+  // stays the stop.
+  it("makes its bar one tab stop with the arrows inside", async () => {
+    render(<EpubViewer path="books/moon.epub" />);
+    await flush();
+    const bar = screen.getByRole("toolbar", { name: "viewer.tools" });
+    const toggle = screen.getByRole("button", { name: "viewer.epub.contents" });
+    const previous = screen.getByRole("button", { name: "viewer.epub.previousChapter" });
+    const next = screen.getByRole("button", { name: "viewer.epub.nextChapter" });
+    const stops = () => [...bar.querySelectorAll("button")].filter((tool) => tool.tabIndex === 0);
+    expect(stops()).toEqual([toggle]);
+
+    toggle.focus();
+    fireEvent.keyDown(toggle, { key: "ArrowRight" });
+    // Off on the first chapter, and still reached.
+    expect(document.activeElement).toBe(previous);
+    expect(previous.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.keyDown(previous, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(next);
+    fireEvent.click(next);
+    await flush();
+    expect(screen.getByText("viewer.epub.chapterOf:2,2")).toBeTruthy();
+    expect(stops()).toEqual([next]);
   });
 
   it("shows nothing the book wanted to run", async () => {

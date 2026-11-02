@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as
 import { useTranslation } from "react-i18next";
 
 import Tool from "./Tool";
+import ToolRow from "./ToolRow";
 
 /**
  * An image with zoom (ADR-0025), for the image viewer and the comic reader:
@@ -17,7 +18,8 @@ import Tool from "./Tool";
  * The bar is this component's, sebaro's reader row (`sb-doc-bar`, spec/02
  * §4.25.3, D104 (5)–(7)): `children` are what a reader puts first (the
  * comic's page controls), then the divider and the zoom — `zoom-out`, the
- * value, `zoom-in`, `zoom-fit` for „Einpassen“ (`aria-pressed`). The image
+ * value, `zoom-in`, `zoom-fit` for „Einpassen“ (`aria-pressed`), one tab
+ * stop with the arrows inside (ToolRow.tsx, ADR-0051 #80). The image
  * stands on the sunken ground of `sb-reader__view`, which is a focus stop
  * named after the image, so it scrolls by keys too (spec/02 §4.25.3,
  * sebaro D108 NV-Y7).
@@ -175,7 +177,7 @@ export default function ZoomableImage({
 
   return (
     <div className="zoom">
-      <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
+      <ToolRow label={t("viewer.tools")}>
         {children}
         {children && <span className="sb-doc-bar__sep" aria-hidden="true" />}
         <div className="viewer-bar__group">
@@ -203,7 +205,7 @@ export default function ZoomableImage({
             onClick={() => zoomTo("fit")}
           />
         </div>
-      </div>
+      </ToolRow>
       <div className="zoom-scroll sb-reader__view" ref={scroller} tabIndex={0} role="region" aria-label={alt}>
         <div className="zoom-sheet" ref={sheet}>
           {src && (
