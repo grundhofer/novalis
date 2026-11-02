@@ -188,8 +188,9 @@ describe("PdfViewer", () => {
   });
 
   // ADR-0051 #80: the row is one tab stop; the arrows move through its
-  // tools and the field, and do not turn the page there.
-  it("makes its bar one tab stop, the page field one of its stops", async () => {
+  // tools and the field, and do not turn the page there. The field is never
+  // the stop: from it the arrows are the field's (found in review).
+  it("makes its bar one tab stop, the page field reached by the arrows", async () => {
     render(<PdfViewer bytes={new Uint8Array([1])} name="Reiseplan" />);
     await flush();
     const bar = screen.getByRole("toolbar", { name: "viewer.tools" });
@@ -205,15 +206,17 @@ describe("PdfViewer", () => {
     expect(document.activeElement).toBe(field);
     // The tool row took the key: the page did not turn.
     expect(rendered.at(-1)?.page).toBe(1);
-    expect(stops()).toEqual([field]);
+    expect(stops()).toEqual([previous]);
 
     // In the field the arrows, Pos1 and Ende are the field's: focus stays.
     for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
       expect(fireEvent.keyDown(field, { code: key, key }), key).toBe(true);
       expect(document.activeElement, key).toBe(field);
     }
-    // Only Tab leaves it, and with it the row: its neighbours are no stop.
-    expect(previous.tabIndex).toBe(-1);
+    // A click into the field does not make it the stop either; the tool used
+    // before it stays the stop, and from there the arrows reach every tool.
+    fireEvent.click(field);
+    expect(stops()).toEqual([previous]);
     expect(next.tabIndex).toBe(-1);
 
     next.focus();

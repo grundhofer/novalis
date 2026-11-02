@@ -3,6 +3,12 @@ import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode, type Synth
 /** What in a row is a tool: its buttons and its field; a natively disabled one is skipped. */
 const TOOLS = "button:not([disabled]), input:not([disabled])";
 
+/**
+ * A text field keeps its arrows, so it is never the row's stop: from it the
+ * arrows could not reach the other tools (found in review, ADR-0051 #80).
+ */
+const isField = (tool: HTMLElement) => tool instanceof HTMLInputElement;
+
 /** The tools of `row` in their order, not those of a row inside it. */
 function toolsOf(row: HTMLElement): HTMLElement[] {
   return [...row.querySelectorAll<HTMLElement>(TOOLS)].filter((tool) => tool.closest("[role='toolbar']") === row);
@@ -23,8 +29,9 @@ function toolsOf(row: HTMLElement): HTMLElement[] {
  * that keeps the focus in the text (DocTools.tsx) still moves it; once that
  * tool is gone (another file's row, a rebuilt row) the stop is the first.
  * A text field in the row (the PDF's page number) keeps its own arrows,
- * Pos1 and Ende; the arrows reach it from its neighbours, and Tab leaves it
- * and the row.
+ * Pos1 and Ende; the arrows reach it from its neighbours, but it is never
+ * the stop, which stays the tool used before it. Tab and ⇧Tab leave the
+ * field for the stop when it lies on that side, else out of the row.
  */
 export default function ToolRow({
   label,
@@ -43,7 +50,7 @@ export default function ToolRow({
   const settle = () => {
     if (!row.current) return;
     const tools = toolsOf(row.current);
-    const stop = last.current && tools.includes(last.current) ? last.current : tools[0];
+    const stop = last.current && tools.includes(last.current) ? last.current : (tools.find((tool) => !isField(tool)) ?? tools[0]);
     for (const tool of tools) tool.tabIndex = tool === stop ? 0 : -1;
   };
   useLayoutEffect(settle);
@@ -51,7 +58,7 @@ export default function ToolRow({
   const use = (event: SyntheticEvent) => {
     const tool = event.target instanceof Element ? event.target.closest<HTMLElement>(TOOLS) : null;
     if (!row.current || !tool || !toolsOf(row.current).includes(tool)) return;
-    last.current = tool;
+    if (!isField(tool)) last.current = tool;
     settle();
   };
 
@@ -76,7 +83,7 @@ export default function ToolRow({
     if (to === null) return;
     // Taken, so a pane around the row (the PDF's) does not turn its page.
     event.preventDefault();
-    last.current = tools[to]!;
+    if (!isField(tools[to]!)) last.current = tools[to]!;
     settle();
     tools[to]!.focus();
   };

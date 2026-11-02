@@ -297,8 +297,9 @@ it back).
   by the pointer, else the first. A tool that is off (`aria-disabled`)
   still takes focus. The rows are the Markdown file's, the CSV, TSV and
   SVG file's and the viewers' (image, comic, PDF, EPUB). In the PDF's page
-  field `Left`, `Right`, `Home` and `End` stay the field's, and `Tab`
-  leaves it and the row; on a tool of the PDF's row they move between the
+  field `Left`, `Right`, `Home` and `End` stay the field's; the field is
+  never the row's stop, which stays the tool used before it, and `Tab` /
+  `Shift+Tab` leave the field for that stop or out of the row; on a tool of the PDF's row they move between the
   tools instead of turning the page (`PageUp` / `PageDown` still turn
   it). No chord jumps into a row; the find bars are forms and keep a tab
   stop per control. They are the widget's keys, like the tree's, and not

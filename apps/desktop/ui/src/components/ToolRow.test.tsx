@@ -74,4 +74,24 @@ describe("ToolRow", () => {
       expect(document.activeElement, key).toBe(field);
     }
   });
+
+  // Found in review: a field as the stop kept the arrows to itself, and the
+  // other tools could no longer be reached by keyboard.
+  it("never makes a text field its stop", () => {
+    render(
+      <ToolRow label="tools">
+        <input aria-label="page" />
+        <button type="button">A</button>
+        <button type="button">B</button>
+      </ToolRow>,
+    );
+    const field = screen.getByLabelText("page");
+    expect(stops()).toEqual([screen.getByText("A")]);
+    screen.getByText("B").focus();
+    fireEvent.keyDown(screen.getByText("B"), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(field);
+    expect(stops()).toEqual([screen.getByText("B")]);
+    fireEvent.click(field);
+    expect(stops()).toEqual([screen.getByText("B")]);
+  });
 });
