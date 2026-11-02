@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { chordOf, commandForChord, glyphsOf } from "../lib/keymap";
@@ -104,10 +104,9 @@ function FootKeys({ keys }: { keys: readonly string[] }) {
 
 /**
  * The key hints at the frame's foot (`__foot`): „↑↓ wechseln · ↩ <verb> ·
- * ⎋ schließen“, the keys as `.sb-keys` (ICO-08). `children` follow them
- * (the search's counts).
+ * ⎋ schließen“, the keys as `.sb-keys` (ICO-08).
  */
-export function PaletteFoot({ verbKey, children }: { verbKey: string; children?: ReactNode }) {
+export function PaletteFoot({ verbKey }: { verbKey: string }) {
   const { t } = useTranslation();
   return (
     <p className="sb-command-palette__foot">
@@ -123,7 +122,6 @@ export function PaletteFoot({ verbKey, children }: { verbKey: string; children?:
         <FootKeys keys={["Escape"]} />
         {t("palette.foot.close")}
       </span>
-      {children}
     </p>
   );
 }
