@@ -1,4 +1,5 @@
 import {
+  findPrevious,
   getSearchQuery,
   openSearchPanel,
   search,
@@ -329,6 +330,27 @@ describe("the count", () => {
     expect(count(v)).toBe("2\u00a0matches");
   });
 
+  // A regexp that looks past its match (`\b`, a lookahead) sees the text
+  // after the selection: CodeMirror's previous match ends its look there
+  // and can select \u201efoo\u201c in \u201efoobar\u201c, which the total does not count.
+  it("takes no selection for a match that is one only where the text is cut", () => {
+    const v = editor("foo x foobar y\n");
+    openSearchPanel(v);
+    chip(v, "re").click();
+    for (const search of ["foo\\b", "foo(?!bar)"]) {
+      type(field(v, "search"), search);
+      expect(count(v)).toBe("1\u00a0match");
+      select(v, 9);
+      findPrevious(v);
+      expect(v.state.selection.main).toMatchObject({ from: 6, to: 9 });
+      expect(count(v)).toBe("1\u00a0match");
+      select(v, 0, 3);
+      expect(count(v)).toBe("Match 1 of 1");
+      select(v, 6, 9);
+      expect(count(v)).toBe("1\u00a0match");
+    }
+  });
+
   it("follows a query set from outside at once", () => {
     const v = editor("one two two\n");
     openSearchPanel(v);
@@ -375,7 +397,7 @@ describe("the count", () => {
 
   it("counts a long text in slices and never shows the total of another query", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const text = `${"ab ".repeat(12_000)}c\n`;
+    const text = `${"ab\n".repeat(12_000)}c\n`;
     const v = editor(text);
     openSearchPanel(v);
     type(field(v, "search"), "a");
@@ -404,10 +426,11 @@ describe("the count", () => {
   });
 
   // A stretch at a time, a match across a seam counted once, as one cursor
-  // over the whole text counts.
+  // over the whole text counts; the first line is longer than a stretch
+  // reads whole, so it is cut inside.
   it("counts across the stretches as one cursor over the whole text", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const text = `${"ab aab ".repeat(6_000)}\n${"a".repeat(40_001)}\n`;
+    const text = `${"ab aab ".repeat(20_000)}\n${"a".repeat(40_001)}\n`;
     const v = editor(text);
     openSearchPanel(v);
     for (const [search, regexp] of [
@@ -428,9 +451,39 @@ describe("the count", () => {
     }
   });
 
+  // A regexp over several lines (`\s`, `[^…]`) is one string to CodeMirror
+  // from where its cursor starts: a stretch starts at a line start, so `^`,
+  // `\b` and a look behind see the text as one cursor over all of it does,
+  // and so does the count of the matches before the selection.
+  it("counts a regexp over several lines across the stretches as one cursor", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const words = Array.from({ length: 9_000 }, (_, i) => (i % 3 ? "foo" : "barfoo")).join(" ");
+    const sections = Array.from(
+      { length: 800 },
+      (_, i) => `## Section ${i}\n\nSome text\n- item ${i}\n- the other item\n`,
+    ).join("");
+    const v = editor(`${sections}${words}\n${words}\n${"a".repeat(40_001)}\n${sections}`);
+    openSearchPanel(v);
+    for (const search of ["^\\w+\\s", "\\bfoo\\s", "(?<!bar)foo\\s", "^[^\\n]", "^\\s*$", "\\d\\s+-"]) {
+      select(v, 0);
+      const query = new SearchQuery({ search, regexp: true });
+      const cursor = query.getCursor(v.state);
+      let n = 0;
+      let last = { from: 0, to: 0 };
+      for (let step = cursor.next(); !step.done; step = cursor.next(), n += 1) last = step.value;
+      v.dispatch({ effects: setSearchQuery.of(query) });
+      vi.runAllTimers();
+      expect([search, count(v)]).toEqual([search, `${n}\u00a0matches`]);
+      if (last.from === last.to) continue;
+      select(v, last.from, last.to);
+      vi.runAllTimers();
+      expect([search, count(v)]).toEqual([search, `Match ${n} of ${n}`]);
+    }
+  });
+
   it("stops counting when the bar closes", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const v = editor(`${"ab ".repeat(12_000)}\n`);
+    const v = editor("ab\n".repeat(12_000));
     openSearchPanel(v);
     const span = v.dom.querySelector<HTMLElement>(".sb-doc-bar__count")!;
     slowClock();

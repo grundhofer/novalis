@@ -180,32 +180,61 @@ const isPressed = (button: HTMLElement) => button.getAttribute("aria-pressed") =
  * after an edit it waits for a pause before it counts again. CodeMirror's
  * case-insensitive cursor takes some 40–80 ms a megabyte: a 1 MB note is
  * counted within a tenth of a second, a 50 MB note in seconds in the
- * background, with no cap, as in the preview.
+ * background, with no cap, as in the preview. A stretch ends at a line
+ * start; a line up to LINE long is read whole, a longer one is cut inside.
  */
 const SLICE_MS = 8;
 const STRETCH = 16_384;
+const LINE = 65_536;
 const EDIT_PAUSE_MS = 150;
 
 type Match = { from: number; to: number };
 
+/** How far a cursor reads past where its matches may start. */
+const margin = (query: SearchQuery) => 1_000 + query.search.length;
+
+/** Where a stretch from `pos` ends: at a line start, unless a line is too long. */
+function seamAfter(doc: Text, pos: number): number {
+  const target = pos + STRETCH;
+  if (target >= doc.length) return doc.length;
+  const line = doc.lineAt(target);
+  if (line.from > pos) return line.from;
+  return line.to + 1 - pos <= LINE ? Math.min(doc.length, line.to + 1) : target;
+}
+
 /**
- * Counts the matches of `query` in `state` from the start to `end`, one
- * after another without overlap, as CodeMirror's „all“ and „replace all“
- * find them, and gives `done` their number and the last of them. The first
- * slice runs at once; the result is what stops the rest. A stretch's cursor
- * reads a margin past its end, so a match across the seam is found whole. A
- * regexp match longer than the margin can be counted differently there,
- * and one `exec` cannot be cut into slices: a pattern that backtracks
- * without end over a long line (`(a+)+b`) holds the window as it would in
- * „all“.
+ * Where a cursor for matches from `pos` starts: at the start of the line
+ * before, or of `pos`'s own line inside it. CodeMirror reads a regexp over
+ * several lines (`\s`, `[^…]`) as one string from the cursor's start, where
+ * `^` holds and nothing lies behind, and passes over an empty match there.
+ */
+function cursorStart(doc: Text, pos: number): number {
+  const from = doc.lineAt(Math.max(0, pos - 1)).from;
+  return pos - from <= LINE ? from : pos;
+}
+
+/**
+ * Counts the matches of `query` in `state`, one after another without
+ * overlap, as CodeMirror's „all“ and „replace all“ find them, and gives
+ * `done` their number. With `stopAt` it stops at the first match that
+ * starts there or later and gives the number before it and that match. The
+ * first slice runs at once; the result is what stops the rest. A stretch's
+ * cursor starts before it (`cursorStart`) and reads a margin past its end,
+ * so a match across the seam is found whole and its context is the text's.
+ * It can still count differently from one cursor where a match longer than
+ * the margin meets a seam, and for a regexp over several lines whose match
+ * ends inside the line a stretch's cursor starts from, that looks further
+ * behind than the line before, or that meets a seam inside a line longer
+ * than LINE. One `exec` cannot be cut into slices: a pattern that backtracks without
+ * end over a long line (`(a+)+b`) holds the window as it would in „all“.
  */
 function countMatches(
   state: EditorState,
   query: SearchQuery,
-  end: number,
-  done: (n: number, last: Match | null) => void,
+  done: (n: number, at: Match | null) => void,
+  stopAt = Infinity,
 ): () => void {
-  const margin = 1_000 + query.search.length;
+  const { doc } = state;
   let n = 0;
   let last: Match | null = null;
   let pos = 0;
@@ -213,19 +242,24 @@ function countMatches(
   const slice = () => {
     const until = performance.now() + SLICE_MS;
     for (;;) {
-      const seam = Math.min(end, pos + STRETCH);
-      const cursor = query.getCursor(state, pos, Math.min(end, seam + margin));
+      const seam = seamAfter(doc, pos);
+      const cursor = query.getCursor(state, cursorStart(doc, pos), Math.min(doc.length, seam + margin(query)));
       for (let step = cursor.next(); !step.done; step = cursor.next()) {
         const { from, to } = step.value;
-        if (from >= seam && seam < end) break;
+        if (from < pos) continue;
+        if (from >= seam && seam < doc.length) break;
         // A running cursor skips an empty match right after the last one; a
         // new one at the seam would not.
         if (from === to && last && last.from < last.to && from === last.to) continue;
+        if (from >= stopAt) {
+          done(n, { from, to });
+          return;
+        }
         n += 1;
         last = { from, to };
       }
-      if (seam >= end) {
-        done(n, last);
+      if (seam >= doc.length) {
+        done(n, null);
         return;
       }
       pos = Math.max(seam, last?.to ?? 0);
@@ -247,10 +281,18 @@ const findsSame = (a: SearchQuery, b: SearchQuery) =>
   a.wholeWord === b.wholeWord &&
   a.test === b.test;
 
-/** Whether `range` is a match of `query` as it stands, from end to end. */
+/**
+ * Whether `range` is a match of `query` as it stands, from end to end: a
+ * cursor from its line's start, reading past its end, so that `^`, `\b`
+ * and a lookahead see the text around it.
+ */
 function isMatch(state: EditorState, query: SearchQuery, range: SelectionRange): boolean {
-  const step = query.getCursor(state, range.from, range.to).next();
-  return !step.done && step.value.from === range.from && step.value.to === range.to;
+  const { doc } = state;
+  const cursor = query.getCursor(state, cursorStart(doc, range.from), Math.min(doc.length, range.to + margin(query)));
+  for (let step = cursor.next(); !step.done; step = cursor.next()) {
+    if (step.value.from >= range.from) return step.value.from === range.from && step.value.to === range.to;
+  }
+  return false;
 }
 
 class FindPanel implements Panel {
@@ -402,7 +444,7 @@ class FindPanel implements Panel {
     }
     const start = (from: EditorState) => {
       const query = getSearchQuery(from);
-      this.stopTotal = countMatches(from, query, from.doc.length, (n) => {
+      this.stopTotal = countMatches(from, query, (n) => {
         this.total = { doc: from.doc, query, n };
         this.locate(this.view.state);
       });
@@ -441,11 +483,16 @@ class FindPanel implements Panel {
       return;
     }
     this.locating = true;
-    this.stopIndex = countMatches(state, query, main.to, (n, last) => {
-      this.locating = false;
-      if (last?.from === main.from && last.to === main.to) this.current = n;
-      this.show(this.view.state);
-    });
+    this.stopIndex = countMatches(
+      state,
+      query,
+      (n, at) => {
+        this.locating = false;
+        if (at?.from === main.from && at.to === main.to && n < total.n) this.current = n + 1;
+        this.show(this.view.state);
+      },
+      main.from,
+    );
   }
 
   /** The count's words; a total of another text or query is never shown. */
