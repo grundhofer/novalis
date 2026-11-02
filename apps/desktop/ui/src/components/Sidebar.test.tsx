@@ -176,19 +176,17 @@ describe("Sidebar", () => {
   });
 
   // ADR-0012: the head controls are the menu items, reached by mouse. They
-  // dispatch by id so a click and `Cmd+N` cannot drift apart.
-  it("dispatches the three head controls by command id", () => {
+  // dispatch by id so a click and `Alt+Cmd+N` cannot drift apart.
+  it("dispatches the two head controls by command id", () => {
     render(<Sidebar />);
 
-    fireEvent.click(screen.getByLabelText("menu.file.newNote"));
     fireEvent.click(screen.getByLabelText("menu.file.newFolder"));
     fireEvent.click(screen.getByLabelText("tree.board"));
 
-    expect(vi.mocked(dispatchCommand).mock.calls).toEqual([
-      ["file.newNote"],
-      ["tree.newFolder"],
-      ["board.toggle"],
-    ]);
+    expect(vi.mocked(dispatchCommand).mock.calls).toEqual([["tree.newFolder"], ["board.toggle"]]);
+    // The sidebar has no New note (D104 (36), ADR-0051 #82): the primary
+    // action is StatusBar's.
+    expect(screen.queryByLabelText("menu.file.newNote")).toBeNull();
   });
 
   // A toggle keeps its name and says its state (NAV-10, spec/02 §4.18).
@@ -969,7 +967,7 @@ describe("Sidebar", () => {
       expect(nav.querySelector("[role='tree'], .sb-side-nav__head")).toBeNull();
     });
 
-    it("has three compact tools with sebaro's tooltip: name hidden, the shortcut spoken", () => {
+    it("has two compact tools with sebaro's tooltip: name hidden, the shortcut spoken", () => {
       useUi.setState({ boardVisible: true });
       render(<Sidebar />);
       // sebaro's group head with tools (spec/02 §4.17, D104 (36)): a group
@@ -978,20 +976,13 @@ describe("Sidebar", () => {
       expect(group.getAttribute("role")).toBe("group");
       expect(group.getAttribute("aria-label")).toBe("v");
       const tools = [...group.querySelectorAll<HTMLButtonElement>(":scope > button")];
-      expect(tools.map((tool) => tool.getAttribute("aria-label"))).toEqual([
-        "menu.file.newNote",
-        "menu.file.newFolder",
-        "tree.board",
-      ]);
-      expect(tools.map((tool) => tool.getAttribute("aria-keyshortcuts"))).toEqual([
-        "Meta+N",
-        "Alt+Meta+N",
-        "Shift+Meta+B",
-      ]);
-      // ⌘N is sebaro's fixed chord; ⌥⌘N and ⇧⌘B are novalis' own (the shortcut check's S7).
-      expect(tools.map((tool) => tool.hasAttribute("data-sb-own-shortcut"))).toEqual([false, true, true]);
-      // Only the board is a toggle; the two others act and hold no state.
-      expect(tools.map((tool) => tool.getAttribute("aria-pressed"))).toEqual([null, null, "true"]);
+      expect(tools.map((tool) => tool.getAttribute("aria-label"))).toEqual(["menu.file.newFolder", "tree.board"]);
+      expect(tools.map((tool) => tool.getAttribute("aria-keyshortcuts"))).toEqual(["Alt+Meta+N", "Shift+Meta+B"]);
+      // ⌥⌘N and ⇧⌘B are novalis' own (the shortcut check's S7); ⌘N is the
+      // action zone's primary action, not a head tool (D104 (36)).
+      expect(tools.map((tool) => tool.hasAttribute("data-sb-own-shortcut"))).toEqual([true, true]);
+      // Only the board is a toggle; the other acts and holds no state.
+      expect(tools.map((tool) => tool.getAttribute("aria-pressed"))).toEqual([null, "true"]);
       for (const tool of tools) {
         expect(tool.className).toBe("sb-icon-button sb-icon-button--compact");
         expect(tool.querySelector("svg")?.getAttribute("class")).toBe("sb-icon sb-icon--20");
@@ -1004,11 +995,7 @@ describe("Sidebar", () => {
         expect(tip.firstElementChild?.textContent).toBe(tool.getAttribute("aria-label"));
         expect(tip.querySelector(".sb-keys")).toBeTruthy();
       }
-      expect(tools.map((tool) => tool.querySelector("use")?.getAttribute("href"))).toEqual([
-        "#plus",
-        "#folder",
-        "#board",
-      ]);
+      expect(tools.map((tool) => tool.querySelector("use")?.getAttribute("href"))).toEqual(["#folder", "#board"]);
     });
 
     it("draws the tree as sebaro's tree, labelled by the vault's name", () => {
