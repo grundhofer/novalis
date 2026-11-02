@@ -28,7 +28,7 @@ const keepFocus = (event: MouseEvent) => event.preventDefault();
  * First the preview switch (ADR-0020, ADR-0051 #16): sebaro's compact
  * switch with the eye before its word (spec/02 §4.17, D102 (2), D105 (2):
  * 20 px, never the eye alone), its state in `aria-pressed`, ⌘E in
- * `aria-keyshortcuts`; 24 px high for a pointer (#68, #73). A CSV, a TSV
+ * `aria-keyshortcuts`; 32 px high as sebaro's (#78). A CSV, a TSV
  * and an SVG have the switch alone; a Markdown file has its tools after it:
  * Bold, Italic, Link; Heading 1–3, List, Task, Code, Quote; Find; text size
  * smaller and larger. Link, Code, Quote, Find and the text size are icon

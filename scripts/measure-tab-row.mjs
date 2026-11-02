@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Measures the tab row, its fades and the tool row under it in WebKit
-// (ADR-0051 #67–#70, #72–#74).
+// (ADR-0051 #67–#70, #72–#74, #78).
 // jsdom computes no layout (ADR-0011), and the review pictures of the
 // rebuild never showed a classic scroll bar: a wide window, no tab row that
 // overflowed. With "Show scroll bars: Always" (or a mouse attached) the bar
@@ -20,9 +20,11 @@
 //   - the tools of each line of the row share one middle (±0.5 px), and the
 //     row has as much room above its tools as below them
 //   - the switch's word stands on the word buttons' line (±0.5 px), off state
-//   - at 100 % the switch is 24 px high (#68, #73)
+//   - the switch is as high as the word buttons, 32 px at 100 % (sebaro's
+//     compact switch, #78)
 //   - in the preview the switch is pressed, the ten format tools are off and
-//     Find and the text size are not (#74), and no tool has moved (±0.5 px)
+//     Find and the text size are not (#74), no tool has moved (±0.5 px) and
+//     the switch kept its height (#78)
 // A picture of each case goes to the output folder.
 //
 // Usage: node scripts/measure-tab-row.mjs [out-dir]
@@ -249,7 +251,13 @@ for (const theme of ["light", "dark"]) {
           }
           wordLine = sameLine.length ? `${Math.max(...sameLine.map((x) => Math.abs(x.text - swatch.text))).toFixed(2)} px off` : "none";
         }
-        if (font === "100%" && swatch && swatch.height !== 24) fail(`the switch is ${swatch.height} px high, not 24`);
+        if (font === "100%" && swatch && swatch.height !== 32) fail(`the switch is ${swatch.height} px high, not 32`);
+        const words = b.tools.filter((x) => x.kind === "word");
+        if (words.length === 0) fail("the tool row has no word button");
+        for (const word of words) {
+          if (swatch && !near(word.height, swatch.height, 0.5))
+            fail(`„${word.name}“ is ${word.height} px high, the switch ${swatch.height} px`);
+        }
         let moved = 0;
         if (state === "preview") {
           if (b.switchPressed !== "true") fail(`the switch says ${b.switchPressed}, not pressed, in the preview`);
@@ -265,12 +273,14 @@ for (const theme of ["light", "dark"]) {
             moved = Math.max(moved, i === 0 ? Math.abs(tool.left - w.left) : shift);
             // The switch's own end may follow its word's weight; nothing after it may move.
             if (i === 0 ? !near(tool.left, w.left, 0.5) : shift > 0.5) fail(`„${tool.name}“ moved ${shift.toFixed(2)} px when the preview came`);
+            // Pressed, the switch keeps its height (#78).
+            if (i === 0 && !near(tool.height, w.height, 0.5)) fail(`the switch is ${tool.height} px pressed, ${w.height} px off`);
           }
           if (!near(b.height, m.before?.height ?? 0, 0.5)) fail(`the row is ${b.height} px in the preview, ${m.before?.height} px in the editor`);
         }
         console.log(
           `${name.padEnd(30)} tabs ${t.row} px (bar ${t.bar}), tools ${b.tools.length} on ${lines.length} line(s), row ${b.height} px, ` +
-            `switch ${swatch?.height} px, room ${above}/${below} px, word line ${wordLine}` +
+            `switch ${swatch?.height} px (words ${[...new Set(words.map((x) => x.height))].join("/")} px), room ${above}/${below} px, word line ${wordLine}` +
             (state === "preview" ? `, moved ≤ ${moved.toFixed(2)} px` : ""),
         );
       }

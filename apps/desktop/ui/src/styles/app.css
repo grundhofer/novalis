@@ -380,20 +380,10 @@ button {
   gap: var(--sb-space-0-5);
 }
 
-/* The preview switch is 24 px high for a pointer, not sebaro's compact 32
-   (ADR-0051 #68, carried over to the tool row by #73; against D102 (2),
-   RAU-06, ZUG-03; docs/sebaro-luecken.md Z7, Z8). Its one line is as high
-   as its word, not the label's line, so at 200 % it is 30 px, not 42. The
-   row centres it with the 32 px tools, its word on the word buttons' line.
-   Under touch sebaro's 48 px target stays. */
-@media not (pointer: coarse) {
-  .nv-doc-tools > .sb-secondary-action--compact {
-    min-block-size: var(--sb-size-target-pointer);
-    line-height: 1;
-  }
-}
-
-/* Pressed, the switch writes its word in the title weight (sebaro's chosen
+/* The preview switch is sebaro's compact switch, 32 px like the tools
+   beside it (D102 (2), NV-A12; ADR-0051 #78): #68's 24 px held for the
+   switch at the tab row's end only (docs/sebaro-luecken.md Z7, Z8).
+   Pressed, the switch writes its word in the title weight (sebaro's chosen
    state, D102 (2)), which is wider: by 0.6 px at 100 %, 1.2 px at 200 %,
    and every tool after it moved (ADR-0051 #74, measured in WebKit). The
    word keeps the room of its title weight in both states: a copy of it in
@@ -411,6 +401,16 @@ button {
   overflow: hidden;
   visibility: hidden;
   font-weight: var(--sb-type-title-weight);
+}
+
+/* Pressed, the switch's 3 px edge is 2 px more than the hairline it
+   replaces. At 100 % the 32 px hold them; at 200 % the word's line sets
+   the height, sebaro's switch grew from 42 to 44 px and the row and every
+   tool after it moved (ADR-0051 #74, #78, measured in WebKit). The word's
+   line gives the 2 px back, so the switch keeps its height in both states;
+   the word rises 1 px, as it does at 100 % (docs/sebaro-luecken.md Z8). */
+.nv-doc-tools > .sb-secondary-action--compact[aria-pressed="true"] {
+  line-height: calc(var(--sb-type-label-line-height) * 1em - (var(--sb-border-width-strong) - var(--sb-border-width-control)));
 }
 
 /* ---------------------------------------------------------------- editor */

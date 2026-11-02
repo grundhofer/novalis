@@ -243,14 +243,16 @@ describe("DocTools", () => {
   });
 });
 
-// ADR-0051 #68, #73: read as text, jsdom computes no style (ADR-0011).
+// ADR-0051 #73, #78: read as text, jsdom computes no style (ADR-0011).
 describe("the tool row's CSS", () => {
-  it("makes the preview switch 24 px high for a pointer and leaves touch its 48", () => {
-    const at = appCss.indexOf("@media not (pointer: coarse) {\n  .nv-doc-tools > .sb-secondary-action--compact {");
-    expect(at).toBeGreaterThanOrEqual(0);
-    const media = appCss.slice(at, appCss.indexOf("\n}\n", at));
-    expect(media).toContain("min-block-size: var(--sb-size-target-pointer);");
-    expect(media).toContain("line-height: 1;");
+  it("leaves the preview switch sebaro's compact 32 px, and keeps the room of its pressed word", () => {
+    expect(appCss).not.toContain(".nv-doc-tools > .sb-secondary-action--compact {");
+    expect(appCss).not.toContain("--sb-size-target-pointer");
+    expect(appCss).toContain(".nv-doc-tools__word::after {");
+    // Pressed, the 3 px edge's 2 px come out of the word's line, not the row.
+    expect(appCss).toContain(
+      '.nv-doc-tools > .sb-secondary-action--compact[aria-pressed="true"] {\n  line-height: calc(var(--sb-type-label-line-height) * 1em - (var(--sb-border-width-strong) - var(--sb-border-width-control)));\n}',
+    );
   });
 
   it("keeps no rule for the switch at the tab row's end", () => {
