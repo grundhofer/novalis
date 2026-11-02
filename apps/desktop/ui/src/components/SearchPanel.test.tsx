@@ -493,6 +493,19 @@ describe("SearchPanel", () => {
       expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.notes=1]");
     });
 
+    // The count keeps the noun of the search it counts until the next one ends.
+    it("keeps the foot's noun while the toggle waits for its search", async () => {
+      answer([{ path: "a.md", line: 1, snippet: "needle" }], { ...REPORT, matches: 1, notUtf8Skipped: 0 });
+      render(<SearchPanel />);
+      fireEvent.change(field(), { target: { value: "needle" } });
+      await settle();
+      fireEvent.click(screen.getByRole("button", { name: "editor.search.allFiles" }));
+      expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.notes=1]");
+      expect(document.querySelector(".sb-command-palette__group")?.textContent).toBe("editor.search.notes=1");
+      await settle();
+      expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.files=1]");
+    });
+
     it("says nothing about 0 matches in the foot, only what it skipped", async () => {
       answer([], { ...REPORT, matches: 0 });
       render(<SearchPanel />);

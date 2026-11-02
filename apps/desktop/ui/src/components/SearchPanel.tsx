@@ -116,6 +116,8 @@ export default function SearchPanel() {
   // the scan to what the tree lists before the core counts its limit, so
   // every hit that arrives here opens.
   const allFiles = useUi((s) => s.searchAllFiles);
+  // The toggle the shown hits were found with, for their count's noun.
+  const [searchedAll, setSearchedAll] = useState(false);
   const [running, setRunning] = useState(false);
   // The search has run a second without a hit (STA-06, spec/07 §4.5).
   const [slow, setSlow] = useState(false);
@@ -150,6 +152,7 @@ export default function SearchPanel() {
     setRunning(true);
     setSlow(false);
     setSearched(query.trim());
+    setSearchedAll(allFiles);
     const timer = setTimeout(() => {
       if (latest.current === mine) setSlow(true);
     }, WAIT_MS);
@@ -231,7 +234,7 @@ export default function SearchPanel() {
 
   // The foot says how many matches in how many notes once the search has
   // ended, nothing while it runs (D104 (1)), then what it skipped.
-  const counted = t(allFiles ? "editor.search.files" : "editor.search.notes", { count: notes.length });
+  const counted = t(searchedAll ? "editor.search.files" : "editor.search.notes", { count: notes.length });
   const foot = report
     ? [
         report.matches > 0
