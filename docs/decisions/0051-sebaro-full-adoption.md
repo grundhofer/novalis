@@ -201,3 +201,18 @@ Two consequences of the build, put to the owner afterwards and accepted 2026-11-
 
 1. #78: at 200 % the pressed switch takes its 3 px edge out of its word's line, so it stays 42 px and the row does not grow (#74); its word rises 1 px on press, as sebaro's does at 100 %.
 2. #80: on a tool of the PDF row, ← → Home End move between the tools and no longer turn the page; Page Up / Page Down still do, and on the page itself the arrows turn it as before.
+
+## Amendment 2026-11-02: sebaro's open questions
+
+Seven gap rows in `docs/sebaro-luecken.md` waited for the owner („Frage an den Inhaber“), where a sebaro decision (D102, D104, D105) differed from what novalis had built. The first, the preview switch in the tool row, is #78. The other six:
+
+| # | Question | Decision |
+|---|---|---|
+| 81 | ⌘+ / ⌘− in a reader (sebaro: they zoom the reader, spec/02 §4.19) | They change the font size as in the editor (#10), no zoom; as built (`editor.fontSize`) |
+| 82 | The sidebar head: New note, New folder and Board (D104 (36): only tools that act on the group, New note only as the main action) | As D104 (36): New folder and Board stay in the head, New note is only the main action under the tree (D74) |
+| 83 | A counter in the editor's find bar (D104 (3), FAR-12) | Built: „Match n of m“ / „No match“ in the bar's `__count`, the sentence the preview's find bar already says |
+| 84 | The vault search: a row per match (as built) or per note (D104 (1)) | A row per note, as D104 (1): the notes under a group head („3 notes“), the foot and its status region say „5 matches in 3 notes.“; a note's row opens the note at its first match |
+| 85 | How the PDF pane names the keys it takes (`aria-keyshortcuts` on the pane, as built) | sebaro's form (D105, NV-O10): in `aria-description` and in the keyboard help, not in `aria-keyshortcuts`; the new sentence written by spec/07 |
+| 86 | Backlinks in the inspector (D102 (13)) or under the editor (#8) | Under the editor; #8 stands, novalis has no inspector. sebaro records it as D122, an approved departure for novalis only |
+
+**Owner approval:** 2026-11-02, given as choices in the session that coordinates sebaro, verbatim (question → choice): „Was machen ⌘+ / ⌘− im Leser?“ → „Schriftgröße wie im Editor (Empfohlen)“; „Kopf der Seitenleiste – heute „Neue Notiz“, „Neuer Ordner“, „Board“. sebaro (D104 (36)): im Kopf nur Werkzeuge für die Gruppe, „Neue Notiz“ nur als Hauptaktion.“ → „Nach D104 (36) (Empfohlen)“; „Soll die Suche im Editor einen Zähler bekommen („Treffer 2 von 5“ / „Kein Treffer“), wie schon in der Vorschau?“ → „Ja, bauen (Empfohlen)“; „Suche im Vault – eine Zeile je Notiz (sebaro, D104 (1)) oder eine je Treffer (heute)?“ → „Eine Zeile je Notiz (Empfohlen)“; „novalis PDF: Tastenkürzel in aria-keyshortcuts (heute) oder in sebaro-Form (Beschreibung plus Tastaturhilfe, braucht einen neuen Satz)?“ → „sebaro-Form (Empfohlen)“; „novalis: Rückverweise – im Inspektor (sebaro, D102 (13)) oder unter dem Editor (deine Entscheidung vom 24.10., ADR-0051 #8)?“ → „Unter dem Editor (Empfohlen)“. Confirmed in this repo's session the same day, verbatim: „Ja, 2–7 so (Empfohlen)“.

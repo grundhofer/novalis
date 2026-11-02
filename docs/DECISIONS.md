@@ -945,6 +945,14 @@ amendment 2026-11-02, #78–#80):
 - accepted afterwards: the pressed switch's word rises 1 px at 200 % (#78);
   on a PDF tool the arrows move between tools, not pages (#80)
 
+Then sebaro's six open questions (ADR-0051, amendment 2026-11-02, #81–#86):
+- ⌘+ / ⌘− in a reader change the font size, no zoom (#81, as built)
+- the sidebar head keeps New folder and Board; New note only under the tree (#82)
+- the editor's find bar counts „Match n of m“ (#83)
+- the vault search shows a row per note, „5 matches in 3 notes.“ (#84)
+- the PDF pane names its keys in a description and the keyboard help (#85)
+- backlinks stay under the editor, no inspector (#86, as built)
+
 Recorded as amendments to **ADR-0051**.
 
 ## Open items after the week-1 scaffold (2026-09-05)
