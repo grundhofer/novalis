@@ -201,6 +201,10 @@ body.sb-page { container: sb-page sb-content / inline-size; }
    reset, such as Tailwind's preflight, takes the browser's 40px away); a quote inside a list item carries the ink line
    of every quote; the first block of the prose has no space above, also a heading */
 .sb-prose > :is(ul, ol):not([class]) { padding-inline-start: 1.5em; }
+/* Restore markers after a reset; classed component lists keep their own presentation. */
+.sb-prose ul:not([class]) { list-style-type: disc; }
+.sb-prose :where(ul, ol) ul:not([class]) { list-style-type: circle; }
+.sb-prose ol:not([class]) { list-style-type: decimal; }
 /* a list inside a quote indents the same; not in :where(), so a reset does not take the indent away, as above */
 .sb-prose blockquote > :is(ul, ol):not([class]) { padding-inline-start: 1.5em; }
 .sb-prose li > blockquote { margin-inline: 0; padding-inline-start: var(--sb-space-4); border-inline-start: var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color); }
@@ -887,6 +891,17 @@ body.sb-page { container: sb-page sb-content / inline-size; }
   min-block-size: var(--sb-size-target-touch);
   font: var(--sb-type-body); letter-spacing: var(--sb-type-body-tracking);
 }
+/* an optional leading icon, as a list row's __lead (spec/02 §2.6): 24 px, text-muted, aria-hidden; the label after it
+   takes the room, so the switch stays at the end; the start side mirrors in RTL with the flex row. Once a word of the
+   label would break beside the switch, sb-fit.js sets data-sb-fit="stack" (measured, §45.5): the label takes the line
+   beside the icon and the switch wraps to a line of its own, at the end. Without the script the switch wraps where the
+   label would keep less than about six characters (6em) */
+.sb-switch-row:has(> .sb-switch-row__lead) { flex-wrap: wrap; row-gap: var(--sb-space-1); }
+.sb-switch-row__lead { flex: none; display: flex; color: var(--sb-color-text-muted); }
+.sb-switch-row__lead + * { flex: 1 1 0; min-inline-size: 0; }
+:root:not([data-sb-fit-ready]) .sb-switch-row__lead + * { flex-basis: 6em; }
+.sb-switch-row[data-sb-fit="stack"] > .sb-switch-row__lead + * { flex-basis: calc(100% - var(--sb-size-icon-lg) - var(--sb-space-3)); }
+.sb-switch-row__lead ~ .sb-switch { margin-inline-start: auto; }
 .sb-switch {
   position: relative; flex: none; inline-size: 52px; block-size: var(--sb-size-target-touch); margin: 0; padding: 0;
   border: 0; border-radius: var(--sb-radius-pill); background: transparent; color: var(--sb-color-on-accent); cursor: pointer;
@@ -2654,11 +2669,12 @@ button.sb-side-nav__item {
 .sb-dialog__actions[data-sb-fit="stack"] { flex-direction: column; align-items: stretch; }
 /* an action with its data-path line (D98 V4, spec/10 §3.4; spec/02 §4.6, the unsaved dialog's „Sichern“):
    div.sb-dialog__action holds the key and its p.sb-action-hint right after it, so a screen reader reads the line right
-   after the key. In one row the keys stand top-aligned and the line starts with its key; stacked (data-sb-fit="stack")
-   the key takes the full width and the line is centred under it */
+   after the key. In one row the keys stand top-aligned, the key ends flush with the row and the line ends with its key,
+   also when it is wider than the key and wraps (D115, as D113 in Compose); stacked (data-sb-fit="stack") the key takes
+   the full width and the line is centred under it */
 .sb-dialog__actions:not([data-sb-fit="stack"]):has(> .sb-dialog__action) { align-items: flex-start; }
-.sb-dialog__action { display: flex; flex-direction: column; align-items: flex-start; min-inline-size: 0; max-inline-size: 100%; }
-.sb-dialog__action > .sb-action-hint { text-align: start; }
+.sb-dialog__action { display: flex; flex-direction: column; align-items: flex-end; min-inline-size: 0; max-inline-size: 100%; }
+.sb-dialog__action > .sb-action-hint { text-align: end; }
 .sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action { align-items: stretch; }
 .sb-dialog__actions[data-sb-fit="stack"] > .sb-dialog__action > .sb-action-hint { text-align: center; }
 /* the input dialog (D102 (38), spec/02 §4.6): an sb-field under the title (and its text), the submit verb a secondary action */
@@ -3112,6 +3128,7 @@ dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: 
    start (padding + place line), the 16 px check slot and its gap, at every text size (the space-10 of before was
    40 px at 100 % but 80 px at 200 %, while the names stood at 64 px) */
 .sb-command-palette { --sb-command-palette-text-start: calc(var(--sb-space-4) + var(--sb-size-icon-sm) + var(--sb-space-2)); }
+.sb-command-palette[data-sb-fulltext] { --sb-command-palette-text-start: calc(var(--sb-space-4) + var(--sb-size-icon-md) + var(--sb-space-2)); }
 .sb-command-palette .sb-row[aria-selected="true"] { font-weight: var(--sb-type-body-weight); }
 /* the letters a search matched (D102 (6)): body-strong weight, no fill, no colour of their own */
 .sb-command-palette__hit { font-weight: var(--sb-type-body-strong-weight); }
@@ -3122,6 +3139,7 @@ dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: 
   font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted);
 }
 .sb-command-palette__empty:empty { display: none; }
+.sb-command-palette__foot:empty { display: none; }
 .sb-command-palette__foot {
   display: flex; flex-wrap: wrap; gap: var(--sb-space-1) var(--sb-space-4); flex: none; margin: 0; padding: var(--sb-space-2) var(--sb-space-4);
   border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
@@ -3669,7 +3687,10 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
   font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted);
   font-variant-numeric: var(--sb-type-numeric-variant);
 }
-.sb-doc-bar__count:empty { display: none; }
+/* Keep the same count slot before and after typing, in editor and preview. The reserved line also survives
+   200 % text; counts use one line, so their wording cannot move the tools to another row. */
+.sb-find-bar .sb-doc-bar__count { flex: 0 0 auto; inline-size: 14em; max-inline-size: 100%; min-block-size: 1lh; white-space: nowrap; }
+.sb-find-bar .sb-doc-bar__count:empty { visibility: hidden; }
 .sb-doc-bar__value {   /* the reader's zoom „100 %“ between minus and plus (LE-3) */
   min-inline-size: 4em; text-align: center; font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking);
   font-variant-numeric: var(--sb-type-numeric-variant); white-space: nowrap;

@@ -62,6 +62,10 @@
 //      and wrap, data-sb-fit="stack" on .sb-dialog__actions gives each its own row at the full width, in their order
 //      (the verb last); measured in the one-line form whenever the row changes size (a dialog that opens gets its
 //      size, ResizeObserver). Without the script they wrap end-aligned.
+//  10. Switch row with a leading icon (spec/02 §2.6, CHECKS §45.5; provisional, agent): once a word of the label would
+//      break beside the icon and the switch, data-sb-fit="stack" gives the label the line beside the icon and puts
+//      the switch on a line of its own, at the end (sebaro.css). Measured in the one-line form, by the width the words
+//      take, not by a count of characters. Without the script the switch wraps below 6em of the label.
 (function () {
   "use strict";
   var HYST = 4;   // px: a part goes back to its wide form only when it fits this much narrower (provisional, agent)
@@ -436,6 +440,20 @@
     if (kids.some(function (k) { return Math.abs(k.getBoundingClientRect().top - top) > 1; })) row.setAttribute("data-sb-fit", "stack");
   }
 
+  // ------------------------------------------------------------------ 4h a switch row with a leading icon (§45.5)
+  // While every word of the label fits beside the icon and the switch, nothing changes; once one would have to break
+  // there, data-sb-fit="stack": the label keeps the line beside the icon, the switch goes to the line under it, at
+  // the end, so „Einstellungen“ at 200 % on 320 px stays whole. A word too long even for that line still breaks (step
+  // 5 hyphenates it), with the most room it can get. Measured in the one-line form.
+  function fitSwitchRow(row) {
+    var lead = row.clientWidth && row.querySelector(":scope > .sb-switch-row__lead");
+    var label = lead && lead.nextElementSibling, sw = row.querySelector(":scope > .sb-switch");
+    if (!label || !sw || label === sw) { if (row.hasAttribute("data-sb-fit")) row.removeAttribute("data-sb-fit"); return; }
+    unwrapWords(row);
+    row.removeAttribute("data-sb-fit");
+    if (brokenWords(label, Infinity)) row.setAttribute("data-sb-fit", "stack");
+  }
+
   // ------------------------------------------------------------------ 5 hyphens only for an overlong word
   var BREAK_AFTER = /[^ \t\n\r\f​\-‐–—\/]+[\-‐–—\/]?/g;
   function blockWidth(el, cache) {
@@ -627,7 +645,7 @@
     [".sb-chart", function (fig) { if (fig.querySelector(".sb-chart__end--series")) fitSeries(fig); }],
     [".sb-chart__slots", fitSlots], [".sb-chart__diverging-head", fitHead], [".sb-top-bar", fitTopBar],
     [":is(.sb-primary-action, .sb-secondary-action, .sb-danger-action)", fitAction], [".sb-menu__item", fitMenuKeys],
-    [".sb-dialog__actions", fitDialogActions]
+    [".sb-dialog__actions", fitDialogActions], [".sb-switch-row", fitSwitchRow]
   ];
   var queue = new Set(), whole = false, frame = 0, lastKey = "";
   var ro = typeof ResizeObserver === "function" ? new ResizeObserver(function (entries) {

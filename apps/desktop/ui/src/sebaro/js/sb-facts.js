@@ -287,7 +287,7 @@
       var d = ((F.dependencies || {}).items || []).length;
       return { text: m(d === 0 ? "dependenciesNone" : d === 1 ? "dependenciesOne" : "dependenciesMany", { n: d }), label: m("dependenciesLabel") };
     }
-    if (head === "licence") return { text: m("licence", { spdx: F.licence.spdx }) + (F.licence.content ? m("licenceContent", { content: F.licence.content }) : ""), label: m("licenceLabel") };
+    if (head === "licence") return { text: F.licence.label ? tx(F.licence.label) : m("licence", { spdx: F.licence.spdx }) + (F.licence.content ? m("licenceContent", { content: F.licence.content }) : ""), label: m("licenceLabel") };
     if (head === "source") return { text: F.source.open ? m("sourceOpen") : m("sourceClosed") + (F.source.reason ? ": " + tx(F.source.reason) : ""), label: m("sourceLabel") };
     return { text: ref, label: ref };
   }

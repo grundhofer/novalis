@@ -133,7 +133,7 @@
       descending: "absteigend",
       // D104 (1)–(7): the full-text search, the find bar and the reader (spec/02 §4.25)
       searching: "Suche läuft …",
-      findCount: "Treffer {n} von {m}",
+      findCount: "Treffer {n} von {m}", findMatches: "{m} Treffer",
       findNone: "Kein Treffer",
       lineRange: "Gib eine Zeile von 1 bis {m} ein.",
       lineOf: "von {m}",
@@ -155,7 +155,7 @@
       ascending: "ascending",
       descending: "descending",
       searching: "Searching …",
-      findCount: "Match {n} of {m}",
+      findCount: "Match {n} of {m}", findMatches: "{m} matches",
       findNone: "No match",
       lineRange: "Enter a line from 1 to {m}.",
       lineOf: "of {m}",
@@ -625,7 +625,7 @@
   function findCount(bar) {
     var out = bar.querySelector(".sb-doc-bar__count"), input = findInput(bar), hits = bar._sbHits || [];
     if (!out) return;
-    out.textContent = !input || !input.value ? "" : hits.length ? t(out, "findCount", { n: bar._sbAt + 1, m: hits.length }) : t(out, "findNone");
+    out.textContent = !input || !input.value ? "" : hits.length ? t(out, bar._sbAt == null || bar._sbAt < 0 ? "findMatches" : "findCount", { n: bar._sbAt + 1, m: hits.length }) : t(out, "findNone");
   }
   function findShow(bar, at) {
     var hits = bar._sbHits || [];

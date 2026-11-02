@@ -289,6 +289,7 @@ dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: 
    start (padding + place line), the 16 px check slot and its gap, at every text size (the space-10 of before was
    40 px at 100 % but 80 px at 200 %, while the names stood at 64 px) */
 .sb-command-palette { --sb-command-palette-text-start: calc(var(--sb-space-4) + var(--sb-size-icon-sm) + var(--sb-space-2)); }
+.sb-command-palette[data-sb-fulltext] { --sb-command-palette-text-start: calc(var(--sb-space-4) + var(--sb-size-icon-md) + var(--sb-space-2)); }
 .sb-command-palette .sb-row[aria-selected="true"] { font-weight: var(--sb-type-body-weight); }
 /* the letters a search matched (D102 (6)): body-strong weight, no fill, no colour of their own */
 .sb-command-palette__hit { font-weight: var(--sb-type-body-strong-weight); }
@@ -299,6 +300,7 @@ dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: 
   font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted);
 }
 .sb-command-palette__empty:empty { display: none; }
+.sb-command-palette__foot:empty { display: none; }
 .sb-command-palette__foot {
   display: flex; flex-wrap: wrap; gap: var(--sb-space-1) var(--sb-space-4); flex: none; margin: 0; padding: var(--sb-space-2) var(--sb-space-4);
   border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
@@ -846,7 +848,10 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
   font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted);
   font-variant-numeric: var(--sb-type-numeric-variant);
 }
-.sb-doc-bar__count:empty { display: none; }
+/* Keep the same count slot before and after typing, in editor and preview. The reserved line also survives
+   200 % text; counts use one line, so their wording cannot move the tools to another row. */
+.sb-find-bar .sb-doc-bar__count { flex: 0 0 auto; inline-size: 14em; max-inline-size: 100%; min-block-size: 1lh; white-space: nowrap; }
+.sb-find-bar .sb-doc-bar__count:empty { visibility: hidden; }
 .sb-doc-bar__value {   /* the reader's zoom „100 %“ between minus and plus (LE-3) */
   min-inline-size: 4em; text-align: center; font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking);
   font-variant-numeric: var(--sb-type-numeric-variant); white-space: nowrap;

@@ -47,9 +47,6 @@
 }
 
 /* The vault search's foot is its sentence alone (spec/02 §4.25.1, ADR-0051
-   #84); until the search has ended it has none and takes no room, as
-   sebaro.css hides an empty `__empty` (docs/sebaro-luecken.md M
+   #84); until the search has ended it has none, and sebaro.css hides an
+   empty `__foot` since sebaroDesign 09d3047 (docs/sebaro-luecken.md M
    „Vault-Suche, Fuß ohne Satz“). */
-.sb-command-palette__foot:empty {
-  display: none;
-}
