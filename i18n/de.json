@@ -479,6 +479,7 @@
   "viewer.nextPage": "Nächste Seite",
   "viewer.outline": "Inhalt",
   "viewer.page": "Seite",
+  "viewer.pageKeys": "Pfeil nach links, Pfeil nach rechts, Bild auf und Bild ab blättern, Pos1 und Ende springen zur ersten und letzten Seite.",
   "viewer.pageOf": "von {{count}}",
   "viewer.previousPage": "Vorherige Seite",
   "viewer.tools": "Werkzeuge",

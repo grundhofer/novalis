@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import de from "../../../../../i18n/de.json";
+import en from "../../../../../i18n/en.json";
 import { useUi } from "../stores/ui";
 import PdfViewer from "./PdfViewer";
 
@@ -291,9 +293,12 @@ describe("PdfViewer", () => {
     render(<PdfViewer bytes={new Uint8Array([1])} name="Reiseplan" />);
     await flush();
 
-    // The pane is a region named after the file and says which keys it takes.
+    // The pane is a region named after the file and says which keys it takes
+    // in a description, not in aria-keyshortcuts (NV-O10, ADR-0051 #85).
     const pane = screen.getByRole("region", { name: "Reiseplan" });
-    expect(pane.getAttribute("aria-keyshortcuts")).toBe("ArrowLeft ArrowRight PageUp PageDown Home End");
+    expect(pane.getAttribute("aria-description")).toBe("viewer.pageKeys");
+    expect(pane.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(pane.hasAttribute("data-sb-own-shortcut")).toBe(false);
 
     // sebaro's reader (spec/02 §4.25.3, D104 (5)–(7)): its row over the
     // document, the page on the view's sunken ground.
@@ -309,10 +314,13 @@ describe("PdfViewer", () => {
       expect(tool.className).toBe("sb-icon-button sb-icon-button--compact");
       const tip = document.getElementById(tool.getAttribute("aria-describedby") ?? "");
       expect(tip?.getAttribute("role")).toBe("tooltip");
+      // No tool names a key, not even the step tools: on a tool the arrows
+      // move through the row (ADR-0051 #80, #85).
+      expect(tip?.querySelector(".sb-keys")).toBeNull();
       return [tool.querySelector("use")?.getAttribute("href"), tool.getAttribute("aria-keyshortcuts")];
     };
-    expect(icons("viewer.previousPage")).toEqual(["#chevron-left", "ArrowLeft"]);
-    expect(icons("viewer.nextPage")).toEqual(["#chevron-right", "ArrowRight"]);
+    expect(icons("viewer.previousPage")).toEqual(["#chevron-left", null]);
+    expect(icons("viewer.nextPage")).toEqual(["#chevron-right", null]);
     expect(icons("viewer.zoomOut")).toEqual(["#zoom-out", null]);
     expect(icons("viewer.zoomIn")).toEqual(["#zoom-in", null]);
     expect(icons("viewer.fitWidth")).toEqual(["#zoom-fit", null]);
@@ -348,6 +356,16 @@ describe("PdfViewer", () => {
       "viewer.zoomIn",
       "viewer.fitWidth",
     ]);
+  });
+
+  // NV-O10: the description speaks the keys with spec/07 §4.8's words, the
+  // ones `Keys` speaks in a tooltip.
+  it("names its keys with the catalog's key words", () => {
+    for (const catalog of [de, en]) {
+      for (const word of ["keys.left", "keys.right", "keys.pageUp", "keys.pageDown", "keys.home", "keys.end"] as const) {
+        expect(catalog["viewer.pageKeys"]).toContain(catalog[word]);
+      }
+    }
   });
 
   // ZUG-09: at „Seitenbreite“ the page fits the scroller's content box —

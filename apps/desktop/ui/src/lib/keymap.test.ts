@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   ariaKeyshortcutsOf,
-  ariaKeyshortcutsOfScope,
   bindingFor,
   chordOf,
   commandForChord,
   fieldKeeps,
   glyphsOf,
   isOwnChord,
+  KEYMAP,
   SEBARO_FIXED,
 } from "./keymap";
 
@@ -94,9 +94,21 @@ describe("the keymap (docs/KEYMAP.md)", () => {
     expect(ariaKeyshortcutsOf("Ctrl+Cmd+S")).toBe("Control+Meta+S");
     expect(ariaKeyshortcutsOf("Left")).toBe("ArrowLeft");
     expect(ariaKeyshortcutsOf("Ctrl+Cmd+Up")).toBe("Control+Meta+ArrowUp");
-    expect(ariaKeyshortcutsOfScope("viewer")).toBe("ArrowLeft ArrowRight PageUp PageDown Home End");
     // The keymap's Backspace is ⌫, which `KeyboardEvent.key` calls so too.
     expect(ariaKeyshortcutsOf("Cmd+Backspace")).toBe("Meta+Backspace");
+  });
+
+  // The PDF pane names these six in one sentence, `viewer.pageKeys`
+  // (ADR-0051 #85): a new `viewer` row has to go into that sentence too.
+  it("gives the PDF pane exactly the six keys its description names", () => {
+    expect(KEYMAP.filter((binding) => binding.scope === "viewer").map((binding) => binding.chord)).toEqual([
+      "Left",
+      "Right",
+      "PageUp",
+      "PageDown",
+      "Home",
+      "End",
+    ]);
   });
 
   // spec/02 §4.19: sebaro's 15 fixed rows; any other chord a control

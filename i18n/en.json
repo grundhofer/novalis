@@ -479,6 +479,7 @@
   "viewer.nextPage": "Next page",
   "viewer.outline": "Contents",
   "viewer.page": "Page",
+  "viewer.pageKeys": "Left arrow, Right arrow, Page Up and Page Down turn the page, Home and End jump to the first and last page.",
   "viewer.pageOf": "of {{count}}",
   "viewer.previousPage": "Previous page",
   "viewer.tools": "Tools",

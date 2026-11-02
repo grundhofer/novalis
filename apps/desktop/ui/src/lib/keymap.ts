@@ -300,16 +300,6 @@ export function ariaKeyshortcutsOf(chord: string): string {
     .join("+");
 }
 
-/**
- * Every chord of a scope, as one `aria-keyshortcuts` value: the PDF pane
- * announces the `viewer` rows of docs/KEYMAP.md it handles.
- */
-export function ariaKeyshortcutsOfScope(scope: Binding["scope"]): string {
-  return KEYMAP.filter((binding) => binding.scope === scope)
-    .map((binding) => ariaKeyshortcutsOf(binding.chord))
-    .join(" ");
-}
-
 // A command with two chords (the palette, Back, Forward; ADR-0051) shows its first one.
 const BY_COMMAND = new Map<string, Binding>();
 for (const binding of KEYMAP) if (!BY_COMMAND.has(binding.command)) BY_COMMAND.set(binding.command, binding);
