@@ -16,7 +16,7 @@ thiserror.workspace = true
 chrono = { version = "0.4.45", default-features = false, features = ["std"] }
 libc = "0.2.189"
 regex = "1.13.1"
-rusqlite = { version = "0.40.2", features = ["bundled"] }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
 sha2 = "0.11.0"
 trash = "5.2.7"
 # ULID without `std`: the random half comes from /dev/urandom via std, so no
