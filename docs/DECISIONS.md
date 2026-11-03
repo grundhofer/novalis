@@ -967,6 +967,11 @@ After the export of sebaroDesign 09d3047 (verbatim in ADR-0051, amendment
 - the export command in CLAUDE.md names `--from-commit` and the exclusion
   list as a placeholder (no ADR point; `docs/sebaro-umbau.md` §12)
 
+The Help menu (verbatim in ADR-0051, amendment 2026-11-03, the Help menu,
+#89):
+- Help keeps only the macOS search field; no „Tastaturkürzel“, no „Fakten
+  und Prüfungen“, a departure from sebaro's D102 (8) (#89)
+
 Recorded as amendments to **ADR-0051**.
 
 ## Open items after the week-1 scaffold (2026-09-05)
