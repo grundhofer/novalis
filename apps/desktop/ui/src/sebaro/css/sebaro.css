@@ -3682,14 +3682,17 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
 }
 .sb-doc-bar[hidden] { display: none; }
 .sb-doc-bar > .sb-field { flex: 1 1 12rem; min-inline-size: 0; }
+.sb-find-bar .sb-doc-bar > .sb-field:not(.sb-field--number) { flex-basis: 10rem; }
+.sb-doc-bar__group { display: inline-flex; flex: none; align-items: center; gap: inherit; }   /* tools that wrap together (the find bar's previous / next) */
 .sb-doc-bar > .sb-field--number { flex: 0 1 auto; min-inline-size: 0; }
 .sb-doc-bar__count {   /* „Treffer 2 von 5“, „Kein Treffer“: words, not a number alone (spec/02 §3.1b) */
   font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted);
   font-variant-numeric: var(--sb-type-numeric-variant);
 }
-/* Keep the same count slot before and after typing, in editor and preview. The reserved line also survives
-   200 % text; counts use one line, so their wording cannot move the tools to another row. */
-.sb-find-bar .sb-doc-bar__count { flex: 0 0 auto; inline-size: 14em; max-inline-size: 100%; min-block-size: 1lh; white-space: nowrap; }
+/* Keep the same count slot before and after typing, in editor and preview: 9em holds „Treffer 12 von 345“ in one
+   line (a longer count widens it); the find field starts at 10rem so field, count, the two arrows and close share one
+   row at 480 px; the arrows wrap as one group (CHECKS §56; provisional, agent) */
+.sb-find-bar .sb-doc-bar__count { flex: 0 0 auto; min-inline-size: 9em; max-inline-size: 100%; min-block-size: 1lh; white-space: nowrap; }
 .sb-find-bar .sb-doc-bar__count:empty { visibility: hidden; }
 .sb-doc-bar__value {   /* the reader's zoom „100 %“ between minus and plus (LE-3) */
   min-inline-size: 4em; text-align: center; font: var(--sb-type-label); letter-spacing: var(--sb-type-label-tracking);
