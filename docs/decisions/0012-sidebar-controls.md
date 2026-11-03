@@ -147,3 +147,12 @@ place line and the filled `settings` icon, NAV-01) and it announces `Cmd+,`.
 view is no second window, and `Cmd+,` opens it. The palette keeps its
 settings rows as a second way (DSK-05), and the palette's settings-only mode
 is gone. Owner's yes: „Ansicht mit ⌘, (Empfohlen)“ (ADR-0051).
+
+**Amended 2026-11-02** — ADR-0051 #82 (sebaro D104 (36)): the head keeps two
+of the three controls, New Folder and the board tool. New Note leaves the
+head; it is only the action zone's primary action (D74), which already fired
+`file.newNote` with `Cmd+N`. D74 puts that zone across the whole window with
+the action at its right end; ADR-0051 #82's "under the tree" means this zone,
+not a second button below the tree. The chord, the File menu item, the palette and
+the tree's context menu are unchanged. Owner's yes: „Nach D104 (36)
+(Empfohlen)“ (ADR-0051).

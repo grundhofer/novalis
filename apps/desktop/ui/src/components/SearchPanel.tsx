@@ -13,7 +13,7 @@ import {
 } from "../ipc/client";
 import { literalRanges, regexRanges } from "../lib/matchRanges";
 import { openAt } from "../lib/openAt";
-import { folderOf } from "../lib/paths";
+import { fileNameOf, folderOf, isNote, stemOf } from "../lib/paths";
 import { useFiles } from "../stores/files";
 import { report as reportError, useUi } from "../stores/ui";
 import "../styles/overlay.css";
@@ -21,7 +21,7 @@ import { FileName } from "./FileName";
 import Icon from "./Icon";
 import Marked from "./Marked";
 import SuggestField from "./SuggestField";
-import { PaletteFoot, step, usePaletteFrame } from "./PaletteFrame";
+import { step, usePaletteFrame } from "./PaletteFrame";
 import { WAIT_MS } from "./Prompt";
 import Tool from "./Tool";
 
@@ -33,10 +33,12 @@ import Tool from "./Tool";
  * first results on a 10k-note vault). Starting a new search supersedes the old
  * one in the shell; there is nothing to cancel here.
  *
- * A hit opens at its line (the §4.3 "per place, jump to the line"), the
- * arrows and Enter walk the results as in the palette, and the part of the
- * snippet that matched is marked. The folder filter narrows by path prefix,
- * as the tag filter narrows by tag; the core and the CLI had both already.
+ * The hits are listed a row per note (ADR-0051 #84, D104 (1)); a row opens
+ * its note at the first matching line (the §4.3 "per place, jump to the
+ * line"), the arrows and Enter walk the notes as in the palette, and the
+ * part of the snippet that matched is marked. The folder filter narrows by
+ * path prefix, as the tag filter narrows by tag; the core and the CLI had
+ * both already.
  * The fields take text as typed: macOS autocorrection capitalised a query
  * and held the arrow keys and Enter while its suggestion was up.
  *
@@ -47,16 +49,37 @@ import Tool from "./Tool";
  * `data-sb-search-option`, EIN-04; 32 px in the window's density, D104
  * (2)) and the filters as compact fields with their labels (EIN-01) that
  * suggest the vault's tags and folders (./SuggestField, NV-M12),
- * „Filter zurücksetzen“ as a compact text action (AKT-06), the hits as
- * two-line window rows (`__main`: the snippet as `__name` with the matched
- * part marked, `sb-mark`, FAR-12, and its path as `__sub`), and the counts
- * in the foot. Searching is local work: the list is `aria-busy` while it
- * runs, and „Suche läuft …“ stands in its place only once it has taken a
- * second without a hit (STA-06, D104 (4)).
+ * „Filter zurücksetzen“ as a compact text action (AKT-06), the notes under
+ * the group head „3 Notizen“ as three-line rows (`__icon` file-text, then
+ * `__main`: the note's name as `__name`, its folder as `__sub` and the
+ * snippet of its first match as `__text`, the matched part marked,
+ * `sb-mark`, FAR-12), and the foot as a sentence in a status region,
+ * „5 Treffer in 3 Notizen.“, said once the search has ended. Searching is
+ * local work: the list is `aria-busy` while it runs, and „Suche läuft …“
+ * stands in its place only once it has taken a second without a hit
+ * (STA-06, D104 (4)).
  */
 
 const DEBOUNCE_MS = 180;
 const MAX_RESULTS = 400;
+
+/** A note with hits and its first match. */
+type NoteHits = { path: string; first: SearchHitDto };
+
+/**
+ * The hits a note at a time, in the order the notes first arrived, so a
+ * batch streaming in never moves the active row. The core sends a file's
+ * lines in order; the lowest line is kept all the same.
+ */
+function byNote(hits: readonly SearchHitDto[]): NoteHits[] {
+  const notes = new Map<string, NoteHits>();
+  for (const hit of hits) {
+    const note = notes.get(hit.path);
+    if (!note) notes.set(hit.path, { path: hit.path, first: hit });
+    else if (hit.line < note.first.line) note.first = hit;
+  }
+  return [...notes.values()];
+}
 
 export default function SearchPanel() {
   const { t } = useTranslation();
@@ -85,6 +108,7 @@ export default function SearchPanel() {
   const [tags, setTags] = useState<TagCountDto[]>([]);
   const tagNames = useMemo(() => tags.map((entry) => entry.tag), [tags]);
   const [hits, setHits] = useState<SearchHitDto[]>([]);
+  const notes = useMemo(() => byNote(hits), [hits]);
   const [report, setReport] = useState<SearchReportDto | null>(null);
   // What the last search looked for, for the sentence when it found nothing.
   const [searched, setSearched] = useState("");
@@ -92,6 +116,8 @@ export default function SearchPanel() {
   // the scan to what the tree lists before the core counts its limit, so
   // every hit that arrives here opens.
   const allFiles = useUi((s) => s.searchAllFiles);
+  // The toggle the shown hits were found with, for their count's noun.
+  const [searchedAll, setSearchedAll] = useState(false);
   const [running, setRunning] = useState(false);
   // The search has run a second without a hit (STA-06, spec/07 §4.5).
   const [slow, setSlow] = useState(false);
@@ -126,6 +152,7 @@ export default function SearchPanel() {
     setRunning(true);
     setSlow(false);
     setSearched(query.trim());
+    setSearchedAll(allFiles);
     const timer = setTimeout(() => {
       if (latest.current === mine) setSlow(true);
     }, WAIT_MS);
@@ -135,6 +162,9 @@ export default function SearchPanel() {
     setIndex(0);
     const channel = new Channel<SearchEventDto>();
     channel.onmessage = (event) => {
+      // A superseded run's last batch and its report still arrive: they
+      // must not count in this run's notes or its sentence.
+      if (latest.current !== mine) return;
       if (event.kind === "hits") {
         setHits((current) =>
           current.length >= MAX_RESULTS ? current : [...current, ...event.hits].slice(0, MAX_RESULTS),
@@ -177,10 +207,10 @@ export default function SearchPanel() {
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
   }, [index]);
 
-  const open = (hit: SearchHitDto | undefined) => {
-    if (!hit) return;
+  const open = (note: NoteHits | undefined) => {
+    if (!note) return;
     dismiss();
-    openAt(hit.path, { line: hit.line, snippet: hit.snippet });
+    openAt(note.path, { line: note.first.line, snippet: note.first.snippet });
   };
 
   const rangesOf = (snippet: string) =>
@@ -202,6 +232,22 @@ export default function SearchPanel() {
           ? t(allFiles ? "editor.search.noFile" : "editor.search.noNote", { query: searched })
           : "";
 
+  // The foot says how many matches in how many notes once the search has
+  // ended, nothing while it runs (D104 (1)), then what it skipped.
+  const counted = t(searchedAll ? "editor.search.files" : "editor.search.notes", { count: notes.length });
+  const foot = report
+    ? [
+        report.matches > 0
+          ? t("editor.search.summary", { matches: t("editor.search.results", { count: report.matches }), notes: counted })
+          : "",
+        report.cloudOnlySkipped > 0 ? t("editor.search.cloudOnlySkipped", { count: report.cloudOnlySkipped }) : "",
+        report.notUtf8Skipped > 0 ? t("editor.search.notUtf8Skipped", { count: report.notUtf8Skipped }) : "",
+        report.truncated ? t("editor.search.truncated", { count: MAX_RESULTS }) : "",
+      ]
+        .filter((sentence) => sentence !== "")
+        .join(" ")
+    : "";
+
   return (
     <dialog
       className="sb-command-palette"
@@ -218,7 +264,7 @@ export default function SearchPanel() {
           aria-expanded="true"
           aria-controls={`${id}-list`}
           aria-autocomplete="list"
-          aria-activedescendant={hits[index] ? optionId(index) : undefined}
+          aria-activedescendant={notes[index] ? optionId(index) : undefined}
           aria-label={placeholder}
           autoComplete="off"
           autoCorrect="off"
@@ -231,10 +277,10 @@ export default function SearchPanel() {
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              open(hits[index]);
+              open(notes[index]);
             } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
               event.preventDefault();
-              setIndex((i) => step(i, hits.length, event.key === "ArrowUp"));
+              setIndex((i) => step(i, notes.length, event.key === "ArrowUp"));
             }
           }}
         />
@@ -315,7 +361,7 @@ export default function SearchPanel() {
         )}
       </div>
 
-      {/* A press on a hit keeps the focus in the field (§4.16). */}
+      {/* A press on a note keeps the focus in the field (§4.16). */}
       <div
         className="sb-command-palette__list"
         id={`${id}-list`}
@@ -325,44 +371,58 @@ export default function SearchPanel() {
         ref={list}
         onMouseDown={(event) => event.preventDefault()}
       >
-        {hits.map((hit, position) => (
-          <div
-            className="sb-row"
-            role="option"
-            id={optionId(position)}
-            aria-selected={position === index}
-            key={`${hit.path}:${hit.line}`}
-            onClick={() => open(hit)}
-          >
-            <span className="sb-row__check" aria-hidden="true" />
-            <span className="sb-row__main">
-              <span className="sb-row__name">
-                {/* The core marks a cut start with „…“ in the text and a cut
-                    end only in the flag; the row wraps, so the cut shows
-                    (ADR-0051 #24). */}
-                <Marked text={hit.snippetCutEnd ? `${hit.snippet}…` : hit.snippet} ranges={rangesOf(hit.snippet)} />
-              </span>
-              <span className="sb-row__sub">
-                <FileName name={hit.path} />
-              </span>
-            </span>
+        {notes.length > 0 && (
+          <div className="sb-command-palette__section">
+            <div className="sb-command-palette__group" id={`${id}-g0`}>
+              {counted}
+            </div>
+            <div role="group" aria-labelledby={`${id}-g0`}>
+              {notes.map((note, position) => {
+                const folder = folderOf(note.path);
+                const { snippet, snippetCutEnd } = note.first;
+                return (
+                  <div
+                    className="sb-row"
+                    role="option"
+                    id={optionId(position)}
+                    aria-selected={position === index}
+                    key={note.path}
+                    onClick={() => open(note)}
+                  >
+                    <Icon name="file-text" size={20} className="sb-row__icon" />
+                    <span className="sb-row__main">
+                      <span className="sb-row__name">
+                        <FileName name={isNote(note.path) ? stemOf(note.path) : fileNameOf(note.path)} />
+                      </span>
+                      {/* A note at the vault's top names no folder, as in Quick Open. */}
+                      {folder && (
+                        <span className="sb-row__sub">
+                          <FileName name={folder} />
+                        </span>
+                      )}
+                      <span className="sb-row__text">
+                        {/* The core marks a cut start with „…“ in the text and
+                            a cut end only in the flag; the row wraps, so the
+                            cut shows (ADR-0051 #24). */}
+                        <Marked text={snippetCutEnd ? `${snippet}…` : snippet} ranges={rangesOf(snippet)} />
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        ))}
+        )}
       </div>
       <p className="sb-command-palette__empty" role="status">
         {empty}
       </p>
 
-      <PaletteFoot verbKey="palette.foot.open">
-        {report && <span>{t("editor.search.results", { count: report.matches })}</span>}
-        {report && report.cloudOnlySkipped > 0 && (
-          <span>{t("editor.search.cloudOnlySkipped", { count: report.cloudOnlySkipped })}</span>
-        )}
-        {report && report.notUtf8Skipped > 0 && (
-          <span>{t("editor.search.notUtf8Skipped", { count: report.notUtf8Skipped })}</span>
-        )}
-        {report?.truncated && <span>{t("editor.search.truncated", { count: MAX_RESULTS })}</span>}
-      </PaletteFoot>
+      {/* sebaro's foot of a full-text search: the sentence alone, without
+          the palette's key hints (spec/02 §4.25.1). */}
+      <p className="sb-command-palette__foot" role="status">
+        {foot}
+      </p>
     </dialog>
   );
 }

@@ -91,6 +91,17 @@
   min-block-size: var(--sb-size-target-touch);
   font: var(--sb-type-body); letter-spacing: var(--sb-type-body-tracking);
 }
+/* an optional leading icon, as a list row's __lead (spec/02 §2.6): 24 px, text-muted, aria-hidden; the label after it
+   takes the room, so the switch stays at the end; the start side mirrors in RTL with the flex row. Once a word of the
+   label would break beside the switch, sb-fit.js sets data-sb-fit="stack" (measured, §45.5): the label takes the line
+   beside the icon and the switch wraps to a line of its own, at the end. Without the script the switch wraps where the
+   label would keep less than about six characters (6em) */
+.sb-switch-row:has(> .sb-switch-row__lead) { flex-wrap: wrap; row-gap: var(--sb-space-1); }
+.sb-switch-row__lead { flex: none; display: flex; color: var(--sb-color-text-muted); }
+.sb-switch-row__lead + * { flex: 1 1 0; min-inline-size: 0; }
+:root:not([data-sb-fit-ready]) .sb-switch-row__lead + * { flex-basis: 6em; }
+.sb-switch-row[data-sb-fit="stack"] > .sb-switch-row__lead + * { flex-basis: calc(100% - var(--sb-size-icon-lg) - var(--sb-space-3)); }
+.sb-switch-row__lead ~ .sb-switch { margin-inline-start: auto; }
 .sb-switch {
   position: relative; flex: none; inline-size: 52px; block-size: var(--sb-size-target-touch); margin: 0; padding: 0;
   border: 0; border-radius: var(--sb-radius-pill); background: transparent; color: var(--sb-color-on-accent); cursor: pointer;

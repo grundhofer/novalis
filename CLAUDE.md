@@ -62,7 +62,7 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 | `Cargo.lock`, `pnpm-lock.yaml` | `cargo update -p <crate>`, `pnpm install`. A new top-level entry needs an ADR; CI (`lockfile-adr-check.mjs`) refuses it otherwise |
 | `apps/desktop/src-tauri/gen/schemas/` | Tauri CLI on every build; git-ignored |
 | `crates/novalis-cli/tests/**/*.golden` | `UPDATE_GOLDEN=1 just test-cli` |
-| `apps/desktop/ui/src/sebaro/` | sebaroDesign's `python3 <sebaroDesign>/tools/export_system.py sebaro --target tauri --out apps/desktop/ui/src/sebaro --product novalis`; `scripts/check-sebaro-export.mjs` (in `just check` and CI) holds every file to the sha256 in its `sebaro-export.json` and refuses unlisted files (ADR-0051 #37) |
+| `apps/desktop/ui/src/sebaro/` | sebaroDesign's `PYTHONDONTWRITEBYTECODE=1 python3 -B <sebaroDesign>/tools/export_system.py sebaro --target tauri --out apps/desktop/ui/src/sebaro --product novalis --from-commit <rev> --exclude-products <private exclusion list>` (`--verify apps/desktop/ui/src/sebaro` with the same `--from-commit` and list compares the folder with its sources); `scripts/check-sebaro-export.mjs` (in `just check` and CI) holds every file to the sha256 in its `sebaro-export.json` and refuses unlisted files (ADR-0051 #37) |
 | `THIRD-PARTY-NOTICES.md` | generated from the lockfiles (`PLAN.md` §11.6) |
 | UI ⇄ Rust IPC bindings, `apps/desktop/ui/src/lib/fileTypes.generated.ts` | the desktop crate's export command (`cargo run -p novalis-desktop --example gen_bindings`); CI diffs both |
 

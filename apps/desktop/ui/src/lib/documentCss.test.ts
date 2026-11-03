@@ -33,6 +33,15 @@ describe("the dress of a book chapter and a Word document", () => {
     expect(DOCUMENT_CSS).not.toContain("1.6em");
   });
 
+  // ADR-0051 #88: sebaro's markers (`.sb-prose ul:not([class])` and the list
+  // in a list), so a list three deep shows a circle as in the preview, not
+  // WebKit's square. No `ol` rule: it would override a book's `type`.
+  it("marks lists as sebaro does", () => {
+    expect(DOCUMENT_CSS).toContain("\nul { list-style-type: disc; }");
+    expect(DOCUMENT_CSS).toContain("\n:is(ul, ol) ul { list-style-type: circle; }");
+    expect(DOCUMENT_CSS.match(/list-style/g)).toHaveLength(2);
+  });
+
   // DAT-05: a cell's own paragraphs (mammoth writes each cell's text in a
   // <p>) take no stack margin at the cell's edges, so the row is even.
   it("takes the stack margin off a cell's first and last block", () => {

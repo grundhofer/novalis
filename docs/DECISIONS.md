@@ -945,6 +945,33 @@ amendment 2026-11-02, #78–#80):
 - accepted afterwards: the pressed switch's word rises 1 px at 200 % (#78);
   on a PDF tool the arrows move between tools, not pages (#80)
 
+Then sebaro's six open questions (ADR-0051, amendment 2026-11-02, #81–#86):
+- ⌘+ / ⌘− in a reader change the font size, no zoom (#81, as built)
+- the sidebar head keeps New folder and Board; New note only under the tree (#82)
+- the editor's find bar counts „Match n of m“ (#83)
+- the vault search shows a row per note, „5 matches in 3 notes.“ (#84)
+- the PDF pane names its keys in a description and the keyboard help (#85)
+- backlinks stay under the editor, no inspector (#86, as built)
+- accepted afterwards: the editor counts „5 matches“ while none is selected
+  (#83); the PDF names its keys in a description only, no keyboard help (#85)
+
+Recorded as amendments to **ADR-0051**.
+
+## Answered 2026-11-03
+
+After the export of sebaroDesign 09d3047 (verbatim in ADR-0051, amendment
+2026-11-03, #87–#88):
+- the eager CSS budget is raised a little, to 35 kB gzip (#87)
+- the EPUB and DOCX readers mark lists as sebaro does: a disc, a circle in a
+  list inside a list (#88)
+- the export command in CLAUDE.md names `--from-commit` and the exclusion
+  list as a placeholder (no ADR point; `docs/sebaro-umbau.md` §12)
+
+The Help menu (verbatim in ADR-0051, amendment 2026-11-03, the Help menu,
+#89):
+- Help keeps only the macOS search field; no „Tastaturkürzel“, no „Fakten
+  und Prüfungen“, a departure from sebaro's D102 (8) (#89)
+
 Recorded as amendments to **ADR-0051**.
 
 ## Open items after the week-1 scaffold (2026-09-05)

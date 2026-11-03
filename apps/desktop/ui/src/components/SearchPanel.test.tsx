@@ -10,8 +10,12 @@ import SearchPanel from "./SearchPanel";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, vars?: { count?: number }) =>
-      vars?.count === undefined ? key : `${key}=${vars.count}`,
+    t: (key: string, vars?: { count?: number; matches?: string; notes?: string }) =>
+      vars?.matches !== undefined
+        ? `${key}[${vars.matches}|${vars.notes}]`
+        : vars?.count === undefined
+          ? key
+          : `${key}=${vars.count}`,
   }),
 }));
 
@@ -48,19 +52,33 @@ beforeAll(() => {
   });
 });
 
-/** The results' text, whatever the marks split it into. */
+/** The notes' names, whatever the breaks split them into. */
 const labels = () => [...document.querySelectorAll("[role=option] .sb-row__name")].map((label) => label.textContent);
+const foot = () => document.querySelector(".sb-command-palette__foot")!;
+const sentence = () => document.querySelector(".sb-command-palette__empty")!;
 // The filters with their suggestions are comboboxes too (SuggestField).
 const field = () => screen.getByRole("combobox", { name: "editor.search.placeholder" });
 
 /** A search answered with `hits`, as the shell streams them. */
-function answer(hits: { path: string; line: number; snippet: string; snippetCutEnd?: boolean }[]) {
+function answer(hits: { path: string; line: number; snippet: string; snippetCutEnd?: boolean }[], report = REPORT) {
   vi.mocked(commands.search).mockImplementation(async (_query, channel) => {
     const box = channel as unknown as { onmessage: (event: SearchEventDto) => void };
     box.onmessage({ kind: "hits", hits: hits.map((hit) => ({ snippetCutEnd: false, ...hit })) });
-    box.onmessage({ kind: "done", report: REPORT });
-    return { status: "ok", data: REPORT };
+    box.onmessage({ kind: "done", report });
+    return { status: "ok", data: report };
   });
+}
+
+type Box = { onmessage: (event: SearchEventDto) => void };
+
+/** Searches that stay open: each call's channel, for the test to stream into. */
+function hold(): Box[] {
+  const boxes: Box[] = [];
+  vi.mocked(commands.search).mockImplementation((_query, channel) => {
+    boxes.push(channel as unknown as Box);
+    return new Promise(() => undefined);
+  });
+  return boxes;
 }
 
 const REPORT = { scanned: 3, cloudOnlySkipped: 0, notUtf8Skipped: 2, matches: 2, truncated: false, cancelled: false };
@@ -95,9 +113,12 @@ describe("SearchPanel", () => {
     await settle();
 
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ query: "needle", allFiles: true });
-    expect(labels()).toEqual(["needle in a note", "needle in Go"]);
-    expect(screen.getByText("editor.search.results=2")).toBeTruthy();
-    expect(screen.getByText("editor.search.notUtf8Skipped=2")).toBeTruthy();
+    // A note by its name, any other file with its extension, as Quick Open.
+    expect(labels()).toEqual(["a", "main.go"]);
+    expect(document.querySelector(".sb-command-palette__group")?.textContent).toBe("editor.search.files=2");
+    expect(foot().textContent).toBe(
+      "editor.search.summary[editor.search.results=2|editor.search.files=2] editor.search.notUtf8Skipped=2",
+    );
     expect(useUi.getState().searchAllFiles).toBe(true);
   });
 
@@ -114,24 +135,49 @@ describe("SearchPanel", () => {
     expect(vi.mocked(commands.search).mock.calls.at(-1)?.[0]).toMatchObject({ allFiles: true });
   });
 
-  // docs/research/2026-09-20-feature-gaps.md A3/A12/A29/A13.
-  it("opens a hit at its line", async () => {
-    answer([{ path: "notes/a.md", line: 12, snippet: "the needle" }]);
+  // ADR-0051 #84, D104 (1): a row per note, in the order the notes arrive.
+  it("groups the hits per note in the order they arrive", async () => {
+    answer([
+      { path: "a.md", line: 3, snippet: "needle three" },
+      { path: "b.md", line: 1, snippet: "needle one" },
+      { path: "a.md", line: 9, snippet: "needle nine" },
+    ]);
+    render(<SearchPanel />);
+    fireEvent.change(field(), { target: { value: "needle" } });
+    await settle();
+
+    expect(labels()).toEqual(["a", "b"]);
+    expect(document.querySelector("[role=option] .sb-row__text")?.textContent).toBe("needle three");
+    const head = document.querySelector(".sb-command-palette__group")!;
+    expect(head.textContent).toBe("editor.search.notes=2");
+    expect(head.parentElement?.className).toBe("sb-command-palette__section");
+    const group = screen.getByRole("group", { name: "editor.search.notes=2" });
+    expect(group.getAttribute("aria-labelledby")).toBe(head.id);
+    expect(group.querySelectorAll("[role=option]")).toHaveLength(2);
+  });
+
+  // docs/research/2026-09-20-feature-gaps.md A3/A12/A29/A13; ADR-0051 #84.
+  it("opens a note at its first match", async () => {
+    answer([
+      { path: "notes/a.md", line: 9, snippet: "the needle again" },
+      { path: "notes/a.md", line: 3, snippet: "the needle" },
+    ]);
     render(<SearchPanel />);
     fireEvent.change(screen.getByPlaceholderText("editor.search.placeholder"), { target: { value: "needle" } });
     await settle();
 
-    fireEvent.click(screen.getByText("needle"));
+    fireEvent.click(screen.getByRole("option"));
     expect(useTabs.getState().open).toHaveBeenCalledWith("notes/a.md");
     // Parked for the editor that mounts for the tab (the backlinks' way).
-    expect(takeDeferredLine()).toEqual({ line: 12, snippet: "the needle" });
+    expect(takeDeferredLine()).toEqual({ line: 3, snippet: "the needle" });
     expect(useUi.getState().overlay.kind).toBe("none");
     deferLine(null);
   });
 
-  it("walks the results with the arrows and opens one with Enter", async () => {
+  it("walks the notes with the arrows and opens one with Enter", async () => {
     answer([
       { path: "a.md", line: 1, snippet: "needle one" },
+      { path: "a.md", line: 5, snippet: "needle five" },
       { path: "b.md", line: 2, snippet: "needle two" },
     ]);
     render(<SearchPanel />);
@@ -139,18 +185,45 @@ describe("SearchPanel", () => {
     fireEvent.change(field, { target: { value: "needle" } });
     await settle();
 
-    const active = () => document.querySelector('[role=option][aria-selected="true"] .sb-row__name')?.textContent;
-    expect(active()).toBe("needle one");
+    const selected = () => document.querySelector('[role=option][aria-selected="true"]');
+    const active = () => selected()?.querySelector(".sb-row__name")?.textContent;
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(active()).toBe("a");
     fireEvent.keyDown(field, { key: "ArrowDown" });
-    expect(active()).toBe("needle two");
+    expect(active()).toBe("b");
+    expect(field.getAttribute("aria-activedescendant")).toBe(selected()?.id);
     // Round, as sebaro's palette (spec/02 §4.16).
     fireEvent.keyDown(field, { key: "ArrowDown" });
-    expect(active()).toBe("needle one");
+    expect(active()).toBe("a");
     fireEvent.keyDown(field, { key: "ArrowUp" });
-    expect(active()).toBe("needle two");
+    expect(active()).toBe("b");
     fireEvent.keyDown(field, { key: "Enter" });
     expect(useTabs.getState().open).toHaveBeenCalledWith("b.md");
+    expect(takeDeferredLine()).toEqual({ line: 2, snippet: "needle two" });
     deferLine(null);
+  });
+
+  // A search that a newer one superseded still sends its last batch and its
+  // report; neither belongs to the newer search.
+  it("ignores a superseded search's late batch and report", async () => {
+    const boxes = hold();
+    render(<SearchPanel />);
+    fireEvent.change(field(), { target: { value: "needle" } });
+    await settle();
+    fireEvent.change(field(), { target: { value: "needles" } });
+    await settle();
+    expect(boxes).toHaveLength(2);
+
+    act(() => {
+      boxes[1]!.onmessage({ kind: "hits", hits: [{ path: "b.md", line: 1, snippet: "needles", snippetCutEnd: false }] });
+      boxes[0]!.onmessage({ kind: "hits", hits: [{ path: "a.md", line: 1, snippet: "needle", snippetCutEnd: false }] });
+      boxes[0]!.onmessage({ kind: "done", report: { ...REPORT, cancelled: true } });
+    });
+    expect(labels()).toEqual(["b"]);
+    expect(foot().textContent).toBe("");
+
+    act(() => boxes[1]!.onmessage({ kind: "done", report: { ...REPORT, matches: 1, notUtf8Skipped: 0 } }));
+    expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.notes=1]");
   });
 
   it("marks what matched: every occurrence, the case flag and a regex", async () => {
@@ -289,22 +362,35 @@ describe("SearchPanel", () => {
       expect(reset.className).toBe("sb-text-action sb-text-action--compact");
     });
 
-    it("lists a hit as a two-line window row, the snippet over its path", async () => {
-      answer([{ path: "notes/q3-plan.md", line: 1, snippet: "the needle" }]);
+    it("lists a note as sebaro's three-line row: name, folder, the match", async () => {
+      answer([
+        { path: "notes/q3-plan.md", line: 1, snippet: "the needle" },
+        { path: "top.md", line: 4, snippet: "a needle" },
+      ]);
       render(<SearchPanel />);
       fireEvent.change(field(), { target: { value: "needle" } });
       await settle();
-      const row = screen.getByRole("option");
-      expect(row.className).toBe("sb-row");
-      expect(row.getAttribute("aria-selected")).toBe("true");
-      expect(field().getAttribute("aria-activedescendant")).toBe(row.id);
-      // spec/02 §4.13: two lines are `__main` with `__name` and `__sub`.
-      const main = row.querySelector(":scope > .sb-row__main")!;
-      expect(main.querySelector(":scope > .sb-row__name")?.textContent).toBe("the needle");
-      const path = main.querySelector(":scope > .sb-row__sub > .sb-file-name")!;
-      expect(path.textContent).toBe("notes/q3-plan.md");
-      expect(path.querySelectorAll("wbr")).toHaveLength(3);
-      expect(row.querySelector(".sb-row__meta")).toBeNull();
+      const [row, top] = screen.getAllByRole("option");
+      expect(row!.className).toBe("sb-row");
+      expect(row!.getAttribute("aria-selected")).toBe("true");
+      expect(field().getAttribute("aria-activedescendant")).toBe(row!.id);
+      // spec/02 §4.25.1: `__icon` file-text, then `__main` with `__name`,
+      // `__sub` (the folder) and `__text` (the match, marked).
+      expect(row!.firstElementChild?.getAttribute("class")).toContain("sb-row__icon");
+      expect(row!.firstElementChild?.querySelector("use")?.getAttribute("href")).toBe("#file-text");
+      expect(row!.querySelector(".sb-row__check")).toBeNull();
+      const main = row!.querySelector(":scope > .sb-row__main")!;
+      const name = main.querySelector(":scope > .sb-row__name > .sb-file-name")!;
+      expect(name.textContent).toBe("q3-plan");
+      expect(name.querySelectorAll("wbr")).toHaveLength(1);
+      expect(main.querySelector(":scope > .sb-row__sub > .sb-file-name")?.textContent).toBe("notes");
+      const text = main.querySelector(":scope > .sb-row__text")!;
+      expect(text.textContent).toBe("the needle");
+      expect(text.querySelector(":scope > mark.sb-mark")?.textContent).toBe("needle");
+      expect(row!.querySelector(".sb-row__meta")).toBeNull();
+      // A note at the vault's top names no folder, as in Quick Open.
+      expect(top!.querySelector(".sb-row__name")?.textContent).toBe("top");
+      expect(top!.querySelector(".sb-row__sub")).toBeNull();
       expect(screen.getByRole("listbox").className).toBe("sb-command-palette__list");
     });
 
@@ -320,8 +406,8 @@ describe("SearchPanel", () => {
       render(<SearchPanel />);
       fireEvent.change(field(), { target: { value: "needle" } });
       await settle();
-      const names = [...document.querySelectorAll("[role=option] .sb-row__name")].map((el) => el.textContent);
-      expect(names).toEqual([`${cut}…`, whole]);
+      const texts = [...document.querySelectorAll("[role=option] .sb-row__text")].map((el) => el.textContent);
+      expect(texts).toEqual([`${cut}…`, whole]);
       expect(document.querySelector("[role=option] mark")?.textContent).toBe("needle");
     });
 
@@ -331,12 +417,11 @@ describe("SearchPanel", () => {
       render(<SearchPanel />);
       fireEvent.change(field(), { target: { value: "needle" } });
       await settle();
-      const status = screen.getByRole("status");
-      expect(status.className).toBe("sb-command-palette__empty");
-      expect(status.textContent).toBe("editor.search.noNote");
+      expect(sentence().getAttribute("role")).toBe("status");
+      expect(sentence().textContent).toBe("editor.search.noNote");
       fireEvent.click(screen.getByRole("button", { name: "editor.search.allFiles" }));
       await settle();
-      expect(screen.getByRole("status").textContent).toBe("editor.search.noFile");
+      expect(sentence().textContent).toBe("editor.search.noFile");
     });
 
     // STA-06: local work is quiet; „Suche läuft …“ only after a second.
@@ -349,17 +434,17 @@ describe("SearchPanel", () => {
         await vi.advanceTimersByTimeAsync(200);
       });
       expect(commands.search).toHaveBeenCalled();
-      expect(screen.getByRole("status").textContent).toBe("");
+      expect(sentence().textContent).toBe("");
       // D104 (4): the list is busy while the search runs.
       expect(screen.getByRole("listbox").getAttribute("aria-busy")).toBe("true");
       await act(async () => {
         await vi.advanceTimersByTimeAsync(900);
       });
-      expect(screen.getByRole("status").textContent).toBe("");
+      expect(sentence().textContent).toBe("");
       await act(async () => {
         await vi.advanceTimersByTimeAsync(200);
       });
-      expect(screen.getByRole("status").textContent).toBe("editor.search.searching");
+      expect(sentence().textContent).toBe("editor.search.searching");
     });
 
     // ZUG-06: Escape closes from any of its fields, the focus goes back.
@@ -378,19 +463,57 @@ describe("SearchPanel", () => {
       }
     });
 
-    it("names the counts in the foot after the keys", async () => {
-      answer([{ path: "a.md", line: 1, snippet: "needle" }]);
+    // spec/02 §4.25.1, ADR-0051 #84: the foot is a sentence and a status,
+    // without the palette's key hints.
+    it("says the counts as sentences in the foot's status region", async () => {
+      answer([{ path: "a.md", line: 1, snippet: "needle" }], { ...REPORT, truncated: true });
       render(<SearchPanel />);
       fireEvent.change(field(), { target: { value: "needle" } });
       await settle();
-      const foot = document.querySelector(".sb-command-palette__foot")!;
-      expect([...foot.querySelectorAll(".sb-keys")].map((k) => k.getAttribute("data-sb-keys"))).toEqual([
-        "Up Down",
-        "Enter",
-        "Escape",
-      ]);
-      expect(foot.textContent).toContain("palette.foot.open");
-      expect(foot.lastElementChild?.textContent).toBe("editor.search.notUtf8Skipped=2");
+      expect(foot().getAttribute("role")).toBe("status");
+      expect(foot().querySelector(".sb-keys")).toBeNull();
+      expect(foot().textContent).toBe(
+        "editor.search.summary[editor.search.results=2|editor.search.notes=1] editor.search.notUtf8Skipped=2 editor.search.truncated=400",
+      );
+    });
+
+    // D104 (1): nothing counts up in the foot while the scan runs; the group
+    // head follows the notes as they arrive.
+    it("says its sentence only once the search has ended", async () => {
+      const boxes = hold();
+      render(<SearchPanel />);
+      fireEvent.change(field(), { target: { value: "needle" } });
+      await settle();
+      act(() => boxes[0]!.onmessage({ kind: "hits", hits: [{ path: "a.md", line: 1, snippet: "needle", snippetCutEnd: false }] }));
+      expect(labels()).toEqual(["a"]);
+      expect(document.querySelector(".sb-command-palette__group")?.textContent).toBe("editor.search.notes=1");
+      expect(foot().textContent).toBe("");
+
+      act(() => boxes[0]!.onmessage({ kind: "done", report: { ...REPORT, matches: 1, notUtf8Skipped: 0 } }));
+      expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.notes=1]");
+    });
+
+    // The count keeps the noun of the search it counts until the next one ends.
+    it("keeps the foot's noun while the toggle waits for its search", async () => {
+      answer([{ path: "a.md", line: 1, snippet: "needle" }], { ...REPORT, matches: 1, notUtf8Skipped: 0 });
+      render(<SearchPanel />);
+      fireEvent.change(field(), { target: { value: "needle" } });
+      await settle();
+      fireEvent.click(screen.getByRole("button", { name: "editor.search.allFiles" }));
+      expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.notes=1]");
+      expect(document.querySelector(".sb-command-palette__group")?.textContent).toBe("editor.search.notes=1");
+      await settle();
+      expect(foot().textContent).toBe("editor.search.summary[editor.search.results=1|editor.search.files=1]");
+    });
+
+    it("says nothing about 0 matches in the foot, only what it skipped", async () => {
+      answer([], { ...REPORT, matches: 0 });
+      render(<SearchPanel />);
+      fireEvent.change(field(), { target: { value: "needle" } });
+      await settle();
+      expect(sentence().textContent).toBe("editor.search.noNote");
+      expect(document.querySelector(".sb-command-palette__group")).toBeNull();
+      expect(foot().textContent).toBe("editor.search.notUtf8Skipped=2");
     });
   });
 });

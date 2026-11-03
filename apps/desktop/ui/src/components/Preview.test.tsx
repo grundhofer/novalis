@@ -622,6 +622,12 @@ describe("Preview", () => {
       "editor.find.close",
     ]);
     for (const tool of tools) expect(tool.className).toBe("sb-icon-button sb-icon-button--compact");
+    // spec/02 §4.25.2 (sebaro f36b8f0): previous and next sit in one group, so
+    // they wrap together.
+    const groups = bar.querySelectorAll(":scope > [data-sb-find-row=find] > span.sb-doc-bar__group");
+    expect(groups).toHaveLength(1);
+    expect(within(groups[0] as HTMLElement).getAllByRole("button")).toEqual([tools[0], tools[1]]);
+    expect(groups[0]?.querySelectorAll(":scope > .sb-tooltip")).toHaveLength(2);
     expect(tools.map((tool) => tool.querySelector("use")?.getAttribute("href"))).toEqual([
       "#chevron-up",
       "#chevron-down",
@@ -641,10 +647,15 @@ describe("Preview", () => {
     expect(document.activeElement).toBe(container.querySelector("section.preview"));
   });
 
-  // FAR-12: the search says „Treffer 1 von 2“ in words.
-  it("words the count as the catalog's „Treffer … von …“", () => {
+  // FAR-12: the search says „Treffer 1 von 2“ in words; the preview and the
+  // editor's find bar say the same sentences (ADR-0051 #83).
+  it("words the count as the catalog's „Treffer … von …“ and „Kein Treffer“", () => {
     expect(de["editor.find.matchCount"]).toBe("Treffer {{current}} von {{count}}");
     expect(en["editor.find.matchCount"]).toBe("Match {{current}} of {{count}}");
+    expect(de["editor.find.noMatches"]).toBe("Kein Treffer");
+    expect(en["editor.find.noMatches"]).toBe("No match");
+    expect(de["editor.find.matchTotal_other"]).toBe("{{count}}\u00a0Treffer");
+    expect(en["editor.find.matchTotal_other"]).toBe("{{count}}\u00a0matches");
   });
 
   it("keeps the hits over a fragment re-rendered from a live edit", async () => {

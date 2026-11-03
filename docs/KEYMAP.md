@@ -166,9 +166,11 @@ it back).
   the File ▸ New Folder menu item and menu items fire regardless of focus. It
   and `Cmd+N` place the new folder or file the same way: inside a selected
   folder, beside a selected file, or in the vault root when nothing is
-  selected (ADR-0012; the sidebar's tools fire the same two command ids and
-  announce the chords in `aria-keyshortcuts` and their tooltips, as the board
-  tool does `Shift+Cmd+B` and the place Today's Note `Cmd+J`).
+  selected (ADR-0012; the sidebar's tool New Folder fires `tree.newFolder` and
+  the action zone's primary action New Note fires `file.newNote`; both
+  announce their chord in `aria-keyshortcuts`, the tool also in its tooltip,
+  as the board tool does `Shift+Cmd+B` and the place Today's Note `Cmd+J`,
+  ADR-0051 #82).
   `Cmd+Backspace` stays `tree`-scoped: it collides with the editor's
   delete-to-line-start.
 - System-provided edit keys (`Cmd+A/C/V/X`, `Cmd+H`, `Cmd+M`, arrows, word and

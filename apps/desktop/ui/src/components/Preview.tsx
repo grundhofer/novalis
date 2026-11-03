@@ -969,7 +969,8 @@ export default function Preview({
         // editor's (editor/findPanel) without what the rendered text has no
         // use for: its find row with the compact field and `sb-search`, the
         // count in words (`__count`, FAR-12), the 32 px tools with their
-        // tooltips.
+        // tooltips, previous and next in one `sb-doc-bar__group`, so they
+        // wrap together.
         <div className="sb-find-bar" role="search" aria-label={t("editor.find.find")}>
           <div className="sb-doc-bar" data-sb-find-row="find">
             <div className="sb-field sb-field--compact">
@@ -993,20 +994,22 @@ export default function Preview({
               </div>
             </div>
             <span className="sb-doc-bar__count" role="status" ref={count} />
-            <Tool
-              id="preview-find-previous"
-              icon="chevron-up"
-              label={t("editor.find.previous")}
-              command="find.previous"
-              onClick={() => step(-1)}
-            />
-            <Tool
-              id="preview-find-next"
-              icon="chevron-down"
-              label={t("editor.find.next")}
-              command="find.next"
-              onClick={() => step(1)}
-            />
+            <span className="sb-doc-bar__group">
+              <Tool
+                id="preview-find-previous"
+                icon="chevron-up"
+                label={t("editor.find.previous")}
+                command="find.previous"
+                onClick={() => step(-1)}
+              />
+              <Tool
+                id="preview-find-next"
+                icon="chevron-down"
+                label={t("editor.find.next")}
+                command="find.next"
+                onClick={() => step(1)}
+              />
+            </span>
             <Tool id="preview-find-close" icon="close" label={t("editor.find.close")} onClick={closeFind} />
           </div>
         </div>

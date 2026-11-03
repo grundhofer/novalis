@@ -44,9 +44,11 @@ import Tool from "./Tool";
  * `list_dir` and a watcher batch patches what is already there. Nothing here
  * ever triggers a walk (PLAN.md §2.3 rules 1 and 5).
  *
- * The head carries the three tools of ADR-0012 (new note, new folder,
- * board) and the sort switch below it; both go through `dispatchCommand`
- * and the stores, so a click here and the menu item do the same thing.
+ * The head carries the two tools that act on the vault, new folder and the
+ * board (ADR-0012, ADR-0051 #82, D104 (36)); new note is the action zone's
+ * one primary action (StatusBar, D74) and never a second copy here. The
+ * sort switch is below it; both go through `dispatchCommand` and the
+ * stores, so a click here and the menu item do the same thing.
  *
  * A file row drags and a folder row takes the drop (ADR-0018); the tree's
  * own space below the rows is the vault root. The payload is the path in
@@ -543,21 +545,16 @@ export default function Sidebar() {
         {/* The vault's name labels the tree in sebaro's group head with its
             tools (spec/02 §4.17, D104 (36)): `sb-side-nav__name` names the
             tree, the tools stand at its end in `sb-side-nav__tools` (NAV-10,
-            ADR-0012): new note, new folder, and the board, which stays an
-            icon (ADR-0051 #27.9). The name is a folder's: it breaks after
+            ADR-0012): new folder and the board, which stays an icon
+            (ADR-0051 #27.9). Only tools that act on the group stand here
+            (D104 (36), ADR-0051 #82); „Neue Notiz“ is the action zone's
+            primary action (D74). The name is a folder's: it breaks after
             - . _ / (D100 (6)). */}
         <div className="sb-side-nav__head">
           <p className="sb-side-nav__name" id="sidebar-vault">
             <FileName name={vault.name} />
           </p>
           <div className="sb-side-nav__tools" role="group" aria-label={vault.name}>
-            <Tool
-              id="new-note"
-              icon="plus"
-              label={t("menu.file.newNote")}
-              command="file.newNote"
-              onClick={() => dispatchCommand("file.newNote")}
-            />
             <Tool
               id="new-folder"
               icon="folder"

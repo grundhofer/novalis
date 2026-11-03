@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as 
 import { useTranslation } from "react-i18next";
 
 import { focusInTabList } from "../lib/areas";
-import { ariaKeyshortcutsOfScope, chordOf, commandForChord } from "../lib/keymap";
+import { chordOf, commandForChord } from "../lib/keymap";
 import { currentRow, outlineOf, type OutlineRow } from "../lib/pdfOutline";
 import { report } from "../stores/ui";
 import ContentsPopover from "./ContentsPopover";
@@ -22,8 +22,10 @@ import ToolRow from "./ToolRow";
  * pane has focus — it takes it when it opens, and a click on the page gives
  * it back — the arrows, PageUp/PageDown and Home/End turn the page; on a
  * tool of the row the arrows and Home/End move between the tools. The
- * pane is a region named after the file, and it announces those keys in
- * `aria-keyshortcuts`.
+ * pane is a region named after the file, and it says those keys once in
+ * `aria-description` (spec/02 §4.18 NV-O10, ADR-0051 #85), not in
+ * `aria-keyshortcuts`, which names keys that activate the element; the
+ * step tools name no key, since on a tool the arrows move through the row.
  *
  * The pane is sebaro's document reader (`sb-reader`, spec/02 §4.25.3,
  * D104 (5)–(7)): its tools in a row of their own over the document
@@ -221,8 +223,7 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
       ref={pane}
       tabIndex={-1}
       aria-label={name}
-      aria-keyshortcuts={ariaKeyshortcutsOfScope("viewer")}
-      data-sb-own-shortcut=""
+      aria-description={t("viewer.pageKeys")}
       onKeyDown={onKeyDown}
     >
       <div className="viewer-head">
@@ -243,7 +244,6 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
             id={`${uid}-previous`}
             icon="chevron-left"
             label={t("viewer.previousPage")}
-            command="viewer.previousPage"
             disabled={page <= 1}
             onClick={() => goTo(page - 1)}
           />
@@ -267,7 +267,6 @@ export default function PdfViewer({ bytes, name }: { bytes: Uint8Array; name: st
             id={`${uid}-next`}
             icon="chevron-right"
             label={t("viewer.nextPage")}
-            command="viewer.nextPage"
             disabled={page >= count}
             onClick={() => goTo(page + 1)}
           />

@@ -48,6 +48,10 @@
    reset, such as Tailwind's preflight, takes the browser's 40px away); a quote inside a list item carries the ink line
    of every quote; the first block of the prose has no space above, also a heading */
 .sb-prose > :is(ul, ol):not([class]) { padding-inline-start: 1.5em; }
+/* Restore markers after a reset; classed component lists keep their own presentation. */
+.sb-prose ul:not([class]) { list-style-type: disc; }
+.sb-prose :where(ul, ol) ul:not([class]) { list-style-type: circle; }
+.sb-prose ol:not([class]) { list-style-type: decimal; }
 /* a list inside a quote indents the same; not in :where(), so a reset does not take the indent away, as above */
 .sb-prose blockquote > :is(ul, ol):not([class]) { padding-inline-start: 1.5em; }
 .sb-prose li > blockquote { margin-inline: 0; padding-inline-start: var(--sb-space-4); border-inline-start: var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color); }

@@ -201,3 +201,44 @@ Two consequences of the build, put to the owner afterwards and accepted 2026-11-
 
 1. #78: at 200 % the pressed switch takes its 3 px edge out of its word's line, so it stays 42 px and the row does not grow (#74); its word rises 1 px on press, as sebaro's does at 100 %.
 2. #80: on a tool of the PDF row, ← → Home End move between the tools and no longer turn the page; Page Up / Page Down still do, and on the page itself the arrows turn it as before.
+
+## Amendment 2026-11-02: sebaro's open questions
+
+Seven gap rows in `docs/sebaro-luecken.md` waited for the owner („Frage an den Inhaber“), where a sebaro decision (D102, D104, D105) differed from what novalis had built. The first, the preview switch in the tool row, is #78. The other six:
+
+| # | Question | Decision |
+|---|---|---|
+| 81 | ⌘+ / ⌘− in a reader (sebaro: they zoom the reader, spec/02 §4.19) | They change the font size as in the editor (#10), no zoom; as built (`editor.fontSize`) |
+| 82 | The sidebar head: New note, New folder and Board (D104 (36): only tools that act on the group, New note only as the main action) | As D104 (36): New folder and Board stay in the head, New note is only the main action under the tree (D74) |
+| 83 | A counter in the editor's find bar (D104 (3), FAR-12) | Built: „Match n of m“ / „No match“ in the bar's `__count`, the sentence the preview's find bar already says |
+| 84 | The vault search: a row per match (as built) or per note (D104 (1)) | A row per note, as D104 (1): the notes under a group head („3 notes“), the foot and its status region say „5 matches in 3 notes.“; a note's row opens the note at its first match |
+| 85 | How the PDF pane names the keys it takes (`aria-keyshortcuts` on the pane, as built) | sebaro's form (D105, NV-O10): in `aria-description` and in the keyboard help, not in `aria-keyshortcuts`; the new sentence written by spec/07 |
+| 86 | Backlinks in the inspector (D102 (13)) or under the editor (#8) | Under the editor; #8 stands, novalis has no inspector. sebaro records it as D122, an approved departure for novalis only |
+
+**Owner approval:** 2026-11-02, given as choices in the session that coordinates sebaro, verbatim (question → choice): „Was machen ⌘+ / ⌘− im Leser?“ → „Schriftgröße wie im Editor (Empfohlen)“; „Kopf der Seitenleiste – heute „Neue Notiz“, „Neuer Ordner“, „Board“. sebaro (D104 (36)): im Kopf nur Werkzeuge für die Gruppe, „Neue Notiz“ nur als Hauptaktion.“ → „Nach D104 (36) (Empfohlen)“; „Soll die Suche im Editor einen Zähler bekommen („Treffer 2 von 5“ / „Kein Treffer“), wie schon in der Vorschau?“ → „Ja, bauen (Empfohlen)“; „Suche im Vault – eine Zeile je Notiz (sebaro, D104 (1)) oder eine je Treffer (heute)?“ → „Eine Zeile je Notiz (Empfohlen)“; „novalis PDF: Tastenkürzel in aria-keyshortcuts (heute) oder in sebaro-Form (Beschreibung plus Tastaturhilfe, braucht einen neuen Satz)?“ → „sebaro-Form (Empfohlen)“; „novalis: Rückverweise – im Inspektor (sebaro, D102 (13)) oder unter dem Editor (deine Entscheidung vom 24.10., ADR-0051 #8)?“ → „Unter dem Editor (Empfohlen)“. Confirmed in this repo's session the same day, verbatim: „Ja, 2–7 so (Empfohlen)“.
+
+Two forks found while planning the build, put to the owner the same day, verbatim (question → choice):
+
+1. #83: „Was soll er sagen, wenn es Treffer gibt, aber keiner ausgewählt ist? …“ → „„5 Treffer“ zeigen (Empfohlen)“. While no match is selected the count says „5 matches“ / „5 Treffer“ (a new sentence; sebaro has no such state, a gap row asks for it); once one is, „Match 2 of 5“. The editor's behaviour does not change: typing does not select a match, and CodeMirror's own announcement of the current match stays.
+2. #85: „… novalis hat aber keine Tastaturhilfe … Was soll ich bauen?“ → „Nur die Beschreibung (Empfohlen)“. The PDF pane names its keys in `aria-description` only; the keyboard help waits with the open question „Menü Hilfe“. The tooltips of Previous page and Next page no longer name ← →, since on those tools the arrows move between tools (#80).
+
+## Amendment 2026-11-03: after the export of sebaroDesign 09d3047
+
+Two questions from the report on the export of sebaroDesign `09d3047`:
+
+| # | Question | Decision |
+|---|---|---|
+| 87 | The eager CSS budget: the export uses 32.5 of 33 kB gzip (#3), so the next export may break it | Raised a little, to 35 kB gzip: the measured 33,232 B (32.5 kB) rounded up plus 2 kB, the rule of the note to `eagerCssGzipKb` in `docs/BUDGET.json` that set the first limit. Changes `docs/BUDGET.json` and PLAN.md §11.3 |
+| 88 | Lists in the EPUB and DOCX readers: sebaro.css now names the markers of `.sb-prose` lists (`disc`, `circle` in a list inside a list, `decimal`), which the preview takes; the readers' shadow root keeps WebKit's square from the third level | Aligned: `lib/documentCss.ts` writes sebaro's two `ul` rules again. Not its `ol { list-style-type: decimal }`: the browser's default is the same, and the rule would override the `type` an EPUB's `ol` may carry, which `lib/sanitize.ts` keeps (the preview escapes raw HTML, so it has no such `type`) |
+
+**Owner approval:** 2026-11-03, verbatim, the whole answer to four numbered questions of the report: „1 etwas anheben, 2 ja, wenn sinnvoll 3. angleichen. 4. mach genre wie vorgeschlagen“. 1 is #87, to the question „Das sofort geladene CSS liegt jetzt bei 32,5 von 33 kB (gzip). Der nächste sebaro-Export könnte die Grenze reißen. Soll ich vorschlagen, wie man die Grenze anhebt oder die Datei aufteilt?“; 3 is #88, to „In der Vorschau tragen Listen ab der dritten Ebene jetzt sebaros Kreis, in den EPUB- und DOCX-Lesern bleibt das Quadrat. Angleichen hieße drei Zeilen in deren Dokumentstil. Soll ich?“. 2 and 4 need no ADR point: 2 is the export command's row in CLAUDE.md, which now names `--from-commit` and the exclusion list as a placeholder (`docs/sebaro-umbau.md` §12); 4 is a Dependabot alert the agent was to look at. The number 35 is the agent's, by the rule above, not a figure the owner named. The question said three lines; two were written, for the reason in #88.
+
+## Amendment 2026-11-03: the Help menu
+
+The question left open in #85 and in the gap list (S „Menü Hilfe“):
+
+| # | Question | Decision |
+|---|---|---|
+| 89 | What the Help menu holds. sebaro's minimum for an app without a network and without help pages is „Tastaturkürzel“ and „Fakten und Prüfungen“ (D102 (8)); novalis shows only the macOS help search (#6) and no facts (#27.12) | Only the search field, as built: nothing is added. novalis departs from D102 (8) on purpose. The shortcuts stay where they are shown now (menus, tooltips, the command palette, `docs/KEYMAP.md`), and the PDF pane names its keys in its description only (#85), with no keyboard help to name them in |
+
+**Owner approval:** 2026-11-03, twice. First as a choice in the session that coordinated the sebaro questions, to the question „Was soll im Menü „Hilfe“ von novalis stehen?“ with the options „Nur das Suchfeld lassen (Empfohlen)“, „„Tastaturkürzel“ dazu“ and „Beide Punkte nach D102 (8)“: „Nur das Suchfeld (Empfohlen)“. Then in this session, to „Im Hilfe-Menü bleibt nur das Suchfeld (über projects-fd gewählt). Soll ich das als ADR-0051 #89 festhalten?“: „Ja, nur Suchfeld (Empfohlen)“.

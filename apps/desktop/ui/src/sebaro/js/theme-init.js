@@ -17,19 +17,29 @@ try {
     if (l && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(l)) document.documentElement.lang = l;
   }
 } catch (e) {}
-// The browser and title-bar colour (BRAND-ASSETS 1.7): the head snippet of brand_assets.py names the two grounds
+// The browser and title-bar colour (BRAND-ASSETS 1.7, 1.9): the head snippet of brand_assets.py names the two grounds
 // as <meta name="theme-color" media="(prefers-color-scheme: …)">; with a stored choice the chosen one applies to both
-// schemes, and every "sb-theme-change" (theme-button.js, sb-window.js) moves them along. Pages without the tags: no-op.
+// schemes, and every "sb-theme-change" (theme-button.js, sb-window.js) moves them along. Each tag's
+// data-sb-tone-<tone> (1.9, e.g. data-sb-tone-warm) is its ground in that tone: while html[data-sb-tone] names the
+// tone it becomes the tag's content, else the snippet's own content comes back. A change of data-theme or
+// data-sb-tone by any script (sb-tone.js, a framework) moves them too. Pages without the tags: no-op; without
+// JavaScript the media queries of the snippet still apply.
 (function () {
+  var root = document.documentElement;
   function sync() {
-    var t = document.documentElement.dataset.theme;
+    var t = root.dataset.theme, tone = root.dataset.sbTone;
     Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"][media]'), function (m) {
       var own = m.getAttribute("data-sb-media") || m.getAttribute("media");
       m.setAttribute("data-sb-media", own);
       m.setAttribute("media", !t ? own : ((t === "dark") === /dark/.test(own) ? "all" : "not all"));
+      if (!m.hasAttribute("data-sb-content")) m.setAttribute("data-sb-content", m.getAttribute("content") || "");
+      var toned = tone && /^[a-z][a-z0-9-]*$/.test(tone) ? m.getAttribute("data-sb-tone-" + tone) : null;
+      m.setAttribute("content", toned || m.getAttribute("data-sb-content"));
     });
   }
   sync();
   document.addEventListener("DOMContentLoaded", sync);
   document.addEventListener("sb-theme-change", sync);
+  document.addEventListener("sb-tone-change", sync);
+  if (window.MutationObserver) new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ["data-theme", "data-sb-tone"] });
 })();

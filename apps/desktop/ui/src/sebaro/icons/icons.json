@@ -1,7 +1,7 @@
 {
   "generated": "generated — do not edit · tools/icons.py 1.1.0",
   "system": "sebaro",
-  "source_sha256": "d4298ad26b6060bc",
+  "source_sha256": "fa699c31a65f06ad",
   "grammar": {
     "name": "Line 1.75 round",
     "summary": "1.75 stroke at 24 (1.5 on 16 masters, 2 on spots), round caps and joins, container radius 2 (below 8: 1), straight segments at 0/30/45/60/90/120/135/150 plus circular arcs and free curves, clear gap >= 2.25, at most 4 parts beside the main outline, no signature detail; filled only for selected navigation, toggles that are on and the four status icons at 16 px",
@@ -36,7 +36,7 @@
     "web": "<svg class=\"sb-icon sb-icon--24\" aria-hidden=\"true\" focusable=\"false\"><use href=\"sprite.svg#NAME\"/></svg>",
     "compose": "Icon(SebaroIcons.Outline.Name, contentDescription = null)"
   },
-  "count": 116,
+  "count": 119,
   "icons": [
     {
       "name": "arrow-down",
@@ -3705,6 +3705,50 @@
       ]
     },
     {
+      "name": "rotate-left",
+      "canonical": null,
+      "de": null,
+      "category": "actions",
+      "aliases": [
+        "rotate-counterclockwise"
+      ],
+      "tags": {
+        "de": [
+          "Drehen nach links",
+          "Drehen",
+          "gegen den Uhrzeigersinn drehen"
+        ],
+        "en": [
+          "rotate left",
+          "rotate counterclockwise"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
+        "filled": [],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "rotate-left"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.RotateLeft",
+        "SebaroIcons.Outline16.RotateLeft",
+        "SebaroIcons.Outline20.RotateLeft",
+        "SebaroIcons.Outline32.RotateLeft"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_rotate_left_24"
+      ]
+    },
+    {
       "name": "save",
       "canonical": null,
       "de": null,
@@ -3827,6 +3871,52 @@
       "compose_cuts": {},
       "android": [
         "ic_sb_scan_24"
+      ]
+    },
+    {
+      "name": "scan-text",
+      "canonical": null,
+      "de": null,
+      "category": "actions",
+      "aliases": [
+        "ocr",
+        "text-recognition"
+      ],
+      "tags": {
+        "de": [
+          "Text erkennen",
+          "Texterkennung",
+          "Text"
+        ],
+        "en": [
+          "recognize text",
+          "text recognition",
+          "OCR"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
+        "filled": [],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "scan-text"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.ScanText",
+        "SebaroIcons.Outline16.ScanText",
+        "SebaroIcons.Outline20.ScanText",
+        "SebaroIcons.Outline32.ScanText"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_scan_text_24"
       ]
     },
     {
@@ -4134,6 +4224,50 @@
       "compose_cuts": {},
       "android": [
         "ic_sb_sidebar_24"
+      ]
+    },
+    {
+      "name": "signature",
+      "canonical": null,
+      "de": null,
+      "category": "actions",
+      "aliases": [
+        "sign"
+      ],
+      "tags": {
+        "de": [
+          "Unterschrift",
+          "Unterschreiben",
+          "Signieren"
+        ],
+        "en": [
+          "signature",
+          "sign"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
+        "filled": [],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "signature"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.Signature",
+        "SebaroIcons.Outline16.Signature",
+        "SebaroIcons.Outline20.Signature",
+        "SebaroIcons.Outline32.Signature"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_signature_24"
       ]
     },
     {

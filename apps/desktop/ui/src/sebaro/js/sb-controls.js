@@ -25,6 +25,9 @@
 //   [data-sb-indeterminate] sets checkbox.indeterminate (no HTML attribute exists for it)
 //   .sb-tabs [role="tab"]   aria-selected + hidden on the tab panels (not for aria-disabled="true")
 //   .sb-code__copy          copies the code of its block; the label says „Kopiert“ for 2 s
+//   [data-sb-copy="text"]   any other copy key (D116, „Link kopieren“): copies the attribute's text; its
+//                           [data-sb-copy-label] (else the key itself) says „Kopiert“ for 2 s, never a toast; a second
+//                           press restarts the 2 s
 //   .sb-toc[data-sb-follow] the current entry (aria-current="location") follows the reading position
 //   .sb-toc--overlay        the contents as an overlay over a reader (D102 (34)): nav.sb-toc.sb-toc--overlay[popover]
 //                           opened by its popovertarget button: aria-expanded follows it, it stands under the button
@@ -139,14 +142,45 @@
     var copy = closestIn(event, ".sb-code__copy");
     if (copy) {
       var code = copy.closest(".sb-code");
-      var text = code ? (code.querySelector("pre") || code).textContent : "";
-      var label = copy.querySelector(".sb-code__copy-label") || copy;
-      var done = function () { var was = label.textContent; label.textContent = t(copy, "copied"); setTimeout(function () { label.textContent = was; }, 2000); };
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
-      } catch (e) { /* no clipboard in this context: nothing to do */ }
+      copyText(copy, code ? (code.querySelector("pre") || code).textContent : "", copy.querySelector(".sb-code__copy-label") || copy);
+      return;
     }
+    var copyKey = closestIn(event, "[data-sb-copy]");
+    if (copyKey) copyText(copyKey, copyKey.getAttribute("data-sb-copy"), copyKey.querySelector("[data-sb-copy-label]") || copyKey);
   });
+
+  // the key shows its own result (spec/07 §4.3: no toast): the label reads „Kopiert“ for 2 s; the word it had is kept
+  // on the label, so a second press inside the 2 s restarts them instead of keeping „Kopiert“. The word is also said
+  // politely by one hidden status region per context (WCAG 4.1.3), so it is heard when the focus has moved on before
+  // the clipboard answered: inside the key's dialog (the page outside a modal is inert), otherwise in the body
+  function copyStatus(key) {
+    var host = key.closest("dialog, [aria-modal='true']") || document.body;
+    var region = host.querySelector(":scope > [data-sb-copy-status]");
+    if (!region) {
+      region = document.createElement("span");
+      region.className = "sb-visually-hidden";
+      region.setAttribute("role", "status");
+      region.setAttribute("data-sb-copy-status", "");
+      host.appendChild(region);
+    }
+    return region;
+  }
+  function copyText(key, text, label) {
+    var region = copyStatus(key);   // made before the press resolves, so it is in the tree before its text changes
+    var done = function () {
+      if (label.sbCopyWas == null) label.sbCopyWas = label.textContent;
+      label.textContent = t(key, "copied");
+      clearTimeout(label.sbCopyTimer);
+      label.sbCopyTimer = setTimeout(function () { label.textContent = label.sbCopyWas; label.sbCopyWas = null; }, 2000);
+      // emptied first, then written a moment later, so a repeated copy is announced again
+      region.textContent = "";
+      clearTimeout(region.sbSayTimer);
+      region.sbSayTimer = setTimeout(function () { region.textContent = t(key, "copied"); }, 100);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    } catch (e) { /* no clipboard in this context: nothing to do */ }
+  }
 
   function setMotion(reduce) {
     var root = document.documentElement;
