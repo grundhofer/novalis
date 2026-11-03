@@ -200,6 +200,21 @@ describe("the find bar", () => {
     expect(field(v, "replace")).toBeNull();
     expect(worded(v, "replace all")).toBeUndefined();
   });
+
+  // spec/02 §4.25.2 (sebaro f36b8f0): previous and next sit in one group, so
+  // they wrap together.
+  it("keeps Previous and Next together in one group, in that order", () => {
+    const v = editor("a b a\n");
+    openSearchPanel(v);
+    const group = v.dom.querySelector<HTMLElement>("[data-sb-find-row=find] > .sb-doc-bar__group")!;
+    expect(group.tagName).toBe("SPAN");
+    expect(v.dom.querySelectorAll(".sb-doc-bar__group")).toHaveLength(1);
+    expect([...group.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual([
+      "previous",
+      "next",
+    ]);
+    expect(group.querySelectorAll(":scope > .sb-tooltip")).toHaveLength(2);
+  });
 });
 
 describe("the count", () => {
@@ -223,20 +238,6 @@ describe("the count", () => {
     expect(span.previousElementSibling?.className).toBe("sb-field sb-field--compact");
     expect(span.nextElementSibling).toBe(named(v, "previous").parentElement);
     expect(span.textContent).toBe("");
-  });
-
-  // spec/02 §4.25.2 (sebaro f36b8f0): previous and next sit in one group, so
-  // they wrap together.
-  it("keeps Previous and Next together in one group, in that order", () => {
-    const v = editor("a b a\n");
-    openSearchPanel(v);
-    const group = v.dom.querySelector<HTMLElement>("[data-sb-find-row=find] > .sb-doc-bar__group")!;
-    expect(group.tagName).toBe("SPAN");
-    expect(v.dom.querySelectorAll(".sb-doc-bar__group")).toHaveLength(1);
-    expect([...group.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual([
-      "previous",
-      "next",
-    ]);
   });
 
   // ADR-0051 #83: „m Treffer“ while no match is selected, „Treffer n von m“

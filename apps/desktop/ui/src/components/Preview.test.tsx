@@ -627,6 +627,7 @@ describe("Preview", () => {
     const groups = bar.querySelectorAll(":scope > [data-sb-find-row=find] > span.sb-doc-bar__group");
     expect(groups).toHaveLength(1);
     expect(within(groups[0] as HTMLElement).getAllByRole("button")).toEqual([tools[0], tools[1]]);
+    expect(groups[0]?.querySelectorAll(":scope > .sb-tooltip")).toHaveLength(2);
     expect(tools.map((tool) => tool.querySelector("use")?.getAttribute("href"))).toEqual([
       "#chevron-up",
       "#chevron-down",
