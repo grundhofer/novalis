@@ -957,6 +957,18 @@ Then sebaro's six open questions (ADR-0051, amendment 2026-11-02, #81–#86):
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-03
+
+After the export of sebaroDesign 09d3047 (verbatim in ADR-0051, amendment
+2026-11-03, #87–#88):
+- the eager CSS budget is raised a little, to 35 kB gzip (#87)
+- the EPUB and DOCX readers mark lists as sebaro does: a disc, a circle in a
+  list inside a list (#88)
+- the export command in CLAUDE.md names `--from-commit` and the exclusion
+  list as a placeholder (no ADR point; `docs/sebaro-umbau.md` §12)
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

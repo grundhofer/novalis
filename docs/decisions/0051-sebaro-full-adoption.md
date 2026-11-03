@@ -221,3 +221,14 @@ Two forks found while planning the build, put to the owner the same day, verbati
 
 1. #83: „Was soll er sagen, wenn es Treffer gibt, aber keiner ausgewählt ist? …“ → „„5 Treffer“ zeigen (Empfohlen)“. While no match is selected the count says „5 matches“ / „5 Treffer“ (a new sentence; sebaro has no such state, a gap row asks for it); once one is, „Match 2 of 5“. The editor's behaviour does not change: typing does not select a match, and CodeMirror's own announcement of the current match stays.
 2. #85: „… novalis hat aber keine Tastaturhilfe … Was soll ich bauen?“ → „Nur die Beschreibung (Empfohlen)“. The PDF pane names its keys in `aria-description` only; the keyboard help waits with the open question „Menü Hilfe“. The tooltips of Previous page and Next page no longer name ← →, since on those tools the arrows move between tools (#80).
+
+## Amendment 2026-11-03: after the export of sebaroDesign 09d3047
+
+Two questions from the report on the export of sebaroDesign `09d3047`:
+
+| # | Question | Decision |
+|---|---|---|
+| 87 | The eager CSS budget: the export uses 32.5 of 33 kB gzip (#3), so the next export may break it | Raised a little, to 35 kB gzip: the measured 33,232 B (32.5 kB) rounded up plus 2 kB, the rule of the note to `eagerCssGzipKb` in `docs/BUDGET.json` that set the first limit. Changes `docs/BUDGET.json` and PLAN.md §11.3 |
+| 88 | Lists in the EPUB and DOCX readers: sebaro.css now names the markers of `.sb-prose` lists (`disc`, `circle` in a list inside a list, `decimal`), which the preview takes; the readers' shadow root keeps WebKit's square from the third level | Aligned: `lib/documentCss.ts` writes sebaro's two `ul` rules again. Not its `ol { list-style-type: decimal }`: the browser's default is the same, and the rule would override the `type` an EPUB's `ol` may carry, which `lib/sanitize.ts` keeps (the preview escapes raw HTML, so it has no such `type`) |
+
+**Owner approval:** 2026-11-03, verbatim, the whole answer to four numbered questions of the report: „1 etwas anheben, 2 ja, wenn sinnvoll 3. angleichen. 4. mach genre wie vorgeschlagen“. 1 is #87, to the question „Das sofort geladene CSS liegt jetzt bei 32,5 von 33 kB (gzip). Der nächste sebaro-Export könnte die Grenze reißen. Soll ich vorschlagen, wie man die Grenze anhebt oder die Datei aufteilt?“; 3 is #88, to „In der Vorschau tragen Listen ab der dritten Ebene jetzt sebaros Kreis, in den EPUB- und DOCX-Lesern bleibt das Quadrat. Angleichen hieße drei Zeilen in deren Dokumentstil. Soll ich?“. 2 and 4 need no ADR point: 2 is the export command's row in CLAUDE.md, which now names `--from-commit` and the exclusion list as a placeholder (`docs/sebaro-umbau.md` §12); 4 is a Dependabot alert the agent was to look at. The number 35 is the agent's, by the rule above, not a figure the owner named. The question said three lines; two were written, for the reason in #88.
