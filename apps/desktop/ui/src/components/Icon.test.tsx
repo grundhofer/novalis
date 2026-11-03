@@ -37,6 +37,9 @@ const NAMES: IconName[] = [
   "eye",
   "arrow-left",
   "settings--filled",
+  "link",
+  "code",
+  "quote",
 ];
 // Where the 16-unit master is not named `<name>--16`.
 const MASTERS: Partial<Record<IconName, string>> = { "error--filled": "error--filled-16" };

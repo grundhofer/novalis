@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { dispatchCommand } from "../lib/commands";
-import { previewKind } from "../lib/fileTypes";
-import { ariaKeyshortcutsOf, bindingFor, glyphsOf } from "../lib/keymap";
+import { glyphsOf } from "../lib/keymap";
 import { fileNameOf, stemOf } from "../lib/paths";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
@@ -53,6 +51,65 @@ export function revealTab(tab: HTMLElement): void {
   } else if (box.right > start) delta = box.right - start;
   else if (box.left < end) delta = Math.max(box.left - end, box.right - start);
   if (delta) list.scrollLeft += delta;
+}
+
+/** What a row's wheel scrolling has not yet moved: less than a pixel. */
+const wheelRest = new WeakMap<HTMLElement, number>();
+
+/**
+ * A wheel turned over the tab row scrolls it sideways (ADR-0051 #67). The
+ * row shows no scroll bar, and WebKit does not scroll a row that only
+ * scrolls sideways with an up-and-down wheel. A sideways swipe is WebKit's
+ * own; a delta in lines (a mouse set to scroll by lines) counts as a line
+ * of the row's text. A trackpad's slow swipe sends fractions of a pixel,
+ * which a scroll position in whole pixels would drop one by one: they are
+ * kept until they make a pixel.
+ */
+export function scrollRowByWheel(
+  list: HTMLElement,
+  event: { deltaX: number; deltaY: number; deltaMode: number },
+): void {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  if (list.scrollWidth <= list.clientWidth) return;
+  const style = getComputedStyle(list);
+  const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? parseFloat(style.lineHeight) || parseFloat(style.fontSize) : 1;
+  // Towards the row's end: right in LTR, left (a falling `scrollLeft`) in RTL.
+  const delta = (wheelRest.get(list) ?? 0) + (style.direction === "rtl" ? -1 : 1) * event.deltaY * unit;
+  const whole = Math.trunc(delta);
+  wheelRest.set(list, delta - whole);
+  if (whole) list.scrollLeft += whole;
+}
+
+/**
+ * Which ends of the tab row have tabs beyond them (ADR-0051 #70): the row
+ * shows no scroll bar (#67), so a fade at that end says there are more. It
+ * is written as `data-nv-more` on the row ("start", "end", both or none),
+ * for the fades in styles/app.css; only their opacity follows it, so the
+ * row's size never does. Measured at the tabs, not the scroll width: the
+ * room after the last tab (where a dragged tab lands) is no tab, and a tab
+ * under the pinned one is out of sight as one past the row's start.
+ */
+export function markMore(list: HTMLElement): void {
+  const items = [...list.querySelectorAll<HTMLElement>(".sb-doc-tabs__item")];
+  const pinned = items[0]?.classList.contains("sb-doc-tabs__item--pinned") ? items.shift() : undefined;
+  let more = "";
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (first && last) {
+    const rtl = getComputedStyle(list).direction === "rtl";
+    const row = list.getBoundingClientRect();
+    const pin = pinned?.getBoundingClientRect();
+    const from = first.getBoundingClientRect();
+    const to = last.getBoundingClientRect();
+    // A pixel's slack: the scroll position is whole, a tab's edge need not
+    // be, so a tab scrolled fully into view can stand up to 1 px past.
+    const start = rtl ? from.right > (pin ? pin.left : row.right) + 1 : from.left < (pin ? pin.right : row.left) - 1;
+    const end = rtl ? to.left < row.left - 1 : to.right > row.right + 1;
+    more = [start ? "start" : "", end ? "end" : ""].filter(Boolean).join(" ");
+  }
+  if ((list.dataset.nvMore ?? "") === more) return;
+  if (more) list.dataset.nvMore = more;
+  else delete list.dataset.nvMore;
 }
 
 /** The one panel the current tab shows (App.tsx); every tab controls it. */
@@ -143,9 +200,8 @@ interface Entry {
  * §4.21), and Entf, ⌘W or a middle click do not close it;
  * the board tool and View ▸ Board show and hide it; it stays at the row's
  * start while the row scrolls (sebaro.css, D108 (4)). With nothing current the sentence `sb-doc-tabs__none` says how to
- * open a note. The preview switch (⌘E, ADR-0051 #16) is sebaro's compact
- * switch with the eye and its word (D102 (2), D105 (2)); it stands beside the row, outside its
- * scrolling, so many tabs never push it out of sight.
+ * open a note. The preview switch (⌘E, ADR-0051 #16) is no longer at the
+ * row's end: it leads the tool row under the tabs (DocTools.tsx, #73).
  */
 export default function TabStrip() {
   const { t } = useTranslation();
@@ -154,12 +210,12 @@ export default function TabStrip() {
   const tabs = useTabs((s) => s.tabs);
   const active = useTabs((s) => s.active);
   const docs = useEditorSave((s) => s.docs);
-  const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
   const boardVisible = useUi((s) => s.boardVisible);
   const boardSlug = useBoardTab();
   const boardName = useBoard((s) => s.boards.find((b) => b.slug === boardSlug)?.name ?? boardSlug);
   const currentId = useCurrentTabId();
   const noneRef = useRef<HTMLParagraphElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const root = useVault((s) => s.children[""]);
   const boards = useBoard((s) => s.boards);
   const empty = useMemo(() => root !== undefined && vaultIsEmpty({ "": root }, boards), [root, boards]);
@@ -204,6 +260,25 @@ export default function TabStrip() {
       tab.focus();
     }
   }, [currentId]);
+
+  // The fades at the row's ends (ADR-0051 #70) follow its scrolling and its
+  // width, and every render, which is when tabs come, go or are renamed.
+  const hasRow = entries.length > 0;
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return undefined;
+    const update = () => markMore(list);
+    list.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(list);
+    return () => {
+      list.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [hasRow]);
+  useEffect(() => {
+    if (listRef.current) markMore(listRef.current);
+  });
 
   useEffect(() => {
     const gone = focused.current;
@@ -269,8 +344,6 @@ export default function TabStrip() {
   // A tab dragged rightward lands after the one it is dropped on (`move`
   // takes it out first), leftward before it: the line stands on that side.
   const from = dragging === null ? -1 : tabs.indexOf(dragging);
-  const hasPreview = !!active && !boardVisible && !!previewKind(active);
-  const previewChord = bindingFor("note.togglePreview")?.chord;
 
   return (
     <>
@@ -278,9 +351,11 @@ export default function TabStrip() {
         <div className="nv-doc-head">
           <div
             className="sb-doc-tabs"
+            ref={listRef}
             role="tablist"
             aria-label={t("tabs.label")}
             onDragLeave={() => setDropAt(null)}
+            onWheel={(event) => scrollRowByWheel(event.currentTarget, event)}
           >
             {entries.map((entry, index) => {
               // Index among the notes: the board's tab is not one of them.
@@ -375,27 +450,6 @@ export default function TabStrip() {
               onDrop={(event) => dropOn(event, tabs.length)}
             />
           </div>
-          {/* The preview switch (ADR-0020, ADR-0051 #16): sebaro's compact
-              switch with the eye before its word (spec/02 §4.17, D102 (2),
-              D105 (2): 20 px, never the eye alone), its state in
-              `aria-pressed`, `Cmd+E` in `aria-keyshortcuts`. Only a file
-              with a second representation has it — a note, a CSV or TSV, an
-              SVG (ADR-0025) — so it is not there for a PDF. */}
-          {hasPreview && (
-            <div className="nv-doc-head__tools">
-              <button
-                className="sb-secondary-action sb-secondary-action--compact"
-                type="button"
-                aria-pressed={previewing}
-                aria-keyshortcuts={previewChord ? ariaKeyshortcutsOf(previewChord) : undefined}
-                data-sb-own-shortcut=""
-                onClick={() => dispatchCommand("note.togglePreview")}
-              >
-                <Icon name="eye" size={20} />
-                {t("editor.preview")}
-              </button>
-            </div>
-          )}
         </div>
       )}
       {/* The board pane says its own empty state. In an empty vault there

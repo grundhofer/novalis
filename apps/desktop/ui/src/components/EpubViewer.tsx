@@ -21,6 +21,7 @@ import { Callout } from "./Banner";
 import ContentsPopover from "./ContentsPopover";
 import { FileName } from "./FileName";
 import Tool from "./Tool";
+import ToolRow from "./ToolRow";
 import Waiting from "./Waiting";
 
 /**
@@ -301,7 +302,7 @@ export default function EpubViewer({ path }: { path: string }) {
   return (
     <div className="epub">
       <div className="viewer-head">
-        <div className="sb-doc-bar" role="group" aria-label={t("viewer.tools")}>
+        <ToolRow label={t("viewer.tools")}>
           <button
             className="sb-secondary-action sb-secondary-action--compact"
             type="button"
@@ -330,7 +331,7 @@ export default function EpubViewer({ path }: { path: string }) {
             disabled={chapter >= count - 1}
             onClick={() => goTo(chapter + 1)}
           />
-        </div>
+        </ToolRow>
         {contentsOpen && (
           <ContentsPopover
             id={`${uid}-contents`}

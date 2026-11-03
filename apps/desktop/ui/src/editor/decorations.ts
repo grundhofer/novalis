@@ -163,7 +163,8 @@ export const toggleCheckbox: StateCommand = ({ state, dispatch }) => {
 
 /**
  * `Cmd+B` / `Cmd+I`: wrap every selection in `marker`, or unwrap it when the
- * marker is already there. The only two formatting commands in v1 (§4.3).
+ * marker is already there. The two formats of v1 (§4.3); the tool row's
+ * Code uses it with a backtick (`toggleCode` in commands.ts, ADR-0051 #77).
  */
 export function wrapSelection(marker: string): StateCommand {
   const width = marker.length;

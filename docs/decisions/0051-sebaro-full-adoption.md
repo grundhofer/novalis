@@ -104,7 +104,7 @@ The view steps 11–15 and the adoption of sebaro D102 raised more questions. Th
 | 43 | View ▸ „Vorschau“ ⌘E | A checkbox item in View; no new shortcut |
 | 44 | „Reiter nach vorn / nach hinten“ | The two menu items stay |
 | 45 | Deleting a board | „Board in den Papierkorb legen …“; columns and cards keep „Löschen …“ |
-| 46 | Scrollbar under the tab row | Stays visible (D102 (10)) |
+| 46 | Scrollbar under the tab row | Stays visible (D102 (10)); changed by #67: hidden |
 | 47 | Ten points as built | Help holds only the search field; no „Befehle ⌘K“ tool in the title bar; cards are not renamed by key or double click; ⌘W without a tab does not quit; ⌘⌦ no longer moves to the Trash, only ⌘⌫; an empty board has no own „Neues Board“ button; the settings view keeps the sidebar with „Einstellungen“ as the current place; the sidebar overlay takes focus from the tool, the palette and ⌃⌘S but not from the menu, and stays open when a note is opened until sebaro decides; after a failed open the callout shows only the latest reason; the old „No preferences window“ sentences in PLAN.md and DECISIONS.md stay as history |
 
 **Owner approval:** 2026-10-26, verbatim: „Anheften (Empfohlen)“, „sebaro-Kürzel (Empfohlen)“, „Eigenes kleines Skript (Empfohlen)“, „Kurzes Glossar anlegen (Empfohlen)“; „Ja, bauen (Empfohlen)“, „Ja, in der Vorschau (Empfohlen)“, „Ja (Empfohlen)“, „Ja, nach Hälften (Empfohlen)“; „Ja (Empfohlen)“, „Behalten (Empfohlen)“, „„Board in den Papierkorb legen …“ (Empfohlen)“, „Sichtbar lassen (Empfohlen)“; „Alle so lassen (Empfohlen)“.
@@ -150,3 +150,54 @@ The final reviews raised more questions. The owner answered them on 2026-10-27, 
 | 66 | Landing | The squash branch is prepared locally (new branch from main, one commit, name search, `just check`) with a PR text; nothing is pushed without the owner's further OK |
 
 **Owner approval:** 2026-10-29, verbatim: „Gemeinsames von sebaro (Empfohlen)“, „Nur „not given“ ergänzen (Empfohlen)“, „So lassen (Empfohlen)“, „Ja, lokal vorbereiten (Empfohlen)“.
+
+## Amendment 2026-11-01: the tab row with classic scroll bars
+
+Seen by the owner in a release build of `main`: with macOS's classic scroll bars ("Show scroll bars: Always", or automatic with a mouse attached) a tab row that overflows got the system's 17 px bar under or into its 32 px tabs, and the preview switch, 32 px high in a 32 px row, slid 9.5 px below the tabs' names. The review pictures of the rebuild never showed it: a 2560 pt window with no row that overflowed. Measured in WebKit with `scripts/measure-tab-row.mjs`.
+
+| # | Question | Decision |
+|---|---|---|
+| 67 | Scroll bar of the tab row (changes #46) | Hidden (`scrollbar-width: none`, and `::-webkit-scrollbar` for WebKit before Safari 18.2); the row stays 32 px. A wheel over the row scrolls it sideways, the current tab is scrolled into view, ⌃⇥ and ⌘1…9 reach every tab. Departs from sebaro's spec/02 §4.21, NV-J and DSK-10 (the system's bar under the row); no bar of its own, so D102 (10) holds |
+| 68 | Place of the preview switch | At the row's end with its frame, 24 px high (`--sb-size-target-pointer`), its word on the tabs' names; its line as high as its word, so at 200 % it is 30 px and the row keeps the tabs' height. Under touch sebaro's 48 px stay. Departs from sebaro's D102 (2) / NV-A12 (the compact switch is 32 px in a window), RAU-06 and ZUG-03 |
+| 69 | Keeping it | This amendment, a gap row for sebaro, a rule in `docs/sebaro-umbau.md` §4 (pictures also with classic scroll bars and an overflowing tab row) and `scripts/measure-tab-row.mjs`, which measures the row in WebKit |
+
+**Owner approval:** 2026-11-01, verbatim: „Balken ausblenden (Empfohlen)“, „Kleiner, mittig zur Schrift (Empfohlen)“, „Alles (Empfohlen)“.
+
+After an independent review of #67–#69 the owner answered one more question (the recommendation was „So lassen“):
+
+| # | Question | Decision |
+|---|---|---|
+| 70 | A sign that more tabs lie beyond an end of the row, now that it has no scroll bar | A 16 px fade into the ground at each end with tabs beyond it (`data-nv-more` on the row, `markMore` in `TabStrip.tsx`); after the pinned board tab when there is one. sebaro has no part for it |
+
+**Owner approval:** 2026-11-01, verbatim: „Verlauf an den Rändern“.
+
+## Amendment 2026-11-01 (2): the sidebar's scrolling and a tool row for documents
+
+| # | Question | Decision |
+|---|---|---|
+| 71 | Two vertical scroll bars in the sidebar (its upper block and the tree), at 200 % or in windows under about 460 px | One scroller: the tree scrolls with the sidebar's upper block (`sb-side-nav__scroll`), one system bar at the sidebar's edge (NAV-04, D102 (10)); the virtualizer scrolls that block. With a long tree the places, the vault head and the sort choice scroll away with it. Departs from sebaro's NV-Z9 (the tree's own scroller with a four-row minimum) |
+| 72 | A tool row under the tabs, like the viewers' | Markdown gets one with Preview; Bold, Italic, Link; Heading 1–3, List, Task, Code, Quote; Find; text size − / +. Bold, Italic, Link, Find and the text size are existing commands; the formats are new commands |
+| 73 | Which files have the row | Every file with tools: Markdown with its tools; CSV, TSV and SVG with Preview alone; the viewers keep their row; code and text files have none. The preview switch leaves the end of the tab row (#68 then applies to the row's switch) |
+| 74 | The format tools while the preview shows | Disabled, in their place; the row does not jump |
+| 75 | Tools without a sebaro icon (bold, italic, heading, list, task) | A gap row asks sebaro for the icons; until they are in the export these tools are compact word buttons, then icon tools with a tooltip |
+| 76 | Shortcuts for the new formats | Only where free and usual: ⌥⌘1 / ⌥⌘2 / ⌥⌘3 Heading 1–3, ⇧⌘8 List, ⇧⌘9 Task; Code and Quote without a shortcut. Collisions checked before, `docs/KEYMAP.md` and the parity test follow |
+| 77 | How Heading, List, Task and Quote act | They toggle per line: on every selected line the prefix („# “, „- “, „- [ ] “, „> “) is set, or removed when it is there; a heading replaces another level. Code puts backticks round the selection, a fenced block round several lines |
+
+**Owner approval:** 2026-11-01, verbatim: „Ein Scrollbereich (Empfohlen)“; „Dazu neue Formate“, „Jede Datei mit Werkzeugen (Empfohlen)“, „Ausgegraut lassen (Empfohlen)“; „Bei sebaro anfragen, solange Wort (Empfohlen)“, „Nur wo frei und üblich (Empfohlen)“, „Umschalten pro Zeile (Empfohlen)“. The tool row itself came from the owner: „ich finde der vorschau button und andere styling button sollten in eine solche dokumenteneliste. speziell markdowns etc. sollten hier ein paar sinnvolle formatierungs/steuerungsoptionen bekommen.“
+
+## Amendment 2026-11-02: the tool rows, after the first look
+
+After the tool row of #72–#77 was built and reviewed, three questions came back from it and one from the owner:
+
+| # | Question | Decision |
+|---|---|---|
+| 78 | The preview switch in the tool row: 24 px (#68) beside 32 px word buttons | sebaro's 32 px compact switch (D102 (2) / NV-A12); #68's height and its line as high as its word applied to the switch beside the tabs and no longer apply in the tool row |
+| 79 | The visible word of the heading tools | „H1“, „H2“, „H3“ in both languages; the tooltip names „Heading n“ / „Überschrift n“ |
+| 80 | Moving through a tool row by keyboard (14 tab stops in the Markdown row) | Every tool row is one tab stop, as the WAI-ARIA toolbar pattern has it: `role="toolbar"`, ← → move between its tools, Home and End to the first and last, the row keeps the tool last used (roving tabindex). For the Markdown row, the CSV/TSV/SVG row and the viewers' rows (image, PDF, EPUB, CBZ) alike; the find rows are forms and keep their tab stops. No shortcut that jumps into a row. Departs from sebaro's reader specimen (each tool a tab stop) |
+
+**Owner approval:** 2026-11-02, verbatim: „1 ja, 2 ja 3 ja ist in ordnung. macht man bei sowas eine gruppe oder bietet ein überspringen an?“; then „Gruppe, alle Zeilen (Empfohlen)“, „Kein Kürzel (Empfohlen)“.
+
+Two consequences of the build, put to the owner afterwards and accepted 2026-11-02, verbatim: „1 und 2 sind okay, mach wie vorgeschlagen“:
+
+1. #78: at 200 % the pressed switch takes its 3 px edge out of its word's line, so it stays 42 px and the row does not grow (#74); its word rises 1 px on press, as sebaro's does at 100 %.
+2. #80: on a tool of the PDF row, ← → Home End move between the tools and no longer turn the page; Page Up / Page Down still do, and on the page itself the arrows turn it as before.

@@ -128,27 +128,18 @@ button {
    D104 (36)) and the parts of a sidebar with a foot (`sb-side-nav__scroll`,
    `__foot`, D105 (46)) are sebaro.css's (spec/02 §4.17). */
 
-/* The tree scrolls by itself (the virtualizer's scroll element) and is the
-   vault root's drop space below its rows. It keeps four rows of the
-   window's row height when large text crowds the sidebar, whose upper
-   block then scrolls (spec/02 §4.14, sebaro D108; the product's
-   virtualizer sets it). */
+/* The tree has no scroller and no minimum height: it scrolls with the
+   sidebar's upper block `sb-side-nav__scroll`, the virtualizer's scroll
+   element, so the sidebar has one bar at its edge (ADR-0051 #71, NAV-04,
+   D102 (10); departs from sebaro's NV-Z9, the tree's own scroller with four
+   rows). It is the vault root's drop space below its rows and fills the
+   rest of the block when it is short, as sebaro's tree does as the block's
+   last part (D105 (46)); an empty tree's sentence stands in it the same way
+   (CHECKS §38, docs/sebaro-luecken.md Z4). */
 .nv-tree {
   position: relative;
-  flex: 1 1 0;
-  min-block-size: calc(4 * max(var(--sb-size-control-sm), 2rem));
-  overflow: auto;
-  container: nv-tree / inline-size;
-}
-
-/* An empty tree has no scroll frame and no minimum height (spec/02
-   §4.14, sebaro CHECKS §38): its sentence stands in `sb-side-nav__scroll`,
-   which scrolls at large text, so the foot never cuts it. The tree still
-   fills the rest as the root's drop space (docs/sebaro-luecken.md Z4). */
-.nv-tree:has(> .sb-empty) {
   flex: 1 0 auto;
-  min-block-size: 0;
-  overflow: visible;
+  container: nv-tree / inline-size;
 }
 
 /* Rows stay one line (ADR-0051 #24), and a day in `sb-row__meta` never
@@ -200,8 +191,8 @@ button {
    the row, the place line, the cross. What novalis adds is below; each is a
    row in docs/sebaro-luecken.md H. */
 
-/* The content's head: the tab row and, beside it outside its scrolling, the
-   preview tool (ADR-0051 #16). sebaro places a tab row at the top of a
+/* The content's head: the tab row; the preview switch left its end for the
+   tool row under it (ADR-0051 #73). sebaro places a tab row at the top of a
    padded `sb-window__content`; novalis's content is the editor's own
    scrolling pane, so the row keeps the 16 px start sebaro gives it there. */
 .nv-doc-head {
@@ -214,12 +205,92 @@ button {
 /* The scroll padding keeps that start when the first tab is scrolled back
    into view. The row scrolls sideways only: sebaro.css sets `overflow-x`
    alone, so with the system's classic scroll bar (D102 (10)) the block axis
-   scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q). */
+   scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q).
+   It shows no scroll bar (ADR-0051 #67): a classic one took 17 px of the
+   32 px row, or the row grew by them, and the preview switch beside it slid
+   below the names. A wheel scrolls the row sideways (TabStrip.tsx), the
+   current tab is scrolled into view, ⌃⇥ and ⌘1…9 reach every tab. */
 .nv-doc-head > .sb-doc-tabs {
   flex: 1 1 auto;
   min-inline-size: 0;
   overflow-y: hidden;
   scroll-padding-inline-start: var(--sb-space-4);
+  scrollbar-width: none;
+}
+
+/* The same for WebKit before Safari 18.2, which macOS 14 may still have
+   (`scrollbar-width` came with 18.2): it hides the system's bar, it draws
+   none of its own (D102 (10)). */
+.nv-doc-head > .sb-doc-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Where more tabs lie beyond an end of the row, a 16 px fade into the
+   ground says so (ADR-0051 #70; sebaro has no part for it,
+   docs/sebaro-luecken.md Z7): the row shows no scroll bar (#67).
+   `data-nv-more` names the ends (TabStrip.tsx `markMore`). Each fade is a
+   sticky part of the row that takes no room (its width given back by its
+   margin) and lets the pointer through; only its opacity changes, so the
+   row's size never follows it. With the pinned board tab at the start the
+   start's fade hangs after that tab, which stays put while the row
+   scrolls. */
+.nv-doc-head > .sb-doc-tabs::before,
+.nv-doc-head > .sb-doc-tabs::after,
+.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+  content: "";
+  flex: none;
+  inline-size: var(--sb-space-4);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.nv-doc-head > .sb-doc-tabs::before,
+.nv-doc-head > .sb-doc-tabs::after {
+  position: sticky;
+  z-index: 1;
+}
+
+.nv-doc-head > .sb-doc-tabs::before {
+  inset-inline-start: 0;
+  margin-inline-end: calc(-1 * var(--sb-space-4));
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs::after {
+  inset-inline-end: 0;
+  margin-inline-start: calc(-1 * var(--sb-space-4));
+  background: linear-gradient(to left, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 100%;
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs:dir(rtl)::before,
+.nv-doc-head > .sb-doc-tabs:dir(rtl) > .sb-doc-tabs__item--pinned::after {
+  background: linear-gradient(to left, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs:dir(rtl)::after {
+  background: linear-gradient(to right, var(--sb-color-bg), transparent);
+}
+
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"] > .sb-doc-tabs__item--pinned::after,
+.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {
+  opacity: 1;
+}
+
+/* Forced colours paint no ground to fade into. */
+@media (forced-colors: active) {
+  .nv-doc-head > .sb-doc-tabs::before,
+  .nv-doc-head > .sb-doc-tabs::after,
+  .nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after {
+    display: none;
+  }
 }
 
 /* The 16 px start is the first tab's margin, not the row's padding, as
@@ -229,16 +300,6 @@ button {
    before it (docs/sebaro-luecken.md Z4). */
 .nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item:first-child {
   margin-inline-start: var(--sb-space-4);
-}
-
-/* A hairline at its start marks where the scrolling row ends. */
-.nv-doc-head__tools {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  padding-inline: var(--sb-space-1);
-  border-inline-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
-  border-block-end: var(--sb-border-width-hairline) solid var(--sb-color-border);
 }
 
 /* The board's tab carries the board icon before its name (ADR-0050); its
@@ -298,6 +359,58 @@ button {
   flex: 1;
   flex-direction: column;
   min-block-size: 0;
+}
+
+/* ------------------------------------------------------------- tool row */
+/* The tool row of a file in the editor (DocTools.tsx, ADR-0051 #72, #73)
+   is sebaro's row under the document tabs (`sb-doc-bar`, spec/02 §4.25.4)
+   from sebaro.css: 4 × 8 px, the hairline under it, wrapping at a large
+   root font. It keeps its height in the panel's column. */
+.nv-doc-tools {
+  flex: 0 0 auto;
+}
+
+/* A group of tools wraps as one unit, as the viewers' `.viewer-bar__group`
+   (styles/viewer.css, docs/sebaro-luecken.md O „Werkzeugleiste beim
+   Umbruch“): 2 px between its tools, like `.sb-window__tools`. */
+.nv-doc-tools__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sb-space-0-5);
+}
+
+/* The preview switch is sebaro's compact switch, 32 px like the tools
+   beside it (D102 (2), NV-A12; ADR-0051 #78): #68's 24 px held for the
+   switch at the tab row's end only (docs/sebaro-luecken.md Z7, Z8).
+   Pressed, the switch writes its word in the title weight (sebaro's chosen
+   state, D102 (2)), which is wider: by 0.6 px at 100 %, 1.2 px at 200 %,
+   and every tool after it moved (ADR-0051 #74, measured in WebKit). The
+   word keeps the room of its title weight in both states: a copy of it in
+   that weight, hidden, no higher than nothing, and without a name of its
+   own (docs/sebaro-luecken.md Z8). */
+.nv-doc-tools__word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nv-doc-tools__word::after {
+  content: attr(data-nv-word) / "";
+  block-size: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: var(--sb-type-title-weight);
+}
+
+/* Pressed, the switch's 3 px edge is 2 px more than the hairline it
+   replaces. At 100 % the 32 px hold them; at 200 % the word's line sets
+   the height, sebaro's switch grew from 42 to 44 px and the row and every
+   tool after it moved (ADR-0051 #74, #78, measured in WebKit). The word's
+   line gives the 2 px back, so the switch keeps its height in both states;
+   the word rises 1 px, as it does at 100 % (docs/sebaro-luecken.md Z8). */
+.nv-doc-tools > .sb-secondary-action--compact[aria-pressed="true"] {
+  line-height: calc(var(--sb-type-label-line-height) * 1em - (var(--sb-border-width-strong) - var(--sb-border-width-control)));
 }
 
 /* ---------------------------------------------------------------- editor */

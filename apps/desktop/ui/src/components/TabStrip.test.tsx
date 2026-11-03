@@ -7,7 +7,8 @@ import { useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
-import TabStrip, { DOC_PANEL_ID, DocPanel, revealTab } from "./TabStrip";
+import appCss from "../styles/app.css?raw";
+import TabStrip, { DOC_PANEL_ID, DocPanel, markMore, revealTab, scrollRowByWheel } from "./TabStrip";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -19,8 +20,8 @@ vi.mock("../ipc/client", () => ({
   errorKey: () => "errors.internal",
   errorValues: (error: unknown) => ({ detail: String(error) }),
 }));
-// The preview button only dispatches; what the command does is the
-// dispatcher's own test (lib/commands.test.ts).
+// The dispatcher is the stores' (stores/ui.ts) and stays out of these
+// tests; what a command does is lib/commands.test.ts's.
 vi.mock("../lib/commands", () => ({
   dispatchCommand: vi.fn(),
 }));
@@ -403,52 +404,12 @@ describe("TabStrip", () => {
     });
   });
 
-  // ADR-0020, ADR-0051 #16: the tool beside the strip is `Cmd+E` for the
-  // pointer — sebaro's compact switch with the eye and its word (D102 (2), D105 (2)), outside the
-  // scrolling row so a row of many tabs never pushes it out of sight.
-  describe("the preview tool", () => {
-    it("is a compact switch with its word and its chord, and dispatches the toggle", () => {
-      render(<TabStrip />);
-
-      const button = screen.getByRole("button", { name: "editor.preview" });
-      expect(button.className).toBe("sb-secondary-action sb-secondary-action--compact");
-      expect(button.textContent).toBe("editor.preview");
-      expect(button.getAttribute("aria-pressed")).toBe("false");
-      expect(button.getAttribute("aria-keyshortcuts")).toBe("Meta+E");
-      // D105 (2): the eye at 20 px before the word.
-      expect(button.firstElementChild?.getAttribute("class")).toBe("sb-icon sb-icon--20");
-      expect(button.querySelector("use")?.getAttribute("href")).toBe("#eye");
-      expect(button.closest(".sb-doc-tabs")).toBeNull();
-
-      fireEvent.click(button);
-      expect(dispatchCommand).toHaveBeenCalledWith("note.togglePreview");
-    });
-
-    it("keeps its name and says the preview is on with aria-pressed", () => {
-      useUi.setState({ previewing: { "a.md": true } });
-      render(<TabStrip />);
-      expect(screen.getByRole("button", { name: "editor.preview" }).getAttribute("aria-pressed")).toBe("true");
-    });
-
-    it("is not there for a tab with nothing else to show", () => {
-      useTabs.setState({ tabs: ["a.md", "x.pdf", "b.txt"], active: "x.pdf" });
-      const { rerender } = render(<TabStrip />);
-      expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
-
-      useTabs.setState({ active: "b.txt" });
-      rerender(<TabStrip />);
-      expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
-    });
-
-    // ADR-0025: a CSV or TSV has its table behind the tool, an SVG its picture.
-    it("is there for a CSV, a TSV and an SVG", () => {
-      for (const active of ["d.csv", "d.tsv", "i.svg"]) {
-        useTabs.setState({ tabs: [active], active });
-        const { unmount } = render(<TabStrip />);
-        expect(screen.getByRole("button", { name: "editor.preview" }), active).toBeTruthy();
-        unmount();
-      }
-    });
+  // ADR-0051 #73: the preview switch left the row's end for the tool row
+  // under the tabs (DocTools.test.tsx).
+  it("has no preview switch at the row's end", () => {
+    render(<TabStrip />);
+    expect(screen.queryByRole("button", { name: "editor.preview" })).toBeNull();
+    expect(document.querySelector(".nv-doc-head")?.children).toHaveLength(1);
   });
 
   // ADR-0050: an open board is a tab like a note's, not a pane over
@@ -639,5 +600,159 @@ describe("revealTab", () => {
     a.getBoundingClientRect = () => box(-50, 150);
     revealTab(a.querySelector("button")!);
     expect(list.scrollLeft).toBe(0);
+  });
+});
+
+// ADR-0051 #67: the row shows no scroll bar, so a wheel turned over it
+// scrolls it sideways, towards its end in either direction of writing.
+describe("scrollRowByWheel", () => {
+  function row(scrollWidth = 900) {
+    const list = document.createElement("div");
+    Object.defineProperty(list, "scrollWidth", { value: scrollWidth });
+    Object.defineProperty(list, "clientWidth", { value: 300 });
+    document.body.append(list);
+    return list;
+  }
+  const wheel = (deltaY: number, deltaX = 0, deltaMode = 0) => ({ deltaX, deltaY, deltaMode });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("turns a wheel down into a scroll towards the row's end", () => {
+    const list = row();
+    scrollRowByWheel(list, wheel(40));
+    expect(list.scrollLeft).toBe(40);
+    scrollRowByWheel(list, wheel(-15));
+    expect(list.scrollLeft).toBe(25);
+  });
+
+  it("scrolls towards the end on the left in a right-to-left row", () => {
+    const list = row();
+    list.style.direction = "rtl";
+    scrollRowByWheel(list, wheel(40));
+    expect(list.scrollLeft).toBe(-40);
+  });
+
+  it("counts a delta in lines as lines of the row's text", () => {
+    const list = row();
+    list.style.fontSize = "14px";
+    list.style.lineHeight = "20px";
+    scrollRowByWheel(list, wheel(3, 0, WheelEvent.DOM_DELTA_LINE));
+    expect(list.scrollLeft).toBe(60);
+  });
+
+  it("keeps fractions of a pixel until they make one", () => {
+    const list = row();
+    for (let i = 0; i < 5; i++) scrollRowByWheel(list, wheel(0.4));
+    expect(list.scrollLeft).toBe(2);
+  });
+
+  it("leaves a sideways swipe and a row that does not scroll to WebKit", () => {
+    const list = row();
+    scrollRowByWheel(list, wheel(10, 30));
+    expect(list.scrollLeft).toBe(0);
+    const still = row(300);
+    scrollRowByWheel(still, wheel(40));
+    expect(still.scrollLeft).toBe(0);
+  });
+
+  it("is what the strip does with a wheel over its row", () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md" });
+    render(<TabStrip />);
+    const list = screen.getByRole("tablist");
+    Object.defineProperty(list, "scrollWidth", { value: 900 });
+    Object.defineProperty(list, "clientWidth", { value: 300 });
+    fireEvent.wheel(list, { deltaY: 50 });
+    expect(list.scrollLeft).toBe(50);
+  });
+});
+
+// ADR-0051 #70: without a scroll bar a fade says which ends have more
+// tabs beyond them; measured at the tabs, so the drop room after the last
+// tab and the pinned tab do not count.
+describe("markMore", () => {
+  const box = (left: number, right: number) => ({ left, right }) as DOMRect;
+
+  function row(pinned: boolean, first: [number, number], last: [number, number]) {
+    const list = document.createElement("div");
+    list.innerHTML =
+      (pinned ? '<span class="sb-doc-tabs__item sb-doc-tabs__item--pinned"></span>' : "") +
+      '<span class="sb-doc-tabs__item"></span><span class="sb-doc-tabs__item"></span>' +
+      '<span class="nv-doc-tabs__end"></span>';
+    list.getBoundingClientRect = () => box(0, 300);
+    const items = [...list.querySelectorAll<HTMLElement>(".sb-doc-tabs__item")];
+    if (pinned) items.shift()!.getBoundingClientRect = () => box(0, 80);
+    items[0]!.getBoundingClientRect = () => box(...first);
+    items[1]!.getBoundingClientRect = () => box(...last);
+    document.body.append(list);
+    return list;
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("names the end with a tab beyond it, and neither when all are in view", () => {
+    const list = row(false, [16, 150], [150, 420]);
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("end");
+
+    const all = row(false, [16, 150], [150, 299.6]);
+    markMore(all);
+    expect(all.dataset.nvMore).toBeUndefined();
+  });
+
+  it("names the start when a tab lies under the pinned one, and both ends", () => {
+    const list = row(true, [40, 200], [200, 420]);
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("start end");
+  });
+
+  it("reads the ends the other way round in a right-to-left row", () => {
+    const list = row(false, [200, 330], [-90, 40]);
+    list.style.direction = "rtl";
+    markMore(list);
+    expect(list.dataset.nvMore).toBe("start end");
+  });
+
+  it("is what the strip writes on its row", () => {
+    useTabs.setState({ tabs: ["a.md", "b.md"], active: "a.md" });
+    render(<TabStrip />);
+    // jsdom lays nothing out: every tab at 0–0 is in view.
+    expect(screen.getByRole("tablist").dataset.nvMore).toBeUndefined();
+  });
+});
+
+// ADR-0051 #67, #70: read as text, jsdom computes no style (ADR-0011).
+describe("the head's CSS", () => {
+  // The rule that starts a line with exactly this selector.
+  const block = (selector: string) => {
+    const start = appCss.indexOf(`\n${selector} {`);
+    expect(start, selector).toBeGreaterThanOrEqual(0);
+    return appCss.slice(start, appCss.indexOf("}", start));
+  };
+
+  it("hides the row's scroll bar", () => {
+    expect(block(".nv-doc-head > .sb-doc-tabs")).toContain("scrollbar-width: none;");
+    // WebKit before Safari 18.2 (macOS 14) knows only the pseudo-element.
+    expect(block(".nv-doc-head > .sb-doc-tabs::-webkit-scrollbar")).toContain("display: none;");
+  });
+
+  it("fades the ends that have more tabs, and never takes room or the pointer", () => {
+    const shared = block(
+      ".nv-doc-head > .sb-doc-tabs::before,\n.nv-doc-head > .sb-doc-tabs::after,\n.nv-doc-head > .sb-doc-tabs > .sb-doc-tabs__item--pinned::after",
+    );
+    expect(shared).toContain("pointer-events: none;");
+    expect(shared).toContain("opacity: 0;");
+    // Sticky at each end, its width given back by its margin.
+    expect(appCss).toContain(
+      "\n.nv-doc-head > .sb-doc-tabs::before {\n  inset-inline-start: 0;\n  margin-inline-end: calc(-1 * var(--sb-space-4));\n  background: linear-gradient(to right, var(--sb-color-bg), transparent);\n}",
+    );
+    expect(appCss).toContain(
+      "\n.nv-doc-head > .sb-doc-tabs::after {\n  inset-inline-end: 0;\n  margin-inline-start: calc(-1 * var(--sb-space-4));\n  background: linear-gradient(to left, var(--sb-color-bg), transparent);\n}",
+    );
+    expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,');
+    expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {\n  opacity: 1;');
   });
 });

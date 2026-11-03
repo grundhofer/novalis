@@ -908,6 +908,45 @@ ADR-0051, amendment 2026-10-29, #57–#62):
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-01
+
+After the owner saw a release build of `main` with classic scroll bars, four
+more answers, the first three the recommendation (verbatim answers in
+ADR-0051, amendment 2026-11-01, #67–#70):
+- the tab row hides its scroll bar; a wheel scrolls it sideways (changes #46)
+- the preview switch is 24 px high, its word on the tabs' names
+- pictures also with classic scroll bars and an overflowing tab row, and
+  `scripts/measure-tab-row.mjs` measures the row in WebKit
+- a fade at each end of the tab row with tabs beyond it (#70, not the
+  recommendation „So lassen“)
+
+Recorded as amendments to **ADR-0051**.
+
+Later the same day, after the sidebar was measured with classic scroll bars
+and the owner asked for a tool row under the tabs (verbatim answers in
+ADR-0051, amendment 2026-11-01 (2), #71–#77):
+- the tree scrolls with the sidebar's upper block: one scroll bar (#71)
+- a tool row for Markdown with Preview, Bold, Italic, Link, Heading 1–3,
+  List, Task, Code, Quote, Find and text size; CSV, TSV and SVG with
+  Preview alone (#72, #73); format tools disabled in the preview (#74)
+- word buttons until sebaro has icons for them (#75); ⌥⌘1–3, ⇧⌘8, ⇧⌘9
+  where free (#76); the formats toggle per line (#77)
+
+Recorded as amendments to **ADR-0051**.
+
+## Answered 2026-11-02
+
+After the first look at the tool row, three answers (verbatim in ADR-0051,
+amendment 2026-11-02, #78–#80):
+- the preview switch in the tool row is sebaro's 32 px (#78)
+- „H1“–„H3“ stay the heading tools' words (#79)
+- every tool row is one tab stop with arrow keys inside, the viewers' rows
+  too; no shortcut into a row (#80)
+- accepted afterwards: the pressed switch's word rises 1 px at 200 % (#78);
+  on a PDF tool the arrows move between tools, not pages (#80)
+
+Recorded as amendments to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

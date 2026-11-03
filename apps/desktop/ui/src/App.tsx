@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import Banner from "./components/Banner";
 import BootError from "./components/BootError";
 import CloudHint from "./components/CloudHint";
+import DocTools from "./components/DocTools";
 import LegacyHint from "./components/LegacyHint";
 import NoVault from "./components/NoVault";
 import Prompt from "./components/Prompt";
@@ -443,6 +444,10 @@ export default function App() {
                 <CloudHint />
                 <LegacyHint />
                 <Banner />
+                {/* The tool row of a file in the editor, where a viewer has
+                    its own (ADR-0051 #72, #73); it stays while the preview
+                    switches in and out below it. */}
+                <DocTools />
                 {boardVisible ? (
                   // The board's chunk is local work: an empty pane while it
                   // loads, no „Wird geladen …“ (STA-06, ADR-0051 #27.8).

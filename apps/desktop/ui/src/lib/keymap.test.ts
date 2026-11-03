@@ -55,6 +55,23 @@ describe("the keymap (docs/KEYMAP.md)", () => {
     expect(commandForChord("Shift+Cmd+N")).toBeUndefined();
   });
 
+  // ADR-0051 #76: the formats' chords, on the German layout's characters
+  // too; none is one of sebaro's fixed ones.
+  it("reads the formats' chords by the key's position", () => {
+    expect(chordOf(key({ code: "Digit1", key: "¡", altKey: true, metaKey: true }))).toBe("Alt+Cmd+1");
+    expect(chordOf(key({ code: "Digit8", key: "(", shiftKey: true, metaKey: true }))).toBe("Shift+Cmd+8");
+    expect(commandForChord("Alt+Cmd+1")?.command).toBe("markdown.heading1");
+    expect(commandForChord("Alt+Cmd+2")?.command).toBe("markdown.heading2");
+    expect(commandForChord("Alt+Cmd+3")?.command).toBe("markdown.heading3");
+    expect(commandForChord("Shift+Cmd+8")?.command).toBe("markdown.list");
+    expect(commandForChord("Shift+Cmd+9")?.command).toBe("markdown.task");
+    expect(bindingFor("markdown.code")).toBeUndefined();
+    expect(bindingFor("markdown.quote")).toBeUndefined();
+    for (const chord of ["Alt+Cmd+1", "Alt+Cmd+2", "Alt+Cmd+3", "Shift+Cmd+8", "Shift+Cmd+9"]) {
+      expect(isOwnChord(chord), chord).toBe(true);
+    }
+  });
+
   // spec/02 §4.20: F6 / ⇧F6 move through the areas, from anywhere.
   it("reads F6 and ⇧F6 as the area chords", () => {
     expect(chordOf(key({ code: "F6", key: "F6" }))).toBe("F6");

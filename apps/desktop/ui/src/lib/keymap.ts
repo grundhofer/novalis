@@ -92,6 +92,13 @@ export const KEYMAP: readonly Binding[] = [
   // Markdown and view.
   { chord: "Shift+Cmd+K", command: "markdown.link", scope: "editor:markdown" },
   { chord: "Cmd+Enter", command: "markdown.toggleCheckbox", scope: "editor:markdown" },
+  // The tool row's formats (ADR-0051 #76): only where free and usual; Code
+  // and Quote have none.
+  { chord: "Alt+Cmd+1", command: "markdown.heading1", scope: "editor:markdown" },
+  { chord: "Alt+Cmd+2", command: "markdown.heading2", scope: "editor:markdown" },
+  { chord: "Alt+Cmd+3", command: "markdown.heading3", scope: "editor:markdown" },
+  { chord: "Shift+Cmd+8", command: "markdown.list", scope: "editor:markdown" },
+  { chord: "Shift+Cmd+9", command: "markdown.task", scope: "editor:markdown" },
   { chord: "Cmd+E", command: "note.togglePreview", scope: "global" },
   { chord: "Ctrl+Cmd+S", command: "sidebar.toggle", scope: "global" },
   { chord: "Shift+Cmd+B", command: "board.toggle", scope: "global" },

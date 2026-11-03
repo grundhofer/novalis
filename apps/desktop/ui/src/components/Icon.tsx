@@ -50,6 +50,10 @@ const NAMES = {
   // „Einstellungen“ while it is the current one (NAV-01's filled icon).
   "arrow-left": true,
   "settings--filled": false,
+  // A Markdown file's tool row (ADR-0051 #72): Link, Code, Quote.
+  link: false,
+  code: false,
+  quote: false,
 } as const;
 
 export type IconName = keyof typeof NAMES;

@@ -14,7 +14,7 @@ import {
   selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
-import { EditorSelection, type EditorState, type StateCommand } from "@codemirror/state";
+import { EditorSelection, type EditorState, type StateCommand, type Text } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 
 import { setEditorBridge } from "../lib/editorBridge";
@@ -138,6 +138,182 @@ function lineSpans(state: EditorState): [number, number][] {
   return merged;
 }
 
+/**
+ * The block mark a line's text starts with after its indentation and its
+ * quote marks: a task (a list item with a box, bullet or number), a bullet
+ * item, a numbered item or a heading; or, for Quote, the quote mark itself.
+ * `length` is the mark with the blanks after it.
+ */
+interface LineMark {
+  kind: "task" | "list" | "ordered" | "heading" | "quote";
+  length: number;
+  /** A heading's level. */
+  level?: number;
+  /** A bullet item's or task's `-`, `*` or `+`. */
+  bullet?: string;
+}
+
+function lineMarkOf(body: string): LineMark | null {
+  let match = /^([-*+]|\d+[.)])[ \t]+\[[ xX]\](?:[ \t]+|$)/.exec(body);
+  if (match) return { kind: "task", length: match[0].length, bullet: match[1] };
+  match = /^([-*+])[ \t]+/.exec(body);
+  if (match) return { kind: "list", length: match[0].length, bullet: match[1] };
+  match = /^\d+[.)][ \t]+/.exec(body);
+  if (match) return { kind: "ordered", length: match[0].length };
+  match = /^(#{1,6})(?:[ \t]+|$)/.exec(body);
+  if (match) return { kind: "heading", length: match[0].length, level: (match[1] as string).length };
+  return null;
+}
+
+/** One quote mark; and all of a line's quote marks with the blanks after them. */
+const QUOTE = /^>[ \t]?/;
+const QUOTES = /^(?:>[ \t]?)*[ \t]*/;
+
+/** A line format of the tool row (ADR-0051 #72, #77). */
+export type LineFormat = { kind: "heading"; level: 1 | 2 | 3 } | { kind: "list" } | { kind: "task" } | { kind: "quote" };
+
+function hasFormat(mark: LineMark | null, format: LineFormat): boolean {
+  if (!mark || mark.kind !== format.kind) return false;
+  return format.kind !== "heading" || mark.level === format.level;
+}
+
+/** The prefix `format` writes; a bullet item and a task keep each other's `-`, `*` or `+`. */
+function prefixOf(format: LineFormat, mark: LineMark | null): string {
+  const bullet = mark?.bullet && /^[-*+]$/.test(mark.bullet) ? mark.bullet : "-";
+  switch (format.kind) {
+    case "heading":
+      return `${"#".repeat(format.level)} `;
+    case "list":
+      return `${bullet} `;
+    case "task":
+      return `${bullet} [ ] `;
+    case "quote":
+      return "> ";
+  }
+}
+
+/**
+ * Heading 1–3, List, Task and Quote (ADR-0051 #72, #77): they toggle per
+ * line, over every line the selection touches (the lines `lineSpans`
+ * counts). When every such line has the format, it is removed from each;
+ * otherwise each line without it gets it. A quote holds the line's other
+ * marks, as Markdown reads `> - a`: Quote adds or removes one quote mark
+ * before them, and the other formats act behind the quote marks. Inside
+ * them a line holds one mark: the format replaces the heading, bullet,
+ * number or task box the line has, so a heading replaces another level,
+ * List turns a task back into a bullet item (keeping its `-`, `*` or `+`)
+ * and Task gives a bullet item its box. Blank lines are left alone while
+ * the selection has text, so a list of paragraphs does not gain empty
+ * items; a cursor on a blank line starts the format there. The indentation stays. One transaction, so one
+ * undo step; a cursor at a new prefix lands after it.
+ */
+export function toggleLineFormat(format: LineFormat): StateCommand {
+  return ({ state, dispatch }) => {
+    const lines = lineSpans(state).flatMap(([first, last]) =>
+      Array.from({ length: last - first + 1 }, (_, i) => state.doc.line(first + i)),
+    );
+    const filled = lines.filter((line) => line.text.trim() !== "");
+    const marked = (filled.length > 0 ? filled : lines).map((line) => {
+      const indent = /^[ \t]*/.exec(line.text)?.[0].length ?? 0;
+      const body = line.text.slice(indent);
+      if (format.kind === "quote") {
+        const length = QUOTE.exec(body)?.[0].length ?? 0;
+        return { at: line.from + indent, mark: length > 0 ? ({ kind: "quote", length } as const) : null };
+      }
+      const inner = indent + (QUOTES.exec(body)?.[0].length ?? 0);
+      return { at: line.from + inner, mark: lineMarkOf(line.text.slice(inner)) };
+    });
+    const remove = marked.every(({ mark }) => hasFormat(mark, format));
+    const changes = [];
+    for (const { at, mark } of marked) {
+      if (remove) changes.push({ from: at, to: at + (mark?.length ?? 0) });
+      else if (!hasFormat(mark, format)) changes.push({ from: at, to: at + (mark?.length ?? 0), insert: prefixOf(format, mark) });
+    }
+    if (changes.length === 0) return false;
+    const changeSet = state.changes(changes);
+    dispatch(
+      state.update({
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
+        scrollIntoView: true,
+        userEvent: "input.format",
+      }),
+    );
+    return true;
+  };
+}
+
+/**
+ * The fenced code blocks of `doc` by line number: the opening fence, the
+ * closing one (null when the block runs to the end) and the fence's own
+ * backticks or tildes, so a fence put inside a block closes it.
+ */
+function fencedBlocks(doc: Text): { open: number; close: number | null; fence: string }[] {
+  const blocks: { open: number; close: number | null; fence: string }[] = [];
+  let open: { line: number; fence: string } | null = null;
+  for (let n = 1; n <= doc.lines; n++) {
+    const text = doc.line(n).text;
+    if (!open) {
+      const match = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(text);
+      // A backtick fence's language holds no backtick (CommonMark).
+      if (match && !((match[1] as string)[0] === "`" && (match[2] as string).includes("`")))
+        open = { line: n, fence: match[1] as string };
+    } else {
+      const match = /^[ \t]*(`{3,}|~{3,})[ \t]*$/.exec(text);
+      const fence = match?.[1];
+      if (fence && fence[0] === open.fence[0] && fence.length >= open.fence.length) {
+        blocks.push({ open: open.line, close: n, fence: open.fence });
+        open = null;
+      }
+    }
+  }
+  if (open) blocks.push({ open: open.line, close: null, fence: open.fence });
+  return blocks;
+}
+
+/**
+ * Code (ADR-0051 #72, #77): backticks round the selection, or off when they
+ * are round it already, as Bold does with `**`; a cursor gets a pair to
+ * type into. When a selection covers several lines, it works on whole
+ * lines and on the document's fenced blocks: lines outside every block are
+ * fenced; lines inside a block leave it, its fence goes where they start
+ * and end (or the block's own fence goes, when they are its first or last
+ * lines). A selection that reaches past the block it touches is left as it
+ * is. One transaction, so one undo step.
+ */
+export const toggleCode: StateCommand = (target) => {
+  const { state, dispatch } = target;
+  const spans = lineSpans(state);
+  if (spans.every(([first, last]) => first === last)) return wrapSelection("`")(target);
+  const { doc, lineBreak: lb } = state;
+  const blocks = fencedBlocks(doc);
+  // Line `n` with its line break.
+  const drop = (n: number) =>
+    n < doc.lines ? { from: doc.line(n).from, to: doc.line(n + 1).from } : { from: doc.line(n - 1).to, to: doc.line(n).to };
+  const changes = [];
+  for (const [first, last] of spans) {
+    const block = blocks.find((b) => first <= (b.close ?? doc.lines) && last >= b.open);
+    if (!block) {
+      changes.push({ from: doc.line(first).from, insert: `\`\`\`${lb}` });
+      changes.push({ from: doc.line(last).to, insert: `${lb}\`\`\`` });
+      continue;
+    }
+    const end = block.close ?? doc.lines + 1;
+    if (first < block.open || last > end) continue;
+    // The block's lines in the selection; none when it holds only fences.
+    const from = Math.max(first, block.open + 1);
+    const to = Math.min(last, end - 1);
+    if (from > to) continue;
+    if (from === block.open + 1) changes.push(drop(block.open));
+    else changes.push({ from: doc.line(from).from, insert: `${block.fence}${lb}` });
+    if (to < end - 1) changes.push({ from: doc.line(to).to, insert: `${lb}${block.fence}` });
+    else if (block.close !== null) changes.push(drop(block.close));
+  }
+  if (changes.length === 0) return false;
+  dispatch(state.update({ changes, scrollIntoView: true, userEvent: "input.format" }));
+  return true;
+};
+
 const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
 /**
@@ -215,6 +391,14 @@ const REGISTRY: Record<string, Command> = {
   "markdown.italic": wrapSelection("_"),
   "markdown.link": insertLink,
   "markdown.toggleCheckbox": toggleCheckbox,
+  // The tool row's formats (ADR-0051 #72, #76, #77).
+  "markdown.heading1": toggleLineFormat({ kind: "heading", level: 1 }),
+  "markdown.heading2": toggleLineFormat({ kind: "heading", level: 2 }),
+  "markdown.heading3": toggleLineFormat({ kind: "heading", level: 3 }),
+  "markdown.list": toggleLineFormat({ kind: "list" }),
+  "markdown.task": toggleLineFormat({ kind: "task" }),
+  "markdown.code": toggleCode,
+  "markdown.quote": toggleLineFormat({ kind: "quote" }),
   "editor.insertDateTime": insertDateTime,
   "editor.sortLines": sortLines,
   "editor.joinLines": joinLines,

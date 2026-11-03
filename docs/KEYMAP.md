@@ -73,7 +73,7 @@ it back).
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown |  | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | `system` | Apple standard; the macOS Full Screen item |
 | `Cmd+,` | ⌘, | `settings.open` | global | Einstellungen | sebaro's fixed chord (DSK-09, DSK-02, ADR-0051 #1): the settings view in the content area, also the app menu's „Einstellungen …“, the palette and the sidebar's place „Einstellungen“; `Escape` or `Cmd+W` leaves it for the place before |
-| `Cmd+E` | ⌘E | `note.togglePreview` | global |  | The read-only preview of the open note (PLAN.md §4.4, ADR-0020) — of a CSV or TSV its table, of an SVG its picture (ADR-0025); the preview tool beside the tab strip does the same (ADR-0051 #16), and so does View ▸ Preview, a check item that is checked while the current tab shows its preview and off for a tab without one (ADR-0051 #43) |
+| `Cmd+E` | ⌘E | `note.togglePreview` | global |  | The read-only preview of the open note (PLAN.md §4.4, ADR-0020) — of a CSV or TSV its table, of an SVG its picture (ADR-0025); the preview switch in the tool row under the tabs does the same (ADR-0051 #16, #73), and so does View ▸ Preview, a check item that is checked while the current tab shows its preview and off for a tab without one (ADR-0051 #43) |
 | `Cmd+P` | ⌘P | `quickOpen.open` | global |  | §4.5: quick-open, no Print |
 | `Cmd+K` | ⌘K | `palette.open` | global | Befehlspalette | sebaro's fixed palette chord (D84, DSK-09, ADR-0051); pressed again it closes the palette (spec/02 §4.16) |
 | `Shift+Cmd+P` | ⇧⌘P | `palette.open` | global |  | Sublime; the palette's second chord (ADR-0051) |
@@ -109,6 +109,11 @@ it back).
 | `Shift+F6` | ⇧F6 | `area.previous` | global | Nächster / vorheriger Bereich | sebaro's fixed chord (DSK-09, spec/02 §4.20, ADR-0051): the previous area; also Window ▸ Previous Area and the palette |
 | `Shift+Cmd+K` | ⇧⌘K | `markdown.link` | editor:markdown |  | §4.5: insert/wrap Markdown link; moved from `Cmd+K`, bound in the editor over CodeMirror's own Delete Line (ADR-0051) |
 | `Cmd+Enter` | ⌘↩ | `markdown.toggleCheckbox` | editor:markdown |  | §4.3 |
+| `Alt+Cmd+1` | ⌥⌘1 | `markdown.heading1` | editor:markdown |  | ADR-0051 #76 (Google Docs' headings); `# ` on every line the selection touches, or off when each has it; it replaces another level (#77). Also the tool row's Heading 1 |
+| `Alt+Cmd+2` | ⌥⌘2 | `markdown.heading2` | editor:markdown |  | ADR-0051 #76; `## `, as `Alt+Cmd+1` (#77). Also the tool row's Heading 2 |
+| `Alt+Cmd+3` | ⌥⌘3 | `markdown.heading3` | editor:markdown |  | ADR-0051 #76; `### `, as `Alt+Cmd+1` (#77). Also the tool row's Heading 3 |
+| `Shift+Cmd+8` | ⇧⌘8 | `markdown.list` | editor:markdown |  | ADR-0051 #76 (Google Docs' bulleted list); `- ` per line, or off (#77). Also the tool row's List |
+| `Shift+Cmd+9` | ⇧⌘9 | `markdown.task` | editor:markdown |  | ADR-0051 #76 (Google Docs' checklist); `- [ ] ` per line, or off (#77). Also the tool row's Task |
 | `Ctrl+Cmd+S` | ⌃⌘S | `sidebar.toggle` | global | Seitenleiste ein und aus | sebaro's fixed chord (DSK-09, ADR-0051); `Cmd+\` needed ⌥ on the German layout; also the title bar's sidebar tool (DSK-04, ADR-0051 #5), which announces it in `aria-keyshortcuts`. Below 722 px of window width it opens and closes the sidebar's overlay over the content without moving focus: it is View ▸ Sidebar's accelerator and counts as the menu (spec/02 §4.17, ADR-0051 #48); the tool and the palette move focus into it |
 | `Shift+Cmd+B` | ⇧⌘B | `board.toggle` | global |  | §4.5 |
 | `Cmd+Plus` | ⌘+ | `view.fontLarger` | global | Schrift größer / kleiner | sebaro's fixed chord (DSK-09, ADR-0051); writes `editor.fontSize`; the page's own, the menu item has no accelerator (spec/09 §13.1) |
@@ -225,6 +230,13 @@ it back).
   Lines, Join Lines, Show/Hide Invisibles, ADR-0029) have no chord and no
   menu item: they are palette entries. Sublime's `Cmd+J` is Today's Note
   here (ADR-0026).
+- `markdown.code` and `markdown.quote` (Code, Quote; ADR-0051 #72, #76)
+  have no chord and no menu item: tools of a Markdown file's tool row under
+  the tabs and palette entries. Code puts backticks round the selection, or
+  a fenced block round a selection over several lines (lines inside a
+  fenced block leave it instead); Quote toggles `> ` per line, round the
+  line's other marks, which the other formats change behind it (#77). The tool row's format tools are off while the preview
+  shows (#74); the chords still act there as described above.
 - `board.newCard` (New Card, ADR-0030) has no chord: it is a palette entry,
   listed only while a board is active or the vault has exactly one.
 - `board.cardFromSelection` (New Card from Selection, ADR-0035) has no
@@ -278,6 +290,20 @@ it back).
   chord: the way to reorder the tabs without dragging, also palette entries
   where the current tab can move that way. The current tab moves one place;
   the board's tab stays first (ADR-0050).
+- The tool rows' own keys, when a tool in a row has focus (ADR-0051 #80,
+  the WAI-ARIA toolbar pattern): `Left` / `Right` focus the previous /
+  next tool, round, `Home` / `End` the first / last; right to left the two
+  arrows swap. Every row is one tab stop: the tool used last, by keys or
+  by the pointer, else the first. A tool that is off (`aria-disabled`)
+  still takes focus. The rows are the Markdown file's, the CSV, TSV and
+  SVG file's and the viewers' (image, comic, PDF, EPUB). In the PDF's page
+  field `Left`, `Right`, `Home` and `End` stay the field's; the field is
+  never the row's stop, which stays the tool used before it, and `Tab` /
+  `Shift+Tab` leave the field for that stop or out of the row; on a tool of the PDF's row they move between the
+  tools instead of turning the page (`PageUp` / `PageDown` still turn
+  it). No chord jumps into a row; the find bars are forms and keep a tab
+  stop per control. They are the widget's keys, like the tree's, and not
+  parity rows.
 - The sidebar's divider (spec/02 §4.23, ADR-0051), when it has focus:
   `Left` / `Right` move it by 8 px, with `Shift` by 32 px, `Home` / `End`
   give the smallest / largest width (200 / 360 px), `Enter` collapses and

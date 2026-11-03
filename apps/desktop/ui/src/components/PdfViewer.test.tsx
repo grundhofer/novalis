@@ -187,6 +187,51 @@ describe("PdfViewer", () => {
     expect(rendered.at(-1)?.page).toBe(1);
   });
 
+  // ADR-0051 #80: the row is one tab stop; the arrows move through its
+  // tools and the field, and do not turn the page there. The field is never
+  // the stop: from it the arrows are the field's (found in review).
+  it("makes its bar one tab stop, the page field reached by the arrows", async () => {
+    render(<PdfViewer bytes={new Uint8Array([1])} name="Reiseplan" />);
+    await flush();
+    const bar = screen.getByRole("toolbar", { name: "viewer.tools" });
+    const previous = screen.getByRole("button", { name: "viewer.previousPage" });
+    const field = screen.getByLabelText("viewer.page");
+    const next = screen.getByRole("button", { name: "viewer.nextPage" });
+    const stops = () => [...bar.querySelectorAll<HTMLElement>("button, input")].filter((tool) => tool.tabIndex === 0);
+    expect(stops()).toEqual([previous]);
+
+    previous.focus();
+    expect(fireEvent.keyDown(previous, { code: "ArrowRight", key: "ArrowRight" })).toBe(false);
+    await flush();
+    expect(document.activeElement).toBe(field);
+    // The tool row took the key: the page did not turn.
+    expect(rendered.at(-1)?.page).toBe(1);
+    expect(stops()).toEqual([previous]);
+
+    // In the field the arrows, Pos1 and Ende are the field's: focus stays.
+    for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+      expect(fireEvent.keyDown(field, { code: key, key }), key).toBe(true);
+      expect(document.activeElement, key).toBe(field);
+    }
+    // A click into the field does not make it the stop either; the tool used
+    // before it stays the stop, and from there the arrows reach every tool.
+    fireEvent.click(field);
+    expect(stops()).toEqual([previous]);
+    expect(next.tabIndex).toBe(-1);
+
+    next.focus();
+    fireEvent.keyDown(next, { code: "ArrowLeft", key: "ArrowLeft" });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(next, { code: "End", key: "End" });
+    await flush();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "viewer.fitWidth" }));
+    expect(rendered.at(-1)?.page).toBe(1);
+    // PageDown is not the row's: on a tool it still turns the page.
+    fireEvent.keyDown(document.activeElement!, { code: "PageDown", key: "PageDown" });
+    await flush();
+    expect(rendered.at(-1)?.page).toBe(2);
+  });
+
   it("has no contents button for a document without an outline", async () => {
     render(<PdfViewer bytes={new Uint8Array([1])} name="Reiseplan" />);
     await flush();
@@ -255,8 +300,8 @@ describe("PdfViewer", () => {
     expect(pane.classList.contains("sb-reader")).toBe(true);
     expect(pane.querySelector(".pdf-scroll")?.classList.contains("sb-reader__view")).toBe(true);
     const bar = pane.querySelector(".viewer-head > .sb-doc-bar")!;
-    // The bar is a named group of tools (NAV-10).
-    expect(screen.getByRole("group", { name: "viewer.tools" })).toBe(bar);
+    // The bar is a named toolbar (NAV-10, ADR-0051 #80).
+    expect(screen.getByRole("toolbar", { name: "viewer.tools" })).toBe(bar);
     // Tools: an icon of the sprite, a name, a tooltip; no glyph as an icon.
     expect(bar.textContent).not.toMatch(/[‹›×−+]/);
     const icons = (label: string) => {

@@ -40,7 +40,7 @@ import { grammarNameOf, presentationOf, PRESETS } from "../lib/fileTypes.present
 import { resolveWikiTarget } from "../lib/links";
 import { sebaroCodeFileTheme, sebaroMarkdownMarkers, sebaroSelectionMark } from "../sebaro/editor/sebaro-codemirror";
 import { attachments } from "./attachments";
-import { insertLink } from "./commands";
+import { insertLink, toggleLineFormat } from "./commands";
 import { decorations, linkAt, tagAt, toggleCheckbox, wrapSelection } from "./decorations";
 import { fenceLanguage } from "./fences";
 import { createFindPanel, goToLine, gotoLinePanel } from "./findPanel";
@@ -268,6 +268,12 @@ export async function buildExtensions(path: string, hooks: EditorHooks): Promise
         { key: "Mod-b", run: (view) => wrapSelection("**")(view) },
         { key: "Mod-i", run: (view) => wrapSelection("_")(view) },
         { key: "Mod-Enter", run: (view) => toggleCheckbox(view) },
+        // The formats' chords (ADR-0051 #76); Code and Quote have none.
+        { key: "Mod-Alt-1", run: (view) => toggleLineFormat({ kind: "heading", level: 1 })(view) },
+        { key: "Mod-Alt-2", run: (view) => toggleLineFormat({ kind: "heading", level: 2 })(view) },
+        { key: "Mod-Alt-3", run: (view) => toggleLineFormat({ kind: "heading", level: 3 })(view) },
+        { key: "Shift-Mod-8", run: (view) => toggleLineFormat({ kind: "list" })(view) },
+        { key: "Shift-Mod-9", run: (view) => toggleLineFormat({ kind: "task" })(view) },
       ]),
       EditorView.domEventHandlers({
         mousedown(event, view) {

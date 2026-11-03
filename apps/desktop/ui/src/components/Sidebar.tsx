@@ -1,4 +1,4 @@
-import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, measureElement, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,10 @@ import Tool from "./Tool";
  * (HAL-05): the totals are the action zone's state sentence (STA-07).
  *
  * The tree: sebaro's `sb-tree` (spec/02 §4.14, NAV-11), virtualized
- * (`@tanstack/react-virtual`), folders first, board items. It is flat: each
+ * (`@tanstack/react-virtual`), folders first, board items. It has no
+ * scroller of its own: it scrolls with the sidebar's upper block, the
+ * virtualizer's scroll element, one bar at the sidebar's edge (ADR-0051
+ * #71, NAV-04, D102 (10); departs from NV-Z9). It is flat: each
  * row is an `sb-row sb-tree__row` with its `aria-level`, from which
  * sebaro.css indents it; no group is nested (the virtualizer draws a
  * window of rows). Rows stay one line, the full name in `title`
@@ -125,17 +128,17 @@ function siblingSets(rows: TreeRow[]): { posinset: number[]; setsize: number[] }
 
 /**
  * A sidebar with a foot (spec/02 §4.17, D105 (46)): its upper block
- * (places, head, sort and tree) scrolls by itself in `sb-side-nav__scroll`
- * when large text leaves it too little height, and the tree keeps a
- * scroller of its own with four rows (NV-Z9), so a row could lie under the
- * foot or inside the tree's scroller. Every scroller from `element` up to
- * the block scrolls, innermost first, by the least amount that shows
- * `element` in it; the block also shows the lower edge of the scroller just
- * inside it, as far as its height allows. Only these scroll, never the
- * page or the content. React's counterpart of `sb-window.js`'s
- * `revealInSideNav` (CHECKS §38, ADR-0051 #21): it runs when something in
- * the block takes focus, and a command that shows a row without focus
- * calls it with the tree (docs/sebaro-luecken.md Z4).
+ * (places, head, sort and tree) scrolls in `sb-side-nav__scroll`, so a row
+ * could lie under the foot. Every scroller from `element` up to the block
+ * scrolls, innermost first, by the least amount that shows `element` in
+ * it; the block also shows the lower edge of the scroller just inside it,
+ * as far as its height allows. Only these scroll, never the page or the
+ * content. React's counterpart of `sb-window.js`'s `revealInSideNav`
+ * (CHECKS §38, ADR-0051 #21), kept as sebaro's: sebaro's tree has a
+ * scroller of its own (NV-Z9), novalis's has none since ADR-0051 #71, so
+ * here only the block moves. It runs when something in the block takes
+ * focus (docs/sebaro-luecken.md Z4); a row shown without focus is the
+ * virtualizer's `scrollToIndex`.
  */
 export function revealInSideNav(element: Element | null): void {
   const block = element?.closest<HTMLElement>(".sb-side-nav__scroll");
@@ -163,7 +166,12 @@ export function revealInSideNav(element: Element | null): void {
 
 export default function Sidebar() {
   const { t } = useTranslation();
+  /** The sidebar's upper block, the tree's scroll element (ADR-0051 #71). */
   const scroller = useRef<HTMLDivElement | null>(null);
+  /** The tree in that block, below the places, the head and the sort. */
+  const tree = useRef<HTMLDivElement | null>(null);
+  /** Where the tree starts in the block's scrolled content: the virtualizer's `scrollMargin`. */
+  const [treeStart, setTreeStart] = useState(0);
   /** The row a drag is over and how it would land, for its mark. */
   const [over, setOver] = useState<Drop | null>(null);
   /** The row being dragged, for its ink frame. */
@@ -219,10 +227,36 @@ export default function Sidebar() {
     return () => observer.disconnect();
   }, [hasVault]);
 
+  // The block scrolls the tree (ADR-0051 #71), so the virtualizer counts the
+  // places, the head and the sort above it. They change height with the
+  // root font and the sidebar's width (a vault name on two lines, the sort
+  // on two lines at 200 %), and a hidden sidebar has none: then the tree's
+  // start is measured again.
+  useEffect(() => {
+    const block = scroller.current;
+    const box = tree.current;
+    if (!block || !box || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() =>
+      setTreeStart(
+        box.getBoundingClientRect().top - block.getBoundingClientRect().top - block.clientTop + block.scrollTop,
+      ),
+    );
+    observer.observe(block);
+    for (let part = box.previousElementSibling; part; part = part.previousElementSibling) observer.observe(part);
+    return () => observer.disconnect();
+  }, [hasVault]);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scroller.current,
+    scrollMargin: treeStart,
     estimateSize: () => rowHeight,
+    // A row drawn while the sidebar is hidden (`hidden`, so no box) measures
+    // 0 px and kept it until drawn again: the tree came out short, and End
+    // in the overlay sidebar could stop rows above the last one (measured in
+    // WebKit, ADR-0051 #71). No row is 0 px high; such a row keeps the
+    // window row's height.
+    measureElement: (element, entry, instance) => measureElement(element, entry, instance) || rowHeight,
     overscan: 12,
     // The tab stop is always drawn, scrolled out or not, so Tab finds it
     // and the focus it holds is not lost with an unmounted row.
@@ -239,18 +273,18 @@ export default function Sidebar() {
 
   // A key moved focus, or a command asked for it (Move To…): the row is
   // scrolled into view and, when asked, takes the keyboard once it is drawn.
+  // The block scrolls by the least amount (`scrollToIndex` counts the tree's
+  // start, `scrollMargin`); the foot lies outside the block and nothing in
+  // it is sticky, so the row is left under neither (ADR-0051 #71).
   // A hidden sidebar stays mounted: the request waits until it shows.
   useEffect(() => {
     if (!sidebarVisible || (!takeFocus && !showFocused)) return;
-    if (stop >= 0) {
-      virtualizer.scrollToIndex(stop);
-      revealInSideNav(scroller.current);
-    }
+    if (stop >= 0) virtualizer.scrollToIndex(stop);
     if (takeFocus) {
       const path = rows[stop]?.entry.path;
       // Asked for by a dialog's action (Rename, New Folder): once it has closed.
       afterDialog(() => {
-        const row = [...(scroller.current?.querySelectorAll<HTMLElement>("[role=treeitem]") ?? [])].find(
+        const row = [...(tree.current?.querySelectorAll<HTMLElement>("[role=treeitem]") ?? [])].find(
           (element) => element.dataset.path === path,
         );
         row?.focus({ preventScroll: true });
@@ -320,7 +354,6 @@ export default function Sidebar() {
       if (!target) return;
       useVault.getState().focus(target.entry.path, true);
       virtualizer.scrollToIndex(rows.indexOf(target));
-      revealInSideNav(scroller.current);
     };
     const isFolder = (r: TreeRow | undefined) => !!r && r.entry.dir && !r.entry.boardSlug;
     if (metaKey) {
@@ -484,10 +517,11 @@ export default function Sidebar() {
     <nav {...navProps}>
       {/* sebaro's two parts of a sidebar with a foot (spec/02 §4.17,
           D105 (46)): places, head, sort and tree scroll together in
-          `sb-side-nav__scroll` when large text leaves them too little
-          height; the foot below never scrolls, so it never lies over a row
+          `sb-side-nav__scroll`, the tree's one scroller (ADR-0051 #71):
+          with a long tree the places, the head and the sort scroll away
+          with it. The foot below never scrolls, so it never lies over a row
           (DSK-02). */}
-      <div className="sb-side-nav__scroll" onFocus={(event) => revealInSideNav(event.target)}>
+      <div className="sb-side-nav__scroll" ref={scroller} onFocus={(event) => revealInSideNav(event.target)}>
         {/* A place: icon and word (NAV-10, NAV-02), in its own list before the
             head that labels the tree (spec/02 §4.3, §4.14). The note it opens
             carries the place line in the tree, so this row never does. */}
@@ -574,7 +608,7 @@ export default function Sidebar() {
 
         <div
           className="nv-tree"
-          ref={scroller}
+          ref={tree}
           onDragOver={(event) => {
             // A row that is not a target lets the event through; refusing it
             // here keeps a file row from reading as a target. A card has no
@@ -640,7 +674,8 @@ export default function Sidebar() {
                     role="none"
                     className="nv-tree__slot"
                     key={entry.path}
-                    style={{ blockSize: `${item.size}px`, transform: `translateY(${item.start}px)` }}
+                    // `item.start` counts from the block's start (`scrollMargin`), the slot from the list's.
+                    style={{ blockSize: `${item.size}px`, transform: `translateY(${item.start - treeStart}px)` }}
                   >
                     <div
                       ref={virtualizer.measureElement}

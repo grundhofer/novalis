@@ -86,8 +86,8 @@ describe("ZoomableImage", () => {
     expect(pane().getAttribute("role")).toBe("region");
     expect(pane().getAttribute("aria-label")).toBe(container.querySelector("img")?.getAttribute("alt"));
     expect(pane().getAttribute("aria-label")).toBeTruthy();
-    // The bar is a named group of tools (NAV-10).
-    expect(screen.getByRole("group", { name: "viewer.tools" })).toBe(bar);
+    // The bar is a named toolbar (NAV-10, ADR-0051 #80).
+    expect(screen.getByRole("toolbar", { name: "viewer.tools" })).toBe(bar);
     // What a reader adds comes first, at the bar's start.
     expect(bar.firstElementChild?.textContent).toBe("page tools");
     expect(bar.children[1]?.className).toBe("sb-doc-bar__sep");
@@ -112,6 +112,29 @@ describe("ZoomableImage", () => {
     expect(group.className).toBe("viewer-bar__group");
     expect(group.contains(fit)).toBe(true);
     expect(group.contains(screen.getByRole("button", { name: "viewer.zoomOut" }))).toBe(true);
+  });
+
+  // ADR-0051 #80: one tab stop, the arrows and Pos1 / Ende inside, round.
+  it("makes its bar one tab stop with the arrows inside", () => {
+    render(<ZoomableImage src="blob:1" alt="photo" />);
+    loadImage(2000, 1000);
+    const bar = screen.getByRole("toolbar", { name: "viewer.tools" });
+    const tools = [...bar.querySelectorAll("button")];
+    const stops = () => tools.filter((tool) => tool.tabIndex === 0);
+    expect(stops()).toEqual([tools[0]]);
+
+    tools[0]!.focus();
+    fireEvent.keyDown(tools[0]!, { key: "End" });
+    expect(document.activeElement).toBe(tools[2]);
+    fireEvent.keyDown(tools[2]!, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tools[0]);
+    fireEvent.keyDown(tools[0]!, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(tools[2]);
+    expect(stops()).toEqual([tools[2]]);
+    // Moving is all an arrow does: the zoom stays.
+    expect(percent()).toBe("viewer.zoom:50");
+    // The view stays a focus stop of its own after the row.
+    expect(pane().tabIndex).toBe(0);
   });
 
   it("never enlarges a small image to fit", () => {
