@@ -14,7 +14,10 @@ import { tableNames, type TableWords } from "./tableNames";
  * stack of `.sb-prose`, headings on the editor's em scale with D105's room
  * above them (h1 48 px, h2 40, h3 32, h4 to h6 the stack), lists indented
  * 1.5em with D105's spacing inside an item (a nested list 4 px under its
- * line, 8 px between the blocks of a loose item), the one link
+ * line, 8 px between the blocks of a loose item) and sebaro's markers (a
+ * disc, a circle in a list inside a list, ADR-0051 #88; an `ol` keeps the
+ * browser's decimals, since sebaro's `decimal` would override the `type` a
+ * book may give it, which the sanitizer keeps), the one link
  * style (LNK-01: the word in text colour over the 2 px cobalt line), the
  * quote's 2 px ink line at its start without ground or italics (TXT-17),
  * code on `surface-sunken` like `pre.sb-code`, tables as `sb-table`
@@ -57,6 +60,8 @@ h2 { font-size: 1.25em; font-weight: var(--sb-type-title-weight); line-height: v
 :is(h3, h4, h5, h6) { font-size: 1em; font-weight: var(--sb-type-body-strong-weight); line-height: var(--sb-type-body-strong-line-height); letter-spacing: var(--sb-type-body-strong-tracking); }
 :is(strong, b) { font-weight: var(--sb-type-body-strong-weight); }
 :is(ul, ol) { padding-inline-start: 1.5em; }
+ul { list-style-type: disc; }
+:is(ul, ol) ul { list-style-type: circle; }
 li + li { margin-block-start: var(--sb-space-1); }
 li :is(ul, ol) { margin-block: var(--sb-space-1) 0; }
 li > :is(p, blockquote, pre, div) { margin-block: 0; }
