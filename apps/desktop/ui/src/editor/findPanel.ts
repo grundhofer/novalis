@@ -51,6 +51,7 @@ import { ariaKeyshortcutsOf, bindingFor, glyphsOf, isOwnChord } from "../lib/key
  * `sb-search` (spec/02 §2.2), the three options `sb-chip[aria-pressed]`
  * (§2.9, 32 px in the window's density, D104 (2)), next / previous / close
  * the 32 px tools `sb-icon-button--compact` with sebaro's tooltip (§4.18),
+ * previous and next in one `sb-doc-bar__group`, so they wrap together,
  * the word actions `sb-secondary-action--compact`, Go to Line's field
  * `sb-field--number` with „von n“ as its suffix, which follows the
  * document's line count in `data-sb-lines` on the bar, and sebaro's field
@@ -353,8 +354,10 @@ class FindPanel implements Panel {
     const find = el(doc, "div", { class: "sb-doc-bar", "data-sb-find-row": "find" }, [
       field(doc, phrase("Find"), this.searchField, true),
       this.count,
-      ...tool(doc, phrase("previous"), "chevron-up", () => findPrevious(view), "find.previous"),
-      ...tool(doc, phrase("next"), "chevron-down", () => findNext(view), "find.next"),
+      el(doc, "span", { class: "sb-doc-bar__group" }, [
+        ...tool(doc, phrase("previous"), "chevron-up", () => findPrevious(view), "find.previous"),
+        ...tool(doc, phrase("next"), "chevron-down", () => findNext(view), "find.next"),
+      ]),
       action(doc, phrase("all"), () => selectMatches(view)),
       el(
         doc,

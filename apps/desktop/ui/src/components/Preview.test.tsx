@@ -622,6 +622,11 @@ describe("Preview", () => {
       "editor.find.close",
     ]);
     for (const tool of tools) expect(tool.className).toBe("sb-icon-button sb-icon-button--compact");
+    // spec/02 §4.25.2 (sebaro f36b8f0): previous and next sit in one group, so
+    // they wrap together.
+    const groups = bar.querySelectorAll(":scope > [data-sb-find-row=find] > span.sb-doc-bar__group");
+    expect(groups).toHaveLength(1);
+    expect(within(groups[0] as HTMLElement).getAllByRole("button")).toEqual([tools[0], tools[1]]);
     expect(tools.map((tool) => tool.querySelector("use")?.getAttribute("href"))).toEqual([
       "#chevron-up",
       "#chevron-down",
