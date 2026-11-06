@@ -474,6 +474,12 @@ body.sb-page { container: sb-page sb-content / inline-size; }
   border-block-start: var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color);
   padding-block-end: env(safe-area-inset-bottom);
 }
+/* the scroll to a focused field stops above the block (CHECKS.md §86; provisional, agent): without it a browser that
+   scrolls only to the window's edge leaves the field under the block. sb-sticky.js measures the block; without the
+   script the room is that of a bar with one line. A view that scrolls in its own box sets this on that box. */
+html:has(.sb-bottom-block:not(.sb-window > .sb-bottom-block)) {
+  scroll-padding-block-end: var(--sb-bottom-block-size, calc(var(--sb-size-control-lg) + 2 * var(--sb-space-3) + var(--sb-x-sebaro-layer-line-width) + env(safe-area-inset-bottom)));
+}
 .sb-primary-action-bar { padding: var(--sb-space-3) var(--sb-spacing-gutter); }
 .sb-primary-action-bar .sb-primary-action { inline-size: 100%; min-block-size: var(--sb-size-control-lg); }
 /* narrow columns at large text (D102 lane narrow, OR-22; provisional, agent): the full-width action keeps 12 px sides
@@ -2642,6 +2648,8 @@ button.sb-side-nav__item {
   overflow-wrap: break-word;
   overflow-y: auto;   /* the whole dialog scrolls in its frame also where no modal <dialog> brings it (a framework's div; provisional, agent) */
 }
+/* a modal dialog centres by the browser's margin: auto, which a CSS reset (`* { margin: 0 }`) removes; so it is stated here (CHECKS §77) */
+dialog.sb-dialog:modal { margin: auto; }
 .sb-dialog::backdrop { background: var(--sb-color-scrim); }
 .sb-dialog form { margin: 0; }
 .sb-dialog__title { margin: 0 0 var(--sb-space-3); font: var(--sb-type-title); letter-spacing: var(--sb-type-title-tracking); }
@@ -3100,7 +3108,7 @@ dialog.sb-sheet > form { margin: 0; }
    row, three rows and the key hints do not fit the frame, the whole frame scrolls instead of squeezing the list to
    nothing */
 .sb-command-palette { overflow-y: auto; }
-dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: min(35rem, calc(100vh - 2 * min(12vh, 96px))); }
+dialog.sb-command-palette { margin-inline: auto; margin-block: min(12vh, 96px) auto; max-block-size: min(35rem, calc(100vh - 2 * min(12vh, 96px))); }
 .sb-command-palette:not(dialog), dialog.sb-command-palette[open] { display: flex; flex-direction: column; }
 .sb-command-palette::backdrop { background: var(--sb-color-scrim); }
 .sb-command-palette__search {
@@ -3985,3 +3993,14 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
 .sb-note__backs { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sb-space-1); }
 
 .sb-facts-closing { margin: 0; font: var(--sb-type-caption); letter-spacing: var(--sb-type-caption-tracking); color: var(--sb-color-text-muted); }
+
+/* D131: long step bars always show numbered markers; words remain accessible. */
+.sb-progress__steps[data-sb-long] { counter-reset: sb-step; }
+.sb-progress__steps[data-sb-long] > .sb-progress__step { counter-increment: sb-step; }
+.sb-progress__steps[data-sb-long] > .sb-progress__step::after { content: counter(sb-step); }
+.sb-progress__steps[data-sb-long] > [aria-current="step"]::after { font-weight: var(--sb-type-title-weight); text-decoration: underline; }
+.sb-progress__steps[data-sb-long] > :is([data-sb-state="done"], [data-state="done"])::after { content: none; } /* its svg check stands instead of the number */
+/* D132: no opacity change; the offline ring remains readable. Shield is provisional, agent. */
+.sb-avatar { position: relative; }
+.sb-avatar[data-sb-presence="offline"] { border-style: dashed; color: var(--sb-color-text-muted); }
+.sb-avatar__role { position: absolute; inset-block-end: calc(var(--sb-size-icon-sm) / -3); inset-inline-end: calc(var(--sb-size-icon-sm) / -3); inline-size: var(--sb-size-icon-sm); block-size: var(--sb-size-icon-sm); color: var(--sb-color-text); background: var(--sb-color-bg); border-radius: var(--sb-radius-pill); }

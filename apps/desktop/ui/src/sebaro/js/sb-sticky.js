@@ -41,3 +41,39 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
   window.sbSticky = { watch: watch };
 })();
+
+// The height of the sticky bottom block (CHECKS.md §86): --sb-bottom-block-size on <html>, read by the block's
+// scroll-padding in sebaro.css, so a focused field stops above the block also with an error sentence or large text.
+// Only a block that sticks to the window: one in its own scroll box, or static in a window, is not this page's edge.
+(function () {
+  if (!("ResizeObserver" in window)) return;
+  var root = document.documentElement;
+  var watched = null;
+  function sticksToWindow(block) {
+    if (getComputedStyle(block).position !== "sticky") return false;
+    for (var p = block.parentElement; p && p !== document.body && p !== root; p = p.parentElement) {
+      var o = getComputedStyle(p).overflowY;
+      if (o === "auto" || o === "scroll" || o === "hidden" || o === "overlay") return false;
+    }
+    return true;
+  }
+  function measure() {
+    var h = watched && watched.isConnected ? watched.getBoundingClientRect().height : 0;
+    if (h > 0) root.style.setProperty("--sb-bottom-block-size", h + "px");
+    else root.style.removeProperty("--sb-bottom-block-size");
+  }
+  var sizes = new ResizeObserver(measure);
+  function find() {
+    var found = Array.prototype.filter.call(document.querySelectorAll(".sb-bottom-block"), sticksToWindow)[0] || null;
+    if (found === watched) return;
+    if (watched) sizes.unobserve(watched);
+    watched = found;
+    if (found) sizes.observe(found);
+    measure();
+  }
+  function init() {
+    find();
+    new MutationObserver(find).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();

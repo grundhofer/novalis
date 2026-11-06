@@ -26,17 +26,23 @@
 
   var root = document.documentElement;
   function current() { return root.dataset.sbTone === "warm" ? "warm" : "cool"; }
+  var syncing = false;
   function sync() {
-    var tone = current();
-    document.querySelectorAll("[data-sb-tone-choice]").forEach(function (group) {
-      group.hidden = false;
-      group.querySelectorAll('input[name="sb-tone"]').forEach(function (input) { input.checked = input.value === tone; });
-    });
-    document.querySelectorAll("[data-sb-tone-item]").forEach(function (item) {
-      item.setAttribute("aria-checked", String(item.getAttribute("data-sb-tone-item") === tone));
-    });
+    if (syncing) return;
+    syncing = true;
+    try {
+      var tone = current();
+      document.querySelectorAll("[data-sb-tone-choice]").forEach(function (group) {
+        group.hidden = false;
+        group.querySelectorAll('input[name="sb-tone"]').forEach(function (input) { if (input.value === tone && !input.checked) input.click(); });
+      });
+      document.querySelectorAll("[data-sb-tone-item]").forEach(function (item) {
+        item.setAttribute("aria-checked", String(item.getAttribute("data-sb-tone-item") === tone));
+      });
+    } finally { syncing = false; }
   }
   function apply(tone) {
+    if (syncing) return;
     if (tone === "warm") root.dataset.sbTone = "warm"; else delete root.dataset.sbTone;
     try { if (tone === "warm") localStorage.setItem("sb-tone", "warm"); else localStorage.removeItem("sb-tone"); } catch (e) {}
     sync();

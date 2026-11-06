@@ -97,7 +97,7 @@ Classic scripts (no modules), safe from `file://`; `*.ssr.mjs` are Node build-ti
 | `js/sb-tree.js` | tree (spec/02 §4.14, ARIA tree view): arrows, Home/End, open/close, typeahead, sb-tree-select; load at the end of the body |
 | `js/sb-window.js` | desktop window (spec/02 §4.15-§4.24): shortcut text per platform, pane toggles, list selection, Hell/Dunkel in menu, palette and settings, the ⌘K / Strg+K command palette, the fixed shortcuts, F6 areas, document tabs, drag and drop with the move dialog, draggable dividers with stored widths; messages per language (D87); load after sb-controls.js, sb-tooltip.js and sb-menu.js |
 | `js/sb-board.js` | board on narrow screens (spec/02 §3.16, D91 B2b): position bar „Spalte 2 von 3: …“ with step buttons, the column name for the primary action, sb-board-column event; the board swipes without it; messages per language (D87); load at the end of the body |
-| `js/sb-sticky.js` | sticky group head (spec/02 §3.17, D91 B3b): data-sb-state="stuck" where the browser lacks scroll-state(stuck: top); writes no words; load at the end of the body |
+| `js/sb-sticky.js` | sticky group head (spec/02 §3.17, D91 B3b): data-sb-state="stuck" where the browser lacks scroll-state(stuck: top); the height of the sticky bottom block for its scroll padding (spec/03 §2); writes no words; load at the end of the body |
 | `js/sb-table.js` | sortable table heads (spec/02 §3.9, D91 B5a): sorts tbody rows, moves aria-sort and the arrow, announces the order; messages per language (D87); load at the end of the body |
 | `js/sb-chart.js` | heatmap keyboard and read-out (spec/02 §3.7, D91 G6a): role=grid with one Tab stop, arrows, Home/End, the focused or pointed day's value in .sb-chart__readout; writes no words; load at the end of the body |
 | `js/sb-calendar.js` | calendar (spec/02 §3.21, D91 B7a, Z4a): ARIA grid with roving focus, month buttons, the chosen day's list; the markup carries the state; month and day names from Intl, its words per language (D87); load at the end of the body |
@@ -197,7 +197,7 @@ One line per finding (`FAIL  missing in target: …`, `FAIL  edited in target: �
 - `brand/inline/` comes from systems/sebaro/brand/inline/, which no sebaroDesign gate checks for freshness (it is written by a script of the system, not by tools/brand_assets.py).
 - The Tauri icon set (.icns, .ico, PNG sizes) is not in sebaroDesign: run `tauri icon` on `tauri/icon-1024.png` in the target repo (README, section Tauri).
 - Exported for novalis: tokens.json, icons.json, SebaroTheme.kt, SebaroTokens.swift and the Android in-app tiles keep only novalis and the umbrella studio; no file names another product (fit for a public repository). To show other products' tiles, export with --product studio.
-- 7 excluded product(s) left out (--exclude-products, $SEBARO_EXCLUDE_PRODUCTS): no file names them, and this record keeps only their number. `--verify` needs the same list.
+- 8 excluded product(s) left out (--exclude-products, $SEBARO_EXCLUDE_PRODUCTS): no file names them, and this record keeps only their number. `--verify` needs the same list.
 
 ## Not exported
 

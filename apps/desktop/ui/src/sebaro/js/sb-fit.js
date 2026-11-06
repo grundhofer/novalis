@@ -13,8 +13,8 @@
 //      (its widest word at the title weight wider than the column less the 4 px sides, the 16 px check and its gap,
 //      counted for every option, or the words on more than two lines), the fieldset gets data-sb-fit="select" and
 //      shows a select with the same options, the legend as its label, the disabled options disabled. The radios stay
-//      the form's value (hidden, still sent): a choice in the select checks its radio and fires input and change on
-//      it; a radio changed with a change event, a form reset or sb-tone-change are read back, and the select reads
+//      the form's value (hidden, still sent): a choice in the select activates its radio with click(), firing native click, input and change
+//      (also updating controlled framework state); a radio changed with a change event, a form reset or sb-tone-change are read back, and the select reads
 //      the radios again on every pass and when it gets focus, a press or a key. A script that sets checked without an event
 //      calls sbFit.refresh(fieldset) to show it at once. Focus moves with the swap. While the select shows, the
 //      fieldset is role="none", so the legend names only the select and is not read twice (provisional, agent).
@@ -149,9 +149,8 @@
       sel.addEventListener("change", function () {
         var radio = segParts(fs).radios[+sel.value];
         if (!radio || radio.checked) return;
-        radio.checked = true;
-        radio.dispatchEvent(new Event("input", { bubbles: true }));
-        radio.dispatchEvent(new Event("change", { bubbles: true }));
+        // Native activation also reaches React's controlled-radio click tracking.
+        radio.click();
       });
       var icon = document.createElementNS(SVGNS, "svg");
       icon.setAttribute("class", "sb-icon");
@@ -224,13 +223,14 @@
   }
   function fitSteps(ol) {
     var steps = Array.prototype.filter.call(ol.children, function (li) { return li.classList.contains("sb-progress__step"); });
-    if (steps.length < 2 || steps.length > 4 || !ol.clientWidth) return;
+    if (steps.length < 2 || steps.length > 8 || !ol.clientWidth) return;
     var spans = steps.map(stepWord);
+    if (steps.length >= 5) ol.setAttribute("data-sb-long", ""); else ol.removeAttribute("data-sb-long");
     var now = ol.getAttribute("data-sb-fit") === "short";
     var col = steps[0].clientWidth - px(getComputedStyle(steps[0]).paddingInlineStart) - px(getComputedStyle(steps[0]).paddingInlineEnd)
       - hyst(now);
     var weight = titleWeight();
-    var need = spans.some(function (s, i) {
+    var need = steps.length >= 5 || spans.some(function (s, i) {
       if (!s) return false;
       var r = measure(steps[i], words(s), col, steps[i], weight, "auto");
       return r.over || r.lines > 2;
@@ -239,6 +239,10 @@
     if (need) {
       var cur = steps.filter(function (li) { return li.getAttribute("aria-current") === "step"; })[0];
       var shown = cur || steps.filter(function (li) { return li.matches('[data-sb-state="done"], [data-state="done"]'); }).pop();
+      if (ol.hasAttribute("data-sb-own-now")) {
+        ol.setAttribute("data-sb-fit", "short");
+        return;
+      }
       if (!line) {
         line = document.createElement("p");
         line.className = "sb-progress__now";
@@ -246,6 +250,12 @@
         ol.insertAdjacentElement("afterend", line);
       }
       var text = shown && shown.querySelector(".sb-progress__word") ? words(shown.querySelector(".sb-progress__word")) : "";
+      if (steps.length >= 5 && shown) {
+        var lang = (ol.closest("[lang]") || document.documentElement).lang || "de";
+        var stepOf = ol.getAttribute("data-sb-step-of") || (/^en\b/.test(lang) ? "Step {current} of {total}" : "Schritt {current} von {total}");
+        text = stepOf.replace("{current}", new Intl.NumberFormat(lang).format(steps.indexOf(shown) + 1))
+          .replace("{total}", new Intl.NumberFormat(lang).format(steps.length)) + " · " + text;
+      }
       if (line.textContent !== text) line.textContent = text;
       if (cur) line.removeAttribute("data-sb-state"); else line.setAttribute("data-sb-state", "done");
       if (!now) ol.setAttribute("data-sb-fit", "short");
