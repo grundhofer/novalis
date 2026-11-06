@@ -203,7 +203,8 @@ button {
 }
 
 /* The scroll padding keeps that start when the first tab is scrolled back
-   into view. The row scrolls sideways only: sebaro.css sets `overflow-x`
+   into view, and at the end keeps a tab scrolled into view clear of the fade
+   below (ADR-0051 #70), at every width. The row scrolls sideways only: sebaro.css sets `overflow-x`
    alone, so with the system's classic scroll bar (D102 (10)) the block axis
    scrolled too and the tabs ran under the bar (docs/sebaro-luecken.md Q).
    It shows no scroll bar (ADR-0051 #67): a classic one took 17 px of the
@@ -215,6 +216,7 @@ button {
   min-inline-size: 0;
   overflow-y: hidden;
   scroll-padding-inline-start: var(--sb-space-4);
+  scroll-padding-inline-end: var(--sb-space-4);
   scrollbar-width: none;
 }
 

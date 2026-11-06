@@ -24,7 +24,8 @@ const isTabDrag = (event: DragEvent) => event.dataTransfer.types.includes(TAB_DR
  * Scroll the tab row sideways, and only it, so `tab` stands inside it:
  * after the row's scroll padding and after the pinned tab, which
  * sebaro.css keeps at the row's start (`position: sticky`, D108 (4)), never
- * under it. React's counterpart of `sb-window.js`'s `revealTab` (spec/02
+ * under it, and before the fade at the row's end (its scroll padding,
+ * ADR-0051 #70), so a tab's × stands clear of it. React's counterpart of `sb-window.js`'s `revealTab` (spec/02
  * §4.21, ADR-0051 #21); `scrollIntoView` would also scroll the page and
  * leave the tab under the pinned one.
  */
@@ -38,7 +39,8 @@ export function revealTab(tab: HTMLElement): void {
   const padding = parseFloat(style.scrollPaddingInlineStart) || 0;
   const rtl = style.direction === "rtl";
   let start = rtl ? row.right - padding : row.left + padding;
-  const end = rtl ? row.left : row.right;
+  const endPadding = parseFloat(style.scrollPaddingInlineEnd) || 0;
+  const end = rtl ? row.left + endPadding : row.right - endPadding;
   const pinned = list.querySelector<HTMLElement>(".sb-doc-tabs__item--pinned");
   if (pinned && pinned !== item) {
     const pin = pinned.getBoundingClientRect();

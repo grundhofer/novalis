@@ -595,6 +595,60 @@ describe("revealTab", () => {
     expect(list.scrollLeft).toBe(300);
   });
 
+  // ADR-0051 #70: the fade at the end covers the row's last 16 px when more
+  // tabs lie beyond, so a tab stops before it, its × in the clear.
+  function withScrollPadding(direction: "ltr" | "rtl") {
+    return vi
+      .spyOn(window, "getComputedStyle")
+      .mockReturnValue({ direction, scrollPaddingInlineEnd: "16px" } as CSSStyleDeclaration);
+  }
+
+  it("stops a tab past the end before the row's fade", () => {
+    const spy = withScrollPadding("ltr");
+    const { list, b } = row(0);
+    b.getBoundingClientRect = () => box(400, 500);
+    revealTab(b.querySelector("button")!);
+    expect(list.scrollLeft).toBe(216);
+    spy.mockRestore();
+  });
+
+  it("moves a tab whose end lies under the fade out of it", () => {
+    const spy = withScrollPadding("ltr");
+    const { list, b } = row(50);
+    b.getBoundingClientRect = () => box(150, 290);
+    revealTab(b.querySelector("button")!);
+    expect(list.scrollLeft).toBe(56);
+    spy.mockRestore();
+  });
+
+  it("leaves a tab that ends before the fade where it is", () => {
+    const spy = withScrollPadding("ltr");
+    const { list, b } = row(50);
+    b.getBoundingClientRect = () => box(150, 284);
+    revealTab(b.querySelector("button")!);
+    expect(list.scrollLeft).toBe(50);
+    spy.mockRestore();
+  });
+
+  it("stops before the fade at the row's left end in a right-to-left row", () => {
+    const spy = withScrollPadding("rtl");
+    const { list, b } = row(0);
+    list.querySelector(".sb-doc-tabs__item--pinned")!.remove();
+    b.getBoundingClientRect = () => box(-100, 100);
+    revealTab(b.querySelector("button")!);
+    expect(list.scrollLeft).toBe(-116);
+    spy.mockRestore();
+  });
+
+  it("does not let a tab wider than the room lose its start", () => {
+    const spy = withScrollPadding("ltr");
+    const { list, b } = row(0);
+    b.getBoundingClientRect = () => box(120, 500);
+    revealTab(b.querySelector("button")!);
+    expect(list.scrollLeft).toBe(20);
+    spy.mockRestore();
+  });
+
   it("leaves a row that does not scroll alone", () => {
     const { list, a } = row(0, 300);
     a.getBoundingClientRect = () => box(-50, 150);
@@ -754,5 +808,8 @@ describe("the head's CSS", () => {
     );
     expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="start"]::before,');
     expect(appCss).toContain('.nv-doc-head > .sb-doc-tabs[data-nv-more~="end"]::after {\n  opacity: 1;');
+    // A tab scrolled into view stops before the end's fade: the same width, at every window width.
+    expect(appCss).toContain("  scroll-padding-inline-end: var(--sb-space-4);\n");
+    expect(appCss.match(/scroll-padding-inline-end/g)).toHaveLength(1);
   });
 });
