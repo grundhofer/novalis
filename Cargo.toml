@@ -10,7 +10,7 @@ members = [
 # the four stamps `just bump` writes and `scripts/check-versions.mjs` guards;
 # never edit it by hand.
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 license = "AGPL-3.0-only"
 authors = ["Sebastian Grundhöfer"]
@@ -35,3 +35,8 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# Build scripts and proc macros only run while building; stripping them broke
+# local release builds on macOS (2026-11-01). The shipped binaries stay stripped.
+[profile.release.build-override]
+strip = false
