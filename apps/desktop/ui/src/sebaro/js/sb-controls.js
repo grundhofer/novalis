@@ -213,7 +213,7 @@
       ownName(group);
       group.querySelectorAll("input[type='radio']").forEach(function (input) {
         var v = input.value.toLowerCase();
-        input.checked = v === lang || v === lang.split("-")[0];
+        if ((v === lang || v === lang.split("-")[0]) && !input.checked) input.click();
       });
     });
   }

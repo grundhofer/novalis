@@ -1,7 +1,7 @@
 {
   "generated": "generated — do not edit · tools/icons.py 1.1.0",
   "system": "sebaro",
-  "source_sha256": "fa699c31a65f06ad",
+  "source_sha256": "2f79c381a7f9a1fb",
   "grammar": {
     "name": "Line 1.75 round",
     "summary": "1.75 stroke at 24 (1.5 on 16 masters, 2 on spots), round caps and joins, container radius 2 (below 8: 1), straight segments at 0/30/45/60/90/120/135/150 plus circular arcs and free curves, clear gap >= 2.25, at most 4 parts beside the main outline, no signature detail; filled only for selected navigation, toggles that are on and the four status icons at 16 px",
@@ -36,7 +36,7 @@
     "web": "<svg class=\"sb-icon sb-icon--24\" aria-hidden=\"true\" focusable=\"false\"><use href=\"sprite.svg#NAME\"/></svg>",
     "compose": "Icon(SebaroIcons.Outline.Name, contentDescription = null)"
   },
-  "count": 119,
+  "count": 120,
   "icons": [
     {
       "name": "arrow-down",
@@ -1576,6 +1576,40 @@
       ],
       "compose": [
         "SebaroIcons.Spot.Facts(ink, tone)"
+      ],
+      "compose_cuts": {},
+      "android": []
+    },
+    {
+      "name": "figure-hold",
+      "canonical": null,
+      "de": null,
+      "category": "illustration",
+      "aliases": [],
+      "tags": {
+        "de": [
+          "Figur",
+          "ans Telefon halten"
+        ],
+        "en": [
+          "figure",
+          "hold to the phone"
+        ]
+      },
+      "variants": {
+        "outline": [],
+        "filled": [],
+        "spot": true
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "figure-hold--spot"
+      ],
+      "compose": [
+        "SebaroIcons.Spot.FigureHold(ink, tone)"
       ],
       "compose_cuts": {},
       "android": []
@@ -4117,6 +4151,7 @@
       },
       "variants": {
         "outline": [
+          16,
           24
         ],
         "filled": [],
@@ -4127,7 +4162,8 @@
       "source": "own",
       "license": "sebaro",
       "sprite": [
-        "shield"
+        "shield",
+        "shield--16"
       ],
       "compose": [
         "SebaroIcons.Outline.Shield",

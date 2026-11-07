@@ -261,7 +261,7 @@
    row, three rows and the key hints do not fit the frame, the whole frame scrolls instead of squeezing the list to
    nothing */
 .sb-command-palette { overflow-y: auto; }
-dialog.sb-command-palette { margin-block: min(12vh, 96px) auto; max-block-size: min(35rem, calc(100vh - 2 * min(12vh, 96px))); }
+dialog.sb-command-palette { margin-inline: auto; margin-block: min(12vh, 96px) auto; max-block-size: min(35rem, calc(100vh - 2 * min(12vh, 96px))); }
 .sb-command-palette:not(dialog), dialog.sb-command-palette[open] { display: flex; flex-direction: column; }
 .sb-command-palette::backdrop { background: var(--sb-color-scrim); }
 .sb-command-palette__search {

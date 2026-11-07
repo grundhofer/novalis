@@ -43,6 +43,12 @@
   border-block-start: var(--sb-x-sebaro-layer-line-width) solid var(--sb-x-sebaro-layer-line-color);
   padding-block-end: env(safe-area-inset-bottom);
 }
+/* the scroll to a focused field stops above the block (CHECKS.md §86; provisional, agent): without it a browser that
+   scrolls only to the window's edge leaves the field under the block. sb-sticky.js measures the block; without the
+   script the room is that of a bar with one line. A view that scrolls in its own box sets this on that box. */
+html:has(.sb-bottom-block:not(.sb-window > .sb-bottom-block)) {
+  scroll-padding-block-end: var(--sb-bottom-block-size, calc(var(--sb-size-control-lg) + 2 * var(--sb-space-3) + var(--sb-x-sebaro-layer-line-width) + env(safe-area-inset-bottom)));
+}
 .sb-primary-action-bar { padding: var(--sb-space-3) var(--sb-spacing-gutter); }
 .sb-primary-action-bar .sb-primary-action { inline-size: 100%; min-block-size: var(--sb-size-control-lg); }
 /* narrow columns at large text (D102 lane narrow, OR-22; provisional, agent): the full-width action keeps 12 px sides

@@ -383,15 +383,23 @@
 
   // ------------------------------------------------------------------ Hell oder Dunkel in the menu „Darstellung“ (D75)
   function themeChoice() { return root.dataset.theme === "light" || root.dataset.theme === "dark" ? root.dataset.theme : "system"; }
+  var syncingTheme = false;
   function syncTheme() {
-    var c = themeChoice();
-    document.querySelectorAll("[data-sb-theme-choice]").forEach(function (el) {
-      var on = el.getAttribute("data-sb-theme-choice") === c;
-      if (el.tagName === "INPUT") el.checked = on;   // the radios of the settings view (F10a) carry no aria-checked
-      else el.setAttribute("aria-checked", String(on));
-    });
+    if (syncingTheme) return;
+    syncingTheme = true;
+    try {
+      var c = themeChoice();
+      document.querySelectorAll("[data-sb-theme-choice]").forEach(function (el) {
+        var on = el.getAttribute("data-sb-theme-choice") === c;
+        if (el.tagName === "INPUT") {
+          // Activate only the desired radio; native grouping clears the previous choice.
+          if (on && !el.checked) el.click();
+        } else el.setAttribute("aria-checked", String(on));
+      });
+    } finally { syncingTheme = false; }
   }
   function applyTheme(choice) {
+    if (syncingTheme) return;
     try {
       if (choice === "light" || choice === "dark") { root.dataset.theme = choice; localStorage.setItem("sb-theme", choice); }
       else { delete root.dataset.theme; localStorage.removeItem("sb-theme"); }
