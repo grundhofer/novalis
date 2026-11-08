@@ -974,6 +974,15 @@ The Help menu (verbatim in ADR-0051, amendment 2026-11-03, the Help menu,
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-08
+
+Hints in a low window (verbatim in ADR-0051, amendment 2026-11-08, #90):
+- the cloud hint and the migration note share one box of at most 40 % of
+  the panel, or, where that is more, what leaves 20rem for the rest of the
+  panel, which scrolls the rest; a change on disk stays outside it, whole (#90)
+
+Recorded as an amendment to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
