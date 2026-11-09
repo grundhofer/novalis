@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react";
-import { createElement, useRef } from "react";
+import { createElement, StrictMode, useRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { measureArea, useCalloutArea } from "./calloutArea";
@@ -96,38 +96,70 @@ describe("useCalloutArea", () => {
     );
   }
 
-  it("measures on a scroll, on a size change of the area or a notice, and for a notice added later", async () => {
-    const observed: Element[] = [];
-    let resized: (() => void) | null = null;
+  /** A ResizeObserver stub that records what it watches and how many are live. */
+  function stubObserver() {
+    const watch = { observed: [] as Element[], live: 0, resized: null as (() => void) | null };
     globalThis.ResizeObserver = class {
       constructor(callback: () => void) {
-        resized = callback;
+        watch.resized = callback;
+        watch.live += 1;
       }
       observe(target: Element) {
-        observed.push(target);
+        watch.observed.push(target);
       }
       unobserve() {}
-      disconnect() {}
+      disconnect() {
+        watch.live -= 1;
+      }
     } as unknown as typeof ResizeObserver;
+    return watch;
+  }
 
+  it("measures on a scroll, on a size change of the area or a notice, and for a notice added or removed later", async () => {
+    const watch = stubObserver();
     const { getByTestId, rerender, unmount } = render(createElement(Area, { notices: 1 }));
     const area = getByTestId("area");
     placed(area, 0, 100);
-    expect(observed).toEqual([area, area.firstElementChild]);
+    expect(watch.observed).toEqual([area, area.firstElementChild]);
     expect(area.hasAttribute("data-sb-more")).toBe(false);
 
     sized(area, 100, 300);
-    act(() => resized!());
+    act(() => watch.resized!());
     expect(area.hasAttribute("data-sb-more")).toBe(true);
 
     sized(area, 100, 300, 200);
     area.dispatchEvent(new Event("scroll"));
     expect(area.style.getPropertyValue("--sb-more-top")).toBe(`${100 - 100 / 3}px`);
 
+    // A notice that comes later is watched and measured at once.
+    sized(area, 100, 600, 0);
     rerender(createElement(Area, { notices: 2 }));
     await act(async () => {});
-    expect(observed).toContain(area.lastElementChild);
+    expect(watch.observed).toContain(area.lastElementChild);
+    expect(area.style.getPropertyValue("--sb-more-length")).toBe(`${(100 * 100) / 600}px`);
 
+    // One that goes („Ausblenden“) is measured away too.
+    sized(area, 100, 100);
+    rerender(createElement(Area, { notices: 1 }));
+    await act(async () => {});
+    expect(area.hasAttribute("data-sb-more")).toBe(false);
+    expect(area.hasAttribute("tabindex")).toBe(false);
+
+    // After unmount nothing watches the area any more.
     unmount();
+    expect(watch.live).toBe(0);
+    sized(area, 100, 300);
+    area.dispatchEvent(new Event("scroll"));
+    area.appendChild(document.createElement("p"));
+    await act(async () => {});
+    expect(area.hasAttribute("data-sb-more")).toBe(false);
+  });
+
+  it("leaves one live watcher under StrictMode's second effect", () => {
+    const watch = stubObserver();
+    const { unmount } = render(createElement(StrictMode, null, createElement(Area, { notices: 1 })));
+    expect(watch.live).toBe(1);
+    unmount();
+    expect(watch.live).toBe(0);
   });
 });
