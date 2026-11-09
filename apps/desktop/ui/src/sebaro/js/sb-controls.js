@@ -304,10 +304,11 @@
   }
 
   // D142 (spec/02 §3.11): D134's sign on the web. The mark is as long as the part shown (at least 12 px) and
-  // stands where that part stands; the fade covers the last 36 px, starts below any control that reaches into them (a
-  // dimmed control looks locked; one cut at the end leaves no fade) and weakens as the px left get fewer than 36. While
-  // the area scrolls it is a tab stop, so its words can be read by keys: the browser scrolls a focused scroller with the
-  // arrows, Bild auf / Bild ab, Pos1 / Ende and the Space; Tab goes on to the notices' actions.
+  // stands where that part stands; the fade covers the last 36 px (at most half the area), starts below any control
+  // that reaches into them (a dimmed control looks locked; one cut at the end leaves no fade) and weakens as the px
+  // left get fewer than its height. While the area scrolls it is a tab stop, so its words can be read by keys: the
+  // browser scrolls a focused scroller with the arrows, Bild auf / Bild ab, Pos1 / Ende and the Space; Tab goes on to
+  // the notices' actions.
   var MORE_FADE = 36, MORE_LEAST = 12, MORE_PROPS = ["--sb-more-top", "--sb-more-length", "--sb-more-fade-from", "--sb-more-fade-rest"];
   function measureArea(area) {
     var view = area.clientHeight, max = area.scrollHeight - view;
@@ -321,7 +322,9 @@
     if (!area.hasAttribute("tabindex")) { area.tabIndex = 0; area.setAttribute("data-sb-scroll-stop", ""); }
     var top = Math.min(max, Math.max(0, area.scrollTop));
     var length = Math.min(view, Math.max(view * view / (view + max), MORE_LEAST));
-    var from = view - MORE_FADE, edge = area.getBoundingClientRect().top + area.clientTop;
+    // never more than half the area, so a low one (32 px at 200 % in a low window) keeps a line to read (spec/02 §3.11)
+    var fade = Math.min(MORE_FADE, view / 2);
+    var from = view - fade, edge = area.getBoundingClientRect().top + area.clientTop;
     area.querySelectorAll(FOCUSABLE).forEach(function (el) {
       var r = el.getBoundingClientRect();
       if (r.height && r.top - edge < view && r.bottom - edge > from) from = r.bottom - edge;
@@ -329,7 +332,7 @@
     area.style.setProperty("--sb-more-top", ((view - length) * top / max) + "px");
     area.style.setProperty("--sb-more-length", length + "px");
     area.style.setProperty("--sb-more-fade-from", Math.min(from, view) + "px");
-    area.style.setProperty("--sb-more-fade-rest", from >= view ? "1" : String(1 - Math.min(1, (max - top) / MORE_FADE)));
+    area.style.setProperty("--sb-more-fade-rest", from >= view ? "1" : String(1 - Math.min(1, (max - top) / fade)));
     area.setAttribute("data-sb-more", "");
   }
   var areaSizes = typeof ResizeObserver === "function" ? new ResizeObserver(function (entries) {

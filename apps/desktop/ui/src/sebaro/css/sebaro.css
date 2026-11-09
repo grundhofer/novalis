@@ -1776,11 +1776,14 @@ kbd, .sb-kbd {
    over the last 36 px (a mask, so it fades whatever ground is behind), never over a control and not while the focus is
    inside; the system's scroll bar then stays hidden, the mark shows the place. Without the script the scroll bar is all.
    The ring of the area itself stands inside its edge, so no container clips it (provisional, agent: the name, the
-   default height, the 8 px between notices, the 12 px gutter at the end, the hidden scroll bar, the inner ring) */
+   default height, the 8 px between notices, the 12 px gutter at the end, the hidden scroll bar, the inner ring).
+   --sb-callout-area-gutter (default 12 px, at least the mark and the ring: 5 px) lets a product pull the area out by its
+   gutter (margin-inline-end: calc(-1 * var(--sb-callout-area-gutter))), so the notices' frames line up with a notice
+   outside it; the gutter is always kept, so the words never wrap anew when the area starts or stops scrolling */
 .sb-callout-area {
   display: grid; gap: var(--sb-space-2); align-content: start; box-sizing: border-box;
   max-block-size: var(--sb-callout-area-max, max(40%, 100% - 20rem));
-  overflow-y: auto; padding-inline-end: 12px;   /* px: the mark and the ring do not grow with the text, the words keep the room */
+  overflow-y: auto; padding-inline-end: var(--sb-callout-area-gutter, 12px);   /* px: the mark and the ring do not grow with the text, the words keep the room */
 }
 .sb-callout-area:focus-visible { outline-offset: calc(-1 * var(--sb-focus-width)); }
 .sb-callout-area[data-sb-more] {
