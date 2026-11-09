@@ -441,8 +441,14 @@ export default function App() {
               {(vault || active) && <TabStrip />}
               {/* The one panel of the document tabs (spec/02 §4.21). */}
               <DocPanel>
-                <CloudHint />
-                <LegacyHint />
+                {/* The two hints share one box that scrolls what does not
+                    fit, so the tool row and the writing area keep their
+                    room in a low window (ADR-0051 #90). A change on disk
+                    asks for a decision and stays whole beside them. */}
+                <div className="nv-doc-hints">
+                  <CloudHint />
+                  <LegacyHint />
+                </div>
                 <Banner />
                 {/* The tool row of a file in the editor, where a viewer has
                     its own (ADR-0051 #72, #73); it stays while the preview

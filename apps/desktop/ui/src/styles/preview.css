@@ -21,8 +21,17 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--sb-space-5) var(--sb-space-8) 40vh;
+  padding: var(--sb-space-5) var(--sb-space-8) 0;
   background: var(--sb-color-bg);
+}
+
+/* The room under the last line, so it can scroll up the pane: 40vh, never
+   more than 60 % of the pane. As padding, 40vh was more than the whole pane
+   in a low window and its last lines lay cut off under the action zone
+   (docs/sebaro-luecken.md Z12); as a part of the pane its percentage
+   follows the pane's height. */
+.preview-end {
+  block-size: min(40vh, 60%);
 }
 
 .preview-body {

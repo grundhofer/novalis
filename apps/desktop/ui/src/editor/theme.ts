@@ -38,8 +38,14 @@ export const EDITOR_LOOKS: Readonly<Record<string, Record<string, string>>> = {
   // (spec/01 §1.8.2, D102 (27)), which the shell sets from
   // `editor.fontSize` (stores/ui.ts).
   "&": { height: "100%" },
+  // Room under the last line, so it can scroll up the pane: 40 % of the
+  // window, but never more than 60 % of the writing area itself, whose
+  // height Editor.tsx writes as `--nv-block-size` (lib/blockSize.ts). In a
+  // low window (640 × 400, the tool row on two lines) 40vh was more than the
+  // area's whole height, so the scroller grew past it and its last lines
+  // lay cut off under the action zone, out of reach.
   ".cm-scroller": {
-    padding: "var(--sb-space-5) var(--sb-space-8) 40vh",
+    padding: "var(--sb-space-5) var(--sb-space-8) min(40vh, 0.6 * var(--nv-block-size, 100vh))",
   },
   ".cm-content": {
     maxWidth: "var(--sb-size-measure-prose)",

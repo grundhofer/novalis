@@ -170,6 +170,14 @@ describe("markdownHighlight", () => {
     expect(EDITOR_LOOKS[".cm-line.nv-heading-3"]).toBeUndefined();
   });
 
+  // The room under the last line never exceeds the writing area: in a low
+  // window 40vh was taller than the area, and its last lines lay cut off.
+  it("keeps the room under the last line inside the writing area", () => {
+    expect(EDITOR_LOOKS[".cm-scroller"]).toEqual({
+      padding: "var(--sb-space-5) var(--sb-space-8) min(40vh, 0.6 * var(--nv-block-size, 100vh))",
+    });
+  });
+
   // sebaro-luecken Z5: the GFM table tags its header cells with the generic
   // `t.heading`. sebaro has no rule for it, and neither has novalis since
   // `sebaroMarkdownHeadingWeights` (it was title weight before): a header

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type Banner as BannerKind, useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useVault } from "../stores/vault";
+import appSource from "../App.tsx?raw";
+import appCss from "../styles/app.css?raw";
 import Banner from "./Banner";
 
 vi.mock("react-i18next", () => ({
@@ -157,5 +159,16 @@ describe("Banner", () => {
       before.remove();
       after.remove();
     }
+  });
+});
+
+// ADR-0051 #90: in a low window the cloud and migration hints share one
+// box, which scrolls what does not fit; a change on disk stays whole.
+describe("the hints' box", () => {
+  it("holds the two hints, scrolls past its cap, and leaves the change on disk outside", () => {
+    expect(appSource).toMatch(/<div className="nv-doc-hints">\s*<CloudHint \/>\s*<LegacyHint \/>\s*<\/div>\s*<Banner \/>/);
+    expect(appCss).toContain(
+      ".nv-doc-hints {\n  flex: 0 0 auto;\n  max-block-size: max(40%, 100% - 20rem);\n  overflow-y: auto;\n}",
+    );
   });
 });

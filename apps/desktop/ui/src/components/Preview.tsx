@@ -1023,6 +1023,8 @@ export default function Preview({
         }
       >
         <div className="preview-body sb-prose" ref={body} onClick={onClick} />
+        {/* The room under the last line (preview.css). */}
+        <div className="preview-end" aria-hidden="true" />
       </section>
     </>
   );

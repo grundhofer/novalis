@@ -21,7 +21,9 @@
 /* novalis's own values (`--nv-*`), for what the export has no token of
    the same value: none is left. The last, the fatal banner's warning line,
    went when sebaro's last-resort notice `sb-fatal` took its place (sebaro
-   D108, docs/sebaro-luecken.md W). */
+   D108, docs/sebaro-luecken.md W). `--nv-block-size` is no value but a
+   pane's measured height, which lib/blockSize.ts writes on the pane
+   (docs/sebaro-luecken.md Z12). */
 
 *,
 *::before,
@@ -443,6 +445,23 @@ button {
 
 .nv-callout {
   margin: var(--sb-space-2) var(--sb-space-4) 0;
+}
+
+/* The cloud and migration hints (App.tsx `nv-doc-hints`) share a box;
+   what does not fit scrolls in it (ADR-0051 #90). In a low window
+   (640 × 400, the tool row on two lines) a vault's migration note left the
+   writing area 0 px and pushed the tool row under the action zone, and the
+   panel's overflow moved the tab row when the text took the focus. The box
+   takes at most 40 % of the panel, or what leaves 20rem for the tool row
+   and the writing area where that is more, so a window of normal size
+   shows both hints whole as before; it never shrinks below that, which
+   would hide a hint while its actions still take the focus. A change on
+   disk stays outside it, whole. sebaro describes no scrolling callout
+   (docs/sebaro-luecken.md Z12). */
+.nv-doc-hints {
+  flex: 0 0 auto;
+  max-block-size: max(40%, 100% - 20rem);
+  overflow-y: auto;
 }
 
 /* ------------------------------------------------- action zone (status) */
