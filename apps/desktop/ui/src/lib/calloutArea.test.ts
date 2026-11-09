@@ -35,11 +35,23 @@ describe("measureArea", () => {
   });
 
   it("keeps the mark at least 12 px and weakens the fade near the end", () => {
-    const area = sized(document.createElement("div"), 50, 5000, 4932);
-    placed(area, 0, 50);
+    const area = sized(document.createElement("div"), 100, 5000, 4882);
+    placed(area, 0, 100);
     measureArea(area);
     expect(area.style.getPropertyValue("--sb-more-length")).toBe("12px");
     // 18 of the last 36 px are left.
+    expect(area.style.getPropertyValue("--sb-more-fade-rest")).toBe("0.5");
+  });
+
+  it("fades at most half of a low area, so its upper half stays readable", () => {
+    // 200 % in a 640 × 400 window: the area is 32 px high.
+    const area = sized(document.createElement("div"), 32, 678);
+    placed(area, 0, 32);
+    measureArea(area);
+    expect(area.style.getPropertyValue("--sb-more-fade-from")).toBe("16px");
+    sized(area, 32, 678, 638);
+    measureArea(area);
+    // 8 of the last 16 px are left.
     expect(area.style.getPropertyValue("--sb-more-fade-rest")).toBe("0.5");
   });
 

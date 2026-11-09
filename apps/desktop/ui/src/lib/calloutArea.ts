@@ -1,6 +1,6 @@
 import { type RefObject, useEffect } from "react";
 
-/** The fade over the last px, and the mark's least length (sb-controls.js). */
+/** The fade over the last px (at most half the area), and the mark's least length (sb-controls.js). */
 const MORE_FADE = 36;
 const MORE_LEAST = 12;
 const MORE_PROPS = ["--sb-more-top", "--sb-more-length", "--sb-more-fade-from", "--sb-more-fade-rest"];
@@ -36,7 +36,9 @@ export function measureArea(area: HTMLElement): void {
   }
   const top = Math.min(max, Math.max(0, area.scrollTop));
   const length = Math.min(view, Math.max((view * view) / (view + max), MORE_LEAST));
-  let from = view - MORE_FADE;
+  // Never more than half the area, so a low one keeps a line to read (§102).
+  const fade = Math.min(MORE_FADE, view / 2);
+  let from = view - fade;
   const edge = area.getBoundingClientRect().top + area.clientTop;
   for (const control of area.querySelectorAll(FOCUSABLE)) {
     const box = control.getBoundingClientRect();
@@ -45,7 +47,7 @@ export function measureArea(area: HTMLElement): void {
   area.style.setProperty("--sb-more-top", `${((view - length) * top) / max}px`);
   area.style.setProperty("--sb-more-length", `${length}px`);
   area.style.setProperty("--sb-more-fade-from", `${Math.min(from, view)}px`);
-  area.style.setProperty("--sb-more-fade-rest", from >= view ? "1" : String(1 - Math.min(1, (max - top) / MORE_FADE)));
+  area.style.setProperty("--sb-more-fade-rest", from >= view ? "1" : String(1 - Math.min(1, (max - top) / fade)));
   area.setAttribute("data-sb-more", "");
 }
 
