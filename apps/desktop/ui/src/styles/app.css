@@ -458,12 +458,12 @@ button {
    actions still take the focus; the callouts' space above it stands inside
    it, so the cap holds it as before, and its notices drop their own margins
    for its 8 px; without a hint it is not shown, so no empty region is
-   announced. sebaro's 12 px gutter at its end, where the mark stands, makes
-   the hints 12 px narrower than a change on disk under them, which stays
-   outside it, whole (docs/sebaro-luecken.md Z13). */
+   announced. It reaches out by sebaro's gutter at its end, where the mark
+   stands (§103), so the hints' frames end where a change on disk under them
+   ends, which stays outside it, whole (docs/sebaro-luecken.md Z13). */
 .nv-doc-hints {
   flex: 0 0 auto;
-  margin-inline: var(--sb-space-4);
+  margin-inline: var(--sb-space-4) calc(var(--sb-space-4) - var(--sb-callout-area-gutter));
   padding-block-start: var(--sb-space-2);
 }
 

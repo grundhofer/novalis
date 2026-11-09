@@ -169,7 +169,7 @@ describe("the hints' area", () => {
   it("comes before the change on disk, keeps its cap, and is not shown empty", () => {
     expect(appSource).toMatch(/<DocHints \/>\s*<Banner \/>/);
     expect(appCss).toContain(
-      ".nv-doc-hints {\n  flex: 0 0 auto;\n  margin-inline: var(--sb-space-4);\n  padding-block-start: var(--sb-space-2);\n}",
+      ".nv-doc-hints {\n  flex: 0 0 auto;\n  margin-inline: var(--sb-space-4) calc(var(--sb-space-4) - var(--sb-callout-area-gutter));\n  padding-block-start: var(--sb-space-2);\n}",
     );
     expect(appCss).toContain(".nv-doc-hints:empty {\n  display: none;\n}");
     expect(appCss).not.toMatch(/\.nv-doc-hints[^{]*\{[^}]*(max-block-size|overflow)/);
