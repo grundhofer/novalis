@@ -729,11 +729,16 @@ kbd, .sb-kbd {
    default height, the 8 px between notices, the 12 px gutter at the end, the hidden scroll bar, the inner ring).
    --sb-callout-area-gutter (default 12 px, at least the mark and the ring: 5 px) lets a product pull the area out by its
    gutter (margin-inline-end: calc(-1 * var(--sb-callout-area-gutter))), so the notices' frames line up with a notice
-   outside it; the gutter is always kept, so the words never wrap anew when the area starts or stops scrolling */
+   outside it; the gutter is always kept, so the words never wrap anew when the area starts or stops scrolling. Both
+   properties are declared on the area itself, so a product's own rule can read them (an undeclared var() without a
+   fallback is invalid, and a margin made of it is 0); a product sets another value on the area, with a selector more
+   specific than .sb-callout-area, not on a container */
 .sb-callout-area {
+  --sb-callout-area-max: max(40%, 100% - 20rem);
+  --sb-callout-area-gutter: 12px;   /* px: the mark and the ring do not grow with the text, the words keep the room */
   display: grid; gap: var(--sb-space-2); align-content: start; box-sizing: border-box;
-  max-block-size: var(--sb-callout-area-max, max(40%, 100% - 20rem));
-  overflow-y: auto; padding-inline-end: var(--sb-callout-area-gutter, 12px);   /* px: the mark and the ring do not grow with the text, the words keep the room */
+  max-block-size: var(--sb-callout-area-max);
+  overflow-y: auto; padding-inline-end: max(5px, var(--sb-callout-area-gutter));
 }
 .sb-callout-area:focus-visible { outline-offset: calc(-1 * var(--sb-focus-width)); }
 .sb-callout-area[data-sb-more] {
