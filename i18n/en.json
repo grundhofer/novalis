@@ -25,6 +25,7 @@
   "app.saving": "Saving\u00a0…",
   "app.undo": "Undo",
   "app.untitled": "Untitled",
+  "banner.area": "Hints",
   "banner.binary": "This file is binary and opens read-only.",
   "banner.changedOnDisk.body": "Your text is kept in {{path}} until you decide.",
   "banner.changedOnDisk.keepMine": "Keep mine",
