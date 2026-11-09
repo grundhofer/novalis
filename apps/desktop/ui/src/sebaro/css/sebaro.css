@@ -1768,6 +1768,37 @@ kbd, .sb-kbd {
 /* error details in a callout (spec/02 §3.28): the callout's glyph is a column of its own, so the details stand in the
    text column and start where the text starts, without the glyph indent they keep in a message */
 .sb-callout > .sb-details { grid-column: 2; padding-inline-start: 0; }
+/* a callout area that scrolls in itself (D142, spec/02 §3.11): notices that must not take a document's room stand
+   in div.sb-callout-area, at most --sb-callout-area-max high (default: 40 % of its container's height, more where the
+   container keeps 20rem for the rest; it needs a container of definite height, else it is not capped) and scroll in it.
+   While it holds more than it shows, sb-controls.js sets data-sb-more and --sb-more-*, and the area shows D134's sign:
+   a 3 px mark in border-strong at its end, as long as the part it shows, and the words running out into the ground
+   over the last 36 px (a mask, so it fades whatever ground is behind), never over a control and not while the focus is
+   inside; the system's scroll bar then stays hidden, the mark shows the place. Without the script the scroll bar is all.
+   The ring of the area itself stands inside its edge, so no container clips it (provisional, agent: the name, the
+   default height, the 8 px between notices, the 12 px gutter at the end, the hidden scroll bar, the inner ring) */
+.sb-callout-area {
+  display: grid; gap: var(--sb-space-2); align-content: start; box-sizing: border-box;
+  max-block-size: var(--sb-callout-area-max, max(40%, 100% - 20rem));
+  overflow-y: auto; padding-inline-end: 12px;   /* px: the mark and the ring do not grow with the text, the words keep the room */
+}
+.sb-callout-area:focus-visible { outline-offset: calc(-1 * var(--sb-focus-width)); }
+.sb-callout-area[data-sb-more] {
+  scrollbar-width: none;
+  background: linear-gradient(var(--sb-color-border-strong), var(--sb-color-border-strong)) no-repeat
+    right var(--sb-focus-width) top var(--sb-more-top, 0px) / 3px var(--sb-more-length, 100%);
+}
+.sb-callout-area[data-sb-more]:dir(rtl) { background-position: left var(--sb-focus-width) top var(--sb-more-top, 0px); }
+.sb-callout-area[data-sb-more]::-webkit-scrollbar { display: none; }
+.sb-callout-area[data-sb-more]:not(:focus-within) {
+  mask-image: linear-gradient(var(--sb-color-bg), var(--sb-color-bg)),   /* a mask takes only the alpha; the ground is opaque */
+    linear-gradient(var(--sb-color-bg) var(--sb-more-fade-from, calc(100% - 36px)),
+      color-mix(in srgb, var(--sb-color-bg) calc(var(--sb-more-fade-rest, 0) * 100%), transparent) 100%);
+  mask-size: calc(3px + var(--sb-focus-width)) 100%, 100% 100%;
+  mask-position: right 0 top 0, 0 0;
+  mask-repeat: no-repeat;
+}
+.sb-callout-area[data-sb-more]:not(:focus-within):dir(rtl) { mask-position: left 0 top 0, 0 0; }
 /* a failed start before the window frame exists (spec/09 §13.1; provisional, agent: the name and the sizes): the error
    callout at the start of the empty window, under the title bar's 48 px (in px: the macOS window buttons do not grow
    with the text), as wide as a reading column */
@@ -3958,6 +3989,7 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
   .sb-switch[aria-checked="true"] .sb-switch__thumb, .sb-radio > input:checked::after { background: CanvasText; }
   .sb-field__control { border: 1px solid CanvasText; }
   .sb-category::before { background: CanvasText; }
+  .sb-callout-area[data-sb-more] { background-image: linear-gradient(CanvasText, CanvasText); mask-image: none; }   /* the mark in the system's text colour, no fade (spec/02 §3.11) */
   mark, .sb-mark { background: Mark; color: MarkText; border-block-end-color: MarkText; }
   /* the class colours of a scale are the data (every value is text as well): heatmap cells and legends keep them,
      framed (D91 G6a); lines and bars follow the system colours */
@@ -3981,6 +4013,7 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
    page numbers, „Weiter“ and every action zone stay off paper; evidence stays as a list; a link that leaves the site
    prints its address after the words */
 @media print {
+  .sb-callout-area { max-block-size: none; overflow: visible; mask-image: none; background: none; }   /* every notice whole on paper (spec/02 §3.11) */
   .sb-note-popover, .sb-theme-button, .sb-skip-link, .sb-bottom-block { display: none; }
   .sb-site-nav, .sb-language-switch, .sb-site-footer__links, .sb-site-footer__display, .sb-toc, .sb-pagination, .sb-pager,
   .sb-section__actions, .sb-form-grid__actions, .sb-primary-action-bar { display: none; }

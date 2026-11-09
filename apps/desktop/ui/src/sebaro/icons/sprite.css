@@ -1,4 +1,4 @@
-/* generated — do not edit. tools/icons.py 1.1.0 · system "sebaro" · source 2f79c381a7f9a1fb
+/* generated — do not edit. tools/icons.py 1.1.0 · system "sebaro" · source 0c461669dbff4b35
    Stroke widths per display size (research/06 §3.5). Symbols read them through custom properties, so
    they inherit into <use> shadow trees and follow data-theme subtrees.
    Every rule sits in the cascade layer `base`, so unlayered CSS and later layers (Tailwind v4: components,
