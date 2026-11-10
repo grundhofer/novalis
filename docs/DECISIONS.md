@@ -983,6 +983,15 @@ Hints in a low window (verbatim in ADR-0051, amendment 2026-11-08, #90):
 
 Recorded as an amendment to **ADR-0051**.
 
+## Answered 2026-11-09
+
+The callout area from sebaro (verbatim in ADR-0051, amendment 2026-11-09, #91):
+- sebaro's export `c20b087` is taken over; the cloud hint and the migration
+  note stand in sebaro's callout area, which shows D134's sign while it
+  scrolls and is a tab stop then; a change on disk stays outside it (#91)
+
+Recorded as an amendment to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

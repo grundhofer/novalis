@@ -447,21 +447,32 @@ button {
   margin: var(--sb-space-2) var(--sb-space-4) 0;
 }
 
-/* The cloud and migration hints (App.tsx `nv-doc-hints`) share a box;
-   what does not fit scrolls in it (ADR-0051 #90). In a low window
-   (640 × 400, the tool row on two lines) a vault's migration note left the
-   writing area 0 px and pushed the tool row under the action zone, and the
-   panel's overflow moved the tab row when the text took the focus. The box
-   takes at most 40 % of the panel, or what leaves 20rem for the tool row
-   and the writing area where that is more, so a window of normal size
-   shows both hints whole as before; it never shrinks below that, which
-   would hide a hint while its actions still take the focus. A change on
-   disk stays outside it, whole. sebaro describes no scrolling callout
-   (docs/sebaro-luecken.md Z12). */
+/* The cloud and migration hints stand in sebaro's callout area
+   (`components/DocHints.tsx`, spec/02 §3.11, D142; ADR-0051 #90): sebaro.css
+   caps it at 40 % of the panel, or what leaves 20rem for the tool row and
+   the writing area where that is more, scrolls what does not fit and draws
+   D134's sign. In a low window (640 × 400, the tool row on two lines) a
+   vault's migration note left the writing area 0 px and pushed the tool row
+   under the action zone. Here it only takes the callouts' place in the
+   panel: it never shrinks below its cap, which would hide a hint while its
+   actions still take the focus; the callouts' space above it stands inside
+   it, so the cap holds it as before, and its notices drop their own margins
+   for its 8 px; without a hint it is not shown, so no empty region is
+   announced. It reaches out by sebaro's gutter at its end, where the mark
+   stands (§103), so the hints' frames end where a change on disk under them
+   ends, which stays outside it, whole (docs/sebaro-luecken.md Z13). */
 .nv-doc-hints {
   flex: 0 0 auto;
-  max-block-size: max(40%, 100% - 20rem);
-  overflow-y: auto;
+  margin-inline: var(--sb-space-4) calc(var(--sb-space-4) - var(--sb-callout-area-gutter));
+  padding-block-start: var(--sb-space-2);
+}
+
+.nv-doc-hints:empty {
+  display: none;
+}
+
+.nv-doc-hints .nv-callout {
+  margin: 0;
 }
 
 /* ------------------------------------------------- action zone (status) */

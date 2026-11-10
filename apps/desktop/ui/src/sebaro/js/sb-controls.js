@@ -41,6 +41,10 @@
 //                           or a press on the link to the same place, shows the line again
 //   .sb-callout__hide       „Ausblenden“ (D102 (39)): fires "sb-callout-hide" (cancelable) on the callout, then hides it;
 //                           focus goes to the next control after it (else the one before)
+//   .sb-callout-area        a callout area that scrolls in itself (D142, spec/02 §3.11): while it holds more than it shows it
+//                           carries data-sb-more and --sb-more-* for D134's sign (mark and fade, sebaro.css) and is a
+//                           tab stop (a tabindex the page set itself is left alone); measured again on every scroll,
+//                           size change of it or a notice in it, and for areas and notices added later
 //   .sb-toast               sbToast.show(toast) / sbToast.hide(toast) and [data-sb-toast-show="id"]: the toast enters
 //                           (.sb-enter), stays 6 s, pauses while the pointer is over it or focus is inside (only a toast
 //                           with an action can hold focus), Escape closes it from anywhere on the page, without taking
@@ -298,6 +302,67 @@
     var next = after[0] || before[before.length - 1];
     if (focusWasInside && next) next.focus({ preventScroll: true });
   }
+
+  // D142 (spec/02 §3.11): D134's sign on the web. The mark is as long as the part shown (at least 12 px) and
+  // stands where that part stands; the fade covers the last 36 px (at most half the area), starts below any control
+  // that reaches into them (a dimmed control looks locked; one cut at the end leaves no fade) and weakens as the px
+  // left get fewer than its height. While the area scrolls it is a tab stop, so its words can be read by keys: the
+  // browser scrolls a focused scroller with the arrows, Bild auf / Bild ab, Pos1 / Ende and the Space; Tab goes on to
+  // the notices' actions.
+  var MORE_FADE = 36, MORE_LEAST = 12, MORE_PROPS = ["--sb-more-top", "--sb-more-length", "--sb-more-fade-from", "--sb-more-fade-rest"];
+  function measureArea(area) {
+    var view = area.clientHeight, max = area.scrollHeight - view;
+    var mine = area.getAttribute("data-sb-scroll-stop") === "";
+    if (max <= 1 || !view) {
+      area.removeAttribute("data-sb-more");
+      MORE_PROPS.forEach(function (p) { area.style.removeProperty(p); });
+      if (mine) { area.removeAttribute("tabindex"); area.removeAttribute("data-sb-scroll-stop"); }
+      return;
+    }
+    if (!area.hasAttribute("tabindex")) { area.tabIndex = 0; area.setAttribute("data-sb-scroll-stop", ""); }
+    var top = Math.min(max, Math.max(0, area.scrollTop));
+    var length = Math.min(view, Math.max(view * view / (view + max), MORE_LEAST));
+    // never more than half the area, so a low one (32 px at 200 % in a low window) keeps a line to read (spec/02 §3.11)
+    var fade = Math.min(MORE_FADE, view / 2);
+    var from = view - fade, edge = area.getBoundingClientRect().top + area.clientTop;
+    area.querySelectorAll(FOCUSABLE).forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.height && r.top - edge < view && r.bottom - edge > from) from = r.bottom - edge;
+    });
+    area.style.setProperty("--sb-more-top", ((view - length) * top / max) + "px");
+    area.style.setProperty("--sb-more-length", length + "px");
+    area.style.setProperty("--sb-more-fade-from", Math.min(from, view) + "px");
+    area.style.setProperty("--sb-more-fade-rest", from >= view ? "1" : String(1 - Math.min(1, (max - top) / fade)));
+    area.setAttribute("data-sb-more", "");
+  }
+  var areaSizes = typeof ResizeObserver === "function" ? new ResizeObserver(function (entries) {
+    var seen = [];
+    entries.forEach(function (e) {
+      var area = e.target.closest(".sb-callout-area");
+      if (area && seen.indexOf(area) < 0) { seen.push(area); measureArea(area); }
+    });
+  }) : null;
+  function setupArea(area) {
+    if (area.sbAreaSet) return;
+    area.sbAreaSet = true;
+    area.addEventListener("scroll", function () { measureArea(area); }, { passive: true });
+    if (areaSizes) { areaSizes.observe(area); Array.prototype.forEach.call(area.children, function (c) { areaSizes.observe(c); }); }
+    measureArea(area);
+  }
+  if (typeof MutationObserver === "function") new MutationObserver(function (records) {
+    records.forEach(function (r) {
+      Array.prototype.forEach.call(r.addedNodes, function (n) {
+        if (!(n instanceof Element)) return;
+        if (n.matches(".sb-callout-area")) setupArea(n);
+        n.querySelectorAll(".sb-callout-area").forEach(setupArea);
+        if (r.target instanceof Element && r.target.matches(".sb-callout-area")) {
+          if (areaSizes) areaSizes.observe(n);
+          measureArea(r.target);
+        }
+      });
+      if (r.removedNodes.length && r.target instanceof Element && r.target.matches(".sb-callout-area")) measureArea(r.target);
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
 
   // D78: the toast's lifetime. 6 s, the same for every toast (spec/02 §4.8); never used for errors, which stay next to
   // what failed. The timer stops while the pointer is over the toast or focus is inside it and runs on with the time
@@ -574,6 +639,7 @@
     var roots = [];
     document.querySelectorAll("[data-sb-language-choice]").forEach(function (g) { var r = languageRoot(g); if (roots.indexOf(r) < 0) roots.push(r); });
     roots.forEach(syncLanguage);
+    document.querySelectorAll(".sb-callout-area").forEach(setupArea);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();

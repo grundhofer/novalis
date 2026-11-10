@@ -4,9 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import Banner from "./components/Banner";
 import BootError from "./components/BootError";
-import CloudHint from "./components/CloudHint";
+import DocHints from "./components/DocHints";
 import DocTools from "./components/DocTools";
-import LegacyHint from "./components/LegacyHint";
 import NoVault from "./components/NoVault";
 import Prompt from "./components/Prompt";
 import Sidebar from "./components/Sidebar";
@@ -441,14 +440,12 @@ export default function App() {
               {(vault || active) && <TabStrip />}
               {/* The one panel of the document tabs (spec/02 §4.21). */}
               <DocPanel>
-                {/* The two hints share one box that scrolls what does not
-                    fit, so the tool row and the writing area keep their
-                    room in a low window (ADR-0051 #90). A change on disk
-                    asks for a decision and stays whole beside them. */}
-                <div className="nv-doc-hints">
-                  <CloudHint />
-                  <LegacyHint />
-                </div>
+                {/* The two hints share sebaro's callout area, which scrolls
+                    what does not fit, so the tool row and the writing area
+                    keep their room in a low window (ADR-0051 #90, D142). A
+                    change on disk asks for a decision and stays whole beside
+                    them. */}
+                <DocHints />
                 <Banner />
                 {/* The tool row of a file in the editor, where a viewer has
                     its own (ADR-0051 #72, #73); it stays while the preview

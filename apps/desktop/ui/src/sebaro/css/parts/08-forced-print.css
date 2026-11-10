@@ -16,6 +16,7 @@
   .sb-switch[aria-checked="true"] .sb-switch__thumb, .sb-radio > input:checked::after { background: CanvasText; }
   .sb-field__control { border: 1px solid CanvasText; }
   .sb-category::before { background: CanvasText; }
+  .sb-callout-area[data-sb-more] { background-image: linear-gradient(CanvasText, CanvasText); mask-image: none; }   /* the mark in the system's text colour, no fade (spec/02 §3.11) */
   mark, .sb-mark { background: Mark; color: MarkText; border-block-end-color: MarkText; }
   /* the class colours of a scale are the data (every value is text as well): heatmap cells and legends keep them,
      framed (D91 G6a); lines and bars follow the system colours */
@@ -39,6 +40,7 @@
    page numbers, „Weiter“ and every action zone stay off paper; evidence stays as a list; a link that leaves the site
    prints its address after the words */
 @media print {
+  .sb-callout-area { max-block-size: none; overflow: visible; mask-image: none; background: none; }   /* every notice whole on paper (spec/02 §3.11) */
   .sb-note-popover, .sb-theme-button, .sb-skip-link, .sb-bottom-block { display: none; }
   .sb-site-nav, .sb-language-switch, .sb-site-footer__links, .sb-site-footer__display, .sb-toc, .sb-pagination, .sb-pager,
   .sb-section__actions, .sb-form-grid__actions, .sb-primary-action-bar { display: none; }

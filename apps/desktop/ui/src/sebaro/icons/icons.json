@@ -1,7 +1,7 @@
 {
   "generated": "generated — do not edit · tools/icons.py 1.1.0",
   "system": "sebaro",
-  "source_sha256": "2f79c381a7f9a1fb",
+  "source_sha256": "0c461669dbff4b35",
   "grammar": {
     "name": "Line 1.75 round",
     "summary": "1.75 stroke at 24 (1.5 on 16 masters, 2 on spots), round caps and joins, container radius 2 (below 8: 1), straight segments at 0/30/45/60/90/120/135/150 plus circular arcs and free curves, clear gap >= 2.25, at most 4 parts beside the main outline, no signature detail; filled only for selected navigation, toggles that are on and the four status icons at 16 px",
@@ -36,7 +36,7 @@
     "web": "<svg class=\"sb-icon sb-icon--24\" aria-hidden=\"true\" focusable=\"false\"><use href=\"sprite.svg#NAME\"/></svg>",
     "compose": "Icon(SebaroIcons.Outline.Name, contentDescription = null)"
   },
-  "count": 120,
+  "count": 122,
   "icons": [
     {
       "name": "arrow-down",
@@ -1761,6 +1761,53 @@
         "outline": [
           24
         ],
+        "filled": [
+          24
+        ],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "flash",
+        "flash--filled"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.Flash",
+        "SebaroIcons.Outline16.Flash",
+        "SebaroIcons.Outline20.Flash",
+        "SebaroIcons.Outline32.Flash",
+        "SebaroIcons.Filled.Flash",
+        "SebaroIcons.Filled16.Flash"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_flash_24",
+        "ic_sb_flash_filled_24"
+      ]
+    },
+    {
+      "name": "flash-auto",
+      "canonical": null,
+      "de": null,
+      "category": "media",
+      "aliases": [],
+      "tags": {
+        "de": [
+          "Blitz automatisch",
+          "Blitz Auto"
+        ],
+        "en": [
+          "flash auto",
+          "auto flash"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
         "filled": [],
         "spot": false
       },
@@ -1769,17 +1816,58 @@
       "source": "own",
       "license": "sebaro",
       "sprite": [
-        "flash"
+        "flash-auto"
       ],
       "compose": [
-        "SebaroIcons.Outline.Flash",
-        "SebaroIcons.Outline16.Flash",
-        "SebaroIcons.Outline20.Flash",
-        "SebaroIcons.Outline32.Flash"
+        "SebaroIcons.Outline.FlashAuto",
+        "SebaroIcons.Outline16.FlashAuto",
+        "SebaroIcons.Outline20.FlashAuto",
+        "SebaroIcons.Outline32.FlashAuto"
       ],
       "compose_cuts": {},
       "android": [
-        "ic_sb_flash_24"
+        "ic_sb_flash_auto_24"
+      ]
+    },
+    {
+      "name": "flash-off",
+      "canonical": null,
+      "de": null,
+      "category": "media",
+      "aliases": [],
+      "tags": {
+        "de": [
+          "Blitz aus",
+          "kein Blitz"
+        ],
+        "en": [
+          "flash off",
+          "no flash"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
+        "filled": [],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "flash-off"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.FlashOff",
+        "SebaroIcons.Outline16.FlashOff",
+        "SebaroIcons.Outline20.FlashOff",
+        "SebaroIcons.Outline32.FlashOff"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_flash_off_24"
       ]
     },
     {

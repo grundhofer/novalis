@@ -162,13 +162,16 @@ describe("Banner", () => {
   });
 });
 
-// ADR-0051 #90: in a low window the cloud and migration hints share one
-// box, which scrolls what does not fit; a change on disk stays whole.
-describe("the hints' box", () => {
-  it("holds the two hints, scrolls past its cap, and leaves the change on disk outside", () => {
-    expect(appSource).toMatch(/<div className="nv-doc-hints">\s*<CloudHint \/>\s*<LegacyHint \/>\s*<\/div>\s*<Banner \/>/);
+// ADR-0051 #90, D142: in a low window the cloud and migration hints share
+// sebaro's callout area, which scrolls what does not fit; a change on disk
+// stays whole outside it.
+describe("the hints' area", () => {
+  it("comes before the change on disk, keeps its cap, and is not shown empty", () => {
+    expect(appSource).toMatch(/<DocHints \/>\s*<Banner \/>/);
     expect(appCss).toContain(
-      ".nv-doc-hints {\n  flex: 0 0 auto;\n  max-block-size: max(40%, 100% - 20rem);\n  overflow-y: auto;\n}",
+      ".nv-doc-hints {\n  flex: 0 0 auto;\n  margin-inline: var(--sb-space-4) calc(var(--sb-space-4) - var(--sb-callout-area-gutter));\n  padding-block-start: var(--sb-space-2);\n}",
     );
+    expect(appCss).toContain(".nv-doc-hints:empty {\n  display: none;\n}");
+    expect(appCss).not.toMatch(/\.nv-doc-hints[^{]*\{[^}]*(max-block-size|overflow)/);
   });
 });
