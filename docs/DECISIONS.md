@@ -992,6 +992,15 @@ The callout area from sebaro (verbatim in ADR-0051, amendment 2026-11-09, #91):
 
 Recorded as an amendment to **ADR-0051**.
 
+## Answered 2026-11-12
+
+At most one outlined button in a region (verbatim in ADR-0051, amendment 2026-11-12, #94, #95):
+- in the Markdown tool row the preview switch alone keeps its outline; the
+  seven word tools are compact text actions (#94)
+- the sidebar's sort choice is two compact text actions (#95)
+
+Recorded as an amendment to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

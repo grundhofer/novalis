@@ -273,3 +273,14 @@ Since #253 the export folder is sebaro's profile copy `desktop` from its release
 | 93 | `CLAUDE.md` named `export_system.py --target tauri --product novalis`, which would overwrite the profile copy | The directory plan and the table of generated files name the copy's updater, `sebaro.product.json` and `sebaro-product/` |
 
 **Owner approval:** 2026-11-12, verbatim „ja, bitte so machen wie vorgeschlagen“ to „Für novalis liegen noch zwei vorbereitete Änderungen bereit, die dein Ja brauchen, weil Regeln des Repos sie schützen: die Prüfungen der Kopie in `justfile` und CI, und der veraltete Exportbefehl in `CLAUDE.md`.“ Narrower than asked, and the agent's: the prepared change also put the copy's verifier in place of novalis' own check and added the lint. #62 is the owner's earlier decision against the first, and the lint is red on L4; both are left as they were.
+
+## Amendment 2026-11-12: at most one outlined button in a region
+
+sebaro's design round 7 (D143 (7), D144 (6)) allows at most one outlined button in a region; the rest are text actions or icon tools. The count of the copy's own check (`docs/sebaro-luecken.md` Z14) found ten outlined buttons in the Markdown tool row and the sidebar's sort choice together. The owner saw pictures of each variant (the built UI in WebKit, light and dark, with the preview on, at 200 % text and in a narrow window) and answered on 2026-11-12:
+
+| # | Question | Decision |
+|---|---|---|
+| 94 | Which button of the Markdown tool row keeps its outline (eight had one: the preview switch and the seven word tools Bold, Italic, H1 to H3, List, Task) | The preview switch alone, sebaro's compact switch (#78). The seven word tools become sebaro's compact text actions (`sb-text-action--compact`), with word, chord, tooltip and disabled state as before. #75 stands: they become icon tools once sebaro has the icons. The row keeps its height and every tool its place in the order |
+| 95 | The sort choice of the sidebar (two outlined compact switches, „Name“ and „Geändert“) | Both become compact text actions, which sebaro.css takes in the sort choice. The agent had recommended to wait: sebaro draws the chosen one with two lines (the underline of its word and the edge of the pressed state) and its arrow grey at 20 px. Both stand as rows of the gap list (Z15) and are not corrected in novalis |
+
+**Owner approval:** 2026-11-12, verbatim „n1a n2a“, within one answer to a page of numbered variants (its other letters answer questions on other products). On that page N1 A read „„Vorschau“ bleibt umrandet, die sieben Wort-Werkzeuge werden Textaktionen.“ and N2 A „Textaktionen wie im Bild.“ No new setting, feature, shortcut, dependency or outbound connection. The find bar, the dialog and the board of Z14's count are not part of this answer and stay as they are.

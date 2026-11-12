@@ -21,8 +21,9 @@ import Keys from "./Keys";
  *
  * A tool sebaro has no icon for yet (bold, italic, heading, list, task;
  * ADR-0051 #75, docs/sebaro-luecken.md Z8) passes `word` instead of `icon`:
- * sebaro's compact word button (`sb-secondary-action--compact`, 32 px,
- * spec/02 §4.18) with the same chord, disabled state and tooltip. Its word
+ * sebaro's compact text action (`sb-text-action--compact`, 32 px; not an
+ * outlined button, of which a region has one at most: ADR-0051 #94) with
+ * the same chord, disabled state and tooltip. Its word
  * is its name, so what it shows is what a screen reader and voice control
  * call it (WCAG 2.5.3); where the word is short for the name („H1“ for
  * „Überschrift 1“) the tooltip's name is not hidden and says the rest.
@@ -54,7 +55,7 @@ export default function Tool({
   return (
     <>
       <button
-        className={icon ? "sb-icon-button sb-icon-button--compact" : "sb-secondary-action sb-secondary-action--compact"}
+        className={icon ? "sb-icon-button sb-icon-button--compact" : "sb-text-action sb-text-action--compact"}
         type="button"
         aria-label={icon ? label : undefined}
         aria-pressed={pressed}
