@@ -93,14 +93,15 @@ describe("DocTools", () => {
     expect(dispatchCommand).toHaveBeenCalledWith("note.togglePreview");
   });
 
-  // ADR-0051 #75: no sebaro icon yet, so a compact word button, its word
-  // its name; the tooltip names the chord, and what a short word stands for.
-  it("makes the formats without a sebaro icon word buttons with the chord in their tooltip", () => {
+  // ADR-0051 #75, #94: no sebaro icon yet, so a compact text action, its
+  // word its name; the tooltip names the chord, and what a short word stands
+  // for. The switch stays the row's one outlined button.
+  it("makes the formats without a sebaro icon text actions with the chord in their tooltip", () => {
     open("a.md");
     render(<DocTools />);
 
     const bold = tool("menu.edit.bold");
-    expect(bold.className).toBe("sb-secondary-action sb-secondary-action--compact");
+    expect(bold.className).toBe("sb-text-action sb-text-action--compact");
     expect(bold.hasAttribute("aria-label")).toBe(false);
     expect(bold.getAttribute("aria-keyshortcuts")).toBe("Meta+B");
     const boldTip = document.getElementById(bold.getAttribute("aria-describedby")!)!;

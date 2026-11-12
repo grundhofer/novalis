@@ -210,12 +210,13 @@ describe("Sidebar", () => {
     expect(rowNames()).toEqual(["Notes", "a.md", "b.md"]);
 
     // sebaro's sort choice (spec/02 §4.14, D102 (3)): compact switches in a
-    // named group.
+    // named group, text actions (ADR-0051 #95).
     const group = screen.getByRole("group", { name: "tree.sort" });
     expect(group.className).toBe("sb-sort-choice");
     const byName = () => within(group).getByRole("button", { name: /^tree\.columnName/ });
     const byModified = () => within(group).getByRole("button", { name: /^tree\.columnModified/ });
-    expect(byName().className).toBe("sb-secondary-action sb-secondary-action--compact");
+    expect(byName().className).toBe("sb-text-action sb-text-action--compact");
+    expect(byModified().className).toBe("sb-text-action sb-text-action--compact");
     fireEvent.click(byModified());
 
     expect(useUi.getState().treeSort).toBe("modified");
