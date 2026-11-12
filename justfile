@@ -50,7 +50,7 @@ dev:
     cd "{{desktop}}" && cargo tauri dev
 
 # Everything CI checks, in CI's order. Green here means green there.
-check: _versions _sebaro-export _ui-check _test-ui _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
+check: _versions _sebaro-export _sebaro-product _ui-check _test-ui _fmt-check _clippy _test-rust _bindings-check _i18n-check _bundle-budget
 
 # Rust and UI tests.
 test: _test-rust _test-ui
@@ -122,6 +122,12 @@ _versions:
 # sebaro-export.json and holds no other file (never edited by hand).
 _sebaro-export:
     node "{{root}}/scripts/check-sebaro-export.mjs"
+
+# ADR-0051 #92: novalis's own sebaro files (sebaro-product/) are what
+# sebaro.product.json and the export's product kit give: none missing, edited
+# or stale. python3, standard library only.
+_sebaro-product:
+    python3 "{{ui}}/src/sebaro/product/product_kit.py" check "{{root}}/sebaro.product.json" --copy "{{ui}}/src/sebaro" --out "{{root}}/sebaro-product"
 
 _ui-check:
     pnpm -C "{{ui}}" run typecheck
