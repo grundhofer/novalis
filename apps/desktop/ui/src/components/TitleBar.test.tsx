@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchCommand } from "../lib/commands";
-import tileSvg from "../sebaro/brand/inline/tile-novalis-small.svg?raw";
+import tileSvg from "../../../../../sebaro-product/sign/tile.svg?raw";
 import { useBoard } from "../stores/board";
 import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
@@ -36,16 +36,16 @@ describe("TitleBar", () => {
     expect(screen.getByText("app.name").className).toBe("sb-window__name");
   });
 
-  it("shows the export's tile unchanged, hidden beside the name, as the start's target", () => {
+  it("shows the product kit's tile unchanged, hidden beside the name, as the start's target", () => {
     const { container } = render(<TitleBar />);
     const tile = container.querySelector(".sb-sign-tile.sb-sign-tile--32")!;
     expect(tile.getAttribute("aria-hidden")).toBe("true");
     expect(tile.hasAttribute("data-sb-start-target")).toBe(true);
-    // The file as exported (ZEI-07), as the parser writes it back.
+    // The file as the kit wrote it (sebaro-product/, ZEI-07), as the parser writes it back.
     const exported = document.createElement("span");
     exported.innerHTML = tileSvg;
     expect(tile.innerHTML).toBe(exported.innerHTML);
-    expect(tile.querySelector("svg.sb-app-sign")).toBeTruthy();
+    expect(tile.querySelector("svg")).toBeTruthy();
   });
 
   it("writes the path as text: the places with chevrons between, the current one last", () => {
