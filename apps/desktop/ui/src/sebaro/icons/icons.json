@@ -319,7 +319,7 @@
     {
       "name": "board",
       "canonical": "board",
-      "de": "Kanban-Board (novalis)",
+      "de": "Kanban-Board",
       "category": "content",
       "aliases": [
         "kanban"

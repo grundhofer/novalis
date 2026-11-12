@@ -1,8 +1,8 @@
 /* generated — do not edit.
- * sebaroDesign token contract 1.10 · draft "sebaro" · palette "sebaro"
- * source: systems/sebaro/tokens/tokens.json (sha256 e7c07024111c4253)
- *         palettes/sebaro.json (sha256 9cea0342ec6825b7)
- * builder: tools/build_tokens.py 1.10.1 · spec: shared/TOKEN-CONTRACT.md
+ * sebaroDesign token contract 1.14 · draft "sebaro" · palette "sebaro"
+ * source: systems/sebaro/tokens/tokens.json (sha256 1ce6b8c317aefd2e)
+ *         palettes/sebaro.json (sha256 17200a17be172cdd)
+ * builder: tools/build_tokens.py 1.14.0 · spec: shared/TOKEN-CONTRACT.md
  */
 
 /* 1. Mode-independent tokens. */
@@ -10,6 +10,12 @@
   --sb-font-family-ui: "sebaro Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --sb-font-family-display: var(--sb-font-family-ui);
   --sb-font-family-mono: "sebaro Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sb-type-opening-family: var(--sb-font-family-display);
+  --sb-type-opening-size: clamp(2.5rem, max(min(3rem, 0.863636rem + 8.181818vw), -1.571429rem + 11.428571vw), 7rem);
+  --sb-type-opening-line-height: 0.94;
+  --sb-type-opening-weight: 700;
+  --sb-type-opening-tracking: -0.025em;
+  --sb-type-opening: 700 clamp(2.5rem, max(min(3rem, 0.863636rem + 8.181818vw), -1.571429rem + 11.428571vw), 7rem)/0.94 var(--sb-font-family-display);
   --sb-space-0: 0rem;
   --sb-space-0-5: 0.125rem;
   --sb-space-1: 0.25rem;
@@ -764,7 +770,7 @@
   --sb-focus-ring: var(--sb-focus-width) solid var(--sb-color-focus);
 }
 /* 6a. Sign tiles (PALETTE-CONTRACT 2.2 signTiles, D50, D51): tile and sign colour of the app signs per
-       purpose group, the same in both modes. Only for app signs (D40), never for UI. */
+       purpose group, the same in both modes. For app signs and the fixed product-area moments of D143/D144. */
 :root {
   --sb-tile-studio: #3057B1;
   --sb-tile-studio-glyph: #FFFFFF;
@@ -774,7 +780,7 @@
   --sb-tile-everyday-glyph: #FFFFFF;
   --sb-tile-learning: #7154CE;
   --sb-tile-learning-glyph: #FFFFFF;
-  --sb-tile-tools: #D55C13;
+  --sb-tile-tools: #C95100;
   --sb-tile-tools-glyph: #FFFFFF;
   --sb-tile-media: #B62A12;
   --sb-tile-media-glyph: #FFFFFF;
@@ -782,6 +788,47 @@
   --sb-tile-money-glyph: #FFFFFF;
   --sb-tile-system: #1A89C5;
   --sb-tile-system-glyph: #FFFFFF;
+}
+[data-sb-product] {
+  --sb-product-tile: initial;
+  --sb-product-glyph: initial;
+}
+[data-sb-tile="studio"] {
+  --sb-product-tile: var(--sb-tile-studio);
+  --sb-product-glyph: var(--sb-tile-studio-glyph);
+}
+[data-sb-tile="collaboration"] {
+  --sb-product-tile: var(--sb-tile-collaboration);
+  --sb-product-glyph: var(--sb-tile-collaboration-glyph);
+}
+[data-sb-tile="everyday"] {
+  --sb-product-tile: var(--sb-tile-everyday);
+  --sb-product-glyph: var(--sb-tile-everyday-glyph);
+}
+[data-sb-tile="learning"] {
+  --sb-product-tile: var(--sb-tile-learning);
+  --sb-product-glyph: var(--sb-tile-learning-glyph);
+}
+[data-sb-tile="tools"] {
+  --sb-product-tile: var(--sb-tile-tools);
+  --sb-product-glyph: var(--sb-tile-tools-glyph);
+}
+[data-sb-tile="media"] {
+  --sb-product-tile: var(--sb-tile-media);
+  --sb-product-glyph: var(--sb-tile-media-glyph);
+}
+[data-sb-tile="money"] {
+  --sb-product-tile: var(--sb-tile-money);
+  --sb-product-glyph: var(--sb-tile-money-glyph);
+}
+[data-sb-tile="system"] {
+  --sb-product-tile: var(--sb-tile-system);
+  --sb-product-glyph: var(--sb-tile-system-glyph);
+}
+
+:root {
+  --sb-tile-foot-band: #A9E773;
+  --sb-tile-foot-line: #1C1E22;
 }
 
 /* 7. Reduced motion: every duration collapses to 1ms (not 0, so transitionend still fires), the
