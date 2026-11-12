@@ -18,7 +18,8 @@ crates/novalis-core/                            # vault fs, atomic save, watcher
 crates/novalis-cli/                             # `novalis` binary on core; --json; English; src/ops/*.rs one fn per command
 apps/desktop/src-tauri/                         # thin Tauri 2 shell: <30 commands, native menu from i18n JSON
 apps/desktop/ui/                                # React 19 + Vite + CodeMirror 6
-apps/desktop/ui/src/sebaro/                     # the sebaro design export (tokens.css with --sb-*, sebaro.css, fonts, icons); never edited
+apps/desktop/ui/src/sebaro/                     # the sebaro design export, profile `desktop` (tokens.css with --sb-*, sebaro.css, fonts, icons, its updater, checks and product kit); never edited
+sebaro.product.json  sebaro-product/            # novalis's declaration for sebaro's product kit and what the kit makes of it (sign, tile, product.css, app icon); the folder is never edited
 packages/agent-skill/novalis/                   # SKILL.md for agents driving the CLI
 i18n/en.json  i18n/de.json                      # every user-visible string, flat "namespace.key"
 fixtures/demo-vault/  fixtures/gen/             # vendored demo vault; fixture generator
@@ -62,7 +63,8 @@ Never gate on ad-hoc `cargo …` or `pnpm …` invocations. If a check is missin
 | `Cargo.lock`, `pnpm-lock.yaml` | `cargo update -p <crate>`, `pnpm install`. A new top-level entry needs an ADR; CI (`lockfile-adr-check.mjs`) refuses it otherwise |
 | `apps/desktop/src-tauri/gen/schemas/` | Tauri CLI on every build; git-ignored |
 | `crates/novalis-cli/tests/**/*.golden` | `UPDATE_GOLDEN=1 just test-cli` |
-| `apps/desktop/ui/src/sebaro/` | sebaroDesign's `PYTHONDONTWRITEBYTECODE=1 python3 -B <sebaroDesign>/tools/export_system.py sebaro --target tauri --out apps/desktop/ui/src/sebaro --product novalis --from-commit <rev> --exclude-products <private exclusion list>` (`--verify apps/desktop/ui/src/sebaro` with the same `--from-commit` and list compares the folder with its sources); `scripts/check-sebaro-export.mjs` (in `just check` and CI) holds every file to the sha256 in its `sebaro-export.json` and refuses unlisted files (ADR-0051 #37) |
+| `apps/desktop/ui/src/sebaro/` | its own updater: `node apps/desktop/ui/src/sebaro/checks/update-copy.mjs` (the newest release of sebaro with the profile and the packs of the folder: `board`, `notes`, `editor-codemirror`; `--release <tag>`, `--packs <list>`, `--check`; docs/sebaro-luecken.md Z14); `scripts/check-sebaro-export.mjs` (in `just check` and CI) holds every file to the sha256 in its `sebaro-export.json` and refuses unlisted files (ADR-0051 #37) |
+| `sebaro-product/` | `python3 apps/desktop/ui/src/sebaro/product/product_kit.py build sebaro.product.json --copy apps/desktop/ui/src/sebaro --out sebaro-product --render` (the renderer needs a Playwright: `SEBARO_PLAYWRIGHT=<folder with node_modules/playwright>`); `product_kit.py check …` with the same arguments compares; then the app icons, `apps/desktop/src-tauri/icons/README.md` |
 | `THIRD-PARTY-NOTICES.md` | generated from the lockfiles (`PLAN.md` §11.6) |
 | UI ⇄ Rust IPC bindings, `apps/desktop/ui/src/lib/fileTypes.generated.ts` | the desktop crate's export command (`cargo run -p novalis-desktop --example gen_bindings`); CI diffs both |
 
