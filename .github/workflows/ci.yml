@@ -106,6 +106,13 @@ jobs:
       - name: sebaro export unchanged
         run: node scripts/check-sebaro-export.mjs
 
+      # ADR-0051 #92: sebaro-product/ (novalis's sign, tile, product.css and
+      # app icon) is what sebaro.product.json and the export's product kit
+      # give. python3, standard library only; once, on Linux.
+      - name: sebaro product files up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 apps/desktop/ui/src/sebaro/product/product_kit.py check sebaro.product.json --copy apps/desktop/ui/src/sebaro --out sebaro-product
+
       # OS-independent JS checks run once, on Linux, to save runner time.
       - name: UI typecheck
         if: matrix.os == 'ubuntu-latest'
