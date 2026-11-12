@@ -1,17 +1,16 @@
 #!/usr/bin/env node
-// Guards the sebaro design export (ADR-0051 #37). apps/desktop/ui/src/sebaro
-// is written by sebaroDesign's export tool and never edited by hand; its
-// manifest sebaro-export.json lists every exported file with its sha256.
-// This script does what that tool's `--verify DIR --files-only` does, without
-// shipping the tool or needing python3:
+// Guards the sebaro design export (ADR-0051 #37, #62). apps/desktop/ui/src/sebaro
+// is fetched by the export's own updater (checks/update-copy.mjs in that
+// folder) and never edited by hand; its manifest sebaro-export.json lists
+// every exported file with its sha256. This script does what the export's own
+// `checks/verify-export.mjs --strict` does, from outside the folder it checks:
 //   - every file the manifest lists exists and has the recorded sha256
 //   - no other file is in the folder
 // Dotfiles and anything in a dot directory (.DS_Store) are not looked at, as
-// the export tool does not. The tool only warns about a file it does not own;
-// here it fails, because a clean export never leaves one behind (it removes
-// what it no longer exports) and a warning would pass CI unseen.
-// Source drift (sebaroDesign moved on) is not checked: that needs a
-// sebaroDesign checkout and the tool's full `--verify`.
+// the export's tools do not. A file the manifest does not name fails, because
+// a clean export never leaves one behind and a warning would pass CI unseen.
+// Whether sebaro has a newer release is not checked: the updater's `--check`
+// asks for that, and it needs the network.
 //
 // Usage: node scripts/check-sebaro-export.mjs [export-dir]
 // The directory defaults to the app's export folder; the argument exists to
@@ -27,7 +26,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = resolve(process.argv[2] ?? join(root, "apps/desktop/ui/src/sebaro"));
 const MANIFEST = "sebaro-export.json";
 const FORMAT = "1.0"; // of sebaro-export.json; a new format means re-reading this script
-const FIX = "re-export with sebaroDesign's export_system.py (CLAUDE.md, generated files); never edit the folder by hand";
+const FIX = "fetch the folder again with its own updater, checks/update-copy.mjs --force (docs/sebaro-luecken.md Z14); never edit the folder by hand";
 
 const inRepo = relative(root, dir);
 const shown = inRepo.startsWith("..") ? dir : inRepo || ".";
