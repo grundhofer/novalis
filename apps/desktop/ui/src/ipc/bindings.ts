@@ -172,6 +172,12 @@ export const commands = {
 	 *  `docs/SETTINGS.md` (PLAN.md §4.1).
 	 */
 	stateSave: (uiState: UiStateDto) => typedError<null, IpcError>(__TAURI_INVOKE("state_save", { uiState })),
+	/**
+	 *  The start is over in the page (`sb-start-done`, ADR-0052): the window
+	 *  leaves the start's ground, novalis's tile colour, for the ground of the
+	 *  stored choice, which a resize shows at the window's edge from now on.
+	 */
+	startEnded: () => typedError<null, IpcError>(__TAURI_INVOKE("start_ended")),
 };
 
 /** Events */

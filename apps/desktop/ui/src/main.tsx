@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import { startI18n } from "./i18n";
-import { failStart, holdStart } from "./lib/start";
+import { failStart, holdStart, watchStartEnd } from "./lib/start";
 // sebaro's stylesheets in the order of spec/09 §1 (WEB-01, ADR-0051), after
 // `theme-init.js` in index.html and before novalis's own. `sebaro.css` is the
 // one stylesheet of the export (profile `desktop`: the core and the packs
@@ -64,7 +64,9 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 // The start tile stays until the first view is up (App.tsx, lib/start.ts):
-// held here, before React mounts and long before the page's `load`.
+// held here, before React mounts and long before the page's `load`. The
+// window keeps the start's ground until the start is over (ADR-0052).
+watchStartEnd();
 holdStart();
 startI18n();
 
