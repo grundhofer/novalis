@@ -1001,6 +1001,16 @@ At most one outlined button in a region (verbatim in ADR-0051, amendment 2026-11
 
 Recorded as an amendment to **ADR-0051**.
 
+## Answered 2026-11-13
+
+In sebaro, for every desktop app (verbatim „3 ja“; sebaro release v2.0.0 of
+2026-11-14 brings it to novalis):
+- the window opens in novalis's tile colour, the ground of the start, and
+  takes the stored light or dark ground when the start is over; one IPC
+  command more, `start_ended` (29 of 30)
+
+Recorded as **ADR-0052**; amends ADR-0051 #22.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

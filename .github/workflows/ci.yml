@@ -231,3 +231,12 @@ jobs:
       - name: pnpm audit
         if: ${{ !cancelled() }}
         run: pnpm audit --audit-level=high
+
+      # sebaro releases move without us too (its README, "In the product's
+      # CI"): once a week, never on a push, a PR or a release, the copy's own
+      # updater asks whether a newer release exists (exit 1). Update with
+      # `node apps/desktop/ui/src/sebaro/checks/update-copy.mjs` as a commit
+      # of its own (CLAUDE.md, generated files).
+      - name: sebaro copy at the newest release (weekly)
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
+        run: node apps/desktop/ui/src/sebaro/checks/update-copy.mjs --check

@@ -570,8 +570,10 @@ html:has(.sb-bottom-block:not(.sb-window > .sb-bottom-block)) {
    cut (D102 lane webapps); where the name fits nothing changes */
 .sb-lockup { min-inline-size: 0; max-inline-size: 100%; }
 .sb-lockup > .sb-wordmark { min-inline-size: 0; overflow-wrap: anywhere; hyphens: manual; -webkit-hyphens: manual; }
-/* below 640 px row 2 holds the four words and DE / EN: 4 px between the groups and no gap inside the language
-   switch (each link keeps its 48 px target) keep it at 348 (light) / 352 (dark) of 358 px at 390 px (D83 (4), spec/03 §6.5) */
+/* below 640 px row 2 holds the four words and DE / EN: 5 px beside each word, 4 px between the groups and no gap inside
+   the language switch (each link keeps its 48 px target) keep it on one line at 390 px in both modes with German and
+   with four short English words: at most 353 of 358 px for „Apps Projects About Contact“ in dark, whose type is wider
+   (body weight 430 and +0.01 em, D40), measured with the current word in body-strong (D83 (4), spec/03 §6.1, §6.5) */
 .sb-site-header > .sb-theme-button { order: 1; flex: 0 1 auto; }   /* the flex row's order; the grid of 640 px and more places by area */
 .sb-site-header__links { grid-area: links; order: 2; flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--sb-space-1); }
 .sb-site-nav { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0; }
@@ -582,6 +584,7 @@ html:has(.sb-bottom-block:not(.sb-window > .sb-bottom-block)) {
   border-block-end: var(--sb-border-width-strong) solid transparent;
   font: var(--sb-type-body); letter-spacing: var(--sb-type-body-tracking);
 }
+.sb-site-nav a { padding-inline: 5px; }   /* the words of row 2 below 640 px; 8 px from 640 px on (below) */
 .sb-site-nav a:hover, .sb-language-switch a:hover, .sb-site-nav a.is-hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
 .sb-site-nav a[aria-current="page"], .sb-language-switch a[aria-current="true"] { border-block-end-color: var(--sb-color-accent); color: var(--sb-color-link); font-weight: var(--sb-type-body-strong-weight); }
 .sb-language-switch { display: inline-flex; align-items: center; gap: 0; color: var(--sb-color-text-muted); }
@@ -2820,8 +2823,7 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
 .sb-window .sb-primary-action-bar .sb-primary-action { inline-size: auto; min-inline-size: 200px; margin-inline-start: auto; padding-inline: min(var(--sb-space-6), 24px); }
 /* overlay panes: out of the grid, over the content edge, the ink line on their inner edge stays the layer line */
 /* overlay panes below 1004 / 722 px: only a pane in the window's grid (.sb-window__body >), so a sidebar or inspector
-   outside the grid stays in flow (spec/02 §4.17, D102 lane desktop); the contract for a framework counterpart without
-   sb-window.js is shared/ADOPTION.md §2.3 */
+   outside the grid stays in flow (spec/02 §4.17, D102 lane desktop) */
 @container sb-window (max-width: 1003.98px) {
   .sb-window__body > .sb-window__inspector {
     position: absolute; grid-column: auto; inset-block: 0; inset-inline-end: 0; z-index: var(--sb-layer-overlay);

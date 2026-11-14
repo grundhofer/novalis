@@ -48,8 +48,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 
-const VERSION = "1.1.0"; // 1.1.0 (D148 stage 6c, sebaro CHECKS.md §120): prints the change notes (CHANGES.md) between two releases, --check their headings; measures the minified sizes of the stylesheets (cssSizes); its refusal names no repository; 1.0.0 (D148 stage 6b, sebaro CHECKS.md §119): the first version
-const RELEASES = "https://github.com/grundhofer/sebaro-guide/releases"; // where the public copies are
+const VERSION = "1.2.0"; // 1.2.0 (sebaro CHECKS.md §125, the owner 2026-11-13): reads the releases of grundhofer/sebaro-blueprint, the guide's new name; GitHub forwards the old address, so a copy of v1.14.0 still finds a newer release; 1.1.0 (D148 stage 6c, sebaro CHECKS.md §120): prints the change notes (CHANGES.md) between two releases, --check their headings; measures the minified sizes of the stylesheets (cssSizes); its refusal names no repository; 1.0.0 (D148 stage 6b, sebaro CHECKS.md §119): the first version
+const RELEASES = "https://github.com/grundhofer/sebaro-blueprint/releases"; // where the public copies are
 const SOURCE_ENV = "SEBARO_COPIES";
 const INDEX_NAME = "copies.json";
 const INDEX_SCHEMA = "1"; // the major version of copies.json and of the cut plan this file reads
