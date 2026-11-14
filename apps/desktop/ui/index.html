@@ -3,14 +3,17 @@
      as a classic script file before any stylesheet, so the stored choice holds
      at first paint. It reads what the shell's initialisation script wrote from
      settings.json (`window.rs`). `sb-start.js` follows it (spec/03 §14,
-     STR-01): with `data-sb-start` on <html> it shows the start tile below at
-     first paint, until the app releases it (lib/start.ts). `sb-tooltip.js`
+     STR-01): with `data-sb-start` on <html> it shows the start below at
+     first paint, the sign on novalis's tile colour (`data-sb-product`,
+     sebaro-product/sign/product.css), until the app releases it
+     (lib/start.ts). `sb-tooltip.js`
      shows sebaro's tooltips (spec/02 §4.9), `sb-menu.js` runs the board's
      „Mehr“ menus (spec/02 §4.10); ADR-0051 #21: of the export's window
      scripts only these two are loaded. The stylesheets
      follow from `main.tsx`; the `novalis:sebaro` plugin in vite.config.ts
-     serves and copies these files unchanged and inlines the export's tile
-     where the `sb:inline` comment stands. There is deliberately no inline
+     serves and copies these files unchanged and inlines novalis's sign from
+     sebaro-product/ where the `sb:inline` comment stands. There is
+     deliberately no inline
      <script> here: the app's CSP is `script-src 'self'` and an inline block
      would be refused. The window's density stands on <html> (spec/09
      §13.1, ADOPTION §5 step 8, sebaro D108), so a start error before
@@ -26,7 +29,7 @@
     <title>novalis</title>
   </head>
   <body>
-    <div class="sb-start" aria-hidden="true"><span class="sb-start__tile"><!-- sb:inline src="brand/inline/tile-novalis-small.svg" --></span></div>
+    <div class="sb-start" data-sb-product="novalis" aria-hidden="true"><span class="sb-start__tile"><!-- sb:inline src="sign/sign.svg" --></span></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

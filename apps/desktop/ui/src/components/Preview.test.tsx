@@ -144,6 +144,11 @@ describe("Preview", () => {
     expect(screen.getByText("Hi").tagName).toBe("H1");
     // sebaro's prose (TXT-06).
     expect(screen.getByText("Hi").parentElement?.className).toBe("preview-body sb-prose");
+    // The room under the last line is a part of the pane, not 40vh of
+    // padding (docs/sebaro-luecken.md Z12).
+    const end = screen.getByText("Hi").parentElement?.nextElementSibling;
+    expect(end?.className).toBe("preview-end");
+    expect(end?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("re-renders a changed buffer after the pause, keeping the old fragment meanwhile", async () => {

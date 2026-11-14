@@ -974,6 +974,43 @@ The Help menu (verbatim in ADR-0051, amendment 2026-11-03, the Help menu,
 
 Recorded as amendments to **ADR-0051**.
 
+## Answered 2026-11-08
+
+Hints in a low window (verbatim in ADR-0051, amendment 2026-11-08, #90):
+- the cloud hint and the migration note share one box of at most 40 % of
+  the panel, or, where that is more, what leaves 20rem for the rest of the
+  panel, which scrolls the rest; a change on disk stays outside it, whole (#90)
+
+Recorded as an amendment to **ADR-0051**.
+
+## Answered 2026-11-09
+
+The callout area from sebaro (verbatim in ADR-0051, amendment 2026-11-09, #91):
+- sebaro's export `c20b087` is taken over; the cloud hint and the migration
+  note stand in sebaro's callout area, which shows D134's sign while it
+  scrolls and is a tab stop then; a change on disk stays outside it (#91)
+
+Recorded as an amendment to **ADR-0051**.
+
+## Answered 2026-11-12
+
+At most one outlined button in a region (verbatim in ADR-0051, amendment 2026-11-12, #94, #95):
+- in the Markdown tool row the preview switch alone keeps its outline; the
+  seven word tools are compact text actions (#94)
+- the sidebar's sort choice is two compact text actions (#95)
+
+Recorded as an amendment to **ADR-0051**.
+
+## Answered 2026-11-13
+
+In sebaro, for every desktop app (verbatim „3 ja“; sebaro release v2.0.0 of
+2026-11-14 brings it to novalis):
+- the window opens in novalis's tile colour, the ground of the start, and
+  takes the stored light or dark ground when the start is over; one IPC
+  command more, `start_ended` (29 of 30)
+
+Recorded as **ADR-0052**; amends ADR-0051 #22.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

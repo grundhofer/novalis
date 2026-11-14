@@ -35,7 +35,8 @@ const keepFocus = (event: MouseEvent) => event.preventDefault();
  * smaller and larger. Link, Code, Quote, Find and the text size are icon
  * tools (`link`, `code`, `quote`, `search`, and `zoom-out` / `zoom-in`,
  * which sebaro's reader gives the same ⌘− / ⌘+, §4.25.3); the others are
- * compact word buttons until sebaro has their icons (#75). While the
+ * compact text actions with their word until sebaro has their icons (#75),
+ * so the switch is the row's one outlined button (#94). While the
  * preview shows, the format tools are off in their place (#74), so the row
  * keeps its width; Find and the text size act on the preview too. The text
  * size tools are off at the smallest and largest size (spec/02 §4.19).

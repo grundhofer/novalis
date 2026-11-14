@@ -1,4 +1,4 @@
-//! The whole IPC surface: 28 commands (PLAN.md §2.3 rule 8 caps it at 30).
+//! The whole IPC surface: 29 commands (PLAN.md §2.3 rule 8 caps it at 30).
 //!
 //! Every command is `async` and does its filesystem work inside
 //! `spawn_blocking`, so a slow OneDrive hydration blocks one pool thread and
@@ -33,7 +33,7 @@ use novalis_core::vault::path::{
 use novalis_core::vault::walk::walk_files;
 use novalis_core::{CoreError, PathReason};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::dto::*;
@@ -1381,6 +1381,16 @@ pub async fn state_save(
         app.exit(0);
     }
     written
+}
+
+/// The start is over in the page (`sb-start-done`, ADR-0052): the window
+/// leaves the start's ground, novalis's tile colour, for the ground of the
+/// stored choice, which a resize shows at the window's edge from now on.
+#[tauri::command]
+#[specta::specta]
+pub async fn start_ended(window: WebviewWindow, state: State<'_, AppState>) -> IpcResult<()> {
+    crate::window::paint_ground(&window, &state.settings());
+    Ok(())
 }
 
 #[cfg(test)]
