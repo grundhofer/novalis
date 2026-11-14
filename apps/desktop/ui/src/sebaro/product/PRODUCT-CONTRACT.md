@@ -1,12 +1,14 @@
 # Product declaration contract (sebaroDesign)
 
-Status: v1.2, 2026-11-12 (stage 6c of the export rework, D147, D148, after the first website and desktop app moved:
-`check` compares the declaration by what it says, the small tile for web and desktop, `NOTICE.md` with the terms of
+Status: v1.3, 2026-11-14 (the Play feature graphic `android/play-feature-1024x500.png` is an output for `android`, the
+look the owner accepted on 2026-11-14 for five Android apps; `tiles.json` 1.2 brings the font of its name; sebaro
+CHECKS.md §129; previous v1.2, 2026-11-12, stage 6c of the export rework, D147, D148, after the first website and
+desktop app moved: `check` compares the declaration by what it says, the small tile for web and desktop, `NOTICE.md` with the terms of
 the folder, `share` finds Playwright as the raster files do; previous v1.1, 2026-11-12, stage 6a: every profile copy
 brings the kit in `product/`, the kit writes the start of an Android app and one SVG per raster file, a renderer draws
 the raster files; v1.0, 2026-11-11, stage 2: built in the workshop, not shipped in a copy). Machine-readable twin:
-[`product.schema.json`](product.schema.json). Tools: `product_kit.py` 1.2.0 with `sign_geometry.py` (Python 3.10+,
-standard library) and `render.mjs` 1.2.0 (Node 20+, the product's own Playwright, or one a product without a
+[`product.schema.json`](product.schema.json). Tools: `product_kit.py` 1.3.0 with `sign_geometry.py` (Python 3.10+,
+standard library) and `render.mjs` 1.3.0 (Node 20+, the product's own Playwright, or one a product without a
 Node project names: section 6). In sebaroDesign they are
 `tools/product_kit.py`, `tools/sign_geometry.py` and `tools/product_render.mjs`, and this text is
 `shared/PRODUCT-CONTRACT.md`; a profile copy carries all of them in `product/` (section 1).
@@ -117,7 +119,7 @@ What the kit needs of a system, written by `product_kit.py tiles` (`tiles_doc`).
 
 | Key | From |
 |---|---|
-| `format` | `"1.1"` |
+| `format` | `"1.2"` |
 | `system` | `meta.slug` of `dist/tokens.json` |
 | `groups.<id>` | `signTiles.<id>` of `dist/tokens.json`: `tile`, `glyph`, `css` (the custom property of the ground; the sign's is `<css>-glyph`), `kotlin`. Not the group's product list |
 | `foot` | `band` and `line`: the `signFoot` tokens that `signs.foot` of `brand.config.json` names |
@@ -127,9 +129,11 @@ What the kit needs of a system, written by `product_kit.py tiles` (`tiles_doc`).
 | `sign` | `grammar.stroke` and `grammar.strokeBySize` of `brand/signs.json` |
 | `notification.paddingDp` | `signs.notification.paddingDp` |
 | `raster` | the measures of the raster files (section 6), from `brand.config.json` with the defaults of `tools/brand_assets.py`: `viewports` (`any`, `play`, `appleTouch`, `maskable`, `desktop`: the dp of the 108-dp launcher canvas each file shows; `desktop` is the config's `tauri`), `desktopBodyPx` (`tauriBodyPx`) and `squircleExponent` (`masks.squircleExponent`) |
+| `font` | the name font of the Play feature graphic (section 6), from `fonts/fonts.json` and the generated `fonts/fonts.css`: the upright web face of the family whose roles include `display`: `family`, `weight` (its range, `[400, 700]` for the variable sebaro Sans), `format`, `file` (its path in a web copy) and `data`, the file as base64 (kit 1.3.0) |
 | `kotlin.package` | the package of `dist/SebaroTheme.kt` |
 
-`format` is `"1.1"` since kit 1.1.0 (`raster` is new); the kit reads the format it was shipped with.
+`format` is `"1.2"` since kit 1.3.0 (`font` is new; `"1.1"` since kit 1.1.0, `raster`); the kit reads the format it was
+shipped with.
 
 The kit draws one form only: the tile with the fixed foot of D143/D144, tile colours by group, the tile favicon.
 `tiles` refuses a system whose brand config says otherwise (`signs.tile.source` not `signTiles`, no `signs.foot`, a
@@ -166,11 +170,13 @@ All paths are relative to `--out`. Every file below is text and is produced with
   Kotlin sources. **Splash (Android 12+):** an app that shows the sebaro start names `Theme.Sebaro.Start` in its
   manifest (spec/03 of the system) and gets the bare sign on its group's tile colour; `sebaro_splash.xml` is the
   ground of an app that keeps the platform's own splash with the adaptive launcher icon (BRAND-ASSETS section 2).
-- **The start files are the target's.** `tools/export_system.py --target android --product <id>` writes the same five
-  files for a listed product, from `brand/inline/sign-<id>.svg`. The kit's are those bytes, except the tool the head
-  of the two drawables names; the three values files have no head in either (`test_product_kit` `Golden`, all 17
-  products). The symbol's name is the one `SbStartSymbol.kt` of the copy looks up (`sb_symbol_` + the id with `_`
-  for `-`) and the copy's `res/raw/sebaro_symbols_keep.xml` keeps under resource shrinking (`@drawable/sb_symbol_*`);
+- **The start files were the target's.** Until export 1.30.0 `tools/export_system.py --target android --product
+  <id>` wrote the same five files for a listed product, from `brand/inline/sign-<id>.svg`. The kit's were those
+  bytes, except the tool the head of the two drawables names; the three values files had no head in either
+  (`test_product_kit` `Golden`, all 17 products, compared a last time before the system stopped listing products:
+  sebaro CHECKS.md §123). Now the kit is their one writer. The symbol's name is the one `SbStartSymbol.kt` of the
+  copy looks up (`sb_symbol_` + the id with `_` for `-`) and the copy's `res/raw/sebaro_symbols_keep.xml` keeps
+  under resource shrinking (`@drawable/sb_symbol_*`);
   the splash symbol is named by the theme.
 - `web/` goes to the site root as it is. The README of a web copy has a table of every file with where a static
   site and an app built by a bundler serve or import it, and the icon step of a desktop app.
@@ -211,13 +217,14 @@ sentence and exits 2. It uses Node 20 built-ins and nothing else, and no network
 environment variable `SEBARO_PLAYWRIGHT`: any folder in which `npm install playwright` ran, on the machine that
 draws. Named, that folder is the only place the renderer looks in (a folder without Playwright is exit 2 and named
 in the message); `product_kit.py build --render` passes the variable on. An **Android app** is the case: it needs
-the renderer for one file, the Play icon. Its CI runs `check` with `--no-raster` (Python alone), and the icon is
-drawn once by hand, and again when the sign changes:
+the renderer for two files, the Play icon and the Play feature graphic. Its CI runs `check` with `--no-raster`
+(Python alone), and the two are drawn once by hand, and again when the sign or the name changes:
 `SEBARO_PLAYWRIGHT=<folder> node <copy>/product/render.mjs <product folder>`.
 
 | Raster file | With | Drawn from | Form |
 |---|---|---|---|
 | `android/play-store-512.png` | `android` | `render/android/play-store-512.svg` | 512 px, the middle `viewports.play` dp of the launcher icon, full square, 32-bit RGBA with every pixel opaque. For the Play listing: **the app itself needs no raster file** (adaptive icon and vectors, API 26; the apps are at 29) |
+| `android/play-feature-1024x500.png` | `android` | `render/android/play-feature-1024x500.svg` | 1024 × 500 px, 24-bit RGB (no alpha channel), the Play listing's feature graphic (kit 1.3.0; below) |
 | `web/favicon.ico` | `web` | `render/web/favicon-32.svg`, `-16.svg`, `-48.svg` | an ICO of three PNG entries in this order, each the favicon drawn for its own size (16 px: the small form, the same SVG as `web/icon.svg`) |
 | `web/apple-touch-icon.png` | `web` | `render/web/apple-touch-icon.svg` | 180 px, `viewports.appleTouch`, full square, 24-bit RGB |
 | `web/icon-192.png`, `web/icon-512.png` | `web` | `render/web/icon-192.svg`, `icon-512.svg` | `viewports.any`, cut to the tile's rounded square, RGBA |
@@ -235,6 +242,18 @@ drawn once by hand, and again when the sign changes:
   workshop's pixels (at most 1 level apart, the entries not at all). The three cut files differ on the outline: the
   workshop cuts with a Pillow mask, the renderer with a clip path. `tools/tests/test_product_render.py` measures
   this for three products of three tile groups; the numbers are in the system's CHECKS.md.
+- **The Play feature graphic** (kit 1.3.0, renderer 1.3.0; the look the owner accepted on 2026-11-14). The whole field
+  in the tile colour of the product's group; at the bottom the line and the band of the tile's foot in the scale of
+  the Play icon (512 px for the middle `viewports.play` dp of the launcher canvas, so for sebaro band 150 px and line
+  15 px, ending with the field as they end with the icon: the two always match); above the line the sign (its 24-unit
+  box 172 px) and beside it, 52 px on, the declaration's `name` (never translated) in the name font of `tiles.json`
+  at 600 and 92 px with letter-spacing −0.01 em, both in the tile's sign colour, one row centred across and down in the field above the line, as
+  far from the sides as the sign is from the line. No other text, so the picture holds in every language. The
+  source embeds the name font and sets the row as HTML in a `foreignObject`, so the browser lays the name out with
+  its own font. **A name too long for its row** is set smaller in whole px, down to 64 px; still too long, the
+  renderer refuses the file (exit 1, nothing written, the message names the width and the room), as it refuses a
+  name with a character the font does not draw. The size the name was drawn at is in the renderer's log. Play
+  takes JPEG or 24-bit PNG without alpha: the file is the PNG, lossless, in the renderer's deterministic encoder.
 - **The record of the renderer** is `sebaro-product-raster.json` (section 7). A raster file of an earlier run that
   the kit's record no longer lists is removed.
 - **Share images.** A copy of the profile `website` or `webapp` with the pack `share-images` holds the generator
@@ -249,8 +268,8 @@ drawn once by hand, and again when the sign changes:
   Playwright: exit 2). Before 1.2.0 `share` found Playwright from the working folder alone.
   `site.product` of the page list is the declaration's id; a page that names another product's tile is refused. The
   pictures are those the target `web` draws for the same product (`test_product_render` `ShareImages`).
-- **Not in the kit's plan:** the legacy launcher PNGs `mipmap-*dpi/ic_launcher*.png` (the adaptive icon needs API 26),
-  `social/avatar-1024.png` and the Play feature graphic.
+- **Not in the kit's plan:** the legacy launcher PNGs `mipmap-*dpi/ic_launcher*.png` (the adaptive icon needs API 26)
+  and `social/avatar-1024.png`.
 
 ## 7 The records and `check`
 
@@ -293,12 +312,17 @@ another Chromium is up to date as long as its sources are. With `--no-raster` th
 
 ## 8 Versions
 
-`schemaVersion` `"1.0"` · `product/tiles.json` `format` `"1.1"` · record `format` `"1.2"` · raster record `format`
-`"1.0"` · kit 1.2.0 · renderer 1.2.0 (1.2.0: `share` finds Playwright as the raster files do; 1.1.0:
-`$SEBARO_PLAYWRIGHT`, section 6). A change that makes a valid declaration fail is a major version (D16); new
+`schemaVersion` `"1.0"` · `product/tiles.json` `format` `"1.2"` · record `format` `"1.2"` · raster record `format`
+`"1.0"` · kit 1.3.0 · renderer 1.3.0 (1.3.0: text in a source, the feature graphic's name; 1.2.0: `share` finds
+Playwright as the raster files do; 1.1.0: `$SEBARO_PLAYWRIGHT`, section 6). A change that makes a valid declaration fail is a major version (D16); new
 optional keys and outputs are minor. A changed output changes the kit's version, and `check` then reports the
 product's files as stale until `build` runs again.
 
+- **1.3 (2026-11-14, kit 1.3.0, renderer 1.3.0):** the Play feature graphic `android/play-feature-1024x500.png` for
+  `android` (section 6), its source `render/android/play-feature-1024x500.svg`; `tiles.json` 1.2 with `font`, the name
+  font; the renderer sets a text of a source in its own font and room (`data-sb-fit`). A declaration is valid
+  unchanged; a folder built by kit 1.2.0 with `android` is stale until it is built and rendered again (two new
+  outputs), and every folder is stale against a copy with the new `tiles.json`.
 - **1.2 (2026-11-12, kit 1.2.0, renderer 1.2.0):** `check` compares the declaration by what it says (record 1.2,
   `declaration.meaning`; a record of 1.1 is still read); `sign/tile-small.svg` for web and desktop; `NOTICE.md`;
   `share` finds Playwright as the raster files do. A declaration is valid unchanged; a folder built by kit 1.1.0 is

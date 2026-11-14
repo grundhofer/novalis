@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // A product's raster files, drawn from the SVGs of its kit folder (shared/PRODUCT-CONTRACT.md section 6): favicon.ico,
-// touch icon, manifest icons, Play icon, desktop icon. Node 20+, built-ins only; Chromium through the product's own
-// Playwright, never one of this folder. No network.
+// touch icon, manifest icons, Play icon, Play feature graphic, desktop icon. Node 20+, built-ins only; Chromium through
+// the product's own Playwright, never one of this folder. No network.
 // A product without a Node project (an Android app that draws its Play icon once) names a folder that holds
 // node_modules/playwright in the environment variable SEBARO_PLAYWRIGHT (1.1.0); `product_kit.py build --render`
 // passes it on. Named, that folder is the only place looked in; without it the lookup is the product's as before.
@@ -18,6 +18,13 @@
 // must be opaque), with an sRGB chunk and no other metadata; the ICO is a directory of PNG entries in the record's
 // order.
 // The same input gives the same bytes on the same Chromium.
+//
+// Text in a source (1.3.0; the Play feature graphic's name, laid out as HTML in a foreignObject): before the picture
+// is taken, every element with data-sb-fit must be drawn in its own font, the first family of its font-family, which
+// the source embeds: that face loads, and every character is drawn by it (the text has the same width with two
+// different fallback fonts behind it). An element wider than its box (scrollWidth over clientWidth; the source gives
+// it a max-width) is set smaller in whole px down to its data-sb-fit-min and is refused when it is still too wide.
+// A refused text is a file that could not be drawn (exit 1, nothing written); the size it was drawn at is in the log.
 //
 // Nothing is written until every file is drawn. Then the files, and sebaro-product-raster.json: for each file its
 // sha256 and the sha256 of every SVG it was drawn from. `product_kit.py check` compares those with the files and
@@ -41,6 +48,8 @@
 // that is not the one the build wrote, no Playwright).
 //
 // Versions (CHANGELOG):
+//   1.3.0  2026-11-14  text in a source: data-sb-fit, its font and its room, for the Play feature graphic of kit 1.3.0
+//                      (sebaro CHECKS.md §129); a source without text is drawn as before, to the same bytes.
 //   1.2.0  2026-11-12  `share` finds Playwright where the raster files find it: the folder SEBARO_PLAYWRIGHT names,
 //                      or the product's own (D148 stage 6c, sebaro CHECKS.md §120). Before, the generator looked
 //                      from the temporary folder and the working folder alone.
@@ -55,7 +64,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import zlib from "node:zlib";
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.3.0";
 const SELF = "product/render.mjs";              // this file's place in a copy; the record's notice names it
 const KIT = "product/product_kit.py";
 const RECORD = "sebaro-product.json";           // the kit's record: what to draw
@@ -269,6 +278,48 @@ function playwrightModules(folder) {
   return null;
 }
 
+// 1.3.0: runs in the page. Every [data-sb-fit] element: its font loads and draws every character, and it fits its
+// box, set smaller in whole px down to data-sb-fit-min. Returns the problems and the size each element is drawn at.
+async function fitText() {
+  const boxes = [...document.querySelectorAll("[data-sb-fit]")], problems = [], sizes = [];
+  if (!boxes.length) return { problems, sizes };
+  await document.fonts.ready;
+  const bare = (family) => family.trim().replace(/^["']|["']$/g, "");
+  for (const el of boxes) {
+    const style = getComputedStyle(el), text = el.textContent, family = style.fontFamily.split(",")[0].trim();
+    const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${family}`;
+    try { await document.fonts.load(font, text); } catch (e) { problems.push(`${font}: ${e.message}`); }
+    const faces = [...document.fonts].filter((f) => bare(f.family) === bare(family));
+    if (!faces.some((f) => f.status === "loaded")) {
+      problems.push(`the font ${bare(family)} did not load (${faces.map((f) => f.status).join(", ") || "no face"})`);
+    }
+    const width = (fallback) => {
+      const probe = document.createElement("span");
+      probe.textContent = text;
+      probe.style.cssText = `position:absolute;white-space:nowrap;font:${style.fontStyle} ${style.fontWeight} ${style.fontSize} ` +
+                            `${family}, ${fallback};font-synthesis:none;letter-spacing:${style.letterSpacing}`;
+      document.body.appendChild(probe);
+      const w = probe.getBoundingClientRect().width;
+      probe.remove();
+      return w;
+    };
+    if (width("monospace") !== width("serif")) {
+      problems.push(`"${text}" has a character ${bare(family)} does not draw (another font would draw it)`);
+    }
+    const least = Number(el.dataset.sbFitMin) || parseFloat(style.fontSize);
+    let size = parseFloat(style.fontSize);
+    while (el.scrollWidth > el.clientWidth && size > least) {
+      size = Math.max(least, size - 1);
+      el.style.fontSize = `${size}px`;
+    }
+    if (el.scrollWidth > el.clientWidth) {
+      problems.push(`"${text}" is ${el.scrollWidth} px wide at ${size} px, its room is ${el.clientWidth} px (set no smaller than ${least} px)`);
+    }
+    sizes.push(size);
+  }
+  return { problems, sizes };
+}
+
 async function draw(jobs, pw) {
   let browser;
   try {
@@ -298,10 +349,12 @@ async function draw(jobs, pw) {
           blocked = []; consoleErrors = [];
           await tab.setViewportSize({ width: p.width, height: p.height });
           await tab.setContent(pageOf(p.svg.toString("utf8"), p.width, p.height), { waitUntil: "load", timeout: 60000 });
+          const text = await tab.evaluate(fitText);         // 1.3.0: nothing to do in a source without text
           const shot = await tab.screenshot({ clip: { x: 0, y: 0, width: p.width, height: p.height }, omitBackground: true,
                                               animations: "disabled", timeout: 60000 });
           const img = rgbaOf(decodePng(shot));
-          const found = [];
+          const found = [...text.problems];
+          img.textSizes = text.sizes;
           if (img.width !== p.width || img.height !== p.height) found.push(`${img.width} x ${img.height} drawn, expected ${p.width} x ${p.height}`);
           if (blocked.length) found.push(`requests blocked: ${blocked.join(", ")}`);
           if (consoleErrors.length) found.push(`console errors: ${consoleErrors.join(" | ").slice(0, 400)}`);
@@ -360,8 +413,10 @@ async function render(folder) {
     writeFileSync(dest, data);
     files[job.rel] = { sha256: sha256(data), sources: Object.fromEntries(job.parts.map((p) => [p.source, p.sha256])) };
     const size = job.field ?? job.parts[0];
+    const sizes = job.parts.flatMap((p) => p.img.textSizes || []);
     const what = job.ico ? `ICO, ${job.parts.map((p) => p.width).join(", ")} px`
-                         : `${size.width} x ${size.height}, ${job.alpha ? "RGBA" : "RGB"}` + (job.field ? `, body ${job.parts[0].width} px` : "");
+                         : `${size.width} x ${size.height}, ${job.alpha ? "RGBA" : "RGB"}` + (job.field ? `, body ${job.parts[0].width} px` : "") +
+                           (sizes.length ? `, text at ${sizes.join(", ")} px` : "");
     console.log(`ok   ${job.rel} (${what})`);
   }
   for (const rel of removeStale(folder, readRasterRecord(folder), new Set(Object.keys(files)))) console.log(`removed ${rel} (no longer an output)`);

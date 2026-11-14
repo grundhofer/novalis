@@ -5,7 +5,7 @@ A product declares itself in `sebaro.product.json` (shared/PRODUCT-CONTRACT.md, 
 name, the group of its sign tile, its sign as paths on the 24-unit grid and what its website needs. This kit draws
 the product's sign tile, launcher layers, notification icon, the start of an Android app, favicon SVG, web manifest
 and head snippet from it and from one data file of the system, `product/tiles.json` (tile groups, foot colours,
-grounds, stroke masters, the measures of the raster files).
+grounds, stroke masters, the measures of the raster files, the font of the name in the Play feature graphic).
 
     python3 product_kit.py build sebaro.product.json --copy <copy> --out <folder> [--render]
     python3 product_kit.py check sebaro.product.json --copy <copy> --out <folder> [--no-raster]
@@ -16,8 +16,9 @@ writes nothing at all: it draws the outputs again and compares them with the fil
 is compared by what it says, not by its bytes (1.2.0): a formatter that changes white space or the order of keys
 leaves the outputs up to date.
 
-Every output of the kit is text. The PNG and ICO files (favicon.ico, touch icon, manifest icons, Play icon, desktop
-icon) need a browser: the kit writes one SVG per raster into <folder>/render/ and lists them in the record, and the
+Every output of the kit is text. The PNG and ICO files (favicon.ico, touch icon, manifest icons, Play icon, Play
+feature graphic, desktop icon) need a browser: the kit writes one SVG per raster into <folder>/render/ and lists them
+in the record, and the
 renderer beside this file (product/render.mjs, Node 20 and the product's own Playwright) draws them and keeps its
 own record, `sebaro-product-raster.json`. `build --render` runs it after the build. `check` compares the raster
 files with that record and with the SVGs they were drawn from, by sha256, never by pixel: missing, edited, stale.
@@ -32,6 +33,8 @@ Exit codes: 0 ok · 1 an output is missing, edited or stale (check), or a file c
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import dataclasses
 import hashlib
 import json
@@ -52,9 +55,9 @@ if str(HERE) not in sys.path:
 import sign_geometry as GEO  # noqa: E402  (path data, glyphs, stroke masters, the foot tile; standard library)
 from sign_geometry import fmt  # noqa: E402
 
-TOOL_VERSION = "1.2.0"   # 1.2.0 (D148 stage 6c, sebaro CHECKS.md §120): check compares the declaration by its meaning (the record's declaration.meaning, the sha256 of its JSON with sorted keys and no white space), so a formatter's white space or key order is not „stale“, a record of 1.1 is still read by its bytes; sign/tile-small.svg for web and desktop, the tile's form below 32 px as Android's sb_sign_<id>_small; NOTICE.md, the terms of the folder's files; record 1.2; 1.1.0 (D148 stage 6a, sebaro CHECKS.md §118): the start of an Android app (sb_symbol_<id>, sb_splash_symbol_<id>, sebaro_start*.xml with Theme.Sebaro.Start), one SVG per raster file in render/ with the record's "raster" list, check reads the renderer's record (missing, edited, stale by sha256; --no-raster), build --render runs product/render.mjs, tiles.json 1.1 with the raster measures, record 1.1; 1.0.0 (D148 stage 2, sebaro CHECKS.md §114): first version
+TOOL_VERSION = "1.3.0"   # 1.3.0 (sebaro CHECKS.md §129, the owner's look of 2026-11-14): the Play feature graphic android/play-feature-1024x500.png (24-bit RGB) with its source render/android/play-feature-1024x500.svg: the tile's ground, line and band in the scale of the Play icon, the sign and the product's name in the name font of tiles.json, which the source embeds; tiles.json 1.2 with "font"; 1.2.0 (D148 stage 6c, sebaro CHECKS.md §120): check compares the declaration by its meaning (the record's declaration.meaning, the sha256 of its JSON with sorted keys and no white space), so a formatter's white space or key order is not „stale“, a record of 1.1 is still read by its bytes; sign/tile-small.svg for web and desktop, the tile's form below 32 px as Android's sb_sign_<id>_small; NOTICE.md, the terms of the folder's files; record 1.2; 1.1.0 (D148 stage 6a, sebaro CHECKS.md §118): the start of an Android app (sb_symbol_<id>, sb_splash_symbol_<id>, sebaro_start*.xml with Theme.Sebaro.Start), one SVG per raster file in render/ with the record's "raster" list, check reads the renderer's record (missing, edited, stale by sha256; --no-raster), build --render runs product/render.mjs, tiles.json 1.1 with the raster measures, record 1.1; 1.0.0 (D148 stage 2, sebaro CHECKS.md §114): first version
 SCHEMA_VERSION = "1.0"                  # sebaro.product.json (PRODUCT-CONTRACT)
-TILES_FORMAT = "1.1"                    # product/tiles.json (1.1: "raster")
+TILES_FORMAT = "1.2"                    # product/tiles.json (1.2: "font"; 1.1: "raster")
 RECORD_FORMAT = "1.2"                   # sebaro-product.json (1.2: declaration.meaning; 1.1: "raster" instead of "notProduced")
 NOTICE_NAME = "NOTICE.md"               # <folder>/NOTICE.md: under what terms the folder's files stand (1.2.0)
 RASTER_RECORD_FORMAT = "1.0"            # sebaro-product-raster.json, written by the renderer
@@ -73,6 +76,16 @@ RASTER_VIEWPORTS = {"any": 72.0, "play": round(SAFE_DP * 180 / 140, 4), "appleTo
 RASTER_DESKTOP_BODY_PX = 824
 RASTER_SQUIRCLE_EXPONENT = 5.0
 DESKTOP_ICON_PX = 1024
+PLAY_ICON_PX = 512                      # android/play-store-512.png: the feature graphic takes its scale (px per dp)
+# The Play feature graphic (1.3.0; the owner's look of 2026-11-14, five Android apps): Play wants exactly 1024 x 500,
+# JPEG or 24-bit PNG without alpha; the sign's 24-unit box and the name in px, the name in the name font of tiles.json
+PLAY_FEATURE = "android/play-feature-1024x500.png"
+PLAY_FEATURE_PX = (1024, 500)
+PLAY_FEATURE_SIGN_PX = 172
+PLAY_FEATURE_NAME_PX = 92
+PLAY_FEATURE_NAME_WEIGHT = 600
+PLAY_FEATURE_NAME_MIN_PX = 64           # a name wider than its room is set smaller in whole px down to this, then refused
+PLAY_FEATURE_GAP_PX = 52                # between the sign's box and the name, as in the five accepted graphics
 OUTPUT_KINDS = ("android", "web", "desktop")
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
@@ -870,6 +883,57 @@ def icon_svg(sign: GEO.SizedGlyphs, tile: Tile, px: int, viewport: float, *, rou
     return f'<svg xmlns="{SVG_NS}" viewBox="{viewport_box(viewport)}" width="{px}" height="{px}">{body}</svg>\n'
 
 
+def play_feature_layout(play_viewport: float) -> dict:
+    """The measures of the Play feature graphic in px (1.3.0). Band and line have the scale of the Play icon, 512 px
+    for the middle `play_viewport` dp of the launcher canvas, and end with the field as they end with that icon: the
+    foot's drawing (sign_geometry.foot_elements) set on the canvas `canvas_y` px from the top, `scale` px per dp. The
+    sign and the name stand in one row above the line, as far from the sides as the sign from the line and the top."""
+    w, h = PLAY_FEATURE_PX
+    scale = PLAY_ICON_PX / play_viewport
+    canvas_y = h - (CANVAS_DP + play_viewport) / 2 * scale       # the Play icon's lower edge is the field's
+    _, _, _, line_top, _, band_top = GEO.FOOT_LAYOUT["base"]
+    offset = (CANVAS_DP - 72) / 2                                  # the 72-dp tile in the middle of the canvas
+    line_y = canvas_y + (line_top + offset) * scale
+    margin = (line_y - PLAY_FEATURE_SIGN_PX) / 2
+    return {"scale": scale, "canvasY": canvas_y, "lineY": line_y, "bandY": canvas_y + (band_top + offset) * scale,
+            "margin": margin, "row": w - 2 * margin,
+            "nameMaxPx": math.floor(w - 2 * margin - PLAY_FEATURE_SIGN_PX - PLAY_FEATURE_GAP_PX)}
+
+
+def font_face_css(font: dict) -> str:
+    """The @font-face rule of the name font (tiles.json "font"), its file embedded as a data URL."""
+    lo, hi = font["weight"]
+    return (f'@font-face{{font-family:"{font["family"]}";src:url(data:font/{font["format"]};base64,{font["data"]}) '
+            f'format("{font["format"]}");font-weight:{lo} {hi};font-style:normal;font-display:block}}')
+
+
+def play_feature_svg(name: str, glyph: GEO.Glyph, tile: Tile, font: dict, play_viewport: float) -> str:
+    """The source of the Play feature graphic, 1024 x 500 (1.3.0): the whole field in the tile's ground; at the bottom
+    the line and the band of the tile's foot in the scale of the Play icon (play_feature_layout); in the field above
+    the line the sign (its 24-unit box PLAY_FEATURE_SIGN_PX) and beside it the product's name in the name font, both
+    in the tile's sign colour, one row centred across and down. No other text, so it holds in every language. The
+    row is HTML in a foreignObject, so the browser sets the name with its own font and centres the row by its real
+    width; the renderer sets a name wider than its room smaller, in whole px down to PLAY_FEATURE_NAME_MIN_PX, and
+    refuses it below that or when the font does not draw every character (data-sb-fit, product/render.mjs 1.3.0)."""
+    w, h = PLAY_FEATURE_PX
+    lay = play_feature_layout(play_viewport)
+    x0, y0, side = glyph.view()
+    family = font["family"].replace('"', "")
+    sign = (f'<svg xmlns="{SVG_NS}" viewBox="{fmt(x0)} {fmt(y0)} {fmt(side)} {fmt(side)}" width="{PLAY_FEATURE_SIGN_PX}" '
+            f'height="{PLAY_FEATURE_SIGN_PX}" style="display:block;flex:none">{glyph.svg_elements(tile.ink)}</svg>')
+    text = (f'<span data-sb-fit="" data-sb-fit-min="{PLAY_FEATURE_NAME_MIN_PX}" style="flex:none;max-width:'
+            f'{lay["nameMaxPx"]}px;white-space:nowrap;font-family:&quot;{esc(family)}&quot;;font-weight:'
+            f'{PLAY_FEATURE_NAME_WEIGHT};font-style:normal;font-size:{PLAY_FEATURE_NAME_PX}px;line-height:1;'
+            f'letter-spacing:-0.01em;font-kerning:normal;font-synthesis:none;color:{tile.ink}">{esc(name)}</span>')
+    row = (f'<foreignObject x="{fmt(lay["margin"], 4)}" y="0" width="{fmt(lay["row"], 4)}" height="{fmt(lay["lineY"], 4)}">'
+           f'<div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;'
+           f'gap:{PLAY_FEATURE_GAP_PX}px;width:100%;height:100%;margin:0;padding:0">{sign}{text}</div></foreignObject>')
+    foot = (f'<g transform="translate(0 {fmt(lay["canvasY"], 4)}) scale({fmt(w / CANVAS_DP, 6)} {fmt(lay["scale"], 6)})">'
+            f'{GEO.foot_elements(tile.foot, adaptive=True)}</g>')
+    return (f'<svg xmlns="{SVG_NS}" viewBox="0 0 {w} {h}" width="{w}" height="{h}"><style>{font_face_css(font)}</style>'
+            f'<rect width="{w}" height="{h}" fill="{tile.ground}"/>{foot}{row}</svg>\n')
+
+
 # ============================================================================= product/tiles.json
 
 @dataclasses.dataclass
@@ -885,6 +949,7 @@ class Tiles:
     notify_pad: float               # dp around the notification icon's sign
     kotlin_package: str | None
     raster: dict                    # {"viewports": {any, play, appleTouch, maskable, desktop}, "desktopBodyPx", "squircleExponent"}
+    font: dict                      # {"family", "weight": [lo, hi], "format", "file", "data"}: the name font (1.3.0)
     sha256: str = ""
 
     def tile(self, group: str) -> Tile:
@@ -898,10 +963,13 @@ class Tiles:
         return out
 
 
-def tiles_doc(tokens: dict, brand: dict, registry: dict, *, kotlin_package: str | None = None) -> dict:
+def tiles_doc(tokens: dict, brand: dict, registry: dict, *, kotlin_package: str | None = None,
+              font: dict | None = None) -> dict:
     """The content of product/tiles.json, from a system's dist/tokens.json, brand/brand.config.json and the grammar of
-    brand/signs.json. It names no product: of signTiles it takes the groups' colours and names, not their product lists.
-    Raises KitError for a system the kit cannot draw (it draws the tile with the fixed foot only)."""
+    brand/signs.json, and `font`, the name font of the Play feature graphic (name_font(): family, weight range,
+    format, file name and its bytes as base64). It names no product: of signTiles it takes the groups' colours and
+    names, not their product lists. Raises KitError for a system the kit cannot draw (it draws the tile with the fixed
+    foot only) and without a font."""
     signs = brand.get("signs") if isinstance(brand, dict) else None
     if not isinstance(signs, dict):
         raise KitError("brand.config.json has no \"signs\" section: the kit draws sign tiles only")
@@ -932,8 +1000,8 @@ def tiles_doc(tokens: dict, brand: dict, registry: dict, *, kotlin_package: str 
                        "signs.notification.paddingDp in brand.config.json, color.bg and signTiles in dist/tokens.json, "
                        "grammar.stroke in signs.json are read as written, without defaults)") from exc
     doc: dict[str, Any] = {
-        "$generated": "generated by tools/product_kit.py tiles from dist/tokens.json, brand/brand.config.json and "
-                      "brand/signs.json — do not edit",
+        "$generated": "generated by tools/product_kit.py tiles from dist/tokens.json, brand/brand.config.json, "
+                      "brand/signs.json and fonts/ — do not edit",
         "format": TILES_FORMAT,
         "system": (tokens.get("meta") or {}).get("slug", ""),
         "groups": groups,
@@ -947,6 +1015,10 @@ def tiles_doc(tokens: dict, brand: dict, registry: dict, *, kotlin_package: str 
     doc["sign"] = {"stroke": stroke, "strokeBySize": list(grammar.get("strokeBySize") or [])}
     doc["notification"] = {"paddingDp": pad}
     doc["raster"] = raster_measures(brand)
+    if not isinstance(font, dict):
+        raise KitError("cannot write tiles.json without the name font of the Play feature graphic (the system's "
+                       "fonts/fonts.json and fonts/fonts.css: the upright web face of its display family)")
+    doc["font"] = font
     if kotlin_package:
         doc["kotlin"] = {"package": kotlin_package}
     tiles_from_doc(doc)     # the same checks a copy's file gets
@@ -1039,6 +1111,21 @@ def tiles_from_doc(doc: Any, sha256: str = "") -> Tiles:
     if not isinstance(body, int) or isinstance(body, bool) or not 0 < body <= DESKTOP_ICON_PX or body % 2:
         probs.append(f"raster.desktopBodyPx must be an even whole number in 2..{DESKTOP_ICON_PX}, got {body!r}")
     number(raster.get("squircleExponent"), 2.0, 20.0, "raster.squircleExponent")
+    font = section("font")
+    weight = font.get("weight")
+    if not isinstance(font.get("family"), str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _-]*", font["family"]):
+        probs.append(f"font.family must be a font family name, got {font.get('family')!r}")
+    if not (isinstance(weight, list) and len(weight) == 2 and all(isinstance(v, int) and not isinstance(v, bool)
+                                                                  for v in weight)
+            and weight[0] <= PLAY_FEATURE_NAME_WEIGHT <= weight[1]):
+        probs.append(f"font.weight must be [lowest, highest] around {PLAY_FEATURE_NAME_WEIGHT}, got {weight!r}")
+    if font.get("format") not in ("woff2", "woff", "ttf", "otf") or not isinstance(font.get("file"), str):
+        probs.append(f"font needs format (woff2, woff, ttf or otf) and file, got {font.get('format')!r}, {font.get('file')!r}")
+    try:
+        if not base64.b64decode(font.get("data") or "", validate=True):
+            raise ValueError("empty")
+    except (ValueError, TypeError, binascii.Error):
+        probs.append("font.data must be the font file as base64")
     package = section("kotlin").get("package")
     if package is not None and (not isinstance(package, str) or not re.fullmatch(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)*", package)):
         probs.append(f"kotlin.package must be a package name, got {package!r}")
@@ -1047,7 +1134,7 @@ def tiles_from_doc(doc: Any, sha256: str = "") -> Tiles:
     return Tiles(system=str(doc.get("system", "")), groups=groups, foot=foot, grounds=grounds,
                  tones=tones, radius=radius,
                  strokes=GEO.Strokes(float(width), stroke["cap"], stroke["join"], tuple(sorted(by_size))),
-                 notify_pad=pad, kotlin_package=package, raster=raster, sha256=sha256)
+                 notify_pad=pad, kotlin_package=package, raster=raster, font=font, sha256=sha256)
 
 
 def load_tiles(copy: pathlib.Path) -> Tiles:
@@ -1302,14 +1389,16 @@ def notice_md(p: Product, texts: list[str], stamp: Stamp) -> str:
 
 def rasters(p: Product, body_px: int = RASTER_DESKTOP_BODY_PX) -> dict[str, dict]:
     """The PNG and ICO files of the product, path -> what the renderer draws: for a PNG `width`, `height`, `alpha`
-    (false: 24-bit RGB, every pixel opaque) and its `source`; for the ICO its `entries` in file order, each with
+    (false: 24-bit RGB, every pixel opaque; the Play feature graphic, 1.3.0, is one) and its `source`; for the ICO its
+    `entries` in file order, each with
     `size` and `source`. A source is an SVG under render/ that outputs() writes. `body` (the desktop icon): the
     source is drawn at body x body and stands in the middle of a transparent field of the file's size."""
     def png(name: str, px: int, alpha: bool) -> dict:
         return {"width": px, "height": px, "alpha": alpha, "source": f"{RENDER_DIR}/{name}.svg"}
     out: dict[str, dict] = {}
-    if "android" in p.outputs:      # the Play listing's icon; an app itself needs no raster (adaptive icon, API 26)
-        out["android/play-store-512.png"] = png("android/play-store-512", 512, True)
+    if "android" in p.outputs:      # the Play listing's icon and feature graphic; an app itself needs no raster (API 26)
+        out["android/play-store-512.png"] = png("android/play-store-512", PLAY_ICON_PX, True)
+        out[PLAY_FEATURE] = dict(png(PLAY_FEATURE[:-4], PLAY_FEATURE_PX[0], False), height=PLAY_FEATURE_PX[1])
     if "web" in p.outputs:
         out["web/favicon.ico"] = {"entries": [{"size": px, "source": f"{RENDER_DIR}/web/favicon-{px}.svg"}
                                               for px in FAVICON_ICO_PX]}
@@ -1328,7 +1417,9 @@ def raster_sources(p: Product, tiles: Tiles) -> dict[str, str]:
     tile, sign, views = tiles.tile(p.group), p.sign, tiles.raster["viewports"]
     files: dict[str, str] = {}
     if "android" in p.outputs:
-        files[f"{RENDER_DIR}/android/play-store-512.svg"] = icon_svg(sign, tile, 512, views["play"])
+        files[f"{RENDER_DIR}/android/play-store-512.svg"] = icon_svg(sign, tile, PLAY_ICON_PX, views["play"])
+        files[f"{RENDER_DIR}/{PLAY_FEATURE[:-4]}.svg"] = play_feature_svg(p.name, sign.glyph, tile, tiles.font,
+                                                                           views["play"])
     if "web" in p.outputs:
         for px in FAVICON_ICO_PX:
             files[f"{RENDER_DIR}/web/favicon-{px}.svg"] = favicon_svg(sign, tiles.strokes, tile, px, p.name)
@@ -1529,9 +1620,40 @@ def check(declaration: pathlib.Path, copy: pathlib.Path, out: pathlib.Path, *,
 
 # ============================================================================= workshop side: tiles.json of a system
 
+def name_font(system: pathlib.Path) -> dict:
+    """The name font of the Play feature graphic (1.3.0), tiles.json "font": the upright web face of the family whose
+    roles in fonts/fonts.json include "display", as the generated fonts/fonts.css declares it (its WOFF2 file and its
+    weight range), with the file's bytes as base64. The same file every web copy serves under fonts/."""
+    system = pathlib.Path(system)
+    try:
+        families = json.loads((system / "fonts" / "fonts.json").read_text(encoding="utf-8"))["families"]
+        css = (system / "fonts" / "fonts.css").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise KitError(f"{system / 'fonts'}: cannot read fonts.json and fonts.css ({exc})") from exc
+    family = next((f.get("rename", {}).get("family", f.get("family")) for f in families
+                   if isinstance(f, dict) and "display" in (f.get("roles") or [])), None)
+    for block in re.findall(r"@font-face\s*\{[^}]*\}", css):
+        if f'font-family: "{family}"' not in block or "font-style: italic" in block:
+            continue
+        src = re.search(r'src:\s*url\("([^"]+)"\)\s*format\("([^"]+)"\)', block)
+        weight = re.search(r"font-weight:\s*(\d+)(?:\s+(\d+))?\s*;", block)
+        if not src or not weight:
+            break
+        path = system / "fonts" / src.group(1)
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            raise KitError(f"{path}: cannot read the name font ({exc.strerror or exc})") from exc
+        lo = int(weight.group(1))
+        return {"family": family, "weight": [lo, int(weight.group(2) or lo)], "format": src.group(2),
+                "file": f"fonts/{src.group(1)}", "data": base64.b64encode(data).decode("ascii")}
+    raise KitError(f"{system / 'fonts' / 'fonts.css'}: no upright @font-face of the display family {family!r} with "
+                   "src url(...) format(...) and font-weight")
+
+
 def system_tiles(system: pathlib.Path) -> dict:
-    """tiles_doc() of a system folder of sebaroDesign (dist/tokens.json, brand/brand.config.json, brand/signs.json and
-    the package line of dist/SebaroTheme.kt)."""
+    """tiles_doc() of a system folder of sebaroDesign (dist/tokens.json, brand/brand.config.json, brand/signs.json, the
+    package line of dist/SebaroTheme.kt and the name font of fonts/, name_font())."""
     system = pathlib.Path(system)
     docs = {}
     for key, rel in (("tokens", "dist/tokens.json"), ("brand", "brand/brand.config.json"), ("registry", "brand/signs.json")):
@@ -1544,7 +1666,7 @@ def system_tiles(system: pathlib.Path) -> dict:
     if theme.is_file():
         m = re.search(r"^package\s+([\w.]+)\s*$", theme.read_text(encoding="utf-8"), re.M)
         package = m.group(1) if m else None
-    return tiles_doc(docs["tokens"], docs["brand"], docs["registry"], kotlin_package=package)
+    return tiles_doc(docs["tokens"], docs["brand"], docs["registry"], kotlin_package=package, font=name_font(system))
 
 
 # ============================================================================= CLI

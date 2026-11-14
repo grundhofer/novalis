@@ -66,6 +66,12 @@
 //      break beside the icon and the switch, data-sb-fit="stack" gives the label the line beside the icon and puts
 //      the switch on a line of its own, at the end (sebaro.css). Measured in the one-line form, by the width the words
 //      take, not by a count of characters. Without the script the switch wraps below 6em of the label.
+//  11. Heatmap week heads (spec/02 §3.7, CHECKS.md §130): the column of the week heads is as wide as its widest head
+//      on one line, never narrower than its 4.5rem, as Compose's SbHeatmap measures it (spec/08 §14.11): the widest
+//      head in whole px into --sb-heatmap-heads on the table (sebaro.css takes the larger). A German head („ab
+//      28.09.“) fits 4.5rem and keeps it; an English one („from 28 Sep“) no longer runs into the first day. Only in the
+//      wide form: in the narrow one (the container query) the heads wrap in their 3.4em by design. Without the script
+//      the column is 4.5rem.
 (function () {
   "use strict";
   var HYST = 4;   // px: a part goes back to its wide form only when it fits this much narrower (provisional, agent)
@@ -344,6 +350,22 @@
     var touch = boxes.some(function (b, i) { return i > 0 && b.left < boxes[i - 1].right + gap - 0.5; }) ||
       kids.some(function (k) { return k.getClientRects().length > 1 || k.scrollWidth > k.clientWidth + 0.5; });
     if (touch) p.setAttribute("data-sb-fit", "stack");
+  }
+
+  // ------------------------------------------------------------------ 4e the heatmap's week heads (item 11)
+  // Each head's own text box (a range over its words), measured while the heads keep one line (white-space: nowrap,
+  // the wide form); the width does not depend on the column, so setting it changes nothing that is measured.
+  function fitHeatmapHeads(table) {
+    var heads = table.querySelectorAll(":scope > tbody > tr > th");
+    if (!heads.length || !table.clientWidth) return;
+    var widest = 0;
+    Array.prototype.forEach.call(heads, function (th) {
+      if (getComputedStyle(th).whiteSpace !== "nowrap") return;   // the narrow form: the heads wrap there
+      var r = document.createRange(); r.selectNodeContents(th);
+      widest = Math.max(widest, r.getBoundingClientRect().width);
+    });
+    if (widest) table.style.setProperty("--sb-heatmap-heads", Math.ceil(widest) + "px");
+    else table.style.removeProperty("--sb-heatmap-heads");
   }
 
   // ------------------------------------------------------------------ 4d the top bar (D102 lane narrow)
@@ -674,7 +696,13 @@
   // ------------------------------------------------------------------ scheduling
   var PARTS = [
     [".sb-opening__title, .sb-product-area--empty .sb-product-area__line", fitOpening], [".sb-segmented", fitSegmented], [".sb-progress__steps", fitSteps], [".sb-facts-line", fitFacts],
-    [".sb-chart", function (fig) { if (fig.querySelector(".sb-chart__end--series")) fitSeries(fig); }],
+    // the heatmap is measured with its figure (spec/02 §3.7: table.sb-heatmap is a child of figure.sb-chart); its
+    // class is only looked for, so the cut's run-time list does not keep the heatmap's rules for every page (`asked`)
+    [".sb-chart", function (fig) {
+      if (fig.querySelector(".sb-chart__end--series")) fitSeries(fig);
+      var heatmap = fig.querySelector(":scope > table.sb-heatmap");
+      if (heatmap) fitHeatmapHeads(heatmap);
+    }],
     [".sb-chart__slots", fitSlots], [".sb-chart__diverging-head", fitHead], [".sb-top-bar", fitTopBar],
     [":is(.sb-primary-action, .sb-secondary-action, .sb-danger-action)", fitAction], [".sb-menu__item", fitMenuKeys],
     [".sb-dialog__actions", fitDialogActions], [".sb-switch-row", fitSwitchRow]
