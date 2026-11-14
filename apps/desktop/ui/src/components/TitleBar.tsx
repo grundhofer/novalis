@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
-import tile from "../sebaro/brand/inline/tile-novalis-small.svg?raw";
+import tile from "../../../../../sebaro-product/sign/tile.svg?raw";
 import { dispatchCommand } from "../lib/commands";
 import { ariaKeyshortcutsOf, bindingFor } from "../lib/keymap";
 import { leaveSettingsView } from "../lib/settingsView";
@@ -26,7 +26,8 @@ import Keys from "./Keys";
  * bar drags the window (`deep`: every child but a control); its 2 px ink
  * line below is the layer line (EBE-01).
  *
- * The tile is the export's `tile-novalis-small.svg`, inlined unchanged
+ * The tile is `sebaro-product/sign/tile.svg`, made by the export's product
+ * kit from `sebaro.product.json`, inlined unchanged
  * (ZEI-07): the one place the product colour appears (D65). The name stands
  * beside it, so it is `aria-hidden`. It is where the start tile lands
  * (`data-sb-start-target`, lib/start.ts).

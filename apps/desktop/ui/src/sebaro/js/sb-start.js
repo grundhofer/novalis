@@ -1,32 +1,9 @@
-// sb-start.js: the same start on every platform (D49, D52; spec/03 §14). The app sign tile stands in the middle of
-// the ground while the page really loads, then moves to its place in the header ([data-sb-start-target]) while the
-// content enters from below (D46 rule E). Only on the first call of a tab session, only on pages that opt in with
-// <html data-sb-start>. Reduced motion (system, html[data-sb-motion="reduce"], or data-sb-motion="reduce" on a container
-// around a replay frame, D80) = the tile fades out over x-sebaro-enter-fade-duration (200 ms under both settings,
-// D102 (52)), nothing moves. "First call of a tab session" = the first page of this site that a browser tab opens
-// (sessionStorage "sb-started"); later pages and reloads in that tab show no start (D85).
-// <html data-sb-start="nostore"> (D102 (51), spec/03 §14.1): the product's choice to store nothing; the start then shows on
-// every page load (an app with one shell: once per load of the app), and the script reads and writes no storage.
-// Load it in <head> as a classic script right after theme-init.js, so the start screen is there at first paint.
-// Markup: <div class="sb-start" aria-hidden="true"><span class="sb-start__tile">(inline tile svg)</span></div> as the
-// first child of <body>; the header tile carries data-sb-start-target; elements to enter carry data-sb-start-enter.
-// An app that loads its own data calls sbStart.hold() before and sbStart.release() after; the start waits for both
-// the load event and every release. sbStart.play(scope) replays the start inside one element (component sheet).
-// When loading fails (spec/03 §14.1): sbStart.fail() ends the start at once, whatever holds are left and before load; the tile
-// fades out where it stands, so the app's failure sentence in its window is not covered. An uncaught error (an
-// "error" event that carries an error object) or an unhandled promise rejection while the tile stands does the same
-// (provisional, agent).
-// The end (spec/03 §14.1): when the start is over (also at once when this page shows none) sbStart.done is true and
-// "sb-start-done" is fired on document with detail { started, reduced, failed }; a framework that renders the entering
-// content itself listens for it (or reads sbStart.done first) instead of keeping the class in its own state.
-// .sb-enter (spec/03 §14.1): the class this script puts on [data-sb-start-enter] is removed again after its animation ends
-// (animationend or animationcancel of that element, or at once when no animation runs), so a long-lived app body keeps
-// no finished animation (stacking context, containing block of fixed descendants). React and other frameworks that
-// rewrite className keep data-sb-start-enter on an element whose className they never change (shared/ADOPTION.md §2.3).
-// An upper bound (spec/03 §14.1): the end of a run comes when its animation finishes, or at the latest 500 ms after the
-// animation's duration (an animation that is cancelled, paused or never painted must not leave the tile standing;
-// provisional, agent: the 500 ms).
-// CSP-safe: no inline handlers, styles only through the CSSOM and the Web Animations API.
+// D144 (3), spec/03 §14: full product-colour screen with the bare white symbol, then fade to the app.
+// Markup: .sb-start[data-sb-product] > .sb-start__tile with the product's bare sign inline (sign/sign.svg of the
+// product kit's folder; brand/inline/sign-<id>.svg of a --target export). Target markers are legacy no-ops.
+// First visit per tab (sessionStorage sb-started); nostore opts out of storage. hold/release waits for app data,
+// fail() reveals errors immediately. The animation-end cap is duration + 500 ms. No minimum loading dwell.
+// Replay API, sb-start-done and sb-enter cleanup remain compatible. CSP-safe Web Animations API.
 (function () {
   var root = document.documentElement;
   var holds = 0, loaded = false, done = false, failed = false, ended = false;
@@ -56,32 +33,15 @@
 
   // one run of the start inside scope (the document or one frame); finish() runs once at the end: when the animation
   // finishes, or at the latest 500 ms after its duration (spec/03 §14.1)
-  function run(scope, overlay, finish, fadeOnly) {
+  function run(scope, overlay, finish) {
     var finished = false, cap = null;
     function once() { if (finished) return; finished = true; clearTimeout(cap); finish(); }
-    var tile = overlay.querySelector(".sb-start__tile");
-    var target = scope.querySelector("[data-sb-start-target]");
-    var duration = ms(token("--sb-motion-duration-long", "200ms"));
-    var easing = token("--sb-motion-easing-emphasized", "ease-out");
+    // D144 (3): the whole product-colour screen fades; no travelling tile or hidden target.
     Array.prototype.forEach.call(scope.querySelectorAll("[data-sb-start-enter]"), enter);
-    if (fadeOnly || !tile || !target || reduced(scope) || typeof tile.animate !== "function") {
-      // the fade keeps its 200 ms under both settings (D102 (52)): tokens.css collapses motion.duration.long there
-      var fadeMs = ms(token("--sb-x-sebaro-enter-fade-duration", "200ms"));
-      var fade = typeof overlay.animate === "function" ? overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fadeMs, fill: "forwards" }) : null;
-      if (fade) { fade.onfinish = once; cap = setTimeout(once, fadeMs + 500); } else once();
-      return;
-    }
-    var from = tile.getBoundingClientRect(), to = target.getBoundingClientRect();
-    var dx = to.left + to.width / 2 - (from.left + from.width / 2);
-    var dy = to.top + to.height / 2 - (from.top + from.height / 2);
-    var scale = to.width / from.width;
-    target.style.visibility = "hidden";
-    overlay.classList.add("is-moving");                       // ground turns transparent: the content shows under the tile
-    var move = tile.animate([{ transform: "none" }, { transform: "translate(" + dx + "px, " + dy + "px) scale(" + scale + ")" }],
-      { duration: duration, easing: easing, fill: "forwards" });
-    var land = function () { target.style.visibility = ""; once(); };
-    move.onfinish = land;
-    cap = setTimeout(land, duration + 500);
+    var fadeMs = ms(token("--sb-x-sebaro-enter-fade-duration", "200ms"));
+    var fade = typeof overlay.animate === "function" ? overlay.animate([{ opacity: 1 }, { opacity: 0 }],
+      { duration: fadeMs, fill: "forwards" }) : null;
+    if (fade) { fade.onfinish = once; fade.oncancel = once; cap = setTimeout(once, fadeMs + 500); } else once();
   }
 
   // spec/03 §14.1: the start is over (or this page shows none)
@@ -98,7 +58,7 @@
     done = true;
     var overlay = document.querySelector("body > .sb-start");
     if (!overlay) { root.classList.remove("sb-starting"); end(false); return; }
-    run(document, overlay, function () { root.classList.remove("sb-starting"); overlay.classList.remove("is-moving"); end(true); }, failed);
+    run(document, overlay, function () { root.classList.remove("sb-starting"); end(true); });
   }
   // an ErrorEvent without an error object is no failure of the app (WA-R2): Chromium's "ResizeObserver loop completed
   // with undelivered notifications" and a cross-origin "Script error." leave the start alone
@@ -121,8 +81,8 @@
       scope.classList.add("sb-starting");
       setTimeout(function () {
         run(scope, overlay, function () {
-          scope.classList.remove("sb-starting"); overlay.classList.remove("is-moving");
-          overlay.getAnimations().concat(overlay.querySelector(".sb-start__tile").getAnimations()).forEach(function (a) { a.cancel(); });
+          scope.classList.remove("sb-starting");
+          overlay.getAnimations().forEach(function (a) { a.cancel(); });
         });
       }, loadMs === undefined ? 700 : loadMs);
     }

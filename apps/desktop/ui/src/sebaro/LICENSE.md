@@ -1,7 +1,7 @@
 # Licences
 
-The sebaro design system: the workshop (sebaroDesign), the guide (sebaro Guide) and every export of the system into
-a product repository carry this same file (owner decision D76, 2026-10-20). Unless a file says otherwise:
+The sebaro design system: the workshop (sebaro Foundry), the guide (sebaro Blueprint) and every export of the system
+into a product repository carry this same file (owner decision D76, 2026-10-20). Unless a file says otherwise:
 
 | What | Licence |
 |---|---|

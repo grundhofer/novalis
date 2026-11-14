@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { failStart, holdStart, releaseStart, START_FALLBACK_MS } from "./start";
+import { commands } from "../ipc/client";
+import { failStart, holdStart, releaseStart, START_FALLBACK_MS, watchStartEnd } from "./start";
+
+vi.mock("../ipc/client", () => ({
+  commands: { startEnded: vi.fn() },
+  unwrap: vi.fn().mockResolvedValue(null),
+}));
 
 describe("the start's hold", () => {
   afterEach(() => {
     releaseStart();
     delete window.sbStart;
+    vi.mocked(commands.startEnded).mockClear();
   });
 
   it("holds sb-start.js once and releases it once", () => {
@@ -56,6 +63,8 @@ describe("the start's hold", () => {
       expect(root.classList.contains("sb-starting")).toBe(false);
       expect(overlay.classList.contains("is-moving")).toBe(false);
       expect(target.style.visibility).toBe("");
+      // ADR-0052: the window leaves the start's ground with it.
+      expect(commands.startEnded).toHaveBeenCalledTimes(1);
       overlay.remove();
       target.remove();
     } finally {
@@ -101,6 +110,7 @@ describe("the start's hold", () => {
       vi.advanceTimersByTime(START_FALLBACK_MS);
       // No `sb-starting`: the script finished, nothing is touched.
       expect(target.style.visibility).toBe("hidden");
+      expect(commands.startEnded).not.toHaveBeenCalled();
       target.remove();
     } finally {
       vi.useRealTimers();
@@ -112,5 +122,33 @@ describe("the start's hold", () => {
       holdStart();
       releaseStart();
     }).not.toThrow();
+  });
+});
+
+// ADR-0052: the window opens in novalis's tile colour, the start's ground,
+// and takes the stored one when the start is over.
+describe("the window's ground after the start", () => {
+  afterEach(() => {
+    delete window.sbStart;
+    vi.mocked(commands.startEnded).mockClear();
+  });
+
+  it("stays the start's until sb-start-done, then is the stored one, once", () => {
+    window.sbStart = { done: false, hold: vi.fn(), release: vi.fn(), fail: vi.fn() };
+    watchStartEnd();
+    expect(commands.startEnded).not.toHaveBeenCalled();
+    document.dispatchEvent(new CustomEvent("sb-start-done"));
+    expect(commands.startEnded).toHaveBeenCalledTimes(1);
+    document.dispatchEvent(new CustomEvent("sb-start-done"));
+    expect(commands.startEnded).toHaveBeenCalledTimes(1);
+  });
+
+  it("is the stored one at once when the start is over or the script is missing", () => {
+    window.sbStart = { done: true, hold: vi.fn(), release: vi.fn(), fail: vi.fn() };
+    watchStartEnd();
+    expect(commands.startEnded).toHaveBeenCalledTimes(1);
+    delete window.sbStart;
+    watchStartEnd();
+    expect(commands.startEnded).toHaveBeenCalledTimes(2);
   });
 });

@@ -135,7 +135,8 @@ describe("tokens", () => {
 // sebaro's classic scripts and the start (spec/09 §1, WEB-01, spec/03 §14,
 // STR-01; ADR-0051 #21, #26): files, not inline code (CSP `script-src
 // 'self'`), in sebaro's order, and only the two window scripts ADR-0051
-// allows. The start tile is the export's file, put in by vite.config.ts.
+// allows. The start's sign is the product kit's file (sebaro-product/), put
+// in by vite.config.ts.
 describe("index.html", () => {
   const scripts = [...indexHtml.matchAll(/<script\b([^>]*)>([^<]*)<\/script>/g)];
 
@@ -158,11 +159,11 @@ describe("index.html", () => {
     expect(indexHtml).toMatch(/<html [^>]*\bdata-sb-density="window"/);
   });
 
-  it("opts into the start, with the export's tile first in <body>", () => {
+  it("opts into the start, with the product kit's sign first in <body>", () => {
     expect(indexHtml).toMatch(/<html [^>]*\bdata-sb-start\b/);
     const body = indexHtml.slice(indexHtml.indexOf("<body>") + "<body>".length).trim();
-    expect(body.startsWith('<div class="sb-start" aria-hidden="true"><span class="sb-start__tile">')).toBe(true);
-    expect(body).toContain('<!-- sb:inline src="brand/inline/tile-novalis-small.svg" -->');
+    expect(body.startsWith('<div class="sb-start" data-sb-product="novalis" aria-hidden="true"><span class="sb-start__tile">')).toBe(true);
+    expect(body).toContain('<!-- sb:inline src="sign/sign.svg" -->');
     // Held before React mounts (lib/start.ts).
     expect(mainSource.indexOf("holdStart();")).toBeLessThan(mainSource.indexOf("createRoot("));
   });

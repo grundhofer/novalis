@@ -64,7 +64,7 @@ jobs:
             build-essential
 
       - name: Install pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -105,6 +105,13 @@ jobs:
       # Cheap and before the UI build that reads it, so on both runners.
       - name: sebaro export unchanged
         run: node scripts/check-sebaro-export.mjs
+
+      # ADR-0051 #92: sebaro-product/ (novalis's sign, tile, product.css and
+      # app icon) is what sebaro.product.json and the export's product kit
+      # give. python3, standard library only; once, on Linux.
+      - name: sebaro product files up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 apps/desktop/ui/src/sebaro/product/product_kit.py check sebaro.product.json --copy apps/desktop/ui/src/sebaro --out sebaro-product
 
       # OS-independent JS checks run once, on Linux, to save runner time.
       - name: UI typecheck
@@ -189,7 +196,7 @@ jobs:
       # otherwise hides however many JS advisories landed the same week.
       # `pnpm audit` reads only the lockfile, so there is no `pnpm install`.
       - name: Install pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -200,7 +207,7 @@ jobs:
       # from source costs ~3 min per run and a second toolchain. The versions
       # are pinned so a tool regression cannot turn CI red on its own schedule.
       - name: Install cargo-audit and cargo-deny
-        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2.88.1
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-audit@0.22.2,cargo-deny@0.20.2
 
@@ -224,3 +231,12 @@ jobs:
       - name: pnpm audit
         if: ${{ !cancelled() }}
         run: pnpm audit --audit-level=high
+
+      # sebaro releases move without us too (its README, "In the product's
+      # CI"): once a week, never on a push, a PR or a release, the copy's own
+      # updater asks whether a newer release exists (exit 1). Update with
+      # `node apps/desktop/ui/src/sebaro/checks/update-copy.mjs` as a commit
+      # of its own (CLAUDE.md, generated files).
+      - name: sebaro copy at the newest release (weekly)
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
+        run: node apps/desktop/ui/src/sebaro/checks/update-copy.mjs --check
