@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { commands, unwrap } from "../ipc/client";
 import { afterDialog, focusInTabList } from "../lib/areas";
+import { useBlockSize } from "../lib/blockSize";
 import { goToEditorLine, resolveLine, takeDeferredLine } from "../lib/editorBridge";
 import { keepPosition, keptPosition, type KeptSelection } from "../lib/positions";
 import { useCursor } from "../stores/cursor";
@@ -101,6 +102,8 @@ export default function Editor({
   notePaths,
 }: EditorProps) {
   const host = useRef<HTMLDivElement | null>(null);
+  // The room under the last line follows the pane's height (theme.ts).
+  useBlockSize(host);
   // CodeMirror's own words follow the language (editor/phrases.ts); a view
   // takes them when it is built, so a change of language rebuilds it.
   const { i18n } = useTranslation();

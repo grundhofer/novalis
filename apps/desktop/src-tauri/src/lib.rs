@@ -33,7 +33,7 @@ use crate::opening::OpenRequested;
 use crate::state::{load_settings, AppState};
 use crate::watcher::FsBatch;
 
-/// The IPC surface. 28 commands — PLAN.md §2.3 rule 8 caps it at 30.
+/// The IPC surface. 29 commands — PLAN.md §2.3 rule 8 caps it at 30.
 fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
         .commands(collect_commands![
@@ -65,6 +65,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::card_write,
             commands::settings_set,
             commands::state_save,
+            commands::start_ended,
         ])
         .events(collect_events![
             FsBatch,
@@ -125,12 +126,11 @@ pub fn run() {
             // tauri.conf.json), after the key is written (§7.5).
             spelling::seed(settings.spellcheck);
             // The look before the page paints (DSK-14, ADR-0051 #22): the
-            // stored choice for theme-init.js, the window's own mode, and the
-            // ground for an explicit mode now; `system` is corrected once the
-            // window can report it.
+            // stored choice for theme-init.js and the window's own mode. The
+            // ground is the start's, novalis's tile colour (ADR-0052), until
+            // the page says the start is over (`start_ended`), which gives
+            // the window the stored one.
             let init_script = window::init_script(&settings);
-            let first_ground =
-                window::ground(settings.tone, window::is_dark(settings.appearance, None));
             let first_theme = window::native_theme(settings.appearance);
 
             app.manage(AppState::new(config_dir, settings));
@@ -143,7 +143,7 @@ pub fn run() {
                 .cloned()
                 .ok_or("tauri.conf.json has no main window")?;
             let main = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
-                .background_color(first_ground)
+                .background_color(window::start_ground())
                 .theme(first_theme)
                 .initialization_script(init_script);
             // Review pictures at 200 % text (docs/sebaro-umbau.md §4): a debug
@@ -164,7 +164,6 @@ pub fn run() {
                 _ => main,
             };
             let main = main.build()?;
-            window::paint_ground(&main, &app.state::<AppState>().settings());
             window::restore(&main, &app.state::<AppState>());
             Ok(())
         })

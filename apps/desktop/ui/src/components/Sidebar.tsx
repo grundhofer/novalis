@@ -574,13 +574,14 @@ export default function Sidebar() {
         </div>
 
         {/* The sort (ADR-0012) in sebaro's sort choice (spec/02 §4.14,
-            D102 (3)): compact switches with their word, the chosen one
+            D102 (3)): compact switches with their word, as text actions
+            (ADR-0051 #95: no outlined button here), the chosen one
             pressed with its direction as `arrow-up--16` / `arrow-down--16`
             and the hidden word. The directions are fixed: name ascending,
             modified newest first (a second press turns nothing). */}
         <div className="sb-sort-choice" role="group" aria-label={t("tree.sort")}>
           <button
-            className="sb-secondary-action sb-secondary-action--compact"
+            className="sb-text-action sb-text-action--compact"
             type="button"
             title={t("tree.sortByName")}
             aria-pressed={treeSort === "name"}
@@ -591,7 +592,7 @@ export default function Sidebar() {
             {treeSort === "name" && <span className="sb-visually-hidden">{t("tree.sortAscending")}</span>}
           </button>
           <button
-            className="sb-secondary-action sb-secondary-action--compact"
+            className="sb-text-action sb-text-action--compact"
             type="button"
             title={t("tree.sortByModified")}
             aria-pressed={treeSort === "modified"}

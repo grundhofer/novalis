@@ -1,3 +1,5 @@
+import { commands, unwrap } from "../ipc/client";
+
 /**
  * sebaro's start (STR-01, spec/03 §14; ADR-0051 #26): the exported
  * `sb-start.js` keeps the 96 px tile in the middle of the window while the
@@ -23,6 +25,8 @@
  * late `load` would otherwise end the start before it began.
  */
 interface SbStart {
+  /** The start is over, or this page shows none (`sb-start-done` was sent). */
+  readonly done?: boolean;
   hold(): void;
   release(): void;
   fail(): void;
@@ -51,6 +55,27 @@ function endStuckStart(): void {
   const target = document.querySelector<HTMLElement>("[data-sb-start-target]");
   if (target) target.style.visibility = "";
   root.classList.remove("sb-starting");
+  showStoredGround();
+}
+
+/** The window leaves the start's ground for the stored one (`start_ended`). */
+function showStoredGround(): void {
+  void unwrap(commands.startEnded()).catch(() => {
+    // The tile colour stays behind the page, which covers it; nothing to say.
+  });
+}
+
+/**
+ * The window opens in novalis's tile colour, the ground of the start
+ * (ADR-0052), and keeps it until `sb-start.js` says the start is over
+ * (`sb-start-done`); then the shell gives it the stored light or dark
+ * ground, the one a resize shows at its edge. At once when the start is
+ * already over or the script is missing; a stuck start ended by hand above
+ * hands it over too.
+ */
+export function watchStartEnd(): void {
+  if (!window.sbStart || window.sbStart.done) showStoredGround();
+  else document.addEventListener("sb-start-done", showStoredGround, { once: true });
 }
 
 export function holdStart(): void {

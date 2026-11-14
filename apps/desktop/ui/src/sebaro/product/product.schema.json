@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sebaro:design:product-schema:1.0",
+  "title": "sebaro product declaration (sebaro.product.json)",
+  "description": "One file at the root of a product's repository: the product declares itself, and tools/product_kit.py (in a copy: product/product_kit.py) draws its sign tile, launcher layers, notification icon, the start of an Android app, favicon SVG, web manifest and head snippet from it. Normative prose, the outputs and the rules this schema cannot say are in shared/PRODUCT-CONTRACT.md. The schema stays inside the keyword subset tools/check_palette.py interprets (PALETTE-CONTRACT section 11); the kit checks the same structure in its own code, and tools/tests/test_product_kit.py holds the two together.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "tile", "sign", "outputs"],
+  "properties": {
+    "$schema": {"type": "string", "description": "Optional editor hint, e.g. \"./sebaro/product/product.schema.json\"."},
+    "$comment": {"type": "string"},
+    "schemaVersion": {"const": "1.0", "description": "The contract version the file is written against."},
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "The product's id, kebab-case: the value of data-sb-product, part of the Android resource names (sb_sign_<id>) and the id SebaroProductInfo.kt passes."},
+    "name": {"$ref": "#/$defs/text", "description": "The product's name as it writes it: the title of the sign and tile SVGs and, unless web.name says otherwise, the manifest's name."},
+    "shortName": {"$ref": "#/$defs/text", "description": "The launcher label, the manifest's short_name. Default: name. Launchers cut labels longer than about 12 characters."},
+    "tile": {"enum": ["studio", "collaboration", "everyday", "learning", "tools", "media", "money", "system"], "description": "The purpose group of the sign tile (palette signTiles.groups, D50, D51): it gives the tile's ground and the sign's colour, the same in light and dark. The kit takes the groups from the copy's product/tiles.json."},
+    "sign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glyph"],
+      "description": "The sign as paths on the 24-unit grid ((0, 0) top left, y down), in one colour. The same format as products[].glyph of a signs.json (shared/SIGNS-GUIDE.md section 2).",
+      "properties": {
+        "glyph": {"$ref": "#/$defs/glyph", "description": "The drawing, at the base stroke."},
+        "glyphSmall": {"$ref": "#/$defs/glyph", "description": "Optional simpler drawing for 24 px and below (favicon, notification icon, the small tile), also at the base stroke: the kit applies the heavier stroke of the small sizes itself."}
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the website or web app says about itself. Needs \"web\" in outputs.",
+      "properties": {
+        "name": {"$ref": "#/$defs/text", "description": "The manifest's name where it differs from name."},
+        "themeColor": {"$ref": "#/$defs/colour", "description": "The manifest's theme_color. Default: the system's light ground."},
+        "backgroundColor": {"$ref": "#/$defs/colour", "description": "The manifest's background_color. Default: the system's light ground."},
+        "headThemeColor": {"type": "boolean", "description": "Whether head.snippet.html carries the two theme-color tags (the grounds per scheme, with the tone grounds). Default: true. theme-color.json is written either way."},
+        "manifest": {
+          "type": "object",
+          "propertyNames": {"pattern": "^(?!(name|short_name|theme_color|background_color|icons)$)"},
+          "description": "Web App Manifest members written as they are into manifest.webmanifest (lang, dir, id, start_url, scope, display, description, ...). Not name, short_name, theme_color, background_color (the fields above say them) and not icons (written by the kit)."
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["android", "web", "desktop"]},
+      "description": "The platforms to produce: android (res/ with the launcher, the sign tile and the start, and SebaroProductInfo.kt), web (the site-root files and the sign folder), desktop (the sign folder). The raster files of each (Play icon; favicon.ico, touch icon and manifest icons; window icon) are drawn by product/render.mjs."
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "colour": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+    "glyph": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/path"}},
+    "path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["d", "paint"],
+      "properties": {
+        "d": {"type": "string", "minLength": 1, "pattern": "\\S", "description": "SVG path data; arcs are allowed."},
+        "paint": {"enum": ["stroke", "fill"]},
+        "width": {"type": "number", "maximum": 12, "description": "Stroke width in grid units, greater than 0. Default: the system's base stroke. Strokes only."},
+        "cap": {"enum": ["butt", "round", "square"], "description": "Default: the system's. Strokes only."},
+        "join": {"enum": ["miter", "round", "bevel"], "description": "Default: the system's. Strokes only."},
+        "fillRule": {"enum": ["nonzero", "evenodd"], "description": "Default nonzero. Fills only."}
+      }
+    }
+  },
+  "examples": [
+    {
+      "schemaVersion": "1.0",
+      "id": "beispiel",
+      "name": "Beispiel",
+      "tile": "tools",
+      "sign": {"glyph": [{"d": "M4 12 H20", "paint": "stroke"}, {"d": "M12 4 V20", "paint": "stroke"}]},
+      "web": {"manifest": {"lang": "de", "start_url": "/", "display": "browser"}},
+      "outputs": ["android", "web"]
+    }
+  ]
+}

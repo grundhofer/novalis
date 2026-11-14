@@ -37,14 +37,18 @@ const watchCatalogs = {
 // these tags as they are, so each file has to reach `/sebaro/js/<name>`
 // itself: served from the export during `just dev`, copied byte for byte
 // into `dist/` on build.
-// The start tile in `index.html` is the export's own SVG, put where its
-// `<!-- sb:inline src="…" -->` comment stands (sebaro's inlining convention,
-// spec/03 §4.6), so the page carries no copy of it. The export folder is
+// The start's sign in `index.html` is novalis's own SVG, made by the export's
+// product kit from `sebaro.product.json` into `sebaro-product/` at the
+// repository root, put where its `<!-- sb:inline src="…" -->` comment stands
+// (sebaro's inlining convention, spec/03 §4.6; the path is relative to
+// `sebaro-product/`), so the page carries no copy of it. The export folder is
 // never edited (its files are checked by sha256).
 const SEBARO_SCRIPTS = ["theme-init.js", "sb-start.js", "sb-tooltip.js", "sb-menu.js"];
 const SEBARO_DIR = new URL("./src/sebaro/", import.meta.url);
+const PRODUCT_DIR = new URL("../../../sebaro-product/", import.meta.url);
 const SB_INLINE = /<!-- sb:inline src="([\w./-]+)" -->/g;
 const sebaroFile = (path: string) => decodeURIComponent(new URL(path, SEBARO_DIR).pathname);
+const productFile = (path: string) => decodeURIComponent(new URL(path, PRODUCT_DIR).pathname);
 const inlined = new Map<string, string>();
 const sebaro: Plugin = {
   name: "novalis:sebaro",
@@ -55,7 +59,7 @@ const sebaro: Plugin = {
       await this.fs.readFile(decodeURIComponent(new URL("./index.html", import.meta.url).pathname)),
     );
     for (const [, path] of html.matchAll(SB_INLINE)) {
-      inlined.set(path!, new TextDecoder().decode(await this.fs.readFile(sebaroFile(path!))));
+      inlined.set(path!, new TextDecoder().decode(await this.fs.readFile(productFile(path!))));
     }
   },
   transformIndexHtml(html) {

@@ -20,7 +20,9 @@
 //! paint. This window is hidden only until [`restore`] has put it in place,
 //! which runs in `setup` right after it is built, before the page has loaded;
 //! it never waits for the page. What the user sees before the page paints is
-//! the ground set here.
+//! the ground set here: [`start_ground`], novalis's tile colour, the ground
+//! of sebaro's start (ADR-0052), until the page says the start is over
+//! (`start_ended`); from then on [`paint_ground`]'s.
 
 use novalis_core::settings::{Appearance, Settings, Tone};
 use tauri::window::Color;
@@ -30,13 +32,21 @@ use crate::commands::{read_ui_state, write_ui_state};
 use crate::dto::WindowRectDto;
 use crate::state::AppState;
 
-// SEBARO_BG: the four grounds, written by build.rs from sebaro's tokens.json.
+// SEBARO_BG: the four grounds, and SEBARO_START, the start's, written by
+// build.rs from sebaro's tokens.json and sebaro.product.json.
 include!(concat!(env!("OUT_DIR"), "/sebaro_bg.rs"));
 
 /// The window ground for a tone and a mode (DSK-14: cool or warm, light or
 /// dark).
 pub fn ground(tone: Tone, dark: bool) -> Color {
     let (r, g, b) = SEBARO_BG[usize::from(tone == Tone::Warm)][usize::from(dark)];
+    Color(r, g, b, 255)
+}
+
+/// The window ground until the start is over (ADR-0052): novalis's tile
+/// colour, the ground of sebaro's start, light and dark alike.
+pub fn start_ground() -> Color {
+    let (r, g, b) = SEBARO_START;
     Color(r, g, b, 255)
 }
 
@@ -202,7 +212,7 @@ mod tests {
     use novalis_core::settings::{Appearance, Settings, Tone};
     use tauri::Theme;
 
-    use super::{fitted, ground, init_script, is_dark, native_theme};
+    use super::{fitted, ground, init_script, is_dark, native_theme, start_ground};
     use crate::dto::WindowRectDto;
 
     #[test]
@@ -217,6 +227,30 @@ mod tests {
             assert_eq!(a.3, 255, "a ground is opaque");
             for b in &grounds[i + 1..] {
                 assert_ne!(a, b);
+            }
+        }
+    }
+
+    // ADR-0052: the window opens in the colour the kit draws novalis's tile
+    // in (`product/tiles.json` of the copy, the group `sebaro.product.json`
+    // names), which none of the four grounds is.
+    #[test]
+    fn the_start_ground_is_the_tile_colour_of_the_kit() {
+        let declaration: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../sebaro.product.json")).unwrap();
+        let tiles: serde_json::Value =
+            serde_json::from_str(include_str!("../../ui/src/sebaro/product/tiles.json")).unwrap();
+        let group = declaration["tile"].as_str().unwrap();
+        let colour = tiles["groups"][group]["tile"].as_str().unwrap();
+        let start = start_ground();
+        assert_eq!(
+            format!("#{:02X}{:02X}{:02X}", start.0, start.1, start.2),
+            colour.to_uppercase()
+        );
+        assert_eq!(start.3, 255, "the start's ground is opaque");
+        for tone in [Tone::Cool, Tone::Warm] {
+            for dark in [false, true] {
+                assert_ne!(start, ground(tone, dark));
             }
         }
     }

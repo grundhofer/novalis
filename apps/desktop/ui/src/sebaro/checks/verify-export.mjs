@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // verify-export.mjs: checks a sebaro design export folder against its own record, sebaro-export.json.
-// Node 20+, standard library only (node:fs, node:path, node:crypto). Shipped by tools/export_system.py as
-// checks/verify-export.mjs in every web, tauri and android export; the source lives in sebaroDesign tools/.
+// Node 20+, standard library only (node:fs, node:path, node:crypto). Shipped as checks/verify-export.mjs in every
+// profile copy and in every web, tauri and android export of the sebaro design system.
 //
 //   node checks/verify-export.mjs              # the export folder one level above this script
 //   node checks/verify-export.mjs DIR          # another export folder
 //   node checks/verify-export.mjs --strict     # a file in the folder that the record does not name is an error too
 //
-// It checks what `export_system.py --verify DIR --files-only` checks, without Python and without a sebaroDesign
-// checkout: every file listed in sebaro-export.json must exist and match its recorded sha256 ("missing in target",
-// "edited in target"). A file in the folder that the record does not name is a warning, or an error with --strict.
-// Never counted as such a file: sebaro-export.json itself, and dotfiles or anything inside a dot folder (.DS_Store,
-// .git), which the export never writes. Not checked: whether the sources in sebaroDesign moved on, and the system's
-// gates; the full `export_system.py --verify DIR` with a sebaroDesign checkout does that.
+// It needs nothing but this folder: every file listed in sebaro-export.json must exist and match its recorded sha256
+// ("missing in target", "edited in target"). A file in the folder that the record does not name is a warning, or an
+// error with --strict. Never counted as such a file: sebaro-export.json itself, and dotfiles or anything inside a dot
+// folder (.DS_Store, .git), which the export never writes. Not checked: whether a newer release exists. For a
+// profile copy checks/update-copy.mjs --check asks that; for a --target export the maintainers' `export_system.py
+// --verify DIR` compares with the sources (this file checks what its `--files-only` checks).
 //
 // Exit codes: 0 no errors (warnings allowed) · 1 errors: a missing or edited file, or with --strict an unlisted file ·
 // 2 usage error, no such folder, or a missing or unreadable sebaro-export.json.
@@ -151,10 +151,14 @@ function main() {
   const { errors, warnings, files } = check(args.dir, rec, args.strict);
   for (const w of warnings) console.log(`WARN  ${w}`);
   for (const e of errors) console.log(`FAIL  ${e}`);
-  const what = `${rec.system?.slug ?? "?"} for ${rec.target ?? "?"}` + (rec.product ? `, product ${rec.product}` : "") +
+  const kind = typeof rec.profile === "string" ? `profile ${rec.profile}` : rec.target ?? "?";
+  const what = `${rec.system?.slug ?? "?"} for ${kind}` + (rec.product ? `, product ${rec.product}` : "") +
     ` (exported ${rec.date ?? "?"} by ${rec.tool ?? "?"})`;
   const mode = args.strict ? ", strict" : "";
-  const tail = " · source drift and gates NOT checked (export_system.py --verify with a sebaroDesign checkout)";
+  // a profile copy is kept current by its updater; a --target export is compared with its sources by the maintainers
+  const tail = typeof rec.profile === "string"
+    ? " · a newer release is not looked for (checks/update-copy.mjs --check)"
+    : " · source drift and gates NOT checked (export_system.py --verify with a sebaroDesign checkout)";
   if (errors.length) {
     console.log(`result: drift, ${errors.length} error(s), ${warnings.length} warning(s) (exit 1)${mode} · ` +
       `${args.dir}: ${what}${tail}`);

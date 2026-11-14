@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type Banner as BannerKind, useEditorSave } from "../stores/editorSave";
 import { useTabs } from "../stores/tabs";
 import { useVault } from "../stores/vault";
+import appSource from "../App.tsx?raw";
+import appCss from "../styles/app.css?raw";
 import Banner from "./Banner";
 
 vi.mock("react-i18next", () => ({
@@ -157,5 +159,19 @@ describe("Banner", () => {
       before.remove();
       after.remove();
     }
+  });
+});
+
+// ADR-0051 #90, D142: in a low window the cloud and migration hints share
+// sebaro's callout area, which scrolls what does not fit; a change on disk
+// stays whole outside it.
+describe("the hints' area", () => {
+  it("comes before the change on disk, keeps its cap, and is not shown empty", () => {
+    expect(appSource).toMatch(/<DocHints \/>\s*<Banner \/>/);
+    expect(appCss).toContain(
+      ".nv-doc-hints {\n  flex: 0 0 auto;\n  margin-inline: var(--sb-space-4) calc(var(--sb-space-4) - var(--sb-callout-area-gutter));\n  padding-block-start: var(--sb-space-2);\n}",
+    );
+    expect(appCss).toContain(".nv-doc-hints:empty {\n  display: none;\n}");
+    expect(appCss).not.toMatch(/\.nv-doc-hints[^{]*\{[^}]*(max-block-size|overflow)/);
   });
 });
