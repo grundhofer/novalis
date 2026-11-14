@@ -5,7 +5,7 @@ import { highlightSelectionMatches, search } from "@codemirror/search";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { drawSelection, EditorView } from "@codemirror/view";
 import { highlightTree, type Tag, tags as t } from "@lezer/highlight";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   sebaroCodeFileTheme,
@@ -30,6 +30,25 @@ const style = (tag: Parameters<typeof markdownHighlight.style>[0][number]) =>
   markdownHighlight.style([tag]);
 
 const rules = () => markdownHighlight.module?.getRules() ?? "";
+
+// jsdom substitutes custom properties and loads no stylesheet: each token a
+// computed look below is read for gets a value of its own, so the value read
+// tells which token the rule took.
+const TOKENS = {
+  "--sb-font-family-ui": "sb-ui",
+  "--sb-font-family-mono": "sb-mono",
+  "--sb-color-surface-sunken": "rgb(1, 0, 0)",
+  "--sb-color-hover-fill": "rgb(2, 0, 0)",
+  "--sb-color-text-muted": "rgb(3, 0, 0)",
+  "--sb-color-link": "rgb(4, 0, 0)",
+  "--sb-x-sebaro-link-underline-width": "5px",
+};
+beforeEach(() => {
+  for (const [name, value] of Object.entries(TOKENS)) document.documentElement.style.setProperty(name, value);
+});
+afterEach(() => {
+  for (const name of Object.keys(TOKENS)) document.documentElement.style.removeProperty(name);
+});
 
 describe("markdownHighlight", () => {
   it("draws the note's own tag in the link style and leaves every grammar's label alone", () => {
@@ -91,8 +110,8 @@ describe("markdownHighlight", () => {
     const code = document.createElement("span");
     code.className = "sb-cm-code";
     view.dom.append(code);
-    expect(getComputedStyle(code).fontFamily).toBe("var(--sb-font-family-mono)");
-    expect(getComputedStyle(code).backgroundColor).toBe("var(--sb-color-surface-sunken)");
+    expect(getComputedStyle(code).fontFamily).toBe(TOKENS["--sb-font-family-mono"]);
+    expect(getComputedStyle(code).backgroundColor).toBe(TOKENS["--sb-color-surface-sunken"]);
     view.destroy();
   });
 
@@ -227,7 +246,7 @@ describe("markdownHighlight", () => {
     }
     for (const word of ["a", "b", "c"]) {
       expect(decorationOf(word), word).toEqual([
-        "underline var(--sb-color-link) var(--sb-x-sebaro-link-underline-width)",
+        `underline ${TOKENS["--sb-x-sebaro-link-underline-width"]} ${TOKENS["--sb-color-link"]}`,
       ]);
     }
     view.destroy();
@@ -383,8 +402,8 @@ describe("editorTheme against CodeMirror's base themes", () => {
     const fill = (node: Element) => getComputedStyle(node).backgroundColor;
 
     expect(view.dom.hasAttribute("data-sb-selection")).toBe(false);
-    expect(fill(line)).toBe("var(--sb-color-hover-fill)");
-    expect(fill(code)).toBe("var(--sb-color-surface-sunken)");
+    expect(fill(line)).toBe(TOKENS["--sb-color-hover-fill"]);
+    expect(fill(code)).toBe(TOKENS["--sb-color-surface-sunken"]);
     const drawn = view.scrollDOM.querySelector<HTMLElement>(".cm-layer.cm-selectionLayer")!;
     expect(getComputedStyle(drawn).zIndex).toMatch(/^-\d+$/);
 
@@ -395,7 +414,7 @@ describe("editorTheme against CodeMirror's base themes", () => {
 
     view.dispatch({ selection: { anchor: 2 } });
     expect(view.dom.hasAttribute("data-sb-selection")).toBe(false);
-    expect(fill(line)).toBe("var(--sb-color-hover-fill)");
+    expect(fill(line)).toBe(TOKENS["--sb-color-hover-fill"]);
   });
 
   // spec/01 §1.8.2: a code file takes sebaro's code-file theme, Mono with
@@ -407,9 +426,9 @@ describe("editorTheme against CodeMirror's base themes", () => {
       mounted.destroy();
       return font;
     };
-    expect(scrollerFont([editorTheme])).toBe("var(--sb-font-family-ui)");
+    expect(scrollerFont([editorTheme])).toBe(TOKENS["--sb-font-family-ui"]);
     // As setup.ts adds it: high, after the editor's theme.
-    expect(scrollerFont([editorTheme, Prec.high(sebaroCodeFileTheme)])).toBe("var(--sb-font-family-mono)");
+    expect(scrollerFont([editorTheme, Prec.high(sebaroCodeFileTheme)])).toBe(TOKENS["--sb-font-family-mono"]);
   });
 
   it("greys a done task's text, whose spans the list rule would put in `text`", () => {
@@ -423,6 +442,6 @@ describe("editorTheme against CodeMirror's base themes", () => {
     text.className = style(t.list)!;
     line.append(text);
     view.contentDOM.append(line);
-    expect(getComputedStyle(text).color).toBe("var(--sb-color-text-muted)");
+    expect(getComputedStyle(text).color).toBe(TOKENS["--sb-color-text-muted"]);
   });
 });
