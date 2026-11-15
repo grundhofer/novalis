@@ -25,6 +25,7 @@ export function uiStateNow(): UiStateDto {
     cloudHintShown: ui.cloudHintShown,
     activeBoard: ui.activeBoard,
     treeSort: ui.treeSort,
+    treeSortReversed: ui.treeSortReversed,
     recentFiles: useTabs.getState().recent.filter(kept),
   };
 }

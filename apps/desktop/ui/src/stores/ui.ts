@@ -136,8 +136,19 @@ interface UiState {
   /** PLAN.md §5.6 step 1: the cloud hint is shown once, then never again. */
   cloudHintShown: boolean;
   activeBoard: string | null;
-  /** The tree's file order (ADR-0012); folders ignore it. `state.json` state. */
+  /**
+   * The tree's file order (ADR-0012); folders keep the name order, turned
+   * round only by a reversed name sort. `state.json` state.
+   */
   treeSort: TreeSortDto;
+  /** `treeSort` turned round by a second press (ADR-0053). `state.json` state. */
+  treeSortReversed: boolean;
+  /**
+   * The note last opened from a board card and that card's board (ADR-0053):
+   * while that note is current and the board hidden, the title bar offers
+   * „Zurück zu <Board>“. Session state, never in `state.json`.
+   */
+  boardReturn: { path: string; board: string } | null;
   /**
    * Notes shown as the read-only preview instead of the editor (ADR-0020),
    * by path. Session state: a restart opens every note in the editor.
@@ -208,7 +219,12 @@ interface UiState {
   toggleBacklinks: () => void;
   dismissCloudHint: () => void;
   setActiveBoard: (slug: string | null) => void;
+  /**
+   * A press on a sort switch (ADR-0053): the other order is chosen in its
+   * usual direction, the chosen one is turned round.
+   */
   setTreeSort: (sort: TreeSortDto) => void;
+  setBoardReturn: (target: { path: string; board: string } | null) => void;
   togglePreview: (path: string) => void;
   endPreview: (path: string) => void;
   toggleSearchAllFiles: () => void;
@@ -355,6 +371,8 @@ export const useUi = create<UiState>((set, get) => ({
   cloudHintShown: false,
   activeBoard: null,
   treeSort: "name",
+  treeSortReversed: false,
+  boardReturn: null,
   previewing: {},
   searchAllFiles: false,
   invisibles: false,
@@ -382,6 +400,7 @@ export const useUi = create<UiState>((set, get) => ({
       cloudHintShown: state.cloudHintShown ?? false,
       activeBoard: state.activeBoard ?? null,
       treeSort: state.treeSort ?? "name",
+      treeSortReversed: state.treeSortReversed ?? false,
     });
   },
 
@@ -419,7 +438,11 @@ export const useUi = create<UiState>((set, get) => ({
   dismissCloudHint: () => set({ cloudHintShown: true }),
   setActiveBoard: (slug) =>
     set((s) => ({ activeBoard: slug, boardVisible: slug !== null, settingsView: slug === null && s.settingsView })),
-  setTreeSort: (treeSort) => set({ treeSort }),
+  setTreeSort: (treeSort) =>
+    set((s) =>
+      s.treeSort === treeSort ? { treeSortReversed: !s.treeSortReversed } : { treeSort, treeSortReversed: false },
+    ),
+  setBoardReturn: (boardReturn) => set({ boardReturn }),
   toggleSearchAllFiles: () => set((s) => ({ searchAllFiles: !s.searchAllFiles })),
   toggleInvisibles: () => set((s) => ({ invisibles: !s.invisibles })),
 

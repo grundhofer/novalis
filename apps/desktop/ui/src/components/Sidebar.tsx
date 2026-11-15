@@ -196,11 +196,12 @@ export default function Sidebar() {
   const boardVisible = useUi((s) => s.boardVisible);
   const settingsView = useUi((s) => s.settingsView);
   const treeSort = useUi((s) => s.treeSort);
+  const treeSortReversed = useUi((s) => s.treeSortReversed);
   const boards = useBoard((s) => s.boards);
 
   const rows: TreeRow[] = useMemo(
-    () => treeRows(children, expanded, treeSort, boards),
-    [children, expanded, treeSort, boards],
+    () => treeRows(children, expanded, treeSort, boards, treeSortReversed),
+    [children, expanded, treeSort, boards, treeSortReversed],
   );
   const sets = useMemo(() => siblingSets(rows), [rows]);
   /** The one chosen row, the current place (`aria-selected`, spec/02 §4.14). */
@@ -577,30 +578,39 @@ export default function Sidebar() {
             D102 (3)): compact switches with their word, as text actions
             (ADR-0051 #95: no outlined button here), the chosen one
             pressed with its direction as `arrow-up--16` / `arrow-down--16`
-            and the hidden word. The directions are fixed: name ascending,
-            modified newest first (a second press turns nothing). */}
+            and the hidden word. Each starts in its usual direction, name
+            ascending and modified newest first; a second press on the
+            chosen one turns it round (ADR-0053), which its tooltip says. */}
         <div className="sb-sort-choice" role="group" aria-label={t("tree.sort")}>
           <button
             className="sb-text-action sb-text-action--compact"
             type="button"
-            title={t("tree.sortByName")}
+            title={treeSort === "name" ? t("tree.sortReverse") : t("tree.sortByName")}
             aria-pressed={treeSort === "name"}
             onClick={() => useUi.getState().setTreeSort("name")}
           >
             {t("tree.columnName")}
-            <Icon name="arrow-up" />
-            {treeSort === "name" && <span className="sb-visually-hidden">{t("tree.sortAscending")}</span>}
+            <Icon name={treeSort === "name" && treeSortReversed ? "arrow-down" : "arrow-up"} />
+            {treeSort === "name" && (
+              <span className="sb-visually-hidden">
+                {treeSortReversed ? t("tree.sortDescending") : t("tree.sortAscending")}
+              </span>
+            )}
           </button>
           <button
             className="sb-text-action sb-text-action--compact"
             type="button"
-            title={t("tree.sortByModified")}
+            title={treeSort === "modified" ? t("tree.sortReverse") : t("tree.sortByModified")}
             aria-pressed={treeSort === "modified"}
             onClick={() => useUi.getState().setTreeSort("modified")}
           >
             {t("tree.columnModified")}
-            <Icon name="arrow-down" />
-            {treeSort === "modified" && <span className="sb-visually-hidden">{t("tree.sortDescending")}</span>}
+            <Icon name={treeSort === "modified" && treeSortReversed ? "arrow-up" : "arrow-down"} />
+            {treeSort === "modified" && (
+              <span className="sb-visually-hidden">
+                {treeSortReversed ? t("tree.sortAscending") : t("tree.sortDescending")}
+              </span>
+            )}
           </button>
         </div>
 

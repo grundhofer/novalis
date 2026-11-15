@@ -74,5 +74,6 @@ without a new ADR carrying a quoted owner yes.
 - `spellcheck` applies to prose — Markdown, plain text and the prose formats
   (ADR-0022); a code or data file is never checked, whatever the setting says.
 - The tree's file order (`treeSort`: by name, or by modified time newest
-  first, chosen in the sidebar legend, ADR-0012) is state in `state.json` next
-  to the sidebar width, not a setting: losing it costs one click.
+  first, chosen in the sidebar legend, ADR-0012; `treeSortReversed`: a second
+  press turns it round, ADR-0053) is state in `state.json` next to the sidebar
+  width, not a setting: losing it costs one click.

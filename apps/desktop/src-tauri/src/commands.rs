@@ -1569,4 +1569,21 @@ mod tests {
         assert_eq!(state.tree_sort, super::TreeSortDto::Name);
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// The direction (ADR-0053) is read back, and a file from before it
+    /// reads as not reversed.
+    #[test]
+    fn tree_sort_reversed_reads_back_and_defaults_to_false() {
+        let dir =
+            std::env::temp_dir().join(format!("novalis-state-reversed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.json");
+        std::fs::write(&path, r#"{"treeSort":"modified","treeSortReversed":true}"#).unwrap();
+        let state = super::read_ui_state(&path);
+        assert_eq!(state.tree_sort, super::TreeSortDto::Modified);
+        assert!(state.tree_sort_reversed);
+        std::fs::write(&path, r#"{"treeSort":"modified"}"#).unwrap();
+        assert!(!super::read_ui_state(&path).tree_sort_reversed);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
