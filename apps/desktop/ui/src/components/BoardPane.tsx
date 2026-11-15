@@ -197,7 +197,8 @@ export default function BoardPane() {
   }, [activeBoard, activeLoaded, allRead, reveal]);
 
   // „Neues Board …“ in the view itself (ADR-0056), as „Spalte hinzufügen“
-  // is in a board's head; the File menu and the palette keep it too.
+  // is in a board's head; the File menu and the palette keep it too. Above
+  // the boards, outside their scrolling list, so it stays in sight (ADR-0057).
   const newBoardButton = (
     <button className="sb-secondary-action sb-secondary-action--compact" type="button" onClick={() => newBoard().catch(report)}>
       <Icon name="plus" />
@@ -240,42 +241,44 @@ export default function BoardPane() {
   };
 
   return (
-    <div
-      className="boards"
-      ref={listRef}
-      aria-busy={busy || undefined}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setBoardOver(null);
-      }}
-    >
-      {boards.map((ref) => {
-        const doc = docs[ref.slug];
-        const mark = boardOver?.slug === ref.slug ? (boardOver.before ? "drop-before" : "drop-after") : undefined;
-        const onDragOver = (event: DragEvent) => {
-          if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-          const before = upperHalf(event);
-          if (boardOver?.slug !== ref.slug || boardOver.before !== before) setBoardOver({ slug: ref.slug, before });
-        };
-        const onDrop = (event: DragEvent) => {
-          if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
-          event.preventDefault();
-          dropBoard(ref.slug, upperHalf(event), event);
-        };
-        return doc ? (
-          <BoardSection key={ref.slug} board={doc} mark={mark} onDragOver={onDragOver} onDrop={onDrop} />
-        ) : (
-          // Not read yet: its name, busy (STA-06).
-          <section key={ref.slug} className="board" data-board={ref.slug} aria-label={ref.name} aria-busy="true">
-            <div className="sb-window__head">
-              <h2 className="sb-window__heading">{ref.name}</h2>
-            </div>
-          </section>
-        );
-      })}
-      <div className="boards__foot">{newBoardButton}</div>
-    </div>
+    <>
+      <div className="boards__head">{newBoardButton}</div>
+      <div
+        className="boards"
+        ref={listRef}
+        aria-busy={busy || undefined}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setBoardOver(null);
+        }}
+      >
+        {boards.map((ref) => {
+          const doc = docs[ref.slug];
+          const mark = boardOver?.slug === ref.slug ? (boardOver.before ? "drop-before" : "drop-after") : undefined;
+          const onDragOver = (event: DragEvent) => {
+            if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            const before = upperHalf(event);
+            if (boardOver?.slug !== ref.slug || boardOver.before !== before) setBoardOver({ slug: ref.slug, before });
+          };
+          const onDrop = (event: DragEvent) => {
+            if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
+            event.preventDefault();
+            dropBoard(ref.slug, upperHalf(event), event);
+          };
+          return doc ? (
+            <BoardSection key={ref.slug} board={doc} mark={mark} onDragOver={onDragOver} onDrop={onDrop} />
+          ) : (
+            // Not read yet: its name, busy (STA-06).
+            <section key={ref.slug} className="board" data-board={ref.slug} aria-label={ref.name} aria-busy="true">
+              <div className="sb-window__head">
+                <h2 className="sb-window__heading">{ref.name}</h2>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

@@ -573,11 +573,13 @@ describe("BoardPane", () => {
     expect(screen.getByRole("button", { name: "board.addColumn" })).toBeTruthy();
   });
 
-  // ADR-0056: „Neues Board …“ in the view, after the last board and in the
-  // empty state; it asks for the name as the File menu's entry does.
-  it("offers a new board after the last one and when there is none (DAT-07)", async () => {
+  // ADR-0056, ADR-0057: „Neues Board …“ in the view, above the boards and
+  // outside their scrolling list, and in the empty state; it asks for the
+  // name as the File menu's entry does.
+  it("offers a new board above the boards and when there is none (DAT-07)", async () => {
     const { unmount } = render(<BoardPane />);
-    const foot = document.querySelector(".boards > .boards__foot:last-child button")!;
+    expect(document.querySelector(".boards__head + .boards")).not.toBeNull();
+    const foot = document.querySelector(".boards__head button")!;
     expect(foot.className).toBe("sb-secondary-action sb-secondary-action--compact");
     expect(foot.textContent).toBe("board.newBoardAction");
     fireEvent.click(foot);

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
 
+**Amended by:** ADR-0057 (2026-11-15) — the button stands above the boards, in a head row outside their scrolling list, no longer after the last board.
+
 ## Context
 
 ADR-0054 made the pinned „Boards“ tab the place where every board is kept. A new board could still only be made from the File menu („Neues Board …“) or the palette; the view itself offered nothing, and its empty state only pointed at the menu (DAT-07, „no button of its own“ since ADR-0048). The owner, trying v1.4.0, did not find a way to add a board there.

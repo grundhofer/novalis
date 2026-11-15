@@ -1058,6 +1058,12 @@ File menu and the palette keep theirs.
 
 Recorded as **ADR-0056**.
 
+The button's place (verbatim „die sollte nicht ganz unten sein“, then „Oben,
+fest“): „Neues Board …“ in a head row above the boards that does not scroll
+away. Amends **ADR-0056**.
+
+Recorded as **ADR-0057**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
