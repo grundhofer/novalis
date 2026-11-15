@@ -77,9 +77,8 @@ describe("the card context menu", () => {
 
   it("runs the hover actions on it", async () => {
     await openCardContextMenu(board.cards[0] as never, board as never);
-    runCardMenuAction("card.rename");
-    expect(useUi.getState().prompt?.titleKey).toBe("board.renameCardTitle");
-    expect(useUi.getState().prompt?.submitKey).toBe("app.rename");
+    runCardMenuAction("card.edit");
+    expect(useUi.getState().cardEdit).toEqual({ slug: "plan", id: "c1" });
     runCardMenuAction("card.delete");
     expect(useUi.getState().prompt?.confirm?.confirmKey).toBe("app.delete");
     expect(useBoard.getState().apply).not.toHaveBeenCalled();
@@ -99,8 +98,9 @@ describe("the card context menu", () => {
   it("does nothing for a card that is gone, and leaves other ids alone", async () => {
     await openCardContextMenu(board.cards[0] as never, board as never);
     useBoard.setState({ board: { ...board, cards: [] } as never, docs: { plan: { ...board, cards: [] } as never } });
-    expect(runCardMenuAction("card.rename")).toBe(true);
-    expect(useUi.getState().prompt).toBeNull();
+    useUi.setState({ cardEdit: null });
+    expect(runCardMenuAction("card.edit")).toBe(true);
+    expect(useUi.getState().cardEdit).toBeNull();
     expect(runCardMenuAction("tree.rename")).toBe(false);
   });
 });

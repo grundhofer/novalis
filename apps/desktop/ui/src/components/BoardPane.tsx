@@ -4,16 +4,15 @@ import { useTranslation } from "react-i18next";
 import type { DragEvent } from "react";
 
 import type { BoardDto, BoardViewDto, CardDto, CardSortDto, ChangedWithinDto, ColumnDto, PositionDto } from "../ipc/client";
-import { cardOrder, cardPasses, filterCount, SORTS, SPANS } from "../lib/boardView";
+import { cardOrder, cardPasses, dueDay, filterCount, isOverdue, SORTS, SPANS } from "../lib/boardView";
 import {
   deleteCard,
-  editDescription,
+  editCard,
   linkNote,
   moveCardToColumn,
   openCardContextMenu,
   openCardNote,
   openFromBoard,
-  renameCard,
 } from "../lib/cardActions";
 import { createNoteFromCard, deleteBoard } from "../lib/commands";
 import { NO_DRAG_IMAGE } from "../lib/dragImage";
@@ -57,6 +56,9 @@ import "../styles/board.css";
  * the palette, a link, a backlink, „Zurück zu <Board>“ — scrolls to it and
  * expands it.
  */
+
+/** The words of a card's priority (ADR-0054). */
+const PRIORITY_KEYS = { high: "board.priorityHigh", medium: "board.priorityMedium", low: "board.priorityLow" } as const;
 
 /** The words of the spans and the orders (ADR-0054). */
 const SPAN_KEYS: Record<ChangedWithinDto, string> = {
@@ -259,7 +261,7 @@ interface SectionProps {
 
 /** One board of the view (ADR-0054): its head, its hints, its columns. */
 function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const notice = useBoard((s) => s.notices[board.slug]);
   const view = board.view;
   /** The session's search of this board (ADR-0054), never in `board.json`. */
@@ -323,6 +325,17 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
     allOf(column)
       .filter((card) => cardPasses(card, search, view, now))
       .sort(cardOrder(view));
+  /** A due day in the app's language, short, with the year only when it is not this one. */
+  const formatDay = (due: string): string => {
+    const day = dueDay(due);
+    if (!day) return due;
+    // The tests' translation stub has no `i18n`; the system's language then.
+    return new Intl.DateTimeFormat(i18n?.language, {
+      day: "numeric",
+      month: "short",
+      ...(day.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    }).format(day);
+  };
   /** The column the dragged card comes from. */
   const dragColumn = drag === null ? null : (board.cards.find((card) => card.id === drag)?.column ?? null);
   const filters = filterCount(search, view);
@@ -510,8 +523,7 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
    */
   const cardEntries = (card: CardDto): MoreEntry[] => [
     ...(card.notes.length > 0 ? [{ label: t("board.openNote"), onSelect: () => openCardNote(card) }] : []),
-    { label: t("menu.file.rename"), onSelect: () => renameCard(card) },
-    { label: t("board.editDescription"), onSelect: () => editDescription(card) },
+    { label: t("board.editCard"), onSelect: () => editCard(card) },
     { label: t("board.linkNote"), onSelect: () => linkNote(card) },
     { label: t("board.createNote"), onSelect: () => void createNoteFromCard(card).catch(report) },
     ...(board.columns.length > 1
@@ -938,7 +950,12 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                               dangerouslySetInnerHTML={{ __html: card.descriptionHtml }}
                             />
                           )}
-                          {(card.notes.length > 0 || board.orphanCards.includes(card.id)) && (
+                          {(card.notes.length > 0 ||
+                            board.orphanCards.includes(card.id) ||
+                            card.labels.length > 0 ||
+                            card.due ||
+                            card.priority ||
+                            card.assignee) && (
                             <p className="sb-card__meta">
                               {board.orphanCards.includes(card.id) && (
                                 <span className="sb-status sb-status--warning">
@@ -946,6 +963,38 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                                   {t("board.columnMissing")}
                                 </span>
                               )}
+                              {/* The fields of ADR-0054: a high priority and an
+                                  overdue day as sebaro's warning status, the rest
+                                  as words; the labels as categories, each with the
+                                  tone chosen for it on this board. */}
+                              {card.priority === "high" ? (
+                                <span className="sb-status sb-status--warning">
+                                  <Icon name="warning" />
+                                  {t("board.priorityWord", { level: t(PRIORITY_KEYS.high) })}
+                                </span>
+                              ) : (
+                                card.priority && (
+                                  <span>{t("board.priorityWord", { level: t(PRIORITY_KEYS[card.priority]) })}</span>
+                                )
+                              )}
+                              {card.due &&
+                                (isOverdue(card.due, now) ? (
+                                  <span className="sb-status sb-status--warning">
+                                    <Icon name="warning" />
+                                    {t("board.overdue")} · {formatDay(card.due)}
+                                  </span>
+                                ) : (
+                                  <span>{t("board.due", { date: formatDay(card.due) })}</span>
+                                ))}
+                              {card.assignee && <span>{card.assignee}</span>}
+                              {card.labels.map((label) => {
+                                const tone = view.labelTones[label];
+                                return (
+                                  <span key={label} className={tone ? `sb-category sb-category--${tone}` : "sb-category"}>
+                                    {label}
+                                  </span>
+                                );
+                              })}
                               {card.notes.map((note) => (
                                 <span className={missing(note) ? "card-note missing" : "card-note"} key={note}>
                                   <Icon name="file-text" />

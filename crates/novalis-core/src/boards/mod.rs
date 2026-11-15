@@ -90,6 +90,14 @@ pub struct BoardView {
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub sort_reversed: bool,
+    /// The tone each label has on this board, 1 to 6 for sebaro's
+    /// `--sb-category-1…6`; a label without one shows its word only.
+    #[serde(
+        default,
+        rename = "labelTones",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pub label_tones: BTreeMap<String, u8>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -115,11 +123,27 @@ pub struct Card {
     /// what every earlier version wrote.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Free tags (ADR-0054), each once regardless of case; absent when none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    /// The due date, a calendar day `YYYY-MM-DD` (ADR-0054).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due: Option<String>,
+    /// `high`, `medium` or `low` (ADR-0054). Text, so a step a later version
+    /// adds still reads.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    /// Who the card is with, a free name (ADR-0054).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deleted: Option<String>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
+
+/// The steps of a card's priority (ADR-0054), highest first.
+pub const PRIORITIES: [&str; 3] = ["high", "medium", "low"];
 
 impl Card {
     pub fn is_deleted(&self) -> bool {
@@ -189,6 +213,14 @@ pub enum CardChange {
         column: Option<String>,
         position: Position,
     },
+    /// The labels, trimmed, empty ones left out, each once regardless of case.
+    Labels(Vec<String>),
+    /// `YYYY-MM-DD`; the empty string clears it.
+    Due(String),
+    /// `high`, `medium` or `low`; the empty string clears it.
+    Priority(String),
+    /// The empty string clears it.
+    Assignee(String),
     Delete,
     Restore,
 }
@@ -626,6 +658,10 @@ pub fn add_card(vault: &Path, slug: &str, new: NewCard) -> CoreResult<Card> {
         created: now.clone(),
         updated: now,
         description: new.description.filter(|d| !d.is_empty()),
+        labels: Vec::new(),
+        due: None,
+        priority: None,
+        assignee: None,
         deleted: None,
         extra: BTreeMap::new(),
     };
@@ -657,10 +693,70 @@ fn apply_change(card: &mut Card, change: &CardChange, cards: &[CardDoc]) -> Core
             card.order = order_for(cards, &column, position, Some(&card.id))?;
             card.column = column;
         }
+        CardChange::Labels(labels) => {
+            let mut kept: Vec<String> = Vec::new();
+            for label in labels.iter().map(|l| nfc(l.trim())) {
+                if !label.is_empty() && !kept.iter().any(|k| fold(k) == fold(&label)) {
+                    kept.push(label);
+                }
+            }
+            card.labels = kept;
+        }
+        CardChange::Due(d) => {
+            let d = d.trim();
+            if !d.is_empty() && !is_calendar_day(d) {
+                return Err(CoreError::Parse {
+                    path: None,
+                    detail: format!("due must be a day YYYY-MM-DD: {d}"),
+                });
+            }
+            card.due = (!d.is_empty()).then(|| d.to_string());
+        }
+        CardChange::Priority(p) => {
+            if !p.is_empty() && !PRIORITIES.contains(&p.as_str()) {
+                return Err(CoreError::Parse {
+                    path: None,
+                    detail: format!("priority must be high, medium or low: {p}"),
+                });
+            }
+            card.priority = (!p.is_empty()).then(|| p.clone());
+        }
+        CardChange::Assignee(a) => {
+            let a = nfc(a.trim());
+            card.assignee = (!a.is_empty()).then_some(a);
+        }
         CardChange::Delete => card.deleted = Some(now_rfc3339_ms()),
         CardChange::Restore => card.deleted = None,
     }
     Ok(())
+}
+
+/// Whether `s` is a real calendar day written `YYYY-MM-DD`.
+fn is_calendar_day(s: &str) -> bool {
+    let b = s.as_bytes();
+    if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        return false;
+    }
+    let num = |r: std::ops::Range<usize>| s.get(r).and_then(|x| x.parse::<u32>().ok());
+    let (Some(y), Some(m), Some(d)) = (num(0..4), num(5..7), num(8..10)) else {
+        return false;
+    };
+    if !s
+        .chars()
+        .enumerate()
+        .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit())
+    {
+        return false;
+    }
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let days = match m {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=days).contains(&d)
 }
 
 /// Apply one field-level change: read → apply → write under the read-time
@@ -1699,6 +1795,7 @@ mod tests {
             v.changed_within = Some("7d".into());
             v.sort = Some("title".into());
             v.sort_reversed = true;
+            v.label_tones.insert("Kunde X".into(), 3);
         })
         .unwrap();
         let view = b.view.unwrap();
@@ -1709,11 +1806,104 @@ mod tests {
             "\"changedWithin\": \"7d\"",
             "\"sort\": \"title\"",
             "\"sortReversed\": true",
+            "\"labelTones\"",
         ] {
             assert!(raw.contains(key), "{key} missing in {raw}");
         }
         let back = read_board(t.path(), "atlas").unwrap().board.view.unwrap();
         assert_eq!(back, view);
+    }
+
+    /// ADR-0054 part 3: the new card fields, absent until set, checked when set.
+    #[test]
+    fn card_fields_are_written_checked_and_cleared() {
+        let t = vault();
+        let c = add(t.path(), "Spec", None, Position::Last);
+        let file = t.path().join(format!("boards/atlas/cards/{}.json", c.id));
+        let raw = std::fs::read_to_string(&file).unwrap();
+        for key in ["labels", "due", "priority", "assignee"] {
+            assert!(
+                !raw.contains(&format!("\"{key}\"")),
+                "{key} written before it was set"
+            );
+        }
+
+        let set = |change: CardChange| update_card(t.path(), "atlas", &c.id, &change, None);
+        let card = set(CardChange::Labels(vec![
+            " Kunde X ".into(),
+            "kunde x".into(),
+            "".into(),
+            "blockiert".into(),
+        ]))
+        .unwrap();
+        assert_eq!(
+            card.labels,
+            vec!["Kunde X".to_string(), "blockiert".to_string()]
+        );
+        assert_eq!(
+            set(CardChange::Due("2028-02-29".into()))
+                .unwrap()
+                .due
+                .as_deref(),
+            Some("2028-02-29")
+        );
+        for bad in [
+            "2027-02-29",
+            "2026-13-01",
+            "26-11-20",
+            "2026-11-2x",
+            "heute",
+        ] {
+            assert_eq!(
+                set(CardChange::Due(bad.into())).unwrap_err().code(),
+                "parse",
+                "{bad}"
+            );
+        }
+        assert_eq!(
+            set(CardChange::Priority("high".into()))
+                .unwrap()
+                .priority
+                .as_deref(),
+            Some("high")
+        );
+        assert_eq!(
+            set(CardChange::Priority("urgent".into()))
+                .unwrap_err()
+                .code(),
+            "parse"
+        );
+        assert_eq!(
+            set(CardChange::Assignee(" Anna ".into()))
+                .unwrap()
+                .assignee
+                .as_deref(),
+            Some("Anna")
+        );
+
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(raw.contains("\"due\": \"2028-02-29\""));
+        assert!(raw.contains("\"priority\": \"high\""));
+        let back = read_card(t.path(), "atlas", &c.id).unwrap().card;
+        assert_eq!(back.assignee.as_deref(), Some("Anna"));
+
+        set(CardChange::Labels(vec![])).unwrap();
+        set(CardChange::Due(String::new())).unwrap();
+        set(CardChange::Priority(String::new())).unwrap();
+        let card = set(CardChange::Assignee("  ".into())).unwrap();
+        assert!(
+            card.labels.is_empty()
+                && card.due.is_none()
+                && card.priority.is_none()
+                && card.assignee.is_none()
+        );
+        let raw = std::fs::read_to_string(&file).unwrap();
+        for key in ["labels", "due", "priority", "assignee"] {
+            assert!(
+                !raw.contains(&format!("\"{key}\"")),
+                "{key} left after clearing"
+            );
+        }
     }
 
     #[test]

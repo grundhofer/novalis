@@ -45,6 +45,8 @@ const Editor = lazy(() => import("./editor/Editor"));
 const Palette = lazy(() => import("./components/Palette"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 const BoardPane = lazy(() => import("./components/BoardPane"));
+// „Karte bearbeiten“ (ADR-0054): loaded the first time a card is edited.
+const CardDialog = lazy(() => import("./components/CardDialog"));
 const Viewer = lazy(() => import("./components/Viewer"));
 const Preview = lazy(() => import("./components/Preview"));
 const TablePreview = lazy(() => import("./components/TablePreview"));
@@ -85,6 +87,7 @@ export default function App() {
   const cloudHintShown = useUi((s) => s.cloudHintShown);
   const overlay = useUi((s) => s.overlay);
   const settingsView = useUi((s) => s.settingsView);
+  const cardEdit = useUi((s) => s.cardEdit);
   // The settings view has no action zone (spec/02 §4.24, D74); a failure or
   // a toast still needs its place, so the zone shows for them alone
   // (docs/sebaro-luecken.md T).
@@ -551,6 +554,11 @@ export default function App() {
         </Suspense>
       )}
       <Prompt />
+      {cardEdit && (
+        <Suspense fallback={null}>
+          <CardDialog />
+        </Suspense>
+      )}
     </div>
   );
 }

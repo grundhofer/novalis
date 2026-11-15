@@ -45,6 +45,18 @@ pub struct CardView {
     /// Markdown text under the title; absent when the card has none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Free tags (ADR-0054); absent when the card has none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    /// The due date, `YYYY-MM-DD` (ADR-0054); absent when none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due: Option<String>,
+    /// `high`, `medium` or `low` (ADR-0054); absent when none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    /// Who the card is with (ADR-0054); absent when nobody.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
     /// The tombstone stamp, on a card `card rm` has removed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deleted: Option<String>,
@@ -75,7 +87,8 @@ pub struct CardOneOut {
 #[serde(untagged)]
 pub enum CardOut {
     List(CardListOut),
-    Card(CardOneOut),
+    /// Boxed: a card is far larger than the list's handful of pointers.
+    Card(Box<CardOneOut>),
 }
 
 pub fn card_view(slug: &str, card: &Card) -> CardView {
@@ -89,15 +102,19 @@ pub fn card_view(slug: &str, card: &Card) -> CardView {
         created: card.created.clone(),
         updated: card.updated.clone(),
         description: card.description.clone(),
+        labels: card.labels.clone(),
+        due: card.due.clone(),
+        priority: card.priority.clone(),
+        assignee: card.assignee.clone(),
         deleted: card.deleted.clone(),
     }
 }
 
 fn one(slug: &str, card: &Card, dry_run: bool) -> CardOut {
-    CardOut::Card(CardOneOut {
+    CardOut::Card(Box::new(CardOneOut {
         card: card_view(slug, card),
         dry_run,
-    })
+    }))
 }
 
 /// `--after ID`, `--first`, `--last`; last when none was given.
@@ -275,7 +292,7 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
                     .with_path(format!("{}/board.json#columns", board_path(&args.board)))
             })?;
         let now = novalis_core::util::now_rfc3339_ms();
-        return Ok(CardOut::Card(CardOneOut {
+        return Ok(CardOut::Card(Box::new(CardOneOut {
             card: CardView {
                 board: args.board.clone(),
                 id: String::new(),
@@ -286,10 +303,14 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
                 created: now.clone(),
                 updated: now,
                 description: new.description.filter(|d| !d.is_empty()),
+                labels: Vec::new(),
+                due: None,
+                priority: None,
+                assignee: None,
                 deleted: None,
             },
             dry_run: true,
-        }));
+        })));
     }
 
     let card = boards::add_card(&ctx.vault, &args.board, new)?;
@@ -440,6 +461,41 @@ mod tests {
         );
     }
 
+    /// ADR-0054: the four fields are new keys in the card's JSON, absent
+    /// while empty, so an untouched card prints as before.
+    #[test]
+    fn card_view_carries_the_fields_only_when_set() {
+        let mut card = Card {
+            id: "01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+            title: "A".into(),
+            column: "todo".into(),
+            order: "a0".into(),
+            notes: vec![],
+            created: "2026-09-05T08:41:12.345Z".into(),
+            updated: "2026-09-05T08:41:12.345Z".into(),
+            description: None,
+            labels: vec![],
+            due: None,
+            priority: None,
+            assignee: None,
+            deleted: None,
+            extra: Default::default(),
+        };
+        let plain = serde_json::to_value(card_view("atlas", &card)).unwrap();
+        for key in ["labels", "due", "priority", "assignee"] {
+            assert!(plain.get(key).is_none(), "{key}");
+        }
+        card.labels = vec!["Kunde".into()];
+        card.due = Some("2026-11-20".into());
+        card.priority = Some("high".into());
+        card.assignee = Some("Anna".into());
+        let full = serde_json::to_value(card_view("atlas", &card)).unwrap();
+        assert_eq!(full["labels"], serde_json::json!(["Kunde"]));
+        assert_eq!(full["due"], "2026-11-20");
+        assert_eq!(full["priority"], "high");
+        assert_eq!(full["assignee"], "Anna");
+    }
+
     #[test]
     fn if_updated_is_a_conflict_on_a_dry_run_too() {
         let card = Card {
@@ -451,6 +507,10 @@ mod tests {
             created: "2026-09-05T08:41:12.345Z".into(),
             updated: "2026-09-05T08:41:12.345Z".into(),
             description: None,
+            labels: vec![],
+            due: None,
+            priority: None,
+            assignee: None,
             deleted: None,
             extra: Default::default(),
         };

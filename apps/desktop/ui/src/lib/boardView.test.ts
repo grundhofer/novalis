@@ -3,10 +3,31 @@ import { describe, expect, it } from "vitest";
 import type { BoardViewDto, CardDto } from "../ipc/client";
 import { cardOrder, cardPasses, filterCount, spanStart } from "./boardView";
 
-const plain: BoardViewDto = { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false };
+const plain: BoardViewDto = {
+  collapsed: false,
+  hiddenColumns: [],
+  changedWithin: null,
+  sort: null,
+  sortReversed: false,
+  labelTones: {},
+};
 
 const card = (id: string, title: string, order: string, updated: string, created = updated, description: string | null = null) =>
-  ({ id, title, column: "todo", order, notes: [], updated, created, description, descriptionHtml: null }) as CardDto;
+  ({
+    id,
+    title,
+    column: "todo",
+    order,
+    notes: [],
+    updated,
+    created,
+    description,
+    descriptionHtml: null,
+    labels: [],
+    due: null,
+    priority: null,
+    assignee: null,
+  }) as CardDto;
 
 // ADR-0054: which cards a column shows, and in which order.
 describe("the board's filter", () => {

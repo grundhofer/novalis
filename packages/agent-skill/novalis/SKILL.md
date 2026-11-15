@@ -86,6 +86,8 @@ Available now (the core harness):
 | `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
 | `card mv <id> …` · `card set <id> [--title T] [--description TEXT] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
 
+A card in the JSON may also carry `labels`, `due` (`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee`, each absent when empty. The CLI reads them; it does not set them yet, the app does.
+
 `board new` creates a board with no columns; give it columns with
 `board columns --set`. Never write a board or card file by hand.
 

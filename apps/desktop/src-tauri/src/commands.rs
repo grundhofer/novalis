@@ -1216,6 +1216,12 @@ pub async fn board_write(
                 v.changed_within = view.changed_within.map(|w| w.as_str().to_string());
                 v.sort = view.sort.map(|s| s.as_str().to_string());
                 v.sort_reversed = view.sort_reversed;
+                v.label_tones = view
+                    .label_tones
+                    .iter()
+                    .filter(|(_, tone)| (1..=6).contains(*tone))
+                    .map(|(label, tone)| (label.clone(), *tone))
+                    .collect();
             })?;
         }
         if let Some(name) = name {
@@ -1316,6 +1322,22 @@ pub async fn card_write(
             CardOpDto::Remove { id } => boards::remove_card(&root, &slug, &id)?,
             CardOpDto::MoveToBoard { id, board } => {
                 boards::move_card_to_board(&root, &slug, &id, &normalize_rel(&board)?)?
+            }
+            CardOpDto::SetLabels { id, labels } => {
+                boards::update_card(&root, &slug, &id, &CardChange::Labels(labels), None)?
+            }
+            CardOpDto::SetDue { id, due } => {
+                boards::update_card(&root, &slug, &id, &CardChange::Due(due), None)?
+            }
+            CardOpDto::SetPriority { id, priority } => boards::update_card(
+                &root,
+                &slug,
+                &id,
+                &CardChange::Priority(priority.map(|p| p.as_str().to_string()).unwrap_or_default()),
+                None,
+            )?,
+            CardOpDto::SetAssignee { id, assignee } => {
+                boards::update_card(&root, &slug, &id, &CardChange::Assignee(assignee), None)?
             }
         };
         Ok(CardDto::from(&card))

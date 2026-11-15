@@ -1,6 +1,6 @@
 # 0054 — Boards for projects: every board in one view, filtered, sorted, with more on a card
 
-**Status:** accepted; parts 1 and 2 built, part 3 to come (see Consequences) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
+**Status:** accepted; parts 1, 2 and 3a built, 3b to come (see Consequences) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
 
 ## Context
 
@@ -30,7 +30,17 @@ The owner's words on 2026-11-15: „wir müssen die board funktionalität aufboh
 
 **Part 3 — new card fields** (PLAN.md §8.2, in the card file, in the CLI's card JSON as new keys only): labels, a due date, a priority, an assignee. They show on the card, are filterable, and due date and priority are sortable.
 
-The details of parts 2 and 3 that the owner was not asked about yet (where the filter sits in the head, the priority's steps, how labels look, the due date's form) are asked before each part is built.
+**Part 3a — the fields (built):**
+
+- **One dialog „Karte bearbeiten“** with the title, the description, the labels, the due day, the priority and the assignee. It opens from „Bearbeiten …“ in the card's „Mehr“ and its context menu, and from a click on a card without a note. „Umbenennen“ and „Beschreibung bearbeiten“ go: their dialogs and three strings. Only the fields that changed are written, each its own field change (§2.3 rule 10).
+- **Labels** are typed comma-separated, and each is kept once regardless of case. On the card each shows as sebaro's category (spec/01 §1.9), the word with a dot in the tone **the user chose for it**: under the field each label has a select of the six tones (Tanne, Jade, Taube, Veilchen, Messing, Malve) or none. The tone holds for the label on this board, as `view.labelTones` in `board.json`. A label without a tone shows its word only.
+- **Priority** is Hoch, Mittel, Niedrig or none. On the card „Priorität Hoch“ is sebaro's warning status, and the others are grey words.
+- **Due day** is the system's date field. On the card it shows as „fällig 20. Nov.“ (the year only when it is not this one). Before today it is the warning status „überfällig · …“.
+- **Assignee** is a free name. The field offers the names already on this board.
+- **Card file:** `labels`, `due`, `priority`, `assignee`, each absent while empty (§8.2). Due and priority are checked in the core. Priority is text, so a step a later version adds still reads (and shows as none).
+- **CLI:** `card ls` and the card shapes carry the four keys when set, nothing else changes. Setting them from the CLI is not part of this.
+
+**Part 3b — to come:** filter by label, priority, assignee and due („überfällig / heute / diese Woche / ohne Datum“), and sort by due day (earliest first) and by priority.
 
 ## Rejected alternatives
 
@@ -53,7 +63,7 @@ The details of parts 2 and 3 that the owner was not asked about yet (where the f
 - The CLI is unchanged in parts 1 and 2: `view` is in the file, and `novalis board show` does not print it.
 - Part 2: `board_write` takes the whole known view (`BoardViewDto`) in place of part 1's `collapsed`. The core's `set_view` changes it on the file's view, so unknown keys stay. `BoardDto.view` replaces `collapsed`. One icon more in the app's set (`filter`). 23 catalog strings. `MoreMenu` can show a word and an icon as its button and switch choices each on its own (`menuitemcheckbox`). A column's count is the count of the cards it shows, and a column whose cards the filter all hides says „Keine Karte passt zum Filter.“ A new card that does not pass the filter is written but not shown.
 
-**Owner approval:** 2026-11-15. The ask is quoted in Context. The answers to the questions the same day, verbatim as chosen: „Alle untereinander, einklappbar (Recommended)“; filters „Text (Titel + Beschreibung), Spalten ausblenden, Neue Kartenfelder, Zuletzt geändert“; sortable „Karten in den Spalten, Die Boards untereinander“; stored „In board.json (Recommended)“; card fields „Labels, Fälligkeit, Verantwortlich, Priorität“; cut „Mehrere PRs nacheinander (Recommended)“; tab „Ein Reiter „Boards“ (Recommended)“; order „Wie im Baum, per Ziehen (Recommended)“; height „Bis Fensterhöhe, Spalten scrollen (Recommended)“; collapsed „Kopfzeile mit Zählern (Recommended)“. Part 2, the same day: place „Knopf „Filter“ im Kopf (Recommended)“; search text stored „Nein, nur solange die App läuft (Recommended)“; spans „Feste Stufen (Recommended)“; card sort „Für das ganze Board (Recommended)“.
+**Owner approval:** 2026-11-15. The ask is quoted in Context. The answers to the questions the same day, verbatim as chosen: „Alle untereinander, einklappbar (Recommended)“; filters „Text (Titel + Beschreibung), Spalten ausblenden, Neue Kartenfelder, Zuletzt geändert“; sortable „Karten in den Spalten, Die Boards untereinander“; stored „In board.json (Recommended)“; card fields „Labels, Fälligkeit, Verantwortlich, Priorität“; cut „Mehrere PRs nacheinander (Recommended)“; tab „Ein Reiter „Boards“ (Recommended)“; order „Wie im Baum, per Ziehen (Recommended)“; height „Bis Fensterhöhe, Spalten scrollen (Recommended)“; collapsed „Kopfzeile mit Zählern (Recommended)“. Part 2, the same day: place „Knopf „Filter“ im Kopf (Recommended)“; search text stored „Nein, nur solange die App läuft (Recommended)“; spans „Feste Stufen (Recommended)“; card sort „Für das ganze Board (Recommended)“. Part 3, the same day: editing „Ein Dialog „Karte bearbeiten“ (Recommended)“; priority „Hoch / Mittel / Niedrig / keine (Recommended)“; labels „Farbige Chips“, then, told that sebaro's category wants a tone the user chose, „Ton pro Label wählbar (Recommended)“; due „Datum + „überfällig“ (Recommended)“.
 
 ## Sources
 

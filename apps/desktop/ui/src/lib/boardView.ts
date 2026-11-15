@@ -69,7 +69,17 @@ export function filterCount(search: string, view: BoardViewDto): number {
   return (search.trim() ? 1 : 0) + (view.hiddenColumns.length > 0 ? 1 : 0) + (view.changedWithin ? 1 : 0);
 }
 
-/** The view with no filter and the manual order, collapsed as it was. */
-export function plainView(view: BoardViewDto): BoardViewDto {
-  return { collapsed: view.collapsed, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false };
+/** A due day `YYYY-MM-DD` as the local midnight it starts at; `null` when it is no day. */
+export function dueDay(due: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(due);
+  if (!match) return null;
+  const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(day.getTime()) ? null : day;
 }
+
+/** Whether a card's due day is before today (ADR-0054). */
+export function isOverdue(due: string | null, now: Date): boolean {
+  const day = due ? dueDay(due) : null;
+  return day !== null && day.getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+}
+

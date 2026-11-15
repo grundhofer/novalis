@@ -191,3 +191,39 @@ button.card-note-name:hover {
   outline: var(--sb-focus-ring);
   outline-offset: var(--sb-focus-offset);
 }
+
+/* ------------------------------------------------------- card dialog */
+/* „Karte bearbeiten“ (ADR-0054): sebaro's dialog with several fields, a
+   field's gap between them; the due day and the priority side by side
+   where there is room; under the labels each label's tone, the category
+   dot and its word, then the tone's select. */
+.card-dialog form > .sb-field + .sb-field,
+.card-dialog form > .sb-field + .card-dialog__row,
+.card-dialog form > .card-dialog__row + .sb-field {
+  margin-block-start: var(--sb-space-4);
+}
+
+.card-dialog__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
+  /* The system's date field is taller than a select: each field keeps its
+     own height. */
+  align-items: start;
+  gap: var(--sb-space-4);
+}
+
+.card-dialog__tones {
+  display: grid;
+  gap: var(--sb-space-2);
+  margin: var(--sb-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-dialog__tones > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sb-space-2) var(--sb-space-4);
+}
