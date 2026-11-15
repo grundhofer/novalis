@@ -65,9 +65,16 @@ novalis [--vault <dir>] [--json | --plain] [--no-index] <command> [args] [--dry-
   `[text](relative/path.md)` resolve relative to the note, percent-decoded.
   A stem containing `#` or `|` cannot be a target; `doctor` reports it. No
   alias resolution; aliases are neither read nor written.
-- **Link forms** in `links[]` results: `form` is one of `wikilink`,
-  `wikilink-label`, `wikilink-heading`, `wikilink-path`, `markdown`, `card`.
-  `resolvedPath` is `null` when unresolved.
+- **Link forms** in `links[]` results: `form` is one of `wiki`
+  (`[[stem]]`, also `[[folder/stem]]`), `wiki_label` (`[[stem|label]]`),
+  `wiki_heading` (`[[stem#h]]`) or `markdown` (`[text](path)`). Cards are not
+  links: `links <note>` lists them apart, in `cards[]`. `resolvedPath` is
+  `null` when unresolved.
+- **A root note with a shared stem** (`index.md` beside `reading/index.md`)
+  has no wikilink text that resolves: `[[index]]` is ambiguous and a
+  leading `/` is not read. Its `linkTarget` is then the bare stem, which does
+  not resolve either. Link it with a Markdown link relative to the linking
+  note (`[Index](../index.md)`), or ask the user to rename one of the two.
 - **Frontmatter:** YAML between `---` fences at the top of the file. Only
   `title` and `tags` are read. The CLI writes frontmatter only through `meta`
   and `new --tag`, as line-level edits of named keys; a frontmatter block that
@@ -100,10 +107,14 @@ Flags: `--body` (body only), `--frontmatter` (frontmatter only), `--lines A:B`
 note first). Text on a TTY or with `--plain`; JSON otherwise:
 
 ```json
-{"items":[{"path":"…","title":"…","linkTarget":"…","frontmatter":{"title":"…","tags":["…"]},
+{"items":[{"path":"…","title":"…","linkTarget":"…","frontmatter":{"keys":["title","status","…"],"title":"…","tags":["…"]},
   "body":"…","sha256":"…","utf8":true,
-  "links":[{"target":"Local-First Software","form":"wikilink","line":12,"resolvedPath":"reading/Local-First Software.md"}]}]}
+  "links":[{"target":"Local-First Software","form":"wiki","line":12,"resolvedPath":"reading/Local-First Software.md"}]}]}
 ```
+
+`frontmatter` names the keys the block holds (`keys`, in file order) and
+gives the two it reads, `title` and `tags` (the frontmatter's tags only;
+`ls` also merges inline `#tags`).
 
 Exit 8 for a cloud-only note without `--materialize`. `utf8: false` means the
 file is not valid UTF-8 and `body` is a lossy reading: never write it back
@@ -121,7 +132,8 @@ notes-only.
 
 Flags: `--tag T` (repeatable; writes a `tags:` key), `--content <text|->`
 (`-` reads stdin), `--exist-ok`. Title = stem; the file starts with an H1 only
-if `--content` provides one. Output `{path, stem, linkTarget, existing}`.
+if `--content` provides one. Output `{path, stem, linkTarget, existing,
+sha256}`; `sha256` is the next `--if-match` for an `edit` of the new note.
 Exit 4 if the path exists (or a name that differs only by case or Unicode
 normalization exists) and `--exist-ok` is absent; exit 2 for a path outside
 the vault, under `.novalis/`, or without `.md`.
@@ -168,7 +180,8 @@ for a malformed `--date`, 8 for a cloud-only note without `--materialize`.
 Flags: `--set k=v` (repeatable), `--unset k`, `--add-tag T`, `--rm-tag T`,
 `--if-match`, `--dry-run`. Strict YAML parse first; only the named keys are
 rewritten as lines; unknown keys and comments are preserved; a missing
-frontmatter block is created. Output `{path, frontmatter, sha256After}`.
+frontmatter block is created. Output `{path, frontmatter, sha256After}`,
+`frontmatter` in the shape `cat` gives it.
 
 ### `mv <from> <to>` — Status: harness
 
@@ -191,6 +204,9 @@ Exit 5 if `cloudOnlySkipped` is non-empty, or with `--no-relink` while
 backlinks exist, unless `--force`. `conflicts` lists files whose precondition
 failed during the rewrite; fix those by hand (`cat`, then `edit --find
 --replace`).
+
+The result also lists `skipped`: notes that were not valid UTF-8 and were
+left alone, so a link in them still points at the old path.
 
 ### `rm <note>` — Status: harness
 
@@ -216,6 +232,10 @@ yields notes only.
 ```json
 {"items":[{"path":"…","line":14,"snippet":"…"}],"truncated":false,"cloudOnlySkipped":3,"notUtf8Skipped":0}
 ```
+
+A hit carries no `linkTarget`: take it from `ls` (or `cat`) for the hit's
+`path` before writing a link. The snippet is always there; `--snippets` is
+accepted and changes nothing.
 
 ### `links` — Status: harness
 
@@ -268,17 +288,34 @@ not there is exit 3.
 A card id is a ULID and is unique across the vault, so `card mv`, `card set`
 and `card rm` take no board argument.
 
-- `card ls [--board B] [--note <note>] [--column C]` →
-  `{items:[{board,id,title,column,order,notes,created,updated,description?}],
+A card has four optional fields (ADR-0054), each absent from the JSON while
+empty: `labels` (free tags, each once regardless of case), `due` (a local day
+`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee` (a free
+name). A label's colour is set per board in the app and is not the CLI's.
+
+- `card ls [--board B] [--note <note>] [--column C] [--label L] [--priority P] [--assignee A] [--due WHEN]` →
+  `{items:[{board,id,title,column,order,notes,created,updated,description?,labels?,due?,priority?,assignee?}],
   truncated, cloudOnlySkipped}`, sorted by `(board, column order, order, id)`.
   Tombstones are never listed. `--column` matches the column **id** exactly
   (`card ls` spans boards); `--note` takes a note reference and must resolve.
-- `card add <b> --title T [--description TEXT] [--column C] [--note <note>]… [--after ID | --first | --last]`
+  `--label` matches regardless of case, `--assignee` exactly. `--due` is
+  `overdue` (before today), `today`, `7d` (today and the six days after) or
+  `none` (no due day); days are the machine's local ones, so never compute
+  "today" yourself. `overdue` and `7d` do not overlap, and none of them
+  looks at the column: a card in the user's „done“ column is still overdue,
+  so leave that column out yourself. `--column` takes the column **id**
+  only; a name matches nothing and is no error. Each filter is given once
+  (`--label` is not repeatable); they combine (AND). A bad `--priority` or
+  `--due` is exit 2.
+- `card add <b> --title T [--description TEXT] [--column C] [--note <note>]… [--label L]… [--due YYYY-MM-DD] [--priority P] [--assignee A] [--after ID | --first | --last]`
   → `{card}`. `--column` takes an id, or a name when unambiguous (else exit
   4); default column = first; default position = last. `--note` is repeatable
   and must resolve. `--description` is optional Markdown text under the title;
-  an empty one is the same as none. Under `--dry-run` nothing is written, so
-  the answer carries no `id` and no `order`.
+  an empty one is the same as none. `--label` is repeatable; the fields are
+  written with the card in one file. A due day that is no real day or a
+  priority that is no step is exit 2, before anything is written. Under
+  `--dry-run` nothing is written, so the answer carries no `id` and no
+  `order`, but shows the fields.
 - `card mv <id> [--column C] [--after ID | --first | --last]` → `{card}`.
   At least one of the four is required. It moves within the board: a move
   to another board is app-only for now (ADR-0019; the app keeps the id, puts
@@ -286,12 +323,17 @@ and `card rm` take no board argument.
   up to 30 days after such a move the id is on two boards, one of them a
   tombstone; `card mv`, `card set` and `card rm` take the live one, and
   `card ls` shows the card once.
-- `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]…`
+- `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]… [--label L]… | [--add-label L]… [--rm-label L]… [--due D] [--priority P] [--assignee A]`
   → `{card}`. The changes are written one file at a time, in the order title,
-  description, removals, additions. `--description` replaces the whole text;
-  `--description ""` clears it. `--add-note` must resolve; `--rm-note` is kept
-  verbatim when nothing resolves to it, so a reference to a deleted note can
-  be cleaned up.
+  description, note removals, note additions, labels, due, priority,
+  assignee. `--description` replaces the whole text; `--description ""`
+  clears it. `--add-note` must resolve; `--rm-note` is kept verbatim when
+  nothing resolves to it, so a reference to a deleted note can be cleaned
+  up. `--label` (repeatable) replaces all labels and `--label ""` alone
+  clears them; `--add-label`/`--rm-label` change the card's own list
+  (`--rm-label` regardless of case) and cannot be combined with `--label`
+  (exit 2). `--due ""`, `--assignee ""` and `--priority none` clear the
+  field. Bad values are exit 2 before anything is written.
 - `card rm <id>` → `{card}` with the `deleted` tombstone stamp. The file
   stays until it is 30 days old. A removed card is gone for `card mv`,
   `card set` and another `card rm` (exit 3); its stamp is never renewed.
@@ -319,7 +361,13 @@ would pull; `mirrored` is not detected yet and reads as `local`.
 ### `doctor` — Status: harness
 
 `{ok, checks:[{id, status, detail, paths?}]}` with `status` in
-`ok | warn | fail`. Checks: vault marker, cache opens, app/CLI version skew,
+`ok | warn | fail`; the exit code is 0 whatever `ok` says. The ids:
+`vault_marker`, `cache`, `version_skew`, `frontmatter`, `unresolved_links`,
+`duplicate_stems`, `unlinkable_stems`, `notes_in_boards`, `conflict_copies`,
+`cloud_only_links`, `legacy_tokens`, `attachments`. Only `attachments` fills
+`paths`; for the others take the paths from `links --unresolved` or, for
+duplicate stems, from `ls` (a `linkTarget` with a `/` in it). Checks: vault
+marker, cache opens, app/CLI version skew,
 frontmatter parse failures, unresolved links, duplicate stems, unlinkable
 stems (`#`, `|`), notes under board folders, conflict copies, cloud-only
 notes with unindexed links, legacy `@due`/`@status` token count, and

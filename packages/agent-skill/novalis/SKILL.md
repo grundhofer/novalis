@@ -23,8 +23,11 @@ JSON shapes: `reference.md`. Worked recipes: `examples.md`.
 2. **Link text is the file stem.** `[[Local-First Software]]` resolves to
    `Local-First Software.md` anywhere in the vault, case-insensitively. When
    `doctor` reports duplicate stems, write `[[folder/stem]]`. Never guess a
-   link: every note that `ls`, `cat` and `search` return carries
+   link: every note that `ls`, `cat`, `new` and `journal` return carries
    `linkTarget`, the shortest unambiguous wikilink text. Use it verbatim.
+   A `search` hit has only its `path`: look the `linkTarget` up with `ls`.
+   One exception: a note at the vault root whose stem also lives in a folder
+   has no wikilink that resolves (see `reference.md`, §3).
 3. **Always `--json`.** Pass it explicitly and parse stdout only. `cat` is
    JSON when piped; `--plain` returns raw text. Errors are one JSON object on
    stderr; the exit code is the contract.
@@ -42,7 +45,12 @@ JSON shapes: `reference.md`. Worked recipes: `examples.md`.
 7. **Dry-run first.** Every mutation takes `--dry-run` and returns the exact
    success shape plus `"dryRun": true` and, for multi-file operations,
    `changes[]`. Show the user the dry run before applying anything that
-   touches more than one file.
+   touches more than one file. `card mv`, `card set` and `card rm` only
+   validate under `--dry-run` and report the card as it is on disk, not as
+   it would become.
+8. **Never compute today yourself.** The local day is the `stem` of
+   `novalis journal --dry-run --json` (it writes nothing). Due days relative
+   to today (in three days, next Friday) are computed from that day.
 
 ## Standard loop
 
@@ -91,6 +99,13 @@ A card in the JSON may also carry `labels`, `due` (`YYYY-MM-DD`), `priority` (`h
 `board new` creates a board with no columns; give it columns with
 `board columns --set`. Never write a board or card file by hand.
 
+Card rules an agent trips over: `--column` on `card ls` takes ids only (on
+`card add` and `card mv` a name works too); `--label` matches regardless of
+case, `--assignee` exactly; which column means „done“ is the user's, so say
+which column you leave out of „overdue“. Use cases with full commands —
+project board, triage, weekly review, a note for a card, meeting actions —
+are in `examples.md` §9–§17.
+
 ## Safety
 
 - `rm` moves to the macOS Trash, never deletes. Exit 5 with
@@ -115,7 +130,7 @@ A card in the JSON may also carry `labels`, `due` (`YYYY-MM-DD`), `priority` (`h
 |---|---|---|
 | 0 | ok | |
 | 1 | internal error | report `error.message`; do not retry blindly |
-| 2 | usage, or `--no-index` on a mutation | read `error.hint`; fix the invocation |
+| 2 | usage, or `--no-index` on a mutation | read `error.message` (and `error.hint` when present); fix the invocation |
 | 3 | not found | check the `path`/`stem` with `ls` |
 | 4 | conflict: exists, ambiguous, precondition or `--if-match` mismatch | use `error.candidates`; re-read and re-plan |
 | 5 | needs `--force`: dangling backlinks on `rm`, `--no-relink` with backlinks, cloud-only skips on `mv`/`relink`/`migrate` | resolve the cause; `--force` only with the user's yes |
