@@ -18,11 +18,14 @@
   background: var(--sb-color-bg);
 }
 
-/* „Neues Board …“ after the last board (ADR-0056), in a board's padding and
-   under the same hairline. */
-.boards__foot {
-  padding: var(--sb-space-5) var(--sb-space-6);
-  border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
+/* „Neues Board …“ above the boards (ADR-0056, ADR-0057): outside the list,
+   so it does not scroll away; in a board's side padding, over the same
+   hairline that divides the boards. */
+.boards__head {
+  flex: none;
+  padding: var(--sb-space-3) var(--sb-space-6);
+  border-block-end: var(--sb-border-width-hairline) solid var(--sb-color-border);
+  background: var(--sb-color-bg);
 }
 
 /* A board is as tall as its longest column, never taller than the view: a
