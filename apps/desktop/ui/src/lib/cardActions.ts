@@ -12,11 +12,11 @@ import { report, useUi } from "../stores/ui";
 /**
  * D21: the card opens its note in a tab; showing it in place of the board is
  * `tabs.activate`'s job. A card without a note opens what it has, its
- * description (ADR-0030).
+ * dialog with the description (ADR-0030, ADR-0054).
  */
 export function openCardNote(card: CardDto): void {
   const note = card.notes[0];
-  if (!note) return editDescription(card);
+  if (!note) return editCard(card);
   void openFromBoard(note, useBoard.getState().boardOf(card.id)).catch(report);
 }
 
@@ -39,36 +39,13 @@ export function returnToBoard(slug: string): void {
   if (useBoard.getState().slug !== slug) void useBoard.getState().load(slug).catch(report);
 }
 
-export function renameCard(card: CardDto): void {
-  useUi.getState().ask({
-    titleKey: "board.renameCardTitle",
-    submitKey: "app.rename",
-    busyKey: "app.renaming",
-    labelKey: "board.cardTitleLabel",
-    initial: card.title,
-    submit: async (title) => {
-      if (title === card.title) return;
-      await useBoard.getState().apply({ kind: "retitle", id: card.id, title });
-    },
-  });
-}
-
-// The same dialog as the rename, grown to a textarea (ADR-0013). An emptied
-// field is the way to clear the text, so it is submitted like any other.
-export function editDescription(card: CardDto): void {
-  useUi.getState().ask({
-    titleKey: "board.editDescriptionTitle",
-    submitKey: "app.save",
-    labelKey: "board.cardDescriptionLabel",
-    // The text is Markdown, rendered on the card (ADR-0033).
-    hint: { key: "board.cardDescriptionHint" },
-    initial: card.description ?? "",
-    multiline: true,
-    submit: async (description) => {
-      if (description === (card.description ?? "")) return;
-      await useBoard.getState().apply({ kind: "setDescription", id: card.id, description });
-    },
-  });
+/**
+ * „Karte bearbeiten“ (ADR-0054): the title, the description and the fields
+ * in one dialog (`CardDialog`), for the card on the board that holds it.
+ */
+export function editCard(card: CardDto): void {
+  const slug = useBoard.getState().boardOf(card.id);
+  if (slug) useUi.getState().setCardEdit({ slug, id: card.id });
 }
 
 /**
@@ -155,11 +132,8 @@ export function runCardMenuAction(id: string): boolean {
     case "card.openNote":
       openCardNote(card);
       break;
-    case "card.rename":
-      renameCard(card);
-      break;
-    case "card.editDescription":
-      editDescription(card);
+    case "card.edit":
+      editCard(card);
       break;
     case "card.linkNote":
       linkNote(card);

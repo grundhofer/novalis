@@ -57,7 +57,7 @@ pub const MENU_KEYS: &[&str] = &[
     "menu.file.newNoteItem",
     "menu.file.newFolderItem",
     "board.openNote",
-    "board.editDescription",
+    "board.editCard",
     "board.linkNote",
     "board.deleteCard",
     "board.moveToColumn",
@@ -798,14 +798,10 @@ pub fn card_context(
     if has_note {
         menu = menu.item(&item(app, "card.openNote", cat.t("board.openNote"), "")?);
     }
+    // „Bearbeiten …“ is the title, the description and the fields of
+    // ADR-0054 in one dialog.
     menu = menu
-        .item(&item(app, "card.rename", cat.t("menu.file.rename"), "")?)
-        .item(&item(
-            app,
-            "card.editDescription",
-            cat.t("board.editDescription"),
-            "",
-        )?)
+        .item(&item(app, "card.edit", cat.t("board.editCard"), "")?)
         .item(&item(app, "card.linkNote", cat.t("board.linkNote"), "")?)
         .item(&item(
             app,

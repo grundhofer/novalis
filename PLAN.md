@@ -477,7 +477,7 @@ Board folders appear in the file tree as one "board" item (the treatment the old
 
 `order` is optional (ADR-0019): a fractional-index key of the §8.3 kind, written only when the user drags the board in the tree or by its head in the boards view (ADR-0054); boards with a key come first, by key, then the rest by name, and the slug breaks ties.
 
-`view` is optional (ADR-0054): how the board shows in the boards view — `collapsed`, `hiddenColumns` (column ids), `changedWithin` (`today`, `7d`, `30d`, `90d`), `sort` (`title`, `updated`, `created`; absent is the manual order) and `sortReversed`; absent while every value in it is its default, unknown keys inside it round-trip untouched. A board's text search is never stored.
+`view` is optional (ADR-0054): how the board shows in the boards view — `collapsed`, `hiddenColumns` (column ids), `changedWithin` (`today`, `7d`, `30d`, `90d`), `sort` (`title`, `updated`, `created`; absent is the manual order), `sortReversed` and `labelTones` (label → tone 1–6, sebaro's `--sb-category-1…6`); absent while every value in it is its default, unknown keys inside it round-trip untouched. A board's text search is never stored.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 ```json
@@ -488,7 +488,7 @@ Board folders appear in the file tree as one "board" item (the treatment the old
   "created": "2026-09-01T07:12:03.010Z", "updated": "2026-09-05T08:41:12.345Z" }
 ```
 
-Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), `description` (Markdown by convention, ADR-0013) omitted when empty, titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
+Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the read-time precondition (§5.3 step 5), temp name never `.lock` (OneDrive forbids it), unknown keys round-trip untouched (`serde(flatten)`), `description` (Markdown by convention, ADR-0013) omitted when empty; `labels` (free tags, each once regardless of case), `due` (`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee` (a free name) are optional and omitted when empty (ADR-0054); titles never in filenames, `updated` is bumped **only by user or CLI edits**, never by conflict resolution or re-keying. `deleted` timestamp tombstone (if approved): tombstones older than 30 days are dropped the next time the app or CLI writes that board's card set (no timer, no startup sweep).
 
 ### 8.3 Identity and ordering
 
@@ -532,7 +532,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `tags` | `--limit` | `{items:[{tag,count}]}` | cache |
 | `relink <from> <to>` | `--force`, `--materialize` | `{rewritten:[{path,count}],cardsUpdated,conflicts,cloudOnlySkipped}` | `<from>` is a **literal link target string** (wikilink text or Markdown path, case-insensitive, percent-decoded, not required to resolve); `<to>` must resolve; rewrites `[[from]]`, `[[from\|l]]`, `[[from#h]]`, `[text](from)` and card `notes[]` |
 | `board ls` / `board show <b>` / `board new <b> [--name N]` / `board columns <b> --set <json>` | | boards, columns, cards | boards store; `new` creates `boards/<b>/board.json` with no columns, exit 4 if it exists (ADR-0031) |
-| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated,description?}]}` | answers "which cards link to X" |
+| `card ls [--board B] [--note <note>] [--column C]` | | `{items:[{board,id,title,column,order,notes,updated,description?,labels?,due?,priority?,assignee?}]}` | answers "which cards link to X"; the four fields of ADR-0054 are read-only here so far |
 | `card add <b> --title T [--description D] [--column C] [--note <note>]…` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first |
 | `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `rm` writes the tombstone if approved, else deletes |
 | `index --rebuild` / `--status` | | `{vault,cachePath,files,stale,indexSource,appVersion,cliVersion}` | cache |

@@ -25,6 +25,10 @@ const card = (id: string, title: string, column: string, notes: string[] = []) =
   updated: "2026-09-08T10:00:00.000Z",
   description: null,
   descriptionHtml: null,
+  labels: [] as string[],
+  due: null as string | null,
+  priority: null as "high" | "medium" | "low" | null,
+  assignee: null as string | null,
 });
 
 const board = {
@@ -41,7 +45,7 @@ const board = {
   resolvedConflicts: 0,
   resolvedColumns: false,
   resolveError: null,
-  view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false },
+  view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false, labelTones: {} },
 };
 
 /** The board the view shows: current, and among the boards read (ADR-0054). */
@@ -94,7 +98,7 @@ describe("BoardPane", () => {
   it("does not label the card or column rename with the board's key", () => {
     render(<BoardPane />);
     expect(items("board.rename")).toHaveLength(1);
-    expect(items("menu.file.rename")).toHaveLength(2);
+    expect(items("board.editCard")).toHaveLength(2);
     expect(items("board.renameColumn")).toHaveLength(2);
   });
 
@@ -140,8 +144,7 @@ describe("BoardPane", () => {
     const labels = [...menu.querySelectorAll(":scope > li > button")].map((b) => b.textContent);
     expect(labels).toEqual([
       "board.openNote",
-      "menu.file.rename",
-      "board.editDescription",
+      "board.editCard",
       "board.linkNote",
       "board.createNote",
       "board.moveToColumn",
@@ -174,10 +177,10 @@ describe("BoardPane", () => {
     render(<BoardPane />);
 
     fireEvent.click(cardOf("Write the spec").querySelector("[aria-haspopup=menu]")!);
-    fireEvent.click(items("menu.file.rename")[0]!);
+    fireEvent.click(items("board.editCard")[0]!);
 
     expect(open).not.toHaveBeenCalled();
-    expect(useUi.getState().prompt?.titleKey).toBe("board.renameCardTitle");
+    expect(useUi.getState().cardEdit).toEqual({ slug: "plan", id: "c1" });
   });
 
   it("renames the board from its menu", async () => {
@@ -203,24 +206,20 @@ describe("BoardPane", () => {
     expect(prompt?.confirm?.confirmKey).toBe("app.delete");
   });
 
-  it("retitles a card through the dialog", async () => {
+  // ADR-0054: the title, the description and the fields in one dialog,
+  // `CardDialog` (its own tests); the menu opens it for this card.
+  it("edits a card in „Karte bearbeiten“", () => {
+    useUi.setState({ cardEdit: null });
     render(<BoardPane />);
-
-    fireEvent.click(items("menu.file.rename")[0]!);
-    await useUi.getState().prompt?.submit("Renamed");
-
-    expect(useBoard.getState().apply).toHaveBeenCalledWith({
-      kind: "retitle",
-      id: "c1",
-      title: "Renamed",
-    });
+    fireEvent.click(items("board.editCard")[1]!);
+    expect(useUi.getState().cardEdit).toEqual({ slug: "plan", id: "c2" });
   });
 
-  // ADR-0013: the description is edited as text in the same dialog as the
-  // rename; the store never sees a value that did not change. ADR-0033: the
-  // card shows it rendered, inert.
-  describe("description", () => {
-    const described = {
+  // ADR-0033: the card shows its description rendered, inert.
+  it("shows a card's description rendered, and a click on a link in it is the card's", () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open } as never);
+    showBoard({
       ...board,
       cards: [
         {
@@ -229,63 +228,40 @@ describe("BoardPane", () => {
           descriptionHtml: '<p>First the <em>why</em>. <a href="https://example.org">x</a></p>',
         },
       ],
-    };
-
-    it("shows a card's description rendered, and a click on a link in it is the card's", () => {
-      const open = vi.fn().mockResolvedValue(undefined);
-      useTabs.setState({ open } as never);
-      showBoard(described);
-      render(<BoardPane />);
-      expect(screen.getByText("why").tagName).toBe("EM");
-
-      const followed = fireEvent.click(screen.getByText("x"));
-
-      expect(followed).toBe(false);
-      expect(open).toHaveBeenCalledWith("Roadmap.md");
     });
+    render(<BoardPane />);
+    expect(screen.getByText("why").tagName).toBe("EM");
+    const followed = fireEvent.click(screen.getByText("x"));
+    expect(followed).toBe(false);
+    expect(open).toHaveBeenCalledWith("Roadmap.md");
+  });
 
-    it("edits it in a multi-line dialog that starts from the current text", () => {
-      showBoard(described);
-      render(<BoardPane />);
-
-      fireEvent.click(items("board.editDescription")[0]!);
-
-      const prompt = useUi.getState().prompt;
-      expect(prompt?.multiline).toBe(true);
-      expect(prompt?.initial).toBe("First the *why*. [x](https://example.org)");
+  // ADR-0054: the fields on the card — a high priority and an overdue day as
+  // the warning status, the rest as words, labels as categories in their tone.
+  it("shows a card's fields in its grey line", () => {
+    showBoard({
+      ...board,
+      view: { ...board.view, labelTones: { Kunde: 2 } },
+      cards: [
+        { ...card("c1", "Spec", "todo"), priority: "high", due: "2020-01-02", assignee: "Anna", labels: ["Kunde", "blockiert"] },
+        { ...card("c2", "Ship", "doing"), priority: "low", due: "2999-03-04" },
+      ],
     });
-
-    it("writes the new text through the dialog", async () => {
-      showBoard(described);
-      render(<BoardPane />);
-
-      fireEvent.click(items("board.editDescription")[0]!);
-      await useUi.getState().prompt!.submit("new text");
-
-      expect(useBoard.getState().apply).toHaveBeenCalledWith({
-        kind: "setDescription",
-        id: "c1",
-        description: "new text",
-      });
-    });
-
-    it("writes nothing when the text did not change", async () => {
-      showBoard(described);
-      render(<BoardPane />);
-
-      fireEvent.click(items("board.editDescription")[0]!);
-      await useUi.getState().prompt!.submit("First the *why*. [x](https://example.org)");
-
-      expect(useBoard.getState().apply).not.toHaveBeenCalled();
-    });
-
-    it("starts from the empty string on a card without one", () => {
-      render(<BoardPane />);
-
-      fireEvent.click(items("board.editDescription")[0]!);
-
-      expect(useUi.getState().prompt?.initial).toBe("");
-    });
+    render(<BoardPane />);
+    const meta = cardOf("Spec").querySelector(".sb-card__meta")!;
+    const warnings = [...meta.querySelectorAll(".sb-status--warning")].map((w) => w.textContent);
+    expect(warnings[0]).toBe("board.priorityWord");
+    expect(warnings[1]).toMatch(/^board\.overdue · /);
+    expect(meta.textContent).toContain("Anna");
+    const labels = [...meta.querySelectorAll(".sb-category")].map((l) => [l.textContent, l.className]);
+    expect(labels).toEqual([
+      ["Kunde", "sb-category sb-category--2"],
+      ["blockiert", "sb-category"],
+    ]);
+    const other = cardOf("Ship").querySelector(".sb-card__meta")!;
+    expect(other.querySelector(".sb-status--warning")).toBeNull();
+    expect(other.textContent).toContain("board.due");
+    expect(other.textContent).toContain("board.priorityWord");
   });
 
   // ADR-0030: Link Note… opens the note picker, which leaves out the notes
@@ -310,17 +286,18 @@ describe("BoardPane", () => {
     });
   });
 
-  // ADR-0030: a card with no note opens its description on a click; one with
-  // a note keeps D21 (the next test).
-  it("opens the description of a card that links no note", () => {
+  // ADR-0030: a card with no note opens what it has on a click, its dialog
+  // (ADR-0054); one with a note keeps D21 (the next test).
+  it("opens the dialog of a card that links no note", () => {
     const open = vi.fn().mockResolvedValue(undefined);
     useTabs.setState({ open } as never);
+    useUi.setState({ cardEdit: null });
     render(<BoardPane />);
 
     fireEvent.click(screen.getByText("Ship it"));
 
     expect(open).not.toHaveBeenCalled();
-    expect(useUi.getState().prompt?.titleKey).toBe("board.editDescriptionTitle");
+    expect(useUi.getState().cardEdit).toEqual({ slug: "plan", id: "c2" });
   });
 
   // ADR-0030: a note dragged from the tree onto a column becomes a card

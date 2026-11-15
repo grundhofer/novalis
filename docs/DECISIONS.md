@@ -1038,6 +1038,11 @@ The filter, part 2 of ADR-0054 (answers verbatim there): „Filter“ in each
 board's head opens a menu; the search is the session's only; the span in
 fixed steps; one card order for the whole board. Amends **ADR-0054**.
 
+The card fields, part 3 of ADR-0054 (answers verbatim there): one dialog
+„Karte bearbeiten“; priority Hoch / Mittel / Niedrig; labels in sebaro's
+category tones, the tone chosen per label and board; the due day with
+„überfällig“. Amends **ADR-0054**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

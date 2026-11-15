@@ -6,6 +6,8 @@
 //! document). Every struct here is `camelCase` on the wire, which is what
 //! `bindings.ts` and the UI stores expect.
 
+use std::collections::BTreeMap;
+
 use novalis_core::boards::{Board, BoardRef, BoardView, Card, Column};
 use novalis_core::search::{SearchHit, SearchQuery, SearchReport};
 use novalis_core::settings::{Appearance, EditorSettings, Language, Settings, Tone};
@@ -728,6 +730,32 @@ pub struct CardDto {
     /// The description rendered by the preview's renderer (ADR-0033), raw
     /// HTML in it escaped; `None` with the description.
     pub description_html: Option<String>,
+    /// Free tags (ADR-0054).
+    pub labels: Vec<String>,
+    /// The due date, `YYYY-MM-DD` (ADR-0054).
+    pub due: Option<String>,
+    /// A step this build does not know reads as none.
+    pub priority: Option<PriorityDto>,
+    pub assignee: Option<String>,
+}
+
+/// The steps of a card's priority (ADR-0054).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum PriorityDto {
+    High,
+    Medium,
+    Low,
+}
+
+impl PriorityDto {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PriorityDto::High => "high",
+            PriorityDto::Medium => "medium",
+            PriorityDto::Low => "low",
+        }
+    }
 }
 
 impl From<&Card> for CardDto {
@@ -745,6 +773,12 @@ impl From<&Card> for CardDto {
                 .description
                 .as_deref()
                 .map(novalis_core::notes::render::to_html),
+            labels: card.labels.clone(),
+            due: card.due.clone(),
+            priority: [PriorityDto::High, PriorityDto::Medium, PriorityDto::Low]
+                .into_iter()
+                .find(|p| card.priority.as_deref() == Some(p.as_str())),
+            assignee: card.assignee.clone(),
         }
     }
 }
@@ -795,6 +829,8 @@ pub struct BoardViewDto {
     pub changed_within: Option<ChangedWithinDto>,
     pub sort: Option<CardSortDto>,
     pub sort_reversed: bool,
+    /// Each label's tone on this board, 1 to 6 (`--sb-category-1…6`).
+    pub label_tones: BTreeMap<String, u8>,
 }
 
 /// The spans of „Zuletzt geändert“ (ADR-0054).
@@ -865,6 +901,7 @@ impl From<&BoardView> for BoardViewDto {
                 .into_iter()
                 .find(|s| v.sort.as_deref() == Some(s.as_str())),
             sort_reversed: v.sort_reversed,
+            label_tones: v.label_tones.clone(),
         }
     }
 }
@@ -976,6 +1013,25 @@ pub enum CardOpDto {
     MoveToBoard {
         id: String,
         board: String,
+    },
+    /// The labels as a whole (ADR-0054); an empty list clears them.
+    SetLabels {
+        id: String,
+        labels: Vec<String>,
+    },
+    /// `YYYY-MM-DD`; the empty string clears it.
+    SetDue {
+        id: String,
+        due: String,
+    },
+    SetPriority {
+        id: String,
+        priority: Option<PriorityDto>,
+    },
+    /// The empty string clears it.
+    SetAssignee {
+        id: String,
+        assignee: String,
     },
 }
 

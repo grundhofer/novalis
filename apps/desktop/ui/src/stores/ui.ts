@@ -154,6 +154,8 @@ interface UiState {
    * „Zurück zu <Board>“. Session state, never in `state.json`.
    */
   boardReturn: { path: string; board: string } | null;
+  /** The card „Karte bearbeiten“ is open for (ADR-0054), by board and id. */
+  cardEdit: { slug: string; id: string } | null;
   /**
    * Notes shown as the read-only preview instead of the editor (ADR-0020),
    * by path. Session state: a restart opens every note in the editor.
@@ -230,6 +232,7 @@ interface UiState {
    */
   setTreeSort: (sort: TreeSortDto) => void;
   setBoardReturn: (target: { path: string; board: string } | null) => void;
+  setCardEdit: (target: { slug: string; id: string } | null) => void;
   togglePreview: (path: string) => void;
   endPreview: (path: string) => void;
   toggleSearchAllFiles: () => void;
@@ -379,6 +382,7 @@ export const useUi = create<UiState>((set, get) => ({
   treeSort: "name",
   treeSortReversed: false,
   boardReturn: null,
+  cardEdit: null,
   previewing: {},
   searchAllFiles: false,
   invisibles: false,
@@ -454,6 +458,7 @@ export const useUi = create<UiState>((set, get) => ({
       s.treeSort === treeSort ? { treeSortReversed: !s.treeSortReversed } : { treeSort, treeSortReversed: false },
     ),
   setBoardReturn: (boardReturn) => set({ boardReturn }),
+  setCardEdit: (cardEdit) => set({ cardEdit }),
   toggleSearchAllFiles: () => set((s) => ({ searchAllFiles: !s.searchAllFiles })),
   toggleInvisibles: () => set((s) => ({ invisibles: !s.invisibles })),
 

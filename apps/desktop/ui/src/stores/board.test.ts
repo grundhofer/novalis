@@ -40,7 +40,7 @@ function doc(overrides: Partial<BoardDto> = {}): BoardDto {
     resolvedConflicts: 0,
     resolvedColumns: false,
     resolveError: null,
-    view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false },
+    view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false, labelTones: {} },
     ...overrides,
   };
 }

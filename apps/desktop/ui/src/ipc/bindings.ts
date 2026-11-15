@@ -161,6 +161,8 @@ export const commands = {
 	changedWithin: ChangedWithinDto | null,
 	sort: CardSortDto | null,
 	sortReversed: boolean,
+	/**  Each label's tone on this board, 1 to 6 (`--sb-category-1…6`). */
+	labelTones: { [key in string]: number },
 } | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, view })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
@@ -315,6 +317,8 @@ export type BoardViewDto = {
 	changedWithin: ChangedWithinDto | null,
 	sort: CardSortDto | null,
 	sortReversed: boolean,
+	/**  Each label's tone on this board, 1 to 6 (`--sb-category-1…6`). */
+	labelTones: { [key in string]: number },
 };
 
 export type BootstrapDto = {
@@ -372,6 +376,13 @@ export type CardDto = {
 	 *  HTML in it escaped; `None` with the description.
 	 */
 	descriptionHtml: string | null,
+	/**  Free tags (ADR-0054). */
+	labels: string[],
+	/**  The due date, `YYYY-MM-DD` (ADR-0054). */
+	due: string | null,
+	/**  A step this build does not know reads as none. */
+	priority: PriorityDto | null,
+	assignee: string | null,
 };
 
 /**
@@ -385,7 +396,13 @@ export type CardOpDto = { kind: "add"; title: string; column: string | null; not
  *  To another board's first column, last, same id (ADR-0019); the source
  *  keeps a tombstone.
  */
-{ kind: "moveToBoard"; id: string; board: string };
+{ kind: "moveToBoard"; id: string; board: string } | 
+/**  The labels as a whole (ADR-0054); an empty list clears them. */
+{ kind: "setLabels"; id: string; labels: string[] } | 
+/**  `YYYY-MM-DD`; the empty string clears it. */
+{ kind: "setDue"; id: string; due: string } | { kind: "setPriority"; id: string; priority: PriorityDto | null } | 
+/**  The empty string clears it. */
+{ kind: "setAssignee"; id: string; assignee: string };
 
 /**  A card order other than the manual one (ADR-0054). */
 export type CardSortDto = "title" | "updated" | "created";
@@ -617,6 +634,9 @@ export type PreconditionDto = {
 	size: string,
 	hash: string,
 };
+
+/**  The steps of a card's priority (ADR-0054). */
+export type PriorityDto = "high" | "medium" | "low";
 
 /**
  *  What `rename` did, including the link rewrite it triggered (PLAN.md §5.3
