@@ -137,6 +137,11 @@ interface UiState {
   cloudHintShown: boolean;
   activeBoard: string | null;
   /**
+   * Counts every `setActiveBoard`, so the boards view scrolls to the board
+   * even when it was already the active one (ADR-0054). Session state.
+   */
+  boardReveal: number;
+  /**
    * The tree's file order (ADR-0012); folders keep the name order, turned
    * round only by a reversed name sort. `state.json` state.
    */
@@ -370,6 +375,7 @@ export const useUi = create<UiState>((set, get) => ({
   backlinksVisible: false,
   cloudHintShown: false,
   activeBoard: null,
+  boardReveal: 0,
   treeSort: "name",
   treeSortReversed: false,
   boardReturn: null,
@@ -437,7 +443,12 @@ export const useUi = create<UiState>((set, get) => ({
   toggleBacklinks: () => set((s) => ({ backlinksVisible: !s.backlinksVisible })),
   dismissCloudHint: () => set({ cloudHintShown: true }),
   setActiveBoard: (slug) =>
-    set((s) => ({ activeBoard: slug, boardVisible: slug !== null, settingsView: slug === null && s.settingsView })),
+    set((s) => ({
+      activeBoard: slug,
+      boardVisible: slug !== null,
+      settingsView: slug === null && s.settingsView,
+      boardReveal: s.boardReveal + 1,
+    })),
   setTreeSort: (treeSort) =>
     set((s) =>
       s.treeSort === treeSort ? { treeSortReversed: !s.treeSortReversed } : { treeSort, treeSortReversed: false },

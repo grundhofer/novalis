@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { commands, unwrap, type BoardDto } from "../ipc/client";
+import { commands, unwrap, type BoardDto, type CardOpDto } from "../ipc/client";
 import { useBoard } from "./board";
 import { useUi } from "./ui";
 import { useVault } from "./vault";
@@ -40,6 +40,7 @@ function doc(overrides: Partial<BoardDto> = {}): BoardDto {
     resolvedConflicts: 0,
     resolvedColumns: false,
     resolveError: null,
+    collapsed: false,
     ...overrides,
   };
 }
@@ -230,7 +231,7 @@ describe("useBoard.placeBoard", () => {
 
     await useBoard.getState().placeBoard("atlas", { kind: "after", id: "zeta" });
 
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "after", id: "zeta" });
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "after", id: "zeta" }, null);
     expect(commands.boardList).toHaveBeenCalledTimes(1);
     expect(useBoard.getState().boards).toEqual([
       { slug: "zeta", name: "Zeta", order: "a0" },
@@ -244,7 +245,7 @@ describe("useBoard.placeBoard", () => {
 
     await useBoard.getState().placeBoard("atlas", { kind: "last" });
 
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "last" });
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "last" }, null);
     expect(commands.boardList).toHaveBeenCalledTimes(1);
   });
 
@@ -292,5 +293,121 @@ describe("useBoard.moveCardToBoard", () => {
 
     expect(commands.cardWrite).not.toHaveBeenCalled();
     expect(commands.boardRead).not.toHaveBeenCalled();
+  });
+});
+
+// ADR-0054: the view shows every board, so the store keeps every board read.
+describe("useBoard with every board read", () => {
+  beforeEach(() => {
+    useBoard.setState({
+      boards: [
+        { slug: "plan", name: "Plan", order: null },
+        { slug: "atlas", name: "Atlas", order: null },
+      ],
+      slug: "plan",
+      board: null,
+      docs: {},
+      busy: false,
+      notices: {},
+    });
+    useUi.setState({ message: null, activeBoard: "plan", boardVisible: true });
+    vi.mocked(commands.boardRead).mockClear();
+    vi.mocked(commands.boardWrite).mockClear();
+    vi.mocked(commands.cardWrite).mockClear();
+    vi.mocked(unwrap).mockReset();
+  });
+
+  it("reads every listed board not read yet, without changing the current one", async () => {
+    useBoard.setState({ docs: { plan: doc() } });
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "atlas", name: "Atlas" }));
+
+    await useBoard.getState().readAll(true);
+
+    expect(commands.boardRead).toHaveBeenCalledTimes(1);
+    expect(commands.boardRead).toHaveBeenCalledWith("atlas");
+    expect(Object.keys(useBoard.getState().docs).sort()).toEqual(["atlas", "plan"]);
+    expect(useBoard.getState().slug).toBe("plan");
+    expect(useBoard.getState().board).toBeNull();
+  });
+
+  it("writes a card op on the board that holds the card, and re-reads only that one", async () => {
+    const card = { id: "c9", title: "x", column: "todo", order: "a0", notes: [] } as never;
+    useBoard.setState({ docs: { plan: doc(), atlas: doc({ slug: "atlas", cards: [card] }) } });
+    vi.mocked(unwrap).mockResolvedValueOnce({ id: "c9" });
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "atlas", cards: [] }));
+
+    await useBoard.getState().apply({ kind: "retitle", id: "c9", title: "y" });
+
+    expect(commands.cardWrite).toHaveBeenCalledWith("atlas", { kind: "retitle", id: "c9", title: "y" });
+    expect(commands.boardRead).toHaveBeenCalledWith("atlas");
+    expect(useBoard.getState().slug).toBe("plan");
+    expect(useBoard.getState().docs.atlas?.cards).toEqual([]);
+  });
+
+  it("writes an add on the board it names, else on the current one", async () => {
+    useBoard.setState({ docs: { plan: doc(), atlas: doc({ slug: "atlas" }) } });
+    vi.mocked(unwrap).mockResolvedValue(doc({ slug: "atlas" }));
+    const add: CardOpDto = { kind: "add", title: "t", column: "todo", notes: [], position: { kind: "last" } };
+
+    await useBoard.getState().apply(add, "atlas");
+    expect(commands.cardWrite).toHaveBeenLastCalledWith("atlas", add);
+
+    vi.mocked(unwrap).mockResolvedValue(doc());
+    await useBoard.getState().apply(add);
+    expect(commands.cardWrite).toHaveBeenLastCalledWith("plan", add);
+  });
+
+  it("collapses at once, writes it, and takes it back when the write fails", async () => {
+    useBoard.setState({ docs: { atlas: doc({ slug: "atlas" }) } });
+    let finish: (value: unknown) => void = () => {};
+    vi.mocked(unwrap).mockReturnValueOnce(new Promise((resolve) => (finish = resolve)) as never);
+
+    const write = useBoard.getState().setCollapsed("atlas", true);
+    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, true);
+    finish(doc({ slug: "atlas", collapsed: true }));
+    await write;
+    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
+
+    vi.mocked(unwrap).mockRejectedValueOnce(new Error("io"));
+    await expect(useBoard.getState().setCollapsed("atlas", false)).rejects.toThrow("io");
+    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
+  });
+
+  it("re-reads the boards a watcher batch touched, the current one through load", async () => {
+    useBoard.setState({ docs: { plan: doc(), atlas: doc({ slug: "atlas" }) } });
+    vi.mocked(unwrap).mockImplementation(async () => doc({ slug: "atlas" }));
+
+    await useBoard.getState().refresh(["atlas"]);
+    expect(commands.boardRead).toHaveBeenCalledTimes(1);
+    expect(commands.boardRead).toHaveBeenCalledWith("atlas");
+
+    vi.mocked(commands.boardRead).mockClear();
+    await useBoard.getState().refresh();
+    expect(vi.mocked(commands.boardRead).mock.calls.map(([slug]) => slug).sort()).toEqual(["atlas", "plan"]);
+  });
+
+  it("moves a card from the board that holds it and re-reads both boards read", async () => {
+    const card = { id: "c9", title: "x", column: "todo", order: "a0", notes: [] } as never;
+    useBoard.setState({ docs: { plan: doc(), atlas: doc({ slug: "atlas", cards: [card] }) } });
+    vi.mocked(unwrap).mockImplementation(async () => doc());
+
+    await useBoard.getState().moveCardToBoard("c9", "plan");
+
+    expect(commands.cardWrite).toHaveBeenCalledWith("atlas", { kind: "moveToBoard", id: "c9", board: "plan" });
+    expect(vi.mocked(commands.boardRead).mock.calls.map(([slug]) => slug).sort()).toEqual(["atlas", "plan"]);
+  });
+
+  it("drops a board that went from the boards read", () => {
+    useBoard.setState({ docs: { plan: doc(), atlas: doc({ slug: "atlas" }) } });
+    useBoard.getState().forget("atlas");
+    expect(Object.keys(useBoard.getState().docs)).toEqual(["plan"]);
+    expect(useBoard.getState().boards.map((b) => b.slug)).toEqual(["plan"]);
+  });
+
+  it("drops every board read when a vault is opened", () => {
+    useBoard.setState({ docs: { plan: doc() } });
+    useBoard.getState().setBoards([]);
+    expect(useBoard.getState().docs).toEqual({});
   });
 });

@@ -66,10 +66,10 @@ export default function TitleBar() {
   const vault = useVault((s) => s.vault);
   const active = useTabs((s) => s.active);
   const boardVisible = useUi((s) => s.boardVisible);
-  const activeBoard = useUi((s) => s.activeBoard);
   // The tool says what shows (spec/02 §4.17): over the content, the overlay.
   const sidebarVisible = useUi(sidebarShown);
-  const boardName = useBoard((s) => s.boards.find((b) => b.slug === activeBoard)?.name ?? activeBoard);
+  // The view shows every board (ADR-0054): its place is „Boards“.
+  const boardName = t("board.all");
 
   const settingsView = useUi((s) => s.settingsView);
   // The way back to the board a card's note was opened from (ADR-0053):

@@ -43,7 +43,11 @@ const board = {
 describe("the card context menu", () => {
   beforeEach(() => {
     vi.mocked(commands.contextMenu).mockResolvedValue({ status: "ok", data: null } as never);
-    useBoard.setState({ board: board as never, apply: vi.fn().mockResolvedValue(undefined) });
+    useBoard.setState({
+      board: board as never,
+      docs: { plan: board as never },
+      apply: vi.fn().mockResolvedValue(undefined),
+    });
     useUi.setState({ prompt: null });
   });
 
@@ -94,7 +98,7 @@ describe("the card context menu", () => {
 
   it("does nothing for a card that is gone, and leaves other ids alone", async () => {
     await openCardContextMenu(board.cards[0] as never, board as never);
-    useBoard.setState({ board: { ...board, cards: [] } as never });
+    useBoard.setState({ board: { ...board, cards: [] } as never, docs: { plan: { ...board, cards: [] } as never } });
     expect(runCardMenuAction("card.rename")).toBe(true);
     expect(useUi.getState().prompt).toBeNull();
     expect(runCardMenuAction("tree.rename")).toBe(false);

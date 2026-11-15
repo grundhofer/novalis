@@ -781,6 +781,8 @@ pub struct BoardDto {
     /// still returned — a board that cannot be tidied is still a board — and
     /// the UI reports the error like any failed command.
     pub resolve_error: Option<crate::error::IpcError>,
+    /// Shown as its head only in the boards view (ADR-0054), from `board.json`.
+    pub collapsed: bool,
 }
 
 impl BoardDto {
@@ -802,6 +804,7 @@ impl BoardDto {
             resolved_conflicts: 0,
             resolved_columns: false,
             resolve_error: None,
+            collapsed: board.view.as_ref().is_some_and(|v| v.collapsed),
         }
     }
 }

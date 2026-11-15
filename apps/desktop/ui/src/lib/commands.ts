@@ -405,13 +405,16 @@ async function newCard(): Promise<void> {
     labelKey: "board.cardTitleLabel",
     initial: "",
     submit: async (title) => {
-      await useBoard.getState().apply({
-        kind: "add",
-        title,
-        column: column.id,
-        notes: [],
-        position: { kind: "last" },
-      });
+      await useBoard.getState().apply(
+        {
+          kind: "add",
+          title,
+          column: column.id,
+          notes: [],
+          position: { kind: "last" },
+        },
+        slug,
+      );
     },
   });
 }
@@ -449,7 +452,7 @@ export async function createNoteFromCard(card: CardDto): Promise<void> {
   if (!card.notes.includes(path)) {
     await useBoard.getState().apply({ kind: "linkNote", id: card.id, path });
   }
-  await openFromBoard(path);
+  await openFromBoard(path, useBoard.getState().boardOf(card.id));
 }
 
 /**
@@ -487,13 +490,16 @@ async function cardFromSelection(): Promise<void> {
     useUi.getState().setActiveBoard(slug);
     return;
   }
-  await useBoard.getState().apply({
-    kind: "add",
-    title,
-    column: column.id,
-    notes: [note],
-    position: { kind: "last" },
-  });
+  await useBoard.getState().apply(
+    {
+      kind: "add",
+      title,
+      column: column.id,
+      notes: [note],
+      position: { kind: "last" },
+    },
+    slug,
+  );
   useUi.getState().showToast("board.cardAdded", { board: loaded.name });
 }
 

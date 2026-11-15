@@ -17,20 +17,23 @@ import { report, useUi } from "../stores/ui";
 export function openCardNote(card: CardDto): void {
   const note = card.notes[0];
   if (!note) return editDescription(card);
-  void openFromBoard(note).catch(report);
+  void openFromBoard(note, useBoard.getState().boardOf(card.id)).catch(report);
 }
 
 /**
- * Open a note from the loaded board and remember the way back (ADR-0053):
- * the title bar offers „Zurück zu <Board>“ while that note is current.
+ * Open a note from a board — `board`, else the current one — and remember
+ * the way back (ADR-0053): the title bar offers „Zurück zu <Board>“ while
+ * that note is current.
  */
-export async function openFromBoard(path: string): Promise<void> {
-  const board = useBoard.getState().slug;
+export async function openFromBoard(path: string, board = useBoard.getState().slug): Promise<void> {
   if (board) useUi.getState().setBoardReturn({ path, board });
   await useTabs.getState().open(path);
 }
 
-/** „Zurück zu <Board>“ (ADR-0053): show that board again, as its switcher does. */
+/**
+ * „Zurück zu <Board>“ (ADR-0053): the boards view again, scrolled to that
+ * board (ADR-0054), which becomes the current one.
+ */
 export function returnToBoard(slug: string): void {
   useUi.getState().setActiveBoard(slug);
   if (useBoard.getState().slug !== slug) void useBoard.getState().load(slug).catch(report);
@@ -127,7 +130,12 @@ const MOVE_TO_COLUMN = "card.moveToColumn:";
 
 /** The card the last context menu was opened on, as the board has it now. */
 export function menuCardNow(): CardDto | undefined {
-  return useBoard.getState().board?.cards.find((c) => c.id === menuCard);
+  // Any board the view shows, not only the current one (ADR-0054).
+  for (const board of Object.values(useBoard.getState().docs)) {
+    const card = board.cards.find((c) => c.id === menuCard);
+    if (card) return card;
+  }
+  return undefined;
 }
 
 /**

@@ -151,9 +151,10 @@ export const commands = {
 	/**
 	 *  The two configurable things about a board: its name and its column list
 	 *  (§8.5). Columns go through `set_columns`, which re-reads and replays on a
-	 *  conflict, so two devices reordering columns never lose one.
+	 *  conflict, so two devices reordering columns never lose one. `collapsed`
+	 *  is its view in the boards view (ADR-0054), replayed the same way.
 	 */
-	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place })),
+	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null, collapsed: boolean | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, collapsed })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
 	 *  field change, which is why a conflicting board never raises a banner
@@ -283,6 +284,8 @@ export type BoardDto = {
 	 *  the UI reports the error like any failed command.
 	 */
 	resolveError: IpcError | null,
+	/**  Shown as its head only in the boards view (ADR-0054), from `board.json`. */
+	collapsed: boolean,
 };
 
 export type BoardRefDto = {

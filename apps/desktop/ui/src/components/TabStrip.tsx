@@ -120,8 +120,8 @@ const BOARD_TAB_ID = "doc-tab-board";
 const noteTabId = (index: number) => `doc-tab-${index}`;
 
 /**
- * The open board's tab (ADR-0050): the one board at a time, first in the
- * strip, current while the board pane shows. A board shown by the toggle
+ * The boards view's tab (ADR-0050), „Boards“ since the view shows every
+ * board (ADR-0054): first in the strip, current while the view shows. A board shown by the toggle
  * before any was chosen is the board store's. It is sebaro's pinned tab
  * (spec/02 §4.21, D102 (5), ADR-0051 #35): it comes and goes with the board
  * tool and View ▸ Board only.
@@ -214,7 +214,7 @@ export default function TabStrip() {
   const docs = useEditorSave((s) => s.docs);
   const boardVisible = useUi((s) => s.boardVisible);
   const boardSlug = useBoardTab();
-  const boardName = useBoard((s) => s.boards.find((b) => b.slug === boardSlug)?.name ?? boardSlug);
+  const boardName = boardSlug === null ? null : t("board.all");
   const currentId = useCurrentTabId();
   const noneRef = useRef<HTMLParagraphElement>(null);
   const listRef = useRef<HTMLDivElement>(null);

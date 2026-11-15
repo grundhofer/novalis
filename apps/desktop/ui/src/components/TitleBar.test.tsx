@@ -82,7 +82,8 @@ describe("TitleBar", () => {
     useUi.setState({ boardVisible: true, activeBoard: "plan" });
     const { container } = render(<TitleBar />);
     const spans = [...container.querySelectorAll(".sb-window__path > span")].map((span) => span.textContent);
-    expect(spans).toEqual(["window.place", "Vault", "Wochenplan"]);
+    // The view shows every board (ADR-0054): its place is „Boards“.
+    expect(spans).toEqual(["window.place", "Vault", "board.all"]);
   });
 
   it("has no path without a place", () => {
