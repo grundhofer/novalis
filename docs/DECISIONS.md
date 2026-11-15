@@ -1051,6 +1051,13 @@ filters on `card ls`; no `board view`.
 
 Recorded as **ADR-0055**.
 
+A new board from the boards view itself (verbatim „alter verwalter, denkst du
+nicht in der board ansicht, sollte eine solche aktion angeboten werden?“): a
+secondary „Neues Board …“ after the last board and in the empty state; the
+File menu and the palette keep theirs.
+
+Recorded as **ADR-0056**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

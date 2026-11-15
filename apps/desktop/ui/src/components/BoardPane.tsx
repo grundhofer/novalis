@@ -23,7 +23,7 @@ import {
   openCardNote,
   openFromBoard,
 } from "../lib/cardActions";
-import { createNoteFromCard, deleteBoard } from "../lib/commands";
+import { createNoteFromCard, deleteBoard, newBoard } from "../lib/commands";
 import { NO_DRAG_IMAGE } from "../lib/dragImage";
 import { isNote, stemOf } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
@@ -196,15 +196,25 @@ export default function BoardPane() {
     list.scrollTo?.({ top, behavior: reducedMotion() ? "auto" : "smooth" });
   }, [activeBoard, activeLoaded, allRead, reveal]);
 
+  // „Neues Board …“ in the view itself (ADR-0056), as „Spalte hinzufügen“
+  // is in a board's head; the File menu and the palette keep it too.
+  const newBoardButton = (
+    <button className="sb-secondary-action sb-secondary-action--compact" type="button" onClick={() => newBoard().catch(report)}>
+      <Icon name="plus" />
+      {t("board.newBoardAction")}
+    </button>
+  );
+
   if (boards.length === 0) {
-    // No board at all (DAT-07): heading and sentence, no button of its own;
-    // „Neues Board“ is in the File menu and the palette, the action zone
-    // keeps „Neue Notiz“ (ADR-0048). Alone in the view, sebaro centres it.
+    // No board at all (DAT-07): heading, sentence and „Neues Board …“
+    // (ADR-0056); the action zone keeps „Neue Notiz“ (ADR-0048). Alone in
+    // the view, sebaro centres it.
     return (
       <div className="sb-view__content">
         <div className="sb-empty">
           <h2 className="sb-empty__title">{t("board.noBoardTitle")}</h2>
           <p className="sb-empty__text">{t("board.noBoardText")}</p>
+          {newBoardButton}
         </div>
       </div>
     );
@@ -264,6 +274,7 @@ export default function BoardPane() {
           </section>
         );
       })}
+      <div className="boards__foot">{newBoardButton}</div>
     </div>
   );
 }

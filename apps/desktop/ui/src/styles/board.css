@@ -18,6 +18,13 @@
   background: var(--sb-color-bg);
 }
 
+/* „Neues Board …“ after the last board (ADR-0056), in a board's padding and
+   under the same hairline. */
+.boards__foot {
+  padding: var(--sb-space-5) var(--sb-space-6);
+  border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
+}
+
 /* A board is as tall as its longest column, never taller than the view: a
    longer column scrolls in itself (ADR-0050). Boards are divided by a
    hairline, as the columns are. */

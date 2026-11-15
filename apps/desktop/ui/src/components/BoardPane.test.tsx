@@ -573,12 +573,23 @@ describe("BoardPane", () => {
     expect(screen.getByRole("button", { name: "board.addColumn" })).toBeTruthy();
   });
 
-  it("has no button of its own when there is no board at all (DAT-07)", () => {
+  // ADR-0056: „Neues Board …“ in the view, after the last board and in the
+  // empty state; it asks for the name as the File menu's entry does.
+  it("offers a new board after the last one and when there is none (DAT-07)", async () => {
+    const { unmount } = render(<BoardPane />);
+    const foot = document.querySelector(".boards > .boards__foot:last-child button")!;
+    expect(foot.className).toBe("sb-secondary-action sb-secondary-action--compact");
+    expect(foot.textContent).toBe("board.newBoardAction");
+    fireEvent.click(foot);
+    expect(useUi.getState().prompt?.titleKey).toBe("board.newBoard");
+    act(() => useUi.setState({ prompt: null }));
+    unmount();
+
     showBoard(null);
     useBoard.setState({ boards: [] });
     render(<BoardPane />);
     expect(document.querySelector(".sb-empty .sb-empty__title")?.textContent).toBe("board.noBoardTitle");
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["board.newBoardAction"]);
   });
 
   // ADR-0050, D102 (36): „Neue Notiz“ stays the window's primary action, each
