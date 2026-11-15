@@ -105,7 +105,8 @@ Goal: two notes with the same content or the same stem in different folders.
 
 ```sh
 # same stem, different folders
-novalis doctor --json | jq '.checks[] | select(.id == "duplicate-stems")'
+novalis doctor --json | jq '.checks[] | select(.id == "duplicate_stems")'   # the count only; doctor names no paths here
+novalis ls --json | jq -r '.items[] | select(.linkTarget | contains("/")) | .path'   # the notes whose stem is shared
 # same bytes (hash groups with more than one path)
 novalis ls --json | jq -r '.items[] | select(.sha256 != null) | "\(.sha256) \(.path)"' \
   | sort | awk '{ n[$1]++; l[$1] = l[$1] "\n" $0 } END { for (h in n) if (n[h] > 1) print l[h] }'
@@ -193,3 +194,129 @@ For today's note, `journal` does both steps and picks the local date itself:
 ```sh
 novalis journal --append "- Reviewed [[$T]]" --json
 ```
+
+## Project work with notes and cards
+
+The recipes below are the use cases of someone who runs their projects on a
+board: cards for the work, notes for the thinking, linked both ways. Card
+ids, `updated` stamps and dates in them are examples; take every one from
+the JSON you just read.
+
+## 9. Today, and due days relative to it
+
+```sh
+TODAY=$(novalis journal --dry-run --json | jq -r .stem)     # the local day; writes nothing
+IN3=$(date -j -v+3d -f %Y-%m-%d "$TODAY" +%Y-%m-%d)          # macOS date; GNU: date -d "$TODAY +3 days" +%F
+```
+
+Never take the day from the model or from UTC: a card due "today" at 23:30
+local time is overdue a minute later in UTC.
+
+## 10. Set up a project board
+
+```sh
+novalis board new projekte --name "Projekte" --json
+novalis board columns projekte --set '[{"id":"offen","name":"Offen"},{"id":"arbeit","name":"In Arbeit"},{"id":"erledigt","name":"Erledigt"}]' --json
+```
+
+Column ids are stable and never shown; names are what the user sees and
+may change. Keep ids short and lowercase; `card ls --column` takes the id.
+
+## 11. Add a project card with its fields
+
+```sh
+novalis card add projekte --title "Angebot Kunde X" --column offen \
+  --label Kunde --label Angebot --due "$IN3" --priority high --assignee Anna \
+  --note "projects/Kunde X" --dry-run --json      # shows the card it would write
+novalis card add projekte --title "Angebot Kunde X" --column offen \
+  --label Kunde --label Angebot --due "$IN3" --priority high --assignee Anna \
+  --note "projects/Kunde X" --json
+```
+
+`--note` must resolve to an existing note; create it first (§14) when it
+does not. Labels are kept once regardless of case; their colour is set in
+the app.
+
+## 12. Triage: what needs attention
+
+```sh
+novalis card ls --board projekte --due overdue --json | jq -r '.items[] | select(.column != "erledigt") | "\(.due) \(.title) (\(.assignee // "–"))"'
+novalis card ls --board projekte --due today --json
+novalis card ls --board projekte --due 7d --json        # today and the six days after; overdue ones are not in it
+novalis card ls --board projekte --priority high --json
+novalis card ls --assignee Anna --json                   # exact name; spans every board
+novalis card ls --label kunde --json                     # any case
+```
+
+The due filters ignore the column: leave out the column the user calls done
+(here `erledigt`) and say that you did.
+
+## 13. Change a card, guarded
+
+```sh
+C=$(novalis card ls --board projekte --label angebot --json | jq -c '.items[0]')
+ID=$(jq -r .id <<<"$C"); U=$(jq -r .updated <<<"$C")
+U=$(novalis card mv "$ID" --column arbeit --if-updated "$U" --json | jq -r .card.updated)
+U=$(novalis card set "$ID" --priority medium --add-label verhandelt --rm-label Angebot --if-updated "$U" --json | jq -r .card.updated)
+novalis card set "$ID" --due "" --if-updated "$U" --json          # clears the due day
+```
+
+Each result's `updated` is the next `--if-updated`. Exit 4 means someone
+changed the card since you read it: read it again and re-plan. Clear a
+field with an empty value (`--due ""`, `--assignee ""`, `--label ""`) or
+`--priority none`.
+
+## 14. A note for a card, linked both ways
+
+```sh
+C=$(novalis card ls --board projekte --json | jq -c '.items[] | select(.title == "Angebot Kunde X")')
+ID=$(jq -r .id <<<"$C"); U=$(jq -r .updated <<<"$C")
+printf '# Angebot Kunde X\n\n%s\n\n## Offene Punkte\n\n' "$(jq -r '.description // ""' <<<"$C")" \
+  | novalis new "projects/Angebot Kunde X.md" --tag projekt --content - --json
+novalis card set "$ID" --add-note "projects/Angebot Kunde X" --if-updated "$U" --json
+novalis links "Angebot Kunde X" --json | jq '.cards'     # the card appears here
+```
+
+A note cannot link to a card; the link lives in the card's `notes[]`, and
+`links <note>` shows it in `cards[]`. Such a note is not an orphan, and
+`rm` refuses it (exit 5, the card file in `candidates`) until the card lets
+go of it: `card set <id> --rm-note <note>`.
+
+## 15. Weekly review of a board
+
+```sh
+novalis board show projekte --json | jq -r --arg today "$TODAY" --arg done erledigt '
+  .columns[] as $col
+  | "## \($col.name)",
+    ( [.cards[] | select(.column == $col.id)][]
+      | "- \(.title)" + (if .assignee then " · \(.assignee)" else "" end)
+        + (if .due then " · fällig \(.due)"
+             + (if .due < $today and $col.id != $done then " (überfällig)" else "" end) else "" end)
+        + (if .priority then " · \(.priority)" else "" end) )'
+```
+
+`board show` holds the columns in their order and every live card. Due days
+compare as text (`YYYY-MM-DD`); a card in the done column is not overdue. Write the review into the journal with
+`novalis journal --append -` when the user wants it kept.
+
+## 16. Action items from a meeting note to cards
+
+```sh
+novalis cat "meetings/2026-11-15 Kunde X" --json | jq -r '.items[0].body' | grep -E '^\s*- \[ \]'   # open tasks
+novalis card add projekte --title "Preise prüfen" --assignee Ben --due "$IN3" \
+  --note "meetings/2026-11-15 Kunde X" --json      # one call per task, each linked to the meeting
+```
+
+Show the user the tasks you found and the cards you would add before adding
+them. The note stays as it is: the card only references it.
+
+## 17. Close a card
+
+```sh
+C=$(novalis card ls --board projekte --json | jq -c '.items[] | select(.title == "Angebot Kunde X")')
+novalis card mv "$(jq -r .id <<<"$C")" --column erledigt --if-updated "$(jq -r .updated <<<"$C")" --json
+novalis journal --append "- Erledigt: Angebot Kunde X" --json
+```
+
+`card rm` is for a card that should not exist; a finished one moves to the
+done column, so the board keeps its history.
