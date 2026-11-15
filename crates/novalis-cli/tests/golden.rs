@@ -837,3 +837,113 @@ fn card_fields_are_added_set_and_filtered() {
     assert_eq!(dry["card"]["due"], today.as_str());
     assert_eq!(dry["card"]["assignee"], "Cleo");
 }
+
+/// What an agent test of the skill found on 2026-11-15: a note only a card
+/// references is neither an orphan nor silently trashable, `mv` into a
+/// folder keeps the file name, a removed card cannot be changed or removed
+/// again, and a card needs a title.
+#[test]
+fn agent_test_findings_stay_fixed() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::create_dir_all(vault.join("boards/p/cards")).expect("the board folder");
+    std::fs::write(
+        vault.join("boards/p/board.json"),
+        r#"{"columns":[{"id":"todo","name":"To Do"}],"format":1,"name":"P","updated":"2026-09-05T08:41:12.345Z"}
+"#,
+    )
+    .expect("board.json");
+    let run = |args: &[&str]| -> (serde_json::Value, i32) {
+        let out = Command::new(BIN)
+            .arg("--vault")
+            .arg(&vault)
+            .args(args)
+            .current_dir(&root)
+            .env("HOME", &root)
+            .env_remove("NOVALIS_VAULT")
+            .output()
+            .unwrap_or_else(|e| panic!("cannot run {BIN}: {e}"));
+        let code = out.status.code().unwrap_or(-1);
+        let raw = if out.stdout.is_empty() {
+            &out.stderr
+        } else {
+            &out.stdout
+        };
+        let value = serde_json::from_slice(raw)
+            .unwrap_or_else(|e| panic!("{args:?} printed no JSON ({e}): {raw:?}"));
+        (value, code)
+    };
+    let orphan = |path: &str| -> bool {
+        let (list, code) = run(&["links", "--orphans"]);
+        assert_eq!(code, 0, "{list}");
+        list["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .any(|p| p == path)
+    };
+
+    // A note only a card points at.
+    assert_eq!(
+        run(&["new", "projects/Card Only.md", "--content", "x"]).1,
+        0
+    );
+    assert!(orphan("projects/Card Only.md"));
+    let (card, code) = run(&["card", "add", "p", "--title", "K", "--note", "Card Only"]);
+    assert_eq!(code, 0, "{card}");
+    let id = card["card"]["id"].as_str().expect("an id").to_string();
+    assert!(
+        !orphan("projects/Card Only.md"),
+        "a card reference is a reference"
+    );
+
+    // `rm` refuses it like a backlink (exit 5) and names the card file.
+    let (refused, code) = run(&["rm", "Card Only", "--dry-run"]);
+    assert_eq!(code, 5, "{refused}");
+    assert_eq!(
+        refused["error"]["candidates"],
+        serde_json::json!([format!("boards/p/cards/{id}.json")])
+    );
+    let (forced, code) = run(&["rm", "Card Only", "--force", "--dry-run"]);
+    assert_eq!(code, 0, "{forced}");
+    assert_eq!(
+        forced["danglingCards"][0],
+        format!("boards/p/cards/{id}.json")
+    );
+
+    // `mv` into an existing folder keeps the file name, with or without `/`.
+    for to in ["meetings", "meetings/"] {
+        let (moved, code) = run(&["mv", "Card Only", to, "--dry-run"]);
+        assert_eq!(code, 0, "{to}: {moved}");
+        assert_eq!(moved["to"], "meetings/Card Only.md", "{to}");
+    }
+
+    // A removed card is gone for `set`, `mv` and a second `rm` (exit 3), and
+    // its tombstone keeps the stamp it got.
+    let (removed, code) = run(&["card", "rm", &id]);
+    assert_eq!(code, 0, "{removed}");
+    let file = vault.join(format!("boards/p/cards/{id}.json"));
+    let before = std::fs::read_to_string(&file).expect("the tombstone");
+    for args in [
+        vec!["card", "set", id.as_str(), "--title", "x"],
+        vec!["card", "mv", id.as_str(), "--first"],
+        vec!["card", "rm", id.as_str()],
+    ] {
+        let (err, code) = run(&args);
+        assert_eq!(code, 3, "{args:?}: {err}");
+    }
+    assert_eq!(
+        std::fs::read_to_string(&file).expect("the tombstone"),
+        before
+    );
+
+    // A card needs a title.
+    for args in [
+        vec!["card", "add", "p", "--title", "  "],
+        vec!["--dry-run", "card", "add", "p", "--title", ""],
+    ] {
+        assert_eq!(run(&args).1, 2, "{args:?}");
+    }
+}
