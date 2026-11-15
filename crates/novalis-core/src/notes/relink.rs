@@ -680,6 +680,10 @@ mod tests {
                 notes: vec!["Old.md".into(), "keep.md".into()],
                 position: Position::Last,
                 description: None,
+                labels: Vec::new(),
+                due: None,
+                priority: None,
+                assignee: None,
             },
         )
         .unwrap();

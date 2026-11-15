@@ -174,6 +174,33 @@ fn resolve_stale_note(ctx: &Ctx, reference: &str) -> Result<String, CliError> {
     }
 }
 
+/// A `--priority` value: one of the three steps, or empty for none where
+/// `none` is allowed (`card set`).
+fn priority_arg(value: &str, none_clears: bool) -> Result<String, CliError> {
+    let v = value.trim().to_lowercase();
+    if boards::PRIORITIES.contains(&v.as_str()) {
+        return Ok(v);
+    }
+    if none_clears && (v.is_empty() || v == "none") {
+        return Ok(String::new());
+    }
+    Err(CliError::usage(format!(
+        "--priority must be high, medium or low{}: {value}",
+        if none_clears { " (or none)" } else { "" }
+    )))
+}
+
+/// A `--due` value: a real day `YYYY-MM-DD`, or empty to clear where allowed.
+fn due_arg(value: &str, empty_clears: bool) -> Result<String, CliError> {
+    let v = value.trim();
+    if (empty_clears && v.is_empty()) || novalis_core::util::is_iso_day(v) {
+        return Ok(v.to_string());
+    }
+    Err(CliError::usage(format!(
+        "--due must be a day YYYY-MM-DD: {value}"
+    )))
+}
+
 /// A store failure with the card's own precondition flag in the hint: the
 /// shared mapping names `--if-match`, which is the flag of a note.
 fn card_error(e: CoreError) -> CliError {
@@ -223,6 +250,23 @@ fn list(ctx: &Ctx, args: CardLsArgs) -> Result<CardOut, CliError> {
         Some(reference) => Some(fold(&ctx.resolve_note(reference)?)),
         None => None,
     };
+    let priority = match &args.priority {
+        Some(p) => Some(priority_arg(p, false)?),
+        None => None,
+    };
+    let label = args.label.as_deref().map(fold);
+    // Due days compare as text: `YYYY-MM-DD` sorts like the days it names.
+    let today = novalis_core::util::local_iso_day(0);
+    let week_end = novalis_core::util::local_iso_day(7);
+    let due = match args.due.as_deref() {
+        None => None,
+        Some(w @ ("overdue" | "today" | "7d" | "none")) => Some(w),
+        Some(other) => {
+            return Err(CliError::usage(format!(
+                "--due must be overdue, today, 7d or none: {other}"
+            )))
+        }
+    };
 
     let mut items = Vec::new();
     let mut cloud_only_skipped = Vec::new();
@@ -247,6 +291,29 @@ fn list(ctx: &Ctx, args: CardLsArgs) -> Result<CardOut, CliError> {
                 .as_ref()
                 .is_some_and(|key| !card.notes.iter().any(|n| &fold(n) == key))
             {
+                continue;
+            }
+            if label
+                .as_ref()
+                .is_some_and(|key| !card.labels.iter().any(|l| &fold(l) == key))
+            {
+                continue;
+            }
+            if priority.is_some() && card.priority != priority {
+                continue;
+            }
+            if args.assignee.is_some() && card.assignee != args.assignee {
+                continue;
+            }
+            let day = card.due.as_deref();
+            let due_ok = match due {
+                None => true,
+                Some("none") => day.is_none(),
+                Some("overdue") => day.is_some_and(|d| d < today.as_str()),
+                Some("today") => day == Some(today.as_str()),
+                Some(_) => day.is_some_and(|d| d >= today.as_str() && d < week_end.as_str()),
+            };
+            if !due_ok {
                 continue;
             }
             of_board.push(card_view(slug, &card));
@@ -278,6 +345,14 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
         notes,
         position: position_of(&args.position),
         description: args.description.clone(),
+        labels: args.labels.clone(),
+        due: args.due.as_deref().map(|d| due_arg(d, false)).transpose()?,
+        priority: args
+            .priority
+            .as_deref()
+            .map(|p| priority_arg(p, false))
+            .transpose()?,
+        assignee: args.assignee.clone(),
     };
 
     if ctx.dry_run {
@@ -303,10 +378,13 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
                 created: now.clone(),
                 updated: now,
                 description: new.description.filter(|d| !d.is_empty()),
-                labels: Vec::new(),
-                due: None,
-                priority: None,
-                assignee: None,
+                labels: tidy_labels(&new.labels),
+                due: new.due.filter(|d| !d.is_empty()),
+                priority: new.priority,
+                assignee: new
+                    .assignee
+                    .map(|a| a.trim().to_string())
+                    .filter(|a| !a.is_empty()),
                 deleted: None,
             },
             dry_run: true,
@@ -335,16 +413,44 @@ fn mv(ctx: &Ctx, args: CardMvArgs) -> Result<CardOut, CliError> {
     apply(ctx, &slug, &args.id, doc, vec![change], args.if_updated)
 }
 
+/// Labels as the store keeps them: trimmed, empty ones left out, each once
+/// regardless of case, in the order given.
+fn tidy_labels(labels: &[String]) -> Vec<String> {
+    let mut kept: Vec<String> = Vec::new();
+    for label in labels
+        .iter()
+        .map(|l| novalis_core::vault::path::nfc(l.trim()))
+    {
+        if !label.is_empty() && !kept.iter().any(|k| fold(k) == fold(&label)) {
+            kept.push(label);
+        }
+    }
+    kept
+}
+
 fn set(ctx: &Ctx, args: CardSetArgs) -> Result<CardOut, CliError> {
     if args.title.is_none()
         && args.description.is_none()
         && args.add_note.is_empty()
         && args.rm_note.is_empty()
+        && args.label.is_empty()
+        && args.add_label.is_empty()
+        && args.rm_label.is_empty()
+        && args.due.is_none()
+        && args.priority.is_none()
+        && args.assignee.is_none()
     {
         return Err(CliError::usage(
-            "card set needs --title, --description, --add-note or --rm-note",
+            "card set needs --title, --description, --add-note, --rm-note, --label, --add-label, --rm-label, --due, --priority or --assignee",
         ));
     }
+    // Checked before anything is written: a bad value fails the whole call.
+    let due = args.due.as_deref().map(|d| due_arg(d, true)).transpose()?;
+    let priority = args
+        .priority
+        .as_deref()
+        .map(|p| priority_arg(p, true))
+        .transpose()?;
     let (slug, doc) = find(ctx, &args.id)?;
     // One file per change, in a fixed order: the title, the description, then
     // the references that go away, then the ones that arrive.
@@ -360,6 +466,31 @@ fn set(ctx: &Ctx, args: CardSetArgs) -> Result<CardOut, CliError> {
     }
     for n in &args.add_note {
         changes.push(CardChange::AddNote(ctx.resolve_note(n)?));
+    }
+    // Then the fields of ADR-0054. The labels are one change, the whole list:
+    // replaced by --label, or the card's own with --rm-label and --add-label.
+    if !args.label.is_empty() {
+        changes.push(CardChange::Labels(args.label.clone()));
+    } else if !args.add_label.is_empty() || !args.rm_label.is_empty() {
+        let gone: Vec<String> = args.rm_label.iter().map(|l| fold(l.trim())).collect();
+        let mut labels: Vec<String> = doc
+            .card
+            .labels
+            .iter()
+            .filter(|l| !gone.contains(&fold(l)))
+            .cloned()
+            .collect();
+        labels.extend(args.add_label.iter().cloned());
+        changes.push(CardChange::Labels(labels));
+    }
+    if let Some(d) = due {
+        changes.push(CardChange::Due(d));
+    }
+    if let Some(p) = priority {
+        changes.push(CardChange::Priority(p));
+    }
+    if let Some(a) = &args.assignee {
+        changes.push(CardChange::Assignee(a.clone()));
     }
     apply(ctx, &slug, &args.id, doc, changes, args.if_updated)
 }
