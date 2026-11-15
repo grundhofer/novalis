@@ -268,17 +268,30 @@ not there is exit 3.
 A card id is a ULID and is unique across the vault, so `card mv`, `card set`
 and `card rm` take no board argument.
 
-- `card ls [--board B] [--note <note>] [--column C]` →
-  `{items:[{board,id,title,column,order,notes,created,updated,description?}],
+A card has four optional fields (ADR-0054), each absent from the JSON while
+empty: `labels` (free tags, each once regardless of case), `due` (a local day
+`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee` (a free
+name). A label's colour is set per board in the app and is not the CLI's.
+
+- `card ls [--board B] [--note <note>] [--column C] [--label L] [--priority P] [--assignee A] [--due WHEN]` →
+  `{items:[{board,id,title,column,order,notes,created,updated,description?,labels?,due?,priority?,assignee?}],
   truncated, cloudOnlySkipped}`, sorted by `(board, column order, order, id)`.
   Tombstones are never listed. `--column` matches the column **id** exactly
   (`card ls` spans boards); `--note` takes a note reference and must resolve.
-- `card add <b> --title T [--description TEXT] [--column C] [--note <note>]… [--after ID | --first | --last]`
+  `--label` matches regardless of case, `--assignee` exactly. `--due` is
+  `overdue` (before today), `today`, `7d` (today and the six days after) or
+  `none` (no due day); days are the machine's local ones, so never compute
+  "today" yourself. The filters combine (AND). A bad `--priority` or `--due`
+  is exit 2.
+- `card add <b> --title T [--description TEXT] [--column C] [--note <note>]… [--label L]… [--due YYYY-MM-DD] [--priority P] [--assignee A] [--after ID | --first | --last]`
   → `{card}`. `--column` takes an id, or a name when unambiguous (else exit
   4); default column = first; default position = last. `--note` is repeatable
   and must resolve. `--description` is optional Markdown text under the title;
-  an empty one is the same as none. Under `--dry-run` nothing is written, so
-  the answer carries no `id` and no `order`.
+  an empty one is the same as none. `--label` is repeatable; the fields are
+  written with the card in one file. A due day that is no real day or a
+  priority that is no step is exit 2, before anything is written. Under
+  `--dry-run` nothing is written, so the answer carries no `id` and no
+  `order`, but shows the fields.
 - `card mv <id> [--column C] [--after ID | --first | --last]` → `{card}`.
   At least one of the four is required. It moves within the board: a move
   to another board is app-only for now (ADR-0019; the app keeps the id, puts
@@ -286,12 +299,17 @@ and `card rm` take no board argument.
   up to 30 days after such a move the id is on two boards, one of them a
   tombstone; `card mv`, `card set` and `card rm` take the live one, and
   `card ls` shows the card once.
-- `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]…`
+- `card set <id> [--title T] [--description TEXT] [--add-note N]… [--rm-note N]… [--label L]… | [--add-label L]… [--rm-label L]… [--due D] [--priority P] [--assignee A]`
   → `{card}`. The changes are written one file at a time, in the order title,
-  description, removals, additions. `--description` replaces the whole text;
-  `--description ""` clears it. `--add-note` must resolve; `--rm-note` is kept
-  verbatim when nothing resolves to it, so a reference to a deleted note can
-  be cleaned up.
+  description, note removals, note additions, labels, due, priority,
+  assignee. `--description` replaces the whole text; `--description ""`
+  clears it. `--add-note` must resolve; `--rm-note` is kept verbatim when
+  nothing resolves to it, so a reference to a deleted note can be cleaned
+  up. `--label` (repeatable) replaces all labels and `--label ""` alone
+  clears them; `--add-label`/`--rm-label` change the card's own list
+  (`--rm-label` regardless of case) and cannot be combined with `--label`
+  (exit 2). `--due ""`, `--assignee ""` and `--priority none` clear the
+  field. Bad values are exit 2 before anything is written.
 - `card rm <id>` → `{card}` with the `deleted` tombstone stamp. The file
   stays until it is 30 days old. A removed card is gone for `card mv`,
   `card set` and another `card rm` (exit 3); its stamp is never renewed.
