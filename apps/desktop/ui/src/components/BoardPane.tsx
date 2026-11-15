@@ -3,8 +3,17 @@ import { useTranslation } from "react-i18next";
 
 import type { DragEvent } from "react";
 
-import type { BoardDto, BoardViewDto, CardDto, CardSortDto, ChangedWithinDto, ColumnDto, PositionDto } from "../ipc/client";
-import { cardOrder, cardPasses, dueDay, filterCount, isOverdue, SORTS, SPANS } from "../lib/boardView";
+import type {
+  BoardDto,
+  BoardViewDto,
+  CardDto,
+  CardSortDto,
+  ChangedWithinDto,
+  ColumnDto,
+  DueWithinDto,
+  PositionDto,
+} from "../ipc/client";
+import { cardOrder, cardPasses, dueDay, DUES, filterCount, isOverdue, PRIORITIES, SORTS, SPANS } from "../lib/boardView";
 import {
   deleteCard,
   editCard,
@@ -71,6 +80,14 @@ const SORT_KEYS: Record<CardSortDto, string> = {
   title: "board.sortTitle",
   updated: "board.sortUpdated",
   created: "board.sortCreated",
+  due: "board.sortDue",
+  priority: "board.priorityLabel",
+};
+const DUE_KEYS: Record<DueWithinDto, string> = {
+  overdue: "board.dueOverdue",
+  today: "board.dueToday",
+  "7d": "board.dueWeek",
+  none: "board.dueNone",
 };
 
 /**
@@ -345,8 +362,24 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
   const resetView = () => {
     useBoard.getState().setSearch(board.slug, "");
     setSearching(false);
-    changeView({ hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false });
+    changeView({
+      hiddenColumns: [],
+      changedWithin: null,
+      withLabel: null,
+      withPriority: null,
+      withAssignee: null,
+      dueWithin: null,
+      sort: null,
+      sortReversed: false,
+    });
   };
+  /** The labels and the names on this board, for their filters. */
+  const labelsHere = board.cards
+    .flatMap((c) => c.labels)
+    // Each once regardless of case, in the spelling met first.
+    .filter((l, i, all) => all.findIndex((m) => m.toLocaleLowerCase() === l.toLocaleLowerCase()) === i)
+    .sort((a, b) => a.localeCompare(b));
+  const assigneesHere = [...new Set(board.cards.map((c) => c.assignee).filter((a): a is string => !!a))].sort();
   const toggleColumn = (id: string) =>
     changeView({
       hiddenColumns: view.hiddenColumns.includes(id)
@@ -392,6 +425,62 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
           label: t(SPAN_KEYS[span]),
           checked: view.changedWithin === span,
           onSelect: () => changeView({ changedWithin: span }),
+        })),
+      ],
+    },
+    ...(labelsHere.length > 0
+      ? [
+          {
+            label: t("board.labelsLabel"),
+            choices: [
+              { label: t("board.anyValue"), checked: view.withLabel === null, onSelect: () => changeView({ withLabel: null }) },
+              ...labelsHere.map((label) => ({
+                label,
+                checked: view.withLabel?.toLocaleLowerCase() === label.toLocaleLowerCase(),
+                onSelect: () => changeView({ withLabel: label }),
+              })),
+            ],
+          },
+        ]
+      : []),
+    {
+      label: t("board.priorityLabel"),
+      choices: [
+        { label: t("board.anyValue"), checked: view.withPriority === null, onSelect: () => changeView({ withPriority: null }) },
+        ...PRIORITIES.map((priority) => ({
+          label: t(PRIORITY_KEYS[priority]),
+          checked: view.withPriority === priority,
+          onSelect: () => changeView({ withPriority: priority }),
+        })),
+      ],
+    },
+    ...(assigneesHere.length > 0
+      ? [
+          {
+            label: t("board.assigneeLabel"),
+            choices: [
+              {
+                label: t("board.anyValue"),
+                checked: view.withAssignee === null,
+                onSelect: () => changeView({ withAssignee: null }),
+              },
+              ...assigneesHere.map((name) => ({
+                label: name,
+                checked: view.withAssignee === name,
+                onSelect: () => changeView({ withAssignee: name }),
+              })),
+            ],
+          },
+        ]
+      : []),
+    {
+      label: t("board.dueFilter"),
+      choices: [
+        { label: t("board.anyValue"), checked: view.dueWithin === null, onSelect: () => changeView({ dueWithin: null }) },
+        ...DUES.map((due) => ({
+          label: t(DUE_KEYS[due]),
+          checked: view.dueWithin === due,
+          onSelect: () => changeView({ dueWithin: due }),
         })),
       ],
     },

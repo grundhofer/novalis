@@ -1,6 +1,6 @@
 # 0054 — Boards for projects: every board in one view, filtered, sorted, with more on a card
 
-**Status:** accepted; parts 1, 2 and 3a built, 3b to come (see Consequences) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
+**Status:** accepted; built in full (parts 1, 2, 3a, 3b) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
 
 ## Context
 
@@ -40,7 +40,11 @@ The owner's words on 2026-11-15: „wir müssen die board funktionalität aufboh
 - **Card file:** `labels`, `due`, `priority`, `assignee`, each absent while empty (§8.2). Due and priority are checked in the core. Priority is text, so a step a later version adds still reads (and shows as none).
 - **CLI:** `card ls` and the card shapes carry the four keys when set, nothing else changes. Setting them from the CLI is not part of this.
 
-**Part 3b — to come:** filter by label, priority, assignee and due („überfällig / heute / diese Woche / ohne Datum“), and sort by due day (earliest first) and by priority.
+**Part 3b — the fields in the filter and the order (built):**
+
+- The board's „Filter“ gains „Labels“ (the labels on this board, each once regardless of case), „Priorität“ (Hoch, Mittel, Niedrig), „Verantwortlich“ (the names on this board) and „Fällig“ (überfällig, heute, in den nächsten 7 Tagen, ohne Datum), each with „Alle“. Labels and Verantwortlich only show on a board that has some. **Deviation from the wording of the question:** „diese Woche“ became „in den nächsten 7 Tagen“ (today and the six days after), so it holds the same wherever a week starts. Each counts as one filter.
+- Stored as `view.withLabel`, `view.withPriority`, `view.withAssignee` and `view.dueWithin` (`overdue`, `today`, `7d`, `none`) in `board.json`.
+- „Sortierung“ gains „Fälligkeit“ (earliest first) and „Priorität“ (highest first). A card without a due day or a priority stays last, reversed or not.
 
 ## Rejected alternatives
 

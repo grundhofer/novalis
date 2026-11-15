@@ -159,6 +159,10 @@ export const commands = {
 	collapsed: boolean,
 	hiddenColumns: string[],
 	changedWithin: ChangedWithinDto | null,
+	withLabel: string | null,
+	withPriority: PriorityDto | null,
+	withAssignee: string | null,
+	dueWithin: DueWithinDto | null,
 	sort: CardSortDto | null,
 	sortReversed: boolean,
 	/**  Each label's tone on this board, 1 to 6 (`--sb-category-1…6`). */
@@ -315,6 +319,10 @@ export type BoardViewDto = {
 	collapsed: boolean,
 	hiddenColumns: string[],
 	changedWithin: ChangedWithinDto | null,
+	withLabel: string | null,
+	withPriority: PriorityDto | null,
+	withAssignee: string | null,
+	dueWithin: DueWithinDto | null,
 	sort: CardSortDto | null,
 	sortReversed: boolean,
 	/**  Each label's tone on this board, 1 to 6 (`--sb-category-1…6`). */
@@ -405,7 +413,7 @@ export type CardOpDto = { kind: "add"; title: string; column: string | null; not
 { kind: "setAssignee"; id: string; assignee: string };
 
 /**  A card order other than the manual one (ADR-0054). */
-export type CardSortDto = "title" | "updated" | "created";
+export type CardSortDto = "title" | "updated" | "created" | "due" | "priority";
 
 /**  The spans of „Zuletzt geändert“ (ADR-0054). */
 export type ChangedWithinDto = "today" | "7d" | "30d" | "90d";
@@ -427,6 +435,13 @@ export type ContextMenuDto =
  *  card's own one shown but not offered.
  */
 { kind: "card"; columns: ColumnDto[]; column: string; hasNote: boolean };
+
+/**  The due filter of a board (ADR-0054). */
+export type DueWithinDto = "overdue" | "today" | 
+/**  Today and the six days after. */
+"7d" | 
+/**  No due day at all. */
+"none";
 
 export type EditorSettingsDto = {
 	fontSize: number,

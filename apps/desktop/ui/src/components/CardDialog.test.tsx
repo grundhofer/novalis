@@ -41,7 +41,7 @@ const board = {
   resolvedConflicts: 0,
   resolvedColumns: false,
   resolveError: null,
-  view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false, labelTones: { Kunde: 2 } },
+  view: { collapsed: false, hiddenColumns: [], changedWithin: null, withLabel: null, withPriority: null, withAssignee: null, dueWithin: null, sort: null, sortReversed: false, labelTones: { Kunde: 2 } },
 };
 
 const field = (label: string) => screen.getByLabelText(new RegExp(`^${label.replace(".", "\\.")}`)) as HTMLInputElement;
