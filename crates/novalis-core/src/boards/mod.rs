@@ -79,8 +79,30 @@ pub struct BoardView {
         skip_serializing_if = "Option::is_none"
     )]
     pub changed_within: Option<String>,
-    /// The cards' order in every column: `title`, `updated` or `created`;
-    /// absent is the manual order (`order`, §8.3). Text for the same reason.
+    /// Only cards with this label (ADR-0054), compared regardless of case.
+    #[serde(default, rename = "withLabel", skip_serializing_if = "Option::is_none")]
+    pub with_label: Option<String>,
+    /// Only cards with this priority: `high`, `medium` or `low`.
+    #[serde(
+        default,
+        rename = "withPriority",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub with_priority: Option<String>,
+    /// Only cards with this assignee.
+    #[serde(
+        default,
+        rename = "withAssignee",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub with_assignee: Option<String>,
+    /// Only cards due so: `overdue`, `today`, `7d` (today and the six days
+    /// after) or `none` (no due day).
+    #[serde(default, rename = "dueWithin", skip_serializing_if = "Option::is_none")]
+    pub due_within: Option<String>,
+    /// The cards' order in every column: `title`, `updated`, `created`, `due`
+    /// or `priority`; absent is the manual order (`order`, §8.3). Text for
+    /// the same reason.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
     /// `sort` turned round.
@@ -1796,6 +1818,8 @@ mod tests {
             v.sort = Some("title".into());
             v.sort_reversed = true;
             v.label_tones.insert("Kunde X".into(), 3);
+            v.with_label = Some("Kunde X".into());
+            v.due_within = Some("overdue".into());
         })
         .unwrap();
         let view = b.view.unwrap();
@@ -1807,6 +1831,8 @@ mod tests {
             "\"sort\": \"title\"",
             "\"sortReversed\": true",
             "\"labelTones\"",
+            "\"withLabel\": \"Kunde X\"",
+            "\"dueWithin\": \"overdue\"",
         ] {
             assert!(raw.contains(key), "{key} missing in {raw}");
         }

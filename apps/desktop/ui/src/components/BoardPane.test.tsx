@@ -45,7 +45,7 @@ const board = {
   resolvedConflicts: 0,
   resolvedColumns: false,
   resolveError: null,
-  view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false, labelTones: {} },
+  view: { collapsed: false, hiddenColumns: [], changedWithin: null, withLabel: null, withPriority: null, withAssignee: null, dueWithin: null, sort: null, sortReversed: false, labelTones: {} },
 };
 
 /** The board the view shows: current, and among the boards read (ADR-0054). */
@@ -1006,6 +1006,8 @@ describe("BoardPane", () => {
         "board.search",
         "board.columnsShown",
         "board.period",
+        "board.priorityLabel",
+        "board.dueFilter",
         "board.sort",
         "board.sortReverse",
         "board.filterReset",
@@ -1087,9 +1089,46 @@ describe("BoardPane", () => {
       expect(useBoard.getState().setView).toHaveBeenCalledWith("plan", {
         hiddenColumns: [],
         changedWithin: null,
+        withLabel: null,
+        withPriority: null,
+        withAssignee: null,
+        dueWithin: null,
         sort: null,
         sortReversed: false,
       });
+    });
+  });
+
+  // ADR-0054 part 3b: the fields in the filter menu, label and assignee only
+  // where the board has some.
+  describe("the field filters", () => {
+    it("offers the board's labels and names, and filters by them", () => {
+      showBoard({
+        ...board,
+        cards: [
+          { ...card("c1", "Spec", "todo"), labels: ["Kunde", "blockiert"], assignee: "Anna" },
+          { ...card("c2", "Ship", "doing"), labels: ["kunde"] },
+        ],
+      });
+      render(<BoardPane />);
+      const menu = document.querySelector('ul[aria-label="board.filterMenu"]')!;
+      const sub = (name: string) =>
+        [...menu.querySelectorAll(":scope > li > button")].find((b) => b.textContent === name)!.nextElementSibling!;
+      const labels = [...sub("board.labelsLabel").querySelectorAll("button")].map((b) => b.textContent);
+      expect(labels).toEqual(["board.anyValue", "blockiert", "Kunde"]);
+      fireEvent.click([...sub("board.labelsLabel").querySelectorAll("button")][2]!);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("plan", { withLabel: "Kunde" });
+      const names = [...sub("board.assigneeLabel").querySelectorAll("button")].map((b) => b.textContent);
+      expect(names).toEqual(["board.anyValue", "Anna"]);
+      fireEvent.click([...sub("board.dueFilter").querySelectorAll("button")].find((b) => b.textContent === "board.dueOverdue")!);
+      expect(useBoard.getState().setView).toHaveBeenLastCalledWith("plan", { dueWithin: "overdue" });
+    });
+
+    it("leaves out the label and assignee filters on a board without any", () => {
+      render(<BoardPane />);
+      const rows = [...document.querySelectorAll('ul[aria-label="board.filterMenu"] > li > button')].map((b) => b.textContent);
+      expect(rows).not.toContain("board.labelsLabel");
+      expect(rows).not.toContain("board.assigneeLabel");
     });
   });
 });

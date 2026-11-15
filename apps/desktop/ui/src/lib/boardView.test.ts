@@ -7,6 +7,10 @@ const plain: BoardViewDto = {
   collapsed: false,
   hiddenColumns: [],
   changedWithin: null,
+  withLabel: null,
+  withPriority: null,
+  withAssignee: null,
+  dueWithin: null,
   sort: null,
   sortReversed: false,
   labelTones: {},
@@ -91,3 +95,47 @@ describe("the board's card order", () => {
     expect([x, y].sort(cardOrder({ ...plain, sort: "title" })).map((z) => z.id)).toEqual(["Y", "X"]);
   });
 });
+
+// ADR-0054 part 3b: filter and sort by the card fields.
+describe("the card fields in the filter and the order", () => {
+  const now = new Date(2026, 10, 15, 14, 0, 0);
+  const day = (offset: number) => {
+    const d = new Date(2026, 10, 15 + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const with_ = (id: string, fields: Partial<CardDto>) => ({ ...card(id, id, "a0", "2026-11-01T00:00:00Z"), ...fields }) as CardDto;
+  const late = with_("late", { due: day(-1), priority: "low", labels: ["Kunde"], assignee: "Anna" });
+  const today = with_("today", { due: day(0), priority: "high" });
+  const soon = with_("soon", { due: day(6), labels: ["kunde"] });
+  const later = with_("later", { due: day(7), priority: "medium", assignee: "Ben" });
+  const none = with_("none", {});
+  const all = [late, today, soon, later, none];
+  const pass = (view: Partial<BoardViewDto>) => all.filter((c) => cardPasses(c, "", { ...plain, ...view }, now)).map((c) => c.id);
+
+  it("filters by label regardless of case, by priority and by assignee", () => {
+    expect(pass({ withLabel: "KUNDE" })).toEqual(["late", "soon"]);
+    expect(pass({ withPriority: "high" })).toEqual(["today"]);
+    expect(pass({ withAssignee: "Ben" })).toEqual(["later"]);
+  });
+
+  it("filters by the due day: overdue, today, the next 7 days, none", () => {
+    expect(pass({ dueWithin: "overdue" })).toEqual(["late"]);
+    expect(pass({ dueWithin: "today" })).toEqual(["today"]);
+    expect(pass({ dueWithin: "7d" })).toEqual(["today", "soon"]);
+    expect(pass({ dueWithin: "none" })).toEqual(["none"]);
+  });
+
+  it("counts each field filter as one", () => {
+    expect(filterCount("", { ...plain, withLabel: "a", withPriority: "low", withAssignee: "x", dueWithin: "none" })).toBe(4);
+  });
+
+  it("sorts by due day earliest first and by priority highest first, cards without one last either way", () => {
+    const ids = (view: Partial<BoardViewDto>) => [...all].sort(cardOrder({ ...plain, ...view })).map((c) => c.id);
+    expect(ids({ sort: "due" })).toEqual(["late", "today", "soon", "later", "none"]);
+    expect(ids({ sort: "due", sortReversed: true })).toEqual(["later", "soon", "today", "late", "none"]);
+    expect(ids({ sort: "priority" }).slice(0, 3)).toEqual(["today", "later", "late"]);
+    expect(ids({ sort: "priority", sortReversed: true }).slice(0, 3)).toEqual(["late", "later", "today"]);
+    expect(ids({ sort: "priority" }).slice(3).sort()).toEqual(["none", "soon"]);
+  });
+});
+

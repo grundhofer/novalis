@@ -1214,6 +1214,10 @@ pub async fn board_write(
                 v.collapsed = view.collapsed;
                 v.hidden_columns = view.hidden_columns.clone();
                 v.changed_within = view.changed_within.map(|w| w.as_str().to_string());
+                v.with_label = view.with_label.clone().filter(|l| !l.trim().is_empty());
+                v.with_priority = view.with_priority.map(|p| p.as_str().to_string());
+                v.with_assignee = view.with_assignee.clone().filter(|a| !a.trim().is_empty());
+                v.due_within = view.due_within.map(|d| d.as_str().to_string());
                 v.sort = view.sort.map(|s| s.as_str().to_string());
                 v.sort_reversed = view.sort_reversed;
                 v.label_tones = view

@@ -827,6 +827,10 @@ pub struct BoardViewDto {
     pub collapsed: bool,
     pub hidden_columns: Vec<String>,
     pub changed_within: Option<ChangedWithinDto>,
+    pub with_label: Option<String>,
+    pub with_priority: Option<PriorityDto>,
+    pub with_assignee: Option<String>,
+    pub due_within: Option<DueWithinDto>,
     pub sort: Option<CardSortDto>,
     pub sort_reversed: bool,
     /// Each label's tone on this board, 1 to 6 (`--sb-category-1…6`).
@@ -853,6 +857,34 @@ pub enum CardSortDto {
     Title,
     Updated,
     Created,
+    Due,
+    Priority,
+}
+
+/// The due filter of a board (ADR-0054).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub enum DueWithinDto {
+    #[serde(rename = "overdue")]
+    Overdue,
+    #[serde(rename = "today")]
+    Today,
+    /// Today and the six days after.
+    #[serde(rename = "7d")]
+    Week,
+    /// No due day at all.
+    #[serde(rename = "none")]
+    Undated,
+}
+
+impl DueWithinDto {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DueWithinDto::Overdue => "overdue",
+            DueWithinDto::Today => "today",
+            DueWithinDto::Week => "7d",
+            DueWithinDto::Undated => "none",
+        }
+    }
 }
 
 impl ChangedWithinDto {
@@ -872,6 +904,8 @@ impl CardSortDto {
             CardSortDto::Title => "title",
             CardSortDto::Updated => "updated",
             CardSortDto::Created => "created",
+            CardSortDto::Due => "due",
+            CardSortDto::Priority => "priority",
         }
     }
 }
@@ -890,13 +924,30 @@ impl From<&BoardView> for BoardViewDto {
             CardSortDto::Title,
             CardSortDto::Updated,
             CardSortDto::Created,
+            CardSortDto::Due,
+            CardSortDto::Priority,
         ];
+        let dues = [
+            DueWithinDto::Overdue,
+            DueWithinDto::Today,
+            DueWithinDto::Week,
+            DueWithinDto::Undated,
+        ];
+        let priorities = [PriorityDto::High, PriorityDto::Medium, PriorityDto::Low];
         BoardViewDto {
             collapsed: v.collapsed,
             hidden_columns: v.hidden_columns.clone(),
             changed_within: within
                 .into_iter()
                 .find(|w| v.changed_within.as_deref() == Some(w.as_str())),
+            with_label: v.with_label.clone(),
+            with_priority: priorities
+                .into_iter()
+                .find(|p| v.with_priority.as_deref() == Some(p.as_str())),
+            with_assignee: v.with_assignee.clone(),
+            due_within: dues
+                .into_iter()
+                .find(|d| v.due_within.as_deref() == Some(d.as_str())),
             sort: sorts
                 .into_iter()
                 .find(|s| v.sort.as_deref() == Some(s.as_str())),
