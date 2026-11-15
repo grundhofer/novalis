@@ -545,7 +545,7 @@ function copyLink(): Promise<void> | void {
   return copyText(wikiLinkFor(path, useFiles.getState().notes));
 }
 
-async function newBoard(): Promise<void> {
+export async function newBoard(): Promise<void> {
   useUi.getState().ask({
     titleKey: "board.newBoard",
     submitKey: "app.create",
