@@ -1,6 +1,6 @@
 # 0054 — Boards for projects: every board in one view, filtered, sorted, with more on a card
 
-**Status:** accepted; built in parts (see Consequences) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
+**Status:** accepted; parts 1 and 2 built, part 3 to come (see Consequences) · **Date:** 2026-11-15 · **Decider:** Sebastian Grundhöfer
 
 ## Context
 
@@ -20,10 +20,13 @@ The owner's words on 2026-11-15: „wir müssen die board funktionalität aufboh
 
 **Configuration lives in `board.json`** under a new optional key `view`, synced with the vault, so it holds on every device. The key is absent while everything in it has its default, so an untouched board stays byte-identical. Keys a later version adds round-trip untouched. The shell writes it through `board_write` (a new optional argument, no new IPC command, still 29 of 30). Part 1 brings `view.collapsed`.
 
-**Part 2 — filter and card sort, per board, in `view`:**
+**Part 2 — filter and card sort, per board (built):**
 
-- Filters: text (title and description), columns hidden, cards changed in the last N days, and the card fields of part 3.
-- Card sort within a column: manual (the drag order, as now), by title, by last change, by creation. Any sort but manual turns off the drag within a column; a drag into another column still works.
+- **„Filter“ in each board's head**, a compact secondary action with the filter icon, opens a menu: „Suchen …“, „Spalten“ (a check row per column), „Zuletzt geändert“ (any time, today, 7, 30 or 90 days), „Sortierung“ (manual, title, last changed, created), „Reihenfolge umkehren“ and „Zurücksetzen“. The last shown column cannot be hidden. While anything is on, a line under the head says what („2 Filter · sortiert nach Titel, umgekehrt“) and offers „Zurücksetzen“. The search field stands in that line, because a text field is no menu row. Escape in it clears the search and closes the field.
+- **Stored:** `view.hiddenColumns`, `view.changedWithin` (`today`, `7d`, `30d`, `90d`), `view.sort` (`title`, `updated`, `created`; absent is manual) and `view.sortReversed` in `board.json`. The span and the sort are kept as text in the core, so a value a later version adds still reads; this build shows it as none and drops it on its next write of the view.
+- **The search is the session's only**, per board, never in `board.json`.
+- **Card sort for the whole board:** title A to Z with numbers by value („Aufgabe 2“ before „Aufgabe 10“), last change and creation newest first. Each can be reversed, and ties keep the manual order. Under any sort but manual a card cannot be dropped at a place in its own column; dropped into another column it goes last.
+- The card fields of part 3 join the filter when they exist.
 
 **Part 3 — new card fields** (PLAN.md §8.2, in the card file, in the CLI's card JSON as new keys only): labels, a due date, a priority, an assignee. They show on the card, are filterable, and due date and priority are sortable.
 
@@ -47,9 +50,10 @@ The details of parts 2 and 3 that the owner was not asked about yet (where the f
 - A collapse writes `board.json` and bumps `updated` (a user edit, §8.2). Two devices collapsing differently resolve like any other `board.json` conflict (§8.4).
 - Moving a card between two boards in the view by dragging is not part of this: a card dropped on another board's column does nothing, and the tree's board rows still take a card (ADR-0019).
 - Moving a board needs the pointer, as its row in the tree does. There is no keyboard way to move a board (no menu item was asked for).
-- The CLI is unchanged in part 1: `view` is in the file, and `novalis board show` does not print it.
+- The CLI is unchanged in parts 1 and 2: `view` is in the file, and `novalis board show` does not print it.
+- Part 2: `board_write` takes the whole known view (`BoardViewDto`) in place of part 1's `collapsed`. The core's `set_view` changes it on the file's view, so unknown keys stay. `BoardDto.view` replaces `collapsed`. One icon more in the app's set (`filter`). 23 catalog strings. `MoreMenu` can show a word and an icon as its button and switch choices each on its own (`menuitemcheckbox`). A column's count is the count of the cards it shows, and a column whose cards the filter all hides says „Keine Karte passt zum Filter.“ A new card that does not pass the filter is written but not shown.
 
-**Owner approval:** 2026-11-15. The ask is quoted in Context. The answers to the questions the same day, verbatim as chosen: „Alle untereinander, einklappbar (Recommended)“; filters „Text (Titel + Beschreibung), Spalten ausblenden, Neue Kartenfelder, Zuletzt geändert“; sortable „Karten in den Spalten, Die Boards untereinander“; stored „In board.json (Recommended)“; card fields „Labels, Fälligkeit, Verantwortlich, Priorität“; cut „Mehrere PRs nacheinander (Recommended)“; tab „Ein Reiter „Boards“ (Recommended)“; order „Wie im Baum, per Ziehen (Recommended)“; height „Bis Fensterhöhe, Spalten scrollen (Recommended)“; collapsed „Kopfzeile mit Zählern (Recommended)“.
+**Owner approval:** 2026-11-15. The ask is quoted in Context. The answers to the questions the same day, verbatim as chosen: „Alle untereinander, einklappbar (Recommended)“; filters „Text (Titel + Beschreibung), Spalten ausblenden, Neue Kartenfelder, Zuletzt geändert“; sortable „Karten in den Spalten, Die Boards untereinander“; stored „In board.json (Recommended)“; card fields „Labels, Fälligkeit, Verantwortlich, Priorität“; cut „Mehrere PRs nacheinander (Recommended)“; tab „Ein Reiter „Boards“ (Recommended)“; order „Wie im Baum, per Ziehen (Recommended)“; height „Bis Fensterhöhe, Spalten scrollen (Recommended)“; collapsed „Kopfzeile mit Zählern (Recommended)“. Part 2, the same day: place „Knopf „Filter“ im Kopf (Recommended)“; search text stored „Nein, nur solange die App läuft (Recommended)“; spans „Feste Stufen (Recommended)“; card sort „Für das ganze Board (Recommended)“.
 
 ## Sources
 

@@ -41,7 +41,7 @@ const board = {
   resolvedConflicts: 0,
   resolvedColumns: false,
   resolveError: null,
-  collapsed: false,
+  view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false },
 };
 
 /** The board the view shows: current, and among the boards read (ADR-0054). */
@@ -72,7 +72,8 @@ describe("BoardPane", () => {
       setColumns: vi.fn().mockResolvedValue(undefined),
       renameBoard: vi.fn().mockResolvedValue(undefined),
       readAll: vi.fn().mockResolvedValue(undefined),
-      setCollapsed: vi.fn().mockResolvedValue(undefined),
+      setView: vi.fn().mockResolvedValue(undefined),
+      setSearch: vi.fn(),
       placeBoard: vi.fn().mockResolvedValue(undefined),
     });
     useTabs.setState({ active: null, tabs: [] });
@@ -117,8 +118,9 @@ describe("BoardPane", () => {
 
   it("puts „Löschen …“ last, after a separator, as a danger row", () => {
     render(<BoardPane />);
+    // Every „Mehr“; the board's „Filter“ has nothing to delete (ADR-0054).
     const menus = [...document.querySelectorAll<HTMLElement>("ul.sb-menu[popover]")].filter(
-      (menu) => !menu.closest("li[role=none]"),
+      (menu) => !menu.closest("li[role=none]") && menu.getAttribute("aria-label") !== "board.filterMenu",
     );
     expect(menus).toHaveLength(5);
     for (const menu of menus) {
@@ -897,11 +899,11 @@ describe("BoardPane", () => {
       expect(toggles.every((toggle) => toggle.getAttribute("aria-expanded") === "true")).toBe(true);
       const atlasToggle = document.querySelector('[data-board="atlas"] .board-head > button')!;
       fireEvent.click(atlasToggle);
-      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", true);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("atlas", { collapsed: true });
     });
 
     it("shows a collapsed board as its head with each column's count", () => {
-      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, collapsed: true } as never } });
+      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, view: { ...board.view, collapsed: true } } as never } });
       render(<BoardPane />);
       const section = document.querySelector<HTMLElement>('[data-board="atlas"]')!;
       const toggle = section.querySelector(".board-head > button")!;
@@ -915,7 +917,7 @@ describe("BoardPane", () => {
       expect(section.textContent).not.toContain("board.addColumn");
       expect(section.querySelector('[aria-label="board.moreBoard"]')).toBeTruthy();
       fireEvent.click(toggle);
-      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", false);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("atlas", { collapsed: false });
     });
 
     it("scrolls the list, and only it, to the board that was opened and expands it once", () => {
@@ -927,7 +929,7 @@ describe("BoardPane", () => {
         const y = this instanceof HTMLElement && this.dataset.board === "atlas" ? 380 : 80;
         return { top: y, height: 100, bottom: y + 100, left: 0, right: 400, width: 400 } as DOMRect;
       };
-      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, collapsed: true } as never } });
+      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, view: { ...board.view, collapsed: true } } as never } });
       act(() => useUi.getState().setActiveBoard("atlas"));
       render(<BoardPane />);
       Element.prototype.getBoundingClientRect = top;
@@ -935,8 +937,8 @@ describe("BoardPane", () => {
       expect(scrolled.mock.contexts[0]).toBe(document.querySelector(".boards"));
       expect(scrolled.mock.calls[0]![0]).toEqual({ top: 300, behavior: "smooth" });
       expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
-      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", false);
-      expect(useBoard.getState().setCollapsed).toHaveBeenCalledTimes(1);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("atlas", { collapsed: false });
+      expect(useBoard.getState().setView).toHaveBeenCalledTimes(1);
     });
 
     it("moves a board by its head: before another from its upper half, after it from the lower", () => {
@@ -987,6 +989,130 @@ describe("BoardPane", () => {
         ],
         "atlas",
       );
+    });
+  });
+
+  // ADR-0054 part 2: a board's „Filter“ — search, columns, span, card order.
+  describe("the board's filter", () => {
+    const view = board.view;
+    const many = {
+      ...board,
+      cards: [
+        card("c1", "Write the spec", "todo", ["Roadmap.md"]),
+        card("c2", "Ship it", "doing"),
+        { ...card("c3", "Ask legal", "todo"), order: "a1" },
+      ],
+    };
+    const columnTitles = () => [...document.querySelectorAll(".sb-board__name")].map((n) => n.textContent);
+    const titles = (column: number) =>
+      [...document.querySelectorAll(".sb-board__column")[column]!.querySelectorAll(".sb-card__title")].map(
+        (n) => n.textContent,
+      );
+    const filterRow = (name: string) =>
+      [...document.querySelectorAll<HTMLButtonElement>('ul[aria-label="board.filterMenu"] button')].find(
+        (b) => b.textContent === name,
+      )!;
+
+    beforeEach(() => showBoard(many));
+
+    it("opens from „Filter“ in the head, a compact secondary action with its icon", () => {
+      render(<BoardPane />);
+      const button = screen.getByRole("button", { name: "board.filterMenu" });
+      expect(button.className).toBe("sb-secondary-action sb-secondary-action--compact");
+      expect(button.textContent).toBe("board.filter");
+      expect(button.querySelector("use")?.getAttribute("href")).toBe("#filter");
+      expect(button.getAttribute("aria-pressed")).toBe("false");
+      const rows = [...document.querySelectorAll('ul[aria-label="board.filterMenu"] > li > button')].map(
+        (b) => b.textContent,
+      );
+      expect(rows).toEqual([
+        "board.search",
+        "board.columnsShown",
+        "board.period",
+        "board.sort",
+        "board.sortReverse",
+        "board.filterReset",
+      ]);
+      expect(filterRow("board.sortReverse").getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("hides a column through its check row, but never the last one shown", () => {
+      render(<BoardPane />);
+      const doing = [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((b) => b.textContent === "Doing")!;
+      expect(doing.getAttribute("aria-checked")).toBe("true");
+      fireEvent.click(doing);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("plan", { hiddenColumns: ["doing"] });
+
+      act(() => showBoard({ ...many, view: { ...view, hiddenColumns: ["doing"] } }));
+      expect(columnTitles()).toEqual(["To do"]);
+      const todo = [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((b) => b.textContent === "To do")!;
+      expect(todo.getAttribute("aria-disabled")).toBe("true");
+      expect(screen.getByText("board.filters")).toBeTruthy();
+    });
+
+    it("searches from the line under the head, for the session, and says when no card matches", () => {
+      useBoard.setState({ setSearch: (slug: string, text: string) => useBoard.setState((st) => ({ searches: { ...st.searches, [slug]: text } })) });
+      render(<BoardPane />);
+      expect(document.querySelector(".board-filter")).toBeNull();
+      fireEvent.click(filterRow("board.search"));
+      const field = screen.getByLabelText("board.searchLabel") as HTMLInputElement;
+      expect(field.type).toBe("search");
+      fireEvent.change(field, { target: { value: "SPEC" } });
+      expect(useBoard.getState().searches.plan).toBe("SPEC");
+      expect(titles(0)).toEqual(["Write the spec"]);
+      expect(screen.getByText("board.noMatch")).toBeTruthy();
+      expect(useBoard.getState().setView).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(field, { key: "Escape" });
+      expect(useBoard.getState().searches.plan).toBe("");
+      expect(screen.queryByLabelText("board.searchLabel")).toBeNull();
+      useBoard.setState({ searches: {} });
+    });
+
+    it("orders the cards as the board says, and names the order under the head", () => {
+      render(<BoardPane />);
+      expect(titles(0)).toEqual(["Write the spec", "Ask legal"]);
+      fireEvent.click([...document.querySelectorAll('[role="menuitemradio"]')].find((b) => b.textContent === "board.sortTitle")!);
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("plan", { sort: "title", sortReversed: false });
+
+      act(() => showBoard({ ...many, view: { ...view, sort: "title", sortReversed: true } }));
+      expect(titles(0)).toEqual(["Write the spec", "Ask legal"].sort().reverse());
+      expect(document.querySelector(".board-filter__summary")?.textContent).toBe("board.sortedByboard.sortReversed");
+      expect(screen.getByRole("button", { name: "board.filterMenu" }).getAttribute("aria-pressed")).toBe("true");
+      fireEvent.click(filterRow("board.sortReverse"));
+      expect(useBoard.getState().setView).toHaveBeenLastCalledWith("plan", { sortReversed: false });
+    });
+
+    it("under a chosen order lets a card go to another column, not to a place in its own", () => {
+      showBoard({ ...many, view: { ...view, sort: "title" } });
+      render(<BoardPane />);
+      const data = { types: ["text/plain", "application/x-novalis-card"], setData: vi.fn(), setDragImage: vi.fn(), getData: () => "", dropEffect: "", effectAllowed: "" };
+      fireEvent.dragStart(cardOf("Ask legal"), { dataTransfer: data });
+      fireEvent.dragOver(cardOf("Write the spec"), { dataTransfer: data });
+      expect(cardOf("Write the spec").getAttribute("data-sb-state")).toBeNull();
+      const [own, other] = [...document.querySelectorAll<HTMLElement>(".sb-board__column")];
+      fireEvent.dragOver(own!, { dataTransfer: data });
+      expect(own!.getAttribute("data-sb-state")).toBeNull();
+      fireEvent.dragOver(other!, { dataTransfer: data });
+      expect(other!.getAttribute("data-sb-state")).toBe("drop-into");
+      fireEvent.drop(other!, { dataTransfer: data });
+      expect(useBoard.getState().apply).toHaveBeenCalledWith(
+        { kind: "move", id: "c3", column: "doing", position: { kind: "last" } },
+        "plan",
+      );
+    });
+
+    it("resets the search, the columns, the span and the order at once", () => {
+      showBoard({ ...many, view: { ...view, hiddenColumns: ["doing"], changedWithin: "7d", sort: "created" } });
+      render(<BoardPane />);
+      fireEvent.click(screen.getByRole("button", { name: "board.filterReset" }));
+      expect(useBoard.getState().setSearch).toHaveBeenCalledWith("plan", "");
+      expect(useBoard.getState().setView).toHaveBeenCalledWith("plan", {
+        hiddenColumns: [],
+        changedWithin: null,
+        sort: null,
+        sortReversed: false,
+      });
     });
   });
 });

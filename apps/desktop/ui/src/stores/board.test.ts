@@ -40,7 +40,7 @@ function doc(overrides: Partial<BoardDto> = {}): BoardDto {
     resolvedConflicts: 0,
     resolvedColumns: false,
     resolveError: null,
-    collapsed: false,
+    view: { collapsed: false, hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false },
     ...overrides,
   };
 }
@@ -357,21 +357,29 @@ describe("useBoard with every board read", () => {
     expect(commands.cardWrite).toHaveBeenLastCalledWith("plan", add);
   });
 
-  it("collapses at once, writes it, and takes it back when the write fails", async () => {
+  it("changes the view at once, writes all of it, and takes it back when the write fails", async () => {
     useBoard.setState({ docs: { atlas: doc({ slug: "atlas" }) } });
     let finish: (value: unknown) => void = () => {};
     vi.mocked(unwrap).mockReturnValueOnce(new Promise((resolve) => (finish = resolve)) as never);
 
-    const write = useBoard.getState().setCollapsed("atlas", true);
-    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, true);
-    finish(doc({ slug: "atlas", collapsed: true }));
+    const write = useBoard.getState().setView("atlas", { collapsed: true });
+    const collapsed = { ...doc().view, collapsed: true };
+    expect(useBoard.getState().docs.atlas?.view).toEqual(collapsed);
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, collapsed);
+    finish(doc({ slug: "atlas", view: collapsed }));
     await write;
-    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
 
     vi.mocked(unwrap).mockRejectedValueOnce(new Error("io"));
-    await expect(useBoard.getState().setCollapsed("atlas", false)).rejects.toThrow("io");
-    expect(useBoard.getState().docs.atlas?.collapsed).toBe(true);
+    await expect(useBoard.getState().setView("atlas", { sort: "title" })).rejects.toThrow("io");
+    expect(useBoard.getState().docs.atlas?.view).toEqual(collapsed);
+  });
+
+  it("keeps each board's search for the session only, and drops it with the vault", () => {
+    useBoard.getState().setSearch("atlas", "zoom");
+    expect(useBoard.getState().searches).toEqual({ atlas: "zoom" });
+    expect(commands.boardWrite).not.toHaveBeenCalled();
+    useBoard.getState().setBoards([]);
+    expect(useBoard.getState().searches).toEqual({});
   });
 
   it("re-reads the boards a watcher batch touched, the current one through load", async () => {

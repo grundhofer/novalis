@@ -8,6 +8,7 @@ import {
   unwrap,
   type BoardDto,
   type BoardRefDto,
+  type BoardViewDto,
   type CardOpDto,
   type ColumnDto,
   type PositionDto,
@@ -60,6 +61,11 @@ interface BoardState {
    * under the other (ADR-0054).
    */
   docs: Record<string, BoardDto>;
+  /**
+   * Each board's text search (ADR-0054): the session's only, never in
+   * `board.json`, so an old search cannot hide cards on another device.
+   */
+  searches: Record<string, string>;
   busy: boolean;
   /**
    * Per board, what its first read after the vault was opened resolved
@@ -105,10 +111,11 @@ interface BoardState {
   /** The name of `slug`, else of the current board. */
   renameBoard: (name: string, slug?: string) => Promise<void>;
   /**
-   * Collapse or expand a board in the boards view (ADR-0054): shown at
-   * once, written to its `board.json`, taken back if the write fails.
+   * Change a board's view (ADR-0054) — collapsed, filter, card sort: shown
+   * at once, written to its `board.json`, taken back if the write fails.
    */
-  setCollapsed: (slug: string, collapsed: boolean) => Promise<void>;
+  setView: (slug: string, change: Partial<BoardViewDto>) => Promise<void>;
+  setSearch: (slug: string, text: string) => void;
   /** The board of a read card, by id, else the current board. */
   boardOf: (id: string) => string | null;
   /**
@@ -131,6 +138,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   slug: null,
   board: null,
   docs: {},
+  searches: {},
   busy: false,
   notices: {},
 
@@ -139,7 +147,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   // the shell starts resolving afresh for the new vault. Opening a vault
   // used to reset the list only, so the pane kept showing the old vault's
   // board until the user picked one of the new vault's.
-  setBoards: (boards) => set({ boards, slug: null, board: null, docs: {}, notices: {} }),
+  setBoards: (boards) => set({ boards, slug: null, board: null, docs: {}, searches: {}, notices: {} }),
 
   load: async (slug, background = false) => {
     const previous = get().slug;
@@ -232,22 +240,27 @@ export const useBoard = create<BoardState>((set, get) => ({
     set((s) => ({ boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)) }));
   },
 
-  setCollapsed: async (slug, collapsed) => {
-    const shown = (value: boolean) =>
+  setView: async (slug, change) => {
+    const before = get().docs[slug]?.view;
+    if (!before) return;
+    const shown = (view: BoardViewDto) =>
       set((s) => {
         const doc = s.docs[slug];
         if (!doc) return s;
-        const next = { ...doc, collapsed: value };
+        const next = { ...doc, view };
         return { docs: { ...s.docs, [slug]: next }, ...(s.slug === slug ? { board: next } : {}) };
       });
-    shown(collapsed);
+    const view = { ...before, ...change };
+    shown(view);
     try {
-      take(await unwrap(commands.boardWrite(slug, null, null, null, collapsed)), false);
+      take(await unwrap(commands.boardWrite(slug, null, null, null, view)), false);
     } catch (error) {
-      shown(!collapsed);
+      shown(before);
       throw error;
     }
   },
+
+  setSearch: (slug, text) => set((s) => ({ searches: { ...s.searches, [slug]: text } })),
 
   boardOf: (id) => {
     const { docs, slug } = get();

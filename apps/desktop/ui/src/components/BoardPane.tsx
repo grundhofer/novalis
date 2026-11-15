@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 
 import type { DragEvent } from "react";
 
-import type { BoardDto, CardDto, ColumnDto, PositionDto } from "../ipc/client";
+import type { BoardDto, BoardViewDto, CardDto, CardSortDto, ChangedWithinDto, ColumnDto, PositionDto } from "../ipc/client";
+import { cardOrder, cardPasses, filterCount, SORTS, SPANS } from "../lib/boardView";
 import {
   deleteCard,
   editDescription,
@@ -56,6 +57,19 @@ import "../styles/board.css";
  * the palette, a link, a backlink, „Zurück zu <Board>“ — scrolls to it and
  * expands it.
  */
+
+/** The words of the spans and the orders (ADR-0054). */
+const SPAN_KEYS: Record<ChangedWithinDto, string> = {
+  today: "board.periodToday",
+  "7d": "board.period7",
+  "30d": "board.period30",
+  "90d": "board.period90",
+};
+const SORT_KEYS: Record<CardSortDto, string> = {
+  title: "board.sortTitle",
+  updated: "board.sortUpdated",
+  created: "board.sortCreated",
+};
 
 /**
  * The last `boardReveal` the view acted on: kept across the view's unmount,
@@ -149,8 +163,8 @@ export default function BoardPane() {
     if (!activeBoard || !activeLoaded) return;
     if (reveal !== revealed) {
       revealed = reveal;
-      if (useBoard.getState().docs[activeBoard]?.collapsed)
-        void useBoard.getState().setCollapsed(activeBoard, false).catch(report);
+      if (useBoard.getState().docs[activeBoard]?.view.collapsed)
+        void useBoard.getState().setView(activeBoard, { collapsed: false }).catch(report);
     }
     // The list alone scrolls: `scrollIntoView` would move the window's
     // layout too, title bar and tabs out of sight.
@@ -247,6 +261,11 @@ interface SectionProps {
 function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
   const { t } = useTranslation();
   const notice = useBoard((s) => s.notices[board.slug]);
+  const view = board.view;
+  /** The session's search of this board (ADR-0054), never in `board.json`. */
+  const search = useBoard((s) => s.searches[board.slug] ?? "");
+  const [searching, setSearching] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const fileList = useFiles((s) => s.files);
   const filesLoaded = useFiles((s) => s.loaded);
   const files = useMemo(() => new Set(fileList), [fileList]);
@@ -256,10 +275,17 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
   const [current, setCurrent] = useState<string | null>(null);
   const ids = useId();
   const boardHeadingId = `${ids}-heading`;
+  const searchId = `${ids}-search`;
   const bodyId = `${ids}-body`;
   const columnsRef = useRef<HTMLDivElement>(null);
   const [inPlace, setInPlace] = useState(0);
-  const columnCount = board.columns.length;
+  // A column the view hides is left out (ADR-0054); should every one be
+  // hidden (another device), all show rather than none.
+  const visible = board.columns.filter((column) => !view.hiddenColumns.includes(column.id));
+  const shownColumns = visible.length > 0 ? visible : board.columns;
+  const columnCount = shownColumns.length;
+  /** A chosen card order: then a drag within a column has no place to keep. */
+  const sorted = view.sort !== null;
 
   // The position bar's column (spec/02 §3.16, weak point 1): followed on
   // scroll and on resize, as `sb-board.js` does.
@@ -283,16 +309,100 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
       if (frame) cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [board.slug, columnCount, board.collapsed]);
+  }, [board.slug, columnCount, view.collapsed]);
 
+  /** Every card of a column, the filter left aside. */
+  const allOf = (column: ColumnDto): CardDto[] =>
+    board.cards.filter(
+      (card) =>
+        card.column === column.id || (board.orphanCards.includes(card.id) && board.columns[0]?.id === column.id),
+    );
+  /** The cards a column shows: those the filter lets through, in the board's order (ADR-0054). */
+  const now = new Date();
   const cardsOf = (column: ColumnDto): CardDto[] =>
-    board.cards
-      .filter(
-        (card) =>
-          card.column === column.id ||
-          (board.orphanCards.includes(card.id) && board.columns[0]?.id === column.id),
-      )
-      .sort((a, b) => (a.order === b.order ? a.id.localeCompare(b.id) : a.order < b.order ? -1 : 1));
+    allOf(column)
+      .filter((card) => cardPasses(card, search, view, now))
+      .sort(cardOrder(view));
+  /** The column the dragged card comes from. */
+  const dragColumn = drag === null ? null : (board.cards.find((card) => card.id === drag)?.column ?? null);
+  const filters = filterCount(search, view);
+
+  const changeView = (change: Partial<BoardViewDto>) =>
+    void useBoard.getState().setView(board.slug, change).catch(report);
+  const resetView = () => {
+    useBoard.getState().setSearch(board.slug, "");
+    setSearching(false);
+    changeView({ hiddenColumns: [], changedWithin: null, sort: null, sortReversed: false });
+  };
+  const toggleColumn = (id: string) =>
+    changeView({
+      hiddenColumns: view.hiddenColumns.includes(id)
+        ? view.hiddenColumns.filter((hidden) => hidden !== id)
+        : [...view.hiddenColumns, id],
+    });
+
+  /**
+   * The board's „Filter“ (ADR-0054): search, the columns shown, the span of
+   * the last change, the card order and its direction, and the way back to
+   * none of them. The last shown column cannot be hidden.
+   */
+  const filterEntries: MoreEntry[] = [
+    {
+      label: t("board.search"),
+      onSelect: () => {
+        setSearching(true);
+        requestAnimationFrame(() => searchRef.current?.focus());
+      },
+    },
+    ...(board.columns.length > 0
+      ? [
+          {
+            label: t("board.columnsShown"),
+            multiple: true,
+            choices: board.columns.map((column) => {
+              const shown = !view.hiddenColumns.includes(column.id);
+              return {
+                label: column.name,
+                checked: shown,
+                disabled: shown && visible.length <= 1,
+                onSelect: () => toggleColumn(column.id),
+              };
+            }),
+          },
+        ]
+      : []),
+    {
+      label: t("board.period"),
+      choices: [
+        { label: t("board.periodAll"), checked: view.changedWithin === null, onSelect: () => changeView({ changedWithin: null }) },
+        ...SPANS.map((span) => ({
+          label: t(SPAN_KEYS[span]),
+          checked: view.changedWithin === span,
+          onSelect: () => changeView({ changedWithin: span }),
+        })),
+      ],
+    },
+    {
+      label: t("board.sort"),
+      choices: [
+        { label: t("board.sortManual"), checked: view.sort === null, onSelect: () => changeView({ sort: null, sortReversed: false }) },
+        ...SORTS.map((sort) => ({
+          label: t(SORT_KEYS[sort]),
+          checked: view.sort === sort,
+          onSelect: () => changeView({ sort, sortReversed: false }),
+        })),
+      ],
+    },
+    { label: t("board.sortReverse"), disabled: !sorted, onSelect: () => changeView({ sortReversed: !view.sortReversed }) },
+    { label: t("board.filterReset"), disabled: filters === 0 && !sorted && !searching, onSelect: resetView },
+  ];
+  /** The line under the head while a filter or an order is on. */
+  const summary = [
+    ...(filters > 0 ? [t("board.filters", { count: filters })] : []),
+    ...(view.sort
+      ? [t("board.sortedBy", { name: t(SORT_KEYS[view.sort]) }) + (view.sortReversed ? t("board.sortReversed") : "")]
+      : []),
+  ].join(" · ");
 
   /**
    * A linked note that is no longer in the vault (deleted or moved outside
@@ -485,10 +595,10 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
     const target = columns[Math.max(0, Math.min(columns.length - 1, inPlace + delta))];
     target?.scrollIntoView?.({ behavior: reducedMotion() ? "auto" : "smooth", block: "nearest", inline: "start" });
   };
-  const place = Math.min(inPlace, Math.max(0, board.columns.length - 1));
+  const place = Math.min(inPlace, Math.max(0, shownColumns.length - 1));
 
   /** The count of each column, for the head of a collapsed board. */
-  const counts = board.columns.map((column) => ({ column, count: cardsOf(column).length }));
+  const counts = shownColumns.map((column) => ({ column, count: cardsOf(column).length }));
 
   return (
     <section
@@ -519,19 +629,19 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
           className="sb-icon-button sb-icon-button--compact"
           type="button"
           draggable={false}
-          aria-expanded={!board.collapsed}
+          aria-expanded={!view.collapsed}
           aria-controls={bodyId}
-          aria-label={board.collapsed ? t("board.expand", { name: board.name }) : t("board.collapse", { name: board.name })}
-          onClick={() => void useBoard.getState().setCollapsed(board.slug, !board.collapsed).catch(report)}
+          aria-label={view.collapsed ? t("board.expand", { name: board.name }) : t("board.collapse", { name: board.name })}
+          onClick={() => changeView({ collapsed: !view.collapsed })}
         >
-          <Icon name={board.collapsed ? "chevron-right" : "chevron-down"} size={20} />
+          <Icon name={view.collapsed ? "chevron-right" : "chevron-down"} size={20} />
         </button>
         <div className="sb-window__head-text">
           <h2 className="sb-window__heading" id={boardHeadingId}>
             {board.name}
           </h2>
           <p className="sb-window__meta">
-            {board.collapsed && counts.length > 0
+            {view.collapsed && counts.length > 0
               ? counts.map(({ column, count }, index) => (
                   <span key={column.id}>
                     {index > 0 && " · "}
@@ -543,7 +653,14 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
           </p>
         </div>
         <div className="sb-window__head-tools">
-          {!board.collapsed && (
+          {!view.collapsed && (
+            <MoreMenu
+              label={t("board.filterMenu", { name: board.name })}
+              entries={filterEntries}
+              trigger={{ text: t("board.filter"), icon: "filter", pressed: filters > 0 || sorted }}
+            />
+          )}
+          {!view.collapsed && (
             <button
               className="sb-secondary-action sb-secondary-action--compact"
               type="button"
@@ -563,6 +680,43 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
           />
         </div>
       </div>
+
+      {/* The filter's line (ADR-0054): the search while it is open or holds
+          text, what is on, and the way back to none of it. */}
+      {!view.collapsed && (searching || search !== "" || filters > 0 || sorted) && (
+        <div className="board-filter">
+          {(searching || search !== "") && (
+            <div className="sb-field sb-field--compact board-search">
+              <label className="sb-field__label sb-visually-hidden" htmlFor={searchId}>
+                {t("board.searchLabel", { name: board.name })}
+              </label>
+              <div className="sb-field__control sb-search">
+                <Icon name="search" size={20} />
+                <input
+                  id={searchId}
+                  ref={searchRef}
+                  type="search"
+                  value={search}
+                  placeholder={t("board.searchPlaceholder")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => useBoard.getState().setSearch(board.slug, event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape") return;
+                    event.stopPropagation();
+                    useBoard.getState().setSearch(board.slug, "");
+                    setSearching(false);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          {summary && <p className="sb-window__meta board-filter__summary">{summary}</p>}
+          <button className="sb-text-action sb-text-action--compact" type="button" onClick={resetView}>
+            {t("board.filterReset")}
+          </button>
+        </div>
+      )}
 
       {/* §8.4 resolved cards or columns when this board was first read, or a
           card file could not be used. All were silent before: a card simply
@@ -599,7 +753,7 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
         <Callout kind="note" text={t("errors.cloudOnlySkipped", { count: board.cloudOnly.length })} />
       )}
 
-      {board.collapsed ? null : board.columns.length === 0 ? (
+      {view.collapsed ? null : board.columns.length === 0 ? (
         // No column yet (DAT-07): „Spalte hinzufügen“ stands in the head. An
         // empty state under the board's heading, in its padding: sebaro's
         // section form, never larger than the heading (spec/02 §3.14, D108).
@@ -624,15 +778,15 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
             <p className="sb-board__position" aria-live="polite">
               {t("board.position", {
                 n: place + 1,
-                total: board.columns.length,
-                name: board.columns[place]?.name ?? "",
+                total: shownColumns.length,
+                name: shownColumns[place]?.name ?? "",
               })}
             </p>
             <button
               className="sb-icon-button"
               type="button"
               aria-label={t("board.nextColumn")}
-              aria-disabled={place === board.columns.length - 1}
+              aria-disabled={place === shownColumns.length - 1}
               onClick={() => step(1)}
             >
               <Icon name="chevron-right" size={24} />
@@ -647,9 +801,11 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(null);
             }}
           >
-            {board.columns.map((column, columnIndex) => {
+            {shownColumns.map((column, shownIndex) => {
               const cards = cardsOf(column);
-              const headingId = `${ids}-column-${columnIndex}`;
+              const headingId = `${ids}-column-${shownIndex}`;
+              // Its place among all columns, which moving it changes.
+              const columnIndex = board.columns.indexOf(column);
               return (
                 <section
                   className="sb-board__column"
@@ -658,6 +814,9 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                   data-sb-state={over?.column === column.id && over.card === null ? "drop-into" : undefined}
                   onDragOver={(event) => {
                     if (!accepts(event.dataTransfer.types, drag !== null)) return;
+                    // A chosen order keeps no place a card is dropped at, so
+                    // within its own column a card has nowhere to go (ADR-0054).
+                    if (sorted && dragColumn === column.id) return;
                     event.preventDefault();
                     event.dataTransfer.dropEffect = "move";
                     // In the 8 px between two cards the place stays where it
@@ -699,7 +858,9 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                   </div>
 
                   {cards.length === 0 ? (
-                    <p className="sb-board__empty">{t("board.emptyColumn")}</p>
+                    <p className="sb-board__empty">
+                      {allOf(column).length > 0 ? t("board.noMatch") : t("board.emptyColumn")}
+                    </p>
                   ) : (
                     <ul className="sb-board__cards sb-board__cards--scroll">
                       {cards.map((card) => (
@@ -744,6 +905,9 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                           }}
                           onDragOver={(event) => {
                             if (!accepts(event.dataTransfer.types, drag !== null)) return;
+                            // Under a chosen order no line between cards: the
+                            // column decides, last or nowhere (ADR-0054).
+                            if (sorted) return;
                             event.preventDefault();
                             event.stopPropagation();
                             event.dataTransfer.dropEffect = "move";

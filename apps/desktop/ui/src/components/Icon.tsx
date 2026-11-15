@@ -54,6 +54,8 @@ const NAMES = {
   link: false,
   code: false,
   quote: false,
+  // A board's „Filter“ in its head (ADR-0054).
+  filter: false,
 } as const;
 
 export type IconName = keyof typeof NAMES;

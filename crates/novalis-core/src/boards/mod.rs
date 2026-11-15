@@ -64,6 +64,32 @@ pub struct BoardView {
     /// Only the head shows, with each column's card count.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub collapsed: bool,
+    /// Columns left out of the view, by id; their cards stay on the board.
+    #[serde(
+        default,
+        rename = "hiddenColumns",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub hidden_columns: Vec<String>,
+    /// Only cards changed in this span: `today`, `7d`, `30d` or `90d`. Kept
+    /// as text, so a span a later version adds still reads.
+    #[serde(
+        default,
+        rename = "changedWithin",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub changed_within: Option<String>,
+    /// The cards' order in every column: `title`, `updated` or `created`;
+    /// absent is the manual order (`order`, §8.3). Text for the same reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sort: Option<String>,
+    /// `sort` turned round.
+    #[serde(
+        default,
+        rename = "sortReversed",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub sort_reversed: bool,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -397,15 +423,16 @@ pub fn set_columns(vault: &Path, slug: &str, columns: Vec<Column>) -> CoreResult
     Err(CoreError::internal("set_columns: replay exhausted"))
 }
 
-/// Collapse or expand the board in the boards view (ADR-0054), re-read and
-/// replayed on a precondition conflict like `set_columns`. A view back at
+/// Change the board's view in the boards view (ADR-0054), re-read and
+/// replayed on a precondition conflict like `set_columns`; `change` sees the
+/// view as it is on disk, keys it does not know included. A view back at
 /// its defaults leaves the file without `view`.
-pub fn set_collapsed(vault: &Path, slug: &str, collapsed: bool) -> CoreResult<Board> {
+pub fn set_view(vault: &Path, slug: &str, change: impl Fn(&mut BoardView)) -> CoreResult<Board> {
     for attempt in 0..3 {
         let doc = read_board(vault, slug)?;
         let mut board = doc.board;
         let mut view = board.view.take().unwrap_or_default();
-        view.collapsed = collapsed;
+        change(&mut view);
         board.view = (!view.is_default()).then_some(view);
         board.updated = now_rfc3339_ms();
         let p = board_dir(vault, slug)?.join("board.json");
@@ -415,7 +442,7 @@ pub fn set_collapsed(vault: &Path, slug: &str, collapsed: bool) -> CoreResult<Bo
             Err(e) => return Err(e),
         }
     }
-    Err(CoreError::internal("set_collapsed: replay exhausted"))
+    Err(CoreError::internal("set_view: replay exhausted"))
 }
 
 fn cards_dir(vault: &Path, slug: &str) -> CoreResult<PathBuf> {
@@ -1620,13 +1647,13 @@ mod tests {
     /// ADR-0054: the view key comes and goes with its values; unknown view
     /// keys of a later version survive a collapse.
     #[test]
-    fn set_collapsed_writes_view_only_when_not_default_and_keeps_unknown_keys() {
+    fn set_view_writes_view_only_when_not_default_and_keeps_unknown_keys() {
         let t = vault();
         let file = t.path().join("boards/atlas/board.json");
         let before = std::fs::read_to_string(&file).unwrap();
         assert!(!before.contains("\"view\""));
 
-        let b = set_collapsed(t.path(), "atlas", true).unwrap();
+        let b = set_view(t.path(), "atlas", |v| v.collapsed = true).unwrap();
         assert!(b.view.as_ref().unwrap().collapsed);
         let raw = std::fs::read_to_string(&file).unwrap();
         assert!(raw.contains("\"view\": {\n    \"collapsed\": true\n  }"));
@@ -1639,25 +1666,54 @@ mod tests {
                 .collapsed
         );
 
-        set_collapsed(t.path(), "atlas", false).unwrap();
+        set_view(t.path(), "atlas", |v| v.collapsed = false).unwrap();
         let raw = std::fs::read_to_string(&file).unwrap();
         assert!(!raw.contains("\"view\""));
 
         let edited = raw.replacen("{\n", "{\n  \"view\": { \"later\": 1 },\n", 1);
         std::fs::write(&file, edited).unwrap();
-        let b = set_collapsed(t.path(), "atlas", true).unwrap();
+        let b = set_view(t.path(), "atlas", |v| v.collapsed = true).unwrap();
         let view = b.view.unwrap();
         assert!(view.collapsed);
         assert_eq!(view.extra.get("later"), Some(&serde_json::json!(1)));
-        let b = set_collapsed(t.path(), "atlas", false).unwrap();
+        let b = set_view(t.path(), "atlas", |v| v.collapsed = false).unwrap();
         assert_eq!(
             b.view.unwrap().extra.get("later"),
             Some(&serde_json::json!(1))
         );
         assert_eq!(
-            set_collapsed(t.path(), "nope", true).unwrap_err().code(),
+            set_view(t.path(), "nope", |v| v.collapsed = true)
+                .unwrap_err()
+                .code(),
             "not_found"
         );
+    }
+
+    /// ADR-0054 part 2: the filter and the sort sit beside `collapsed`,
+    /// camelCase like the rest of the vault's JSON.
+    #[test]
+    fn set_view_writes_filter_and_sort_keys() {
+        let t = vault();
+        let b = set_view(t.path(), "atlas", |v| {
+            v.hidden_columns = vec!["done".into()];
+            v.changed_within = Some("7d".into());
+            v.sort = Some("title".into());
+            v.sort_reversed = true;
+        })
+        .unwrap();
+        let view = b.view.unwrap();
+        assert_eq!(view.hidden_columns, vec!["done".to_string()]);
+        let raw = std::fs::read_to_string(t.path().join("boards/atlas/board.json")).unwrap();
+        for key in [
+            "\"hiddenColumns\"",
+            "\"changedWithin\": \"7d\"",
+            "\"sort\": \"title\"",
+            "\"sortReversed\": true",
+        ] {
+            assert!(raw.contains(key), "{key} missing in {raw}");
+        }
+        let back = read_board(t.path(), "atlas").unwrap().board.view.unwrap();
+        assert_eq!(back, view);
     }
 
     #[test]
