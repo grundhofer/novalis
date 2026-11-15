@@ -196,8 +196,10 @@ failed during the rewrite; fix those by hand (`cat`, then `edit --find
 
 Flags: `--force`, `--materialize`, `--dry-run`. Moves the file to the macOS
 Trash (never a hard delete). Output `{path, danglingBacklinks: [path],
-cloudOnly}`. Exit 5 while `danglingBacklinks` is non-empty unless `--force`;
-exit 8 for a cloud-only note unless `--materialize`.
+danglingCards: [path], cloudOnly}`; `danglingCards` are the card files
+(`boards/<b>/cards/<id>.json`) whose `notes[]` point at the note. Exit 5
+while either list is non-empty unless `--force` (the error's `candidates`
+name both); exit 8 for a cloud-only note unless `--materialize`.
 
 ### `search <query>` — Status: harness
 
@@ -291,7 +293,9 @@ and `card rm` take no board argument.
   verbatim when nothing resolves to it, so a reference to a deleted note can
   be cleaned up.
 - `card rm <id>` → `{card}` with the `deleted` tombstone stamp. The file
-  stays until it is 30 days old.
+  stays until it is 30 days old. A removed card is gone for `card mv`,
+  `card set` and another `card rm` (exit 3); its stamp is never renewed.
+- A card's title must not be empty or blank (exit 2), on `add` and `set`.
 - `--if-updated <rfc3339>` on `mv`, `set` and `rm` refuses (exit 4) when the
   card's `updated` is not the one you read. Take the next value from `updated`
   in the result, as `--if-match` on a note.

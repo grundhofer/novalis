@@ -4,6 +4,7 @@
 use std::io::Write;
 
 use novalis_core::boards;
+use novalis_core::vault::path::fold;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -105,8 +106,19 @@ pub fn run(ctx: &Ctx, args: LinksArgs) -> Result<LinksOut, CliError> {
         }));
     }
     if args.orphans {
+        // A note a card references is not an orphan: the cache knows the
+        // notes' links only, so the cards are read here.
+        let referenced: std::collections::HashSet<String> = crate::ops::card::card_note_refs(ctx)?
+            .into_iter()
+            .map(|(_, _, note)| fold(&note))
+            .collect();
+        let items = cache
+            .orphans()?
+            .into_iter()
+            .filter(|path| !referenced.contains(&fold(path)))
+            .collect();
         return Ok(LinksOut::Orphans(OrphansOut {
-            items: cache.orphans()?,
+            items,
             truncated: false,
         }));
     }

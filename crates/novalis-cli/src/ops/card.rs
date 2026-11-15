@@ -163,6 +163,30 @@ fn find(ctx: &Ctx, id: &str) -> Result<(String, CardDoc), CliError> {
     }
 }
 
+/// The live card behind `id`: a tombstone (`card rm`, or the source of a
+/// move to another board) is not there to change any more, so `mv`, `set`
+/// and `rm` answer it like an id nothing holds (exit 3). Changing it would
+/// rewrite a card no list shows, and a second `rm` would restart its 30 days.
+fn find_live(ctx: &Ctx, id: &str) -> Result<(String, CardDoc), CliError> {
+    let (slug, doc) = find(ctx, id)?;
+    if doc.card.is_deleted() {
+        return Err(CliError::from_core(CoreError::NotFound {
+            path: format!("{}/cards/{id}.json", board_path(&slug)),
+        })
+        .with_hint("the card was removed; `card ls` lists the live ones"));
+    }
+    Ok((slug, doc))
+}
+
+/// A card title: text that is not only blanks (an empty title is no card
+/// anyone can find again).
+fn title_arg(title: &str) -> Result<String, CliError> {
+    if title.trim().is_empty() {
+        return Err(CliError::usage("--title must not be empty"));
+    }
+    Ok(title.to_string())
+}
+
 /// A `--rm-note` value. It resolves like every other note reference, but a
 /// reference nothing resolves to is kept verbatim: a card can point at a note
 /// that has since been deleted, and that is exactly what is being removed.
@@ -172,6 +196,22 @@ fn resolve_stale_note(ctx: &Ctx, reference: &str) -> Result<String, CliError> {
         Err(e) if e.exit == EXIT_NOT_FOUND => Ok(novalis_core::vault::path::nfc(reference.trim())),
         Err(e) => Err(e),
     }
+}
+
+/// Every live card's note references, as `(board, card id, note path)`.
+/// Lenient: a card file that is cloud-only or does not parse is left out
+/// rather than failing a read-only answer (`links --orphans`, `rm`).
+pub fn card_note_refs(ctx: &Ctx) -> Result<Vec<(String, String, String)>, CliError> {
+    let mut out = Vec::new();
+    for b in boards::list_boards(&ctx.vault)? {
+        let (docs, _cloud_only, _unreadable) = boards::list_cards_lenient(&ctx.vault, &b.slug)?;
+        for d in docs.into_iter().filter(|d| !d.card.is_deleted()) {
+            for note in &d.card.notes {
+                out.push((b.slug.clone(), d.card.id.clone(), note.clone()));
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// A `--priority` value: one of the three steps, or empty for none where
@@ -340,7 +380,7 @@ fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
         .map(|n| ctx.resolve_note(n))
         .collect::<Result<Vec<String>, CliError>>()?;
     let new = NewCard {
-        title: args.title.clone(),
+        title: title_arg(&args.title)?,
         column,
         notes,
         position: position_of(&args.position),
@@ -401,7 +441,7 @@ fn mv(ctx: &Ctx, args: CardMvArgs) -> Result<CardOut, CliError> {
             "card mv needs --column, --after, --first or --last",
         ));
     }
-    let (slug, doc) = find(ctx, &args.id)?;
+    let (slug, doc) = find_live(ctx, &args.id)?;
     let column = match &args.column {
         Some(c) => Some(resolve_column(&slug, &read_board(ctx, &slug)?, c)?),
         None => None,
@@ -451,12 +491,12 @@ fn set(ctx: &Ctx, args: CardSetArgs) -> Result<CardOut, CliError> {
         .as_deref()
         .map(|p| priority_arg(p, true))
         .transpose()?;
-    let (slug, doc) = find(ctx, &args.id)?;
+    let (slug, doc) = find_live(ctx, &args.id)?;
     // One file per change, in a fixed order: the title, the description, then
     // the references that go away, then the ones that arrive.
     let mut changes: Vec<CardChange> = Vec::new();
     if let Some(title) = &args.title {
-        changes.push(CardChange::Title(title.clone()));
+        changes.push(CardChange::Title(title_arg(title)?));
     }
     if let Some(d) = &args.description {
         changes.push(CardChange::Description(d.clone()));
@@ -496,7 +536,7 @@ fn set(ctx: &Ctx, args: CardSetArgs) -> Result<CardOut, CliError> {
 }
 
 fn rm(ctx: &Ctx, args: CardRmArgs) -> Result<CardOut, CliError> {
-    let (slug, doc) = find(ctx, &args.id)?;
+    let (slug, doc) = find_live(ctx, &args.id)?;
     apply(
         ctx,
         &slug,

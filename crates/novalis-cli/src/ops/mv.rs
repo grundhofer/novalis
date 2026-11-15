@@ -38,7 +38,16 @@ pub struct MvOut {
 
 pub fn run(ctx: &Ctx, args: MvArgs) -> Result<MvOut, CliError> {
     let from = ctx.resolve_note(&args.from)?;
-    let to = ctx.note_target(&args.to)?;
+    // `<to>` naming a folder that exists keeps the note's file name there.
+    let folder = args.to.trim().trim_end_matches('/');
+    let to = if !folder.is_empty() && ctx.abs(folder).is_dir() {
+        ctx.note_target(&format!(
+            "{folder}/{}",
+            novalis_core::vault::path::file_name_of(&from)
+        ))?
+    } else {
+        ctx.note_target(&args.to)?
+    };
     if from == to {
         return Err(CliError::usage(format!("{from} is already its own target")));
     }
