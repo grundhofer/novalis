@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::{CoreError, CoreResult};
-use crate::util::{now_rfc3339_ms, parse_rfc3339_ms};
+use crate::util::{is_iso_day, now_rfc3339_ms, parse_rfc3339_ms};
 use crate::vault::cloud::conflict_copy_candidate;
 use crate::vault::fs::{
     create_atomic, list_dir, read_bytes, rename_excl, stat, trash, write_atomic, EntryKind,
@@ -257,6 +257,12 @@ pub struct NewCard {
     pub position: Position,
     /// `None` and `Some("")` both mean no description.
     pub description: Option<String>,
+    /// The fields of ADR-0054, checked and tidied as [`CardChange`] does;
+    /// empty values mean none.
+    pub labels: Vec<String>,
+    pub due: Option<String>,
+    pub priority: Option<String>,
+    pub assignee: Option<String>,
 }
 
 /// Outcome of resolving same-card conflict copies (§8.4).
@@ -671,7 +677,7 @@ pub fn add_card(vault: &Path, slug: &str, new: NewCard) -> CoreResult<Card> {
     let cards = list_cards(vault, slug)?;
     let order = order_for(&cards, &column, &new.position, None)?;
     let now = now_rfc3339_ms();
-    let card = Card {
+    let mut card = Card {
         id: new_ulid()?,
         title: new.title,
         column,
@@ -687,6 +693,15 @@ pub fn add_card(vault: &Path, slug: &str, new: NewCard) -> CoreResult<Card> {
         deleted: None,
         extra: BTreeMap::new(),
     };
+    // The fields go through the same checks as a later change of them.
+    for change in [
+        CardChange::Labels(new.labels),
+        CardChange::Due(new.due.unwrap_or_default()),
+        CardChange::Priority(new.priority.unwrap_or_default()),
+        CardChange::Assignee(new.assignee.unwrap_or_default()),
+    ] {
+        apply_change(&mut card, &change, &[])?;
+    }
     let p = card_path(vault, slug, &card.id)?;
     create_atomic(&p, &to_json_bytes(&card)?)?;
     purge_tombstones(vault, slug, &cards)?;
@@ -726,7 +741,7 @@ fn apply_change(card: &mut Card, change: &CardChange, cards: &[CardDoc]) -> Core
         }
         CardChange::Due(d) => {
             let d = d.trim();
-            if !d.is_empty() && !is_calendar_day(d) {
+            if !d.is_empty() && !is_iso_day(d) {
                 return Err(CoreError::Parse {
                     path: None,
                     detail: format!("due must be a day YYYY-MM-DD: {d}"),
@@ -751,34 +766,6 @@ fn apply_change(card: &mut Card, change: &CardChange, cards: &[CardDoc]) -> Core
         CardChange::Restore => card.deleted = None,
     }
     Ok(())
-}
-
-/// Whether `s` is a real calendar day written `YYYY-MM-DD`.
-fn is_calendar_day(s: &str) -> bool {
-    let b = s.as_bytes();
-    if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
-        return false;
-    }
-    let num = |r: std::ops::Range<usize>| s.get(r).and_then(|x| x.parse::<u32>().ok());
-    let (Some(y), Some(m), Some(d)) = (num(0..4), num(5..7), num(8..10)) else {
-        return false;
-    };
-    if !s
-        .chars()
-        .enumerate()
-        .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit())
-    {
-        return false;
-    }
-    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-    let days = match m {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if leap => 29,
-        2 => 28,
-        _ => return false,
-    };
-    (1..=days).contains(&d)
 }
 
 /// Apply one field-level change: read → apply → write under the read-time
@@ -1185,6 +1172,10 @@ mod tests {
                 notes: vec![],
                 position,
                 description: None,
+                labels: vec![],
+                due: None,
+                priority: None,
+                assignee: None,
             },
         )
         .unwrap()
@@ -1293,6 +1284,10 @@ mod tests {
                     notes: vec![],
                     position: Position::Last,
                     description: None,
+                    labels: Vec::new(),
+                    due: None,
+                    priority: None,
+                    assignee: None,
                 }
             ),
             Err(CoreError::NotFound { .. })
@@ -1424,6 +1419,10 @@ mod tests {
                 notes: vec![],
                 position: Position::Last,
                 description: Some("body".into()),
+                labels: Vec::new(),
+                due: None,
+                priority: None,
+                assignee: None,
             },
         )
         .unwrap();
@@ -1470,6 +1469,10 @@ mod tests {
                 notes: vec![],
                 position: Position::Last,
                 description: Some(String::new()),
+                labels: Vec::new(),
+                due: None,
+                priority: None,
+                assignee: None,
             },
         )
         .unwrap();

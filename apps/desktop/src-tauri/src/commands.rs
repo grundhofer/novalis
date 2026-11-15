@@ -1283,6 +1283,10 @@ pub async fn card_write(
                     notes,
                     position: position(pos),
                     description: None,
+                    labels: Vec::new(),
+                    due: None,
+                    priority: None,
+                    assignee: None,
                 },
             )?,
             CardOpDto::Retitle { id, title } => {

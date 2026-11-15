@@ -82,11 +82,11 @@ Available now (the core harness):
 | `migrate [--apply] [--rename-to-title[=BOOL]] [--import-columns] [--force] [--materialize]` | one-time upgrade of a vault written by the old app; dry run unless `--apply` |
 | `help --json` | the command tree and the exit-code table |
 | `board ls` · `board show <b>` · `board new <b> [--name N]` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
-| `card ls [--board B] [--note N] [--column C]` | which cards reference a note; tombstones are never listed |
-| `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
-| `card mv <id> …` · `card set <id> [--title T] [--description TEXT] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards |
+| `card ls [--board B] [--note N] [--column C] [--label L] [--priority P] [--assignee A] [--due overdue\|today\|7d\|none]` | which cards reference a note, carry a label, are overdue …; tombstones are never listed |
+| `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--label L]… [--due YYYY-MM-DD] [--priority high\|medium\|low] [--assignee A] [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
+| `card mv <id> …` · `card set <id> [--title T] [--description TEXT] [--label L]… \| [--add-label L] [--rm-label L] [--due D] [--priority P\|none] [--assignee A] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards; an empty value (`--due ""`, `--label ""`, `--priority none`) clears |
 
-A card in the JSON may also carry `labels`, `due` (`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee`, each absent when empty. The CLI reads them; it does not set them yet, the app does.
+A card in the JSON may also carry `labels`, `due` (`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`) and `assignee`, each absent when empty. Labels are kept once regardless of case; a label's colour is the app's (per board), not the CLI's.
 
 `board new` creates a board with no columns; give it columns with
 `board columns --set`. Never write a board or card file by hand.

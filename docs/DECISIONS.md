@@ -1044,6 +1044,13 @@ category tones, the tone chosen per label and board; the due day with
 „überfällig“. Amends **ADR-0054**; part 3b (filter and sort by these
 fields) built the same day.
 
+The CLI and the card fields (verbatim „kannst du die cli entsprechend
+erweitern?“, then „Felder setzen (card set), Felder beim Anlegen (card add),
+Filtern in card ls“): the four fields on `card add` and `card set`, the field
+filters on `card ls`; no `board view`.
+
+Recorded as **ADR-0055**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

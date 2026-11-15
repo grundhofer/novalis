@@ -638,3 +638,202 @@ fn doctor_reports_missing_and_unlinked_attachments() {
         ])
     );
 }
+
+/// ADR-0054: the card fields from the CLI — set at `card add`, changed by
+/// `card set`, filtered by `card ls`; bad values are usage errors before
+/// anything is written.
+#[test]
+fn card_fields_are_added_set_and_filtered() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::create_dir_all(vault.join("boards/atlas/cards")).expect("the board folder");
+    std::fs::write(
+        vault.join("boards/atlas/board.json"),
+        r#"{"columns":[{"id":"todo","name":"To Do"}],"format":1,"name":"Atlas","updated":"2026-09-05T08:41:12.345Z"}
+"#,
+    )
+    .expect("board.json");
+    let run = |args: &[&str]| -> (serde_json::Value, i32) {
+        let out = Command::new(BIN)
+            .arg("--vault")
+            .arg(&vault)
+            .args(args)
+            .current_dir(&root)
+            .env("HOME", &root)
+            .env_remove("NOVALIS_VAULT")
+            .output()
+            .unwrap_or_else(|e| panic!("cannot run {BIN}: {e}"));
+        let code = out.status.code().unwrap_or(-1);
+        let raw = if out.stdout.is_empty() {
+            &out.stderr
+        } else {
+            &out.stdout
+        };
+        let value = serde_json::from_slice(raw)
+            .unwrap_or_else(|e| panic!("{args:?} printed no JSON ({e}): {raw:?}"));
+        (value, code)
+    };
+    let today = novalis_core::util::local_iso_day(0);
+    let yesterday = novalis_core::util::local_iso_day(-1);
+    let in_six = novalis_core::util::local_iso_day(6);
+    let in_seven = novalis_core::util::local_iso_day(7);
+
+    // Everything at once on `card add`; the labels tidied as the app does.
+    let (spec, code) = run(&[
+        "card",
+        "add",
+        "atlas",
+        "--title",
+        "Spec",
+        "--label",
+        " Kunde ",
+        "--label",
+        "kunde",
+        "--label",
+        "blockiert",
+        "--due",
+        &yesterday,
+        "--priority",
+        "HIGH",
+        "--assignee",
+        "Anna",
+    ]);
+    assert_eq!(code, 0, "{spec}");
+    let spec_id = spec["card"]["id"].as_str().expect("an id").to_string();
+    assert_eq!(
+        spec["card"]["labels"],
+        serde_json::json!(["Kunde", "blockiert"])
+    );
+    assert_eq!(spec["card"]["due"], yesterday.as_str());
+    assert_eq!(spec["card"]["priority"], "high");
+    assert_eq!(spec["card"]["assignee"], "Anna");
+    let file = std::fs::read_to_string(vault.join(format!("boards/atlas/cards/{spec_id}.json")))
+        .expect("the card file");
+    assert!(file.contains("\"priority\": \"high\""), "{file}");
+
+    let add = |title: &str, extra: &[&str]| -> String {
+        let mut args = vec!["card", "add", "atlas", "--title", title];
+        args.extend_from_slice(extra);
+        let (card, code) = run(&args);
+        assert_eq!(code, 0, "{card}");
+        card["card"]["id"].as_str().expect("an id").to_string()
+    };
+    add("Today", &["--due", &today, "--priority", "low"]);
+    add("Soon", &["--due", &in_six, "--assignee", "Ben"]);
+    add("Later", &["--due", &in_seven]);
+    add("Undated", &[]);
+
+    let titles = |args: &[&str]| -> Vec<String> {
+        let mut all = vec!["card", "ls"];
+        all.extend_from_slice(args);
+        let (list, code) = run(&all);
+        assert_eq!(code, 0, "{list}");
+        let mut t: Vec<String> = list["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|c| c["title"].as_str().expect("a title").to_string())
+            .collect();
+        t.sort();
+        t
+    };
+    assert_eq!(titles(&["--label", "KUNDE"]), ["Spec"]);
+    assert_eq!(titles(&["--priority", "low"]), ["Today"]);
+    assert_eq!(titles(&["--assignee", "Ben"]), ["Soon"]);
+    assert_eq!(titles(&["--due", "overdue"]), ["Spec"]);
+    assert_eq!(titles(&["--due", "today"]), ["Today"]);
+    assert_eq!(titles(&["--due", "7d"]), ["Soon", "Today"]);
+    assert_eq!(titles(&["--due", "none"]), ["Undated"]);
+    assert_eq!(
+        titles(&["--due", "none", "--priority", "high"]),
+        Vec::<String>::new()
+    );
+
+    // `card set`: one label off and one on, the rest in place; then the
+    // fields cleared, each key gone from the JSON.
+    let (set, code) = run(&[
+        "card",
+        "set",
+        &spec_id,
+        "--rm-label",
+        "BLOCKIERT",
+        "--add-label",
+        "Frist",
+    ]);
+    assert_eq!(code, 0, "{set}");
+    assert_eq!(set["card"]["labels"], serde_json::json!(["Kunde", "Frist"]));
+    let (set, code) = run(&[
+        "card",
+        "set",
+        &spec_id,
+        "--label",
+        "Neu",
+        "--priority",
+        "medium",
+    ]);
+    assert_eq!(code, 0, "{set}");
+    assert_eq!(set["card"]["labels"], serde_json::json!(["Neu"]));
+    assert_eq!(set["card"]["priority"], "medium");
+    let (cleared, code) = run(&[
+        "card",
+        "set",
+        &spec_id,
+        "--label",
+        "",
+        "--due",
+        "",
+        "--priority",
+        "none",
+        "--assignee",
+        "",
+    ]);
+    assert_eq!(code, 0, "{cleared}");
+    for key in ["labels", "due", "priority", "assignee"] {
+        assert!(cleared["card"][key].is_null(), "{key} left: {cleared}");
+    }
+
+    // Bad values are usage errors, and nothing is written.
+    for args in [
+        vec!["card", "set", spec_id.as_str(), "--due", "2027-02-29"],
+        vec!["card", "set", spec_id.as_str(), "--priority", "urgent"],
+        vec!["card", "add", "atlas", "--title", "x", "--priority", "none"],
+        vec!["card", "ls", "--due", "soon"],
+        vec![
+            "card",
+            "set",
+            spec_id.as_str(),
+            "--label",
+            "a",
+            "--add-label",
+            "b",
+        ],
+    ] {
+        let (err, code) = run(&args);
+        assert_eq!(code, 2, "{args:?}: {err}");
+    }
+    assert_eq!(titles(&[]).len(), 5, "no card was added by a refused call");
+
+    // `--dry-run` shows the fields a new card would have.
+    let (dry, code) = run(&[
+        "--dry-run",
+        "card",
+        "add",
+        "atlas",
+        "--title",
+        "Dry",
+        "--label",
+        "a",
+        "--label",
+        "A",
+        "--due",
+        &today,
+        "--assignee",
+        " Cleo ",
+    ]);
+    assert_eq!(code, 0, "{dry}");
+    assert_eq!(dry["card"]["labels"], serde_json::json!(["a"]));
+    assert_eq!(dry["card"]["due"], today.as_str());
+    assert_eq!(dry["card"]["assignee"], "Cleo");
+}

@@ -650,6 +650,10 @@ mod tests {
                 notes: vec!["reading/walden.md".into()],
                 position: boards::Position::Last,
                 description: None,
+                labels: Vec::new(),
+                due: None,
+                priority: None,
+                assignee: None,
             },
         )
         .unwrap();

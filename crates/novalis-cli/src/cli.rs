@@ -473,7 +473,8 @@ pub enum CardCommand {
     Add(CardAddArgs),
     /// Move a card to another column or another place in its column.
     Mv(CardMvArgs),
-    /// Change a card's title or its note references.
+    /// Change a card's title, description, note references, labels, due
+    /// day, priority or assignee.
     Set(CardSetArgs),
     /// Tombstone a card.
     Rm(CardRmArgs),
@@ -510,6 +511,19 @@ pub struct CardLsArgs {
     /// Only cards in this column id.
     #[arg(long, value_name = "COLUMN")]
     pub column: Option<String>,
+    /// Only cards with this label, regardless of case (ADR-0054).
+    #[arg(long, value_name = "LABEL")]
+    pub label: Option<String>,
+    /// Only cards with this priority: high, medium or low.
+    #[arg(long, value_name = "PRIORITY")]
+    pub priority: Option<String>,
+    /// Only cards with this assignee.
+    #[arg(long, value_name = "NAME")]
+    pub assignee: Option<String>,
+    /// Only cards due so: overdue, today, 7d (today and the six days after)
+    /// or none (no due day). Days are local.
+    #[arg(long, value_name = "WHEN")]
+    pub due: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -528,6 +542,18 @@ pub struct CardAddArgs {
     /// A note the card references. Repeatable.
     #[arg(long = "note", value_name = "NOTE")]
     pub notes: Vec<String>,
+    /// A label (ADR-0054). Repeatable.
+    #[arg(long = "label", value_name = "LABEL")]
+    pub labels: Vec<String>,
+    /// The due day, YYYY-MM-DD.
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    pub due: Option<String>,
+    /// high, medium or low.
+    #[arg(long, value_name = "PRIORITY")]
+    pub priority: Option<String>,
+    /// Who the card is with.
+    #[arg(long, value_name = "NAME", allow_hyphen_values = true)]
+    pub assignee: Option<String>,
     #[command(flatten)]
     pub position: PositionArgs,
 }
@@ -561,6 +587,25 @@ pub struct CardSetArgs {
     /// Remove a note reference. Repeatable.
     #[arg(long = "rm-note", value_name = "NOTE")]
     pub rm_note: Vec<String>,
+    /// Replace the labels with these (ADR-0054). Repeatable; `--label ""`
+    /// alone clears them. Not together with --add-label or --rm-label.
+    #[arg(long = "label", value_name = "LABEL", conflicts_with_all = ["add_label", "rm_label"])]
+    pub label: Vec<String>,
+    /// Add a label. Repeatable.
+    #[arg(long = "add-label", value_name = "LABEL")]
+    pub add_label: Vec<String>,
+    /// Remove a label, regardless of case. Repeatable.
+    #[arg(long = "rm-label", value_name = "LABEL")]
+    pub rm_label: Vec<String>,
+    /// The due day, YYYY-MM-DD; an empty string clears it.
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    pub due: Option<String>,
+    /// high, medium or low; none (or an empty string) clears it.
+    #[arg(long, value_name = "PRIORITY")]
+    pub priority: Option<String>,
+    /// Who the card is with; an empty string clears it.
+    #[arg(long, value_name = "NAME", allow_hyphen_values = true)]
+    pub assignee: Option<String>,
     /// The `updated` stamp the card must still carry.
     #[arg(long, value_name = "RFC3339")]
     pub if_updated: Option<String>,
