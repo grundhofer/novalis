@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { commands } from "../ipc/client";
 import { useBoard } from "../stores/board";
+import { useTabs } from "../stores/tabs";
 import { useUi } from "../stores/ui";
-import { openCardContextMenu, runCardMenuAction } from "./cardActions";
+import { openCardContextMenu, openFromBoard, runCardMenuAction } from "./cardActions";
 
 vi.mock("../ipc/client", () => ({
   commands: { contextMenu: vi.fn() },
@@ -97,5 +98,32 @@ describe("the card context menu", () => {
     expect(runCardMenuAction("card.rename")).toBe(true);
     expect(useUi.getState().prompt).toBeNull();
     expect(runCardMenuAction("tree.rename")).toBe(false);
+  });
+});
+
+// ADR-0053: a note opened from the board remembers the board for the way back.
+describe("opening a note from the board", () => {
+  it("remembers the note and the loaded board, then opens the note", async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open } as never);
+    useBoard.setState({ slug: "plan" });
+    useUi.setState({ boardReturn: null });
+
+    await openFromBoard("a.md");
+
+    expect(useUi.getState().boardReturn).toEqual({ path: "a.md", board: "plan" });
+    expect(open).toHaveBeenCalledWith("a.md");
+  });
+
+  it("opens the note without a way back when no board is loaded", async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    useTabs.setState({ open } as never);
+    useBoard.setState({ slug: null });
+    useUi.setState({ boardReturn: null });
+
+    await openFromBoard("a.md");
+
+    expect(useUi.getState().boardReturn).toBeNull();
+    expect(open).toHaveBeenCalledWith("a.md");
   });
 });

@@ -64,6 +64,28 @@ describe("treeRows", () => {
     ]);
   });
 
+  // ADR-0053: a second press turns the order round. By name the folders turn
+  // with the files; by modified only the files do, oldest first.
+  it("turns the name order round, folders and files", () => {
+    const named = {
+      "": [entry("A", { dir: true }), entry("B", { dir: true }), entry("a.md"), entry("b.md")],
+    };
+    expect(paths(treeRows(named, {}, "name", [], true))).toEqual(["B", "A", "b.md", "a.md"]);
+  });
+
+  it("orders the files oldest first under the reversed modified sort, folders as before", () => {
+    expect(paths(treeRows(children, { Notes: true }, "modified", [], true))).toEqual([
+      "Notes",
+      "Notes/x.md",
+      "Notes/y.md",
+      "a.md",
+      "c.md",
+      "b.md",
+    ]);
+    const same = { "": [entry("b.md", { mtimeNs: "7" }), entry("a.md", { mtimeNs: "7" })] };
+    expect(paths(treeRows(same, {}, "modified", [], true))).toEqual(["a.md", "b.md"]);
+  });
+
   // `mtimeNs` is a decimal string past 2^53 (see `compareNs`); the tie falls
   // back to the name so two notes saved in the same instant have a fixed order.
   it("breaks an equal mtime on the name", () => {

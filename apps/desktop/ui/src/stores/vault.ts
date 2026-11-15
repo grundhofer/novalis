@@ -167,15 +167,21 @@ export interface TreeRow {
 
 /**
  * One folder's entries in the order the tree draws them: folders first in
- * their stored (name) order, then the files by `sort`. Only the files follow
- * the sort (ADR-0012); a folder has no modification time worth ordering by.
+ * their stored (name) order, then the files by `sort`. By modified only the
+ * files follow the sort (ADR-0012); a folder has no modification time worth
+ * ordering by. `reversed` turns the order round (ADR-0053): by name the
+ * folders and the files run Z to A, by modified the files oldest first.
  * A file of a type the app does not open is not drawn at all (ADR-0015).
  */
-function orderEntries(entries: EntryDto[], sort: TreeSortDto): EntryDto[] {
+function orderEntries(entries: EntryDto[], sort: TreeSortDto, reversed: boolean): EntryDto[] {
   const folders = entries.filter((e) => e.dir);
   const files = entries.filter((e) => !e.dir && isSupported(e.path));
   if (sort === "modified") {
-    files.sort((a, b) => compareNs(b.mtimeNs, a.mtimeNs) || a.name.localeCompare(b.name));
+    const newest = reversed ? -1 : 1;
+    files.sort((a, b) => newest * compareNs(b.mtimeNs, a.mtimeNs) || a.name.localeCompare(b.name));
+  } else if (reversed) {
+    folders.reverse();
+    files.reverse();
   }
   return [...folders, ...files];
 }
@@ -209,6 +215,7 @@ export function treeRows(
   expandedFolders: Record<string, boolean>,
   sort: TreeSortDto,
   boards: BoardRefDto[],
+  reversed = false,
 ): TreeRow[] {
   const rows: TreeRow[] = [];
   // By flag, and by name for a directory listed before its `board.json`
@@ -217,7 +224,7 @@ export function treeRows(
     !!entry.boardSlug ||
     (folderOf(entry.path) === "boards" && entry.dir && boards.some((b) => b.slug === entry.name));
   const walk = (folder: string, depth: number) => {
-    for (const entry of orderEntries(children[folder] ?? [], sort)) {
+    for (const entry of orderEntries(children[folder] ?? [], sort, reversed)) {
       if (isBoard(entry)) continue;
       const expanded = entry.dir && !!expandedFolders[entry.path];
       rows.push({ entry, depth, expanded });

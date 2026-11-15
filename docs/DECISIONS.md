@@ -1011,6 +1011,18 @@ In sebaro, for every desktop app (verbatim „3 ja“; sebaro release v2.0.0 of
 
 Recorded as **ADR-0052**; amends ADR-0051 #22.
 
+## Answered 2026-11-15
+
+The sort and the way back from a card's note (verbatim „ein zweiter klick auf
+geändert oder name sortiert anders herum.“ and „wenn man auf die board karten
+draufklickt und sich die notiz öffnet, dann sollte man per button zurück auf
+das board springen können.“):
+- a second press on the chosen sort switch reverses its direction, kept as
+  `treeSortReversed` in `state.json`
+- a note opened from a card shows „Zurück zu <Board>“ in the title bar
+
+Recorded as **ADR-0053**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

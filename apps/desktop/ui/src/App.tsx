@@ -331,6 +331,7 @@ export default function App() {
   const recent = useTabs((s) => s.recent);
   const activeBoard = useUi((s) => s.activeBoard);
   const treeSort = useUi((s) => s.treeSort);
+  const treeSortReversed = useUi((s) => s.treeSortReversed);
   useEffect(() => {
     if (!ready) return undefined;
     // A menu item whose target came or went must not wait for the debounce:
@@ -357,6 +358,7 @@ export default function App() {
     cloudHintShown,
     activeBoard,
     treeSort,
+    treeSortReversed,
     menuTargets,
   ]);
 

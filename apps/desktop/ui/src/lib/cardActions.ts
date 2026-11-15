@@ -17,7 +17,23 @@ import { report, useUi } from "../stores/ui";
 export function openCardNote(card: CardDto): void {
   const note = card.notes[0];
   if (!note) return editDescription(card);
-  void useTabs.getState().open(note).catch(report);
+  void openFromBoard(note).catch(report);
+}
+
+/**
+ * Open a note from the loaded board and remember the way back (ADR-0053):
+ * the title bar offers „Zurück zu <Board>“ while that note is current.
+ */
+export async function openFromBoard(path: string): Promise<void> {
+  const board = useBoard.getState().slug;
+  if (board) useUi.getState().setBoardReturn({ path, board });
+  await useTabs.getState().open(path);
+}
+
+/** „Zurück zu <Board>“ (ADR-0053): show that board again, as its switcher does. */
+export function returnToBoard(slug: string): void {
+  useUi.getState().setActiveBoard(slug);
+  if (useBoard.getState().slug !== slug) void useBoard.getState().load(slug).catch(report);
 }
 
 export function renameCard(card: CardDto): void {

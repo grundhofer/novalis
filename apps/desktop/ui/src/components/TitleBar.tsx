@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 import tile from "../../../../../sebaro-product/sign/tile.svg?raw";
+import { returnToBoard } from "../lib/cardActions";
 import { dispatchCommand } from "../lib/commands";
 import { ariaKeyshortcutsOf, bindingFor } from "../lib/keymap";
 import { leaveSettingsView } from "../lib/settingsView";
@@ -55,6 +56,10 @@ import Keys from "./Keys";
  * 722 px only „Zurück“ shows (app.css, docs/sebaro-luecken.md U): name,
  * tools and word do not shrink, and a long place ran past the window's
  * edge at 480 px. The button's name keeps the place.
+ *
+ * A note opened from a board card gets the same button as „Zurück zu
+ * <Board>“ (ADR-0053) while it is current and the board hidden; it shows
+ * that board again.
  */
 export default function TitleBar() {
   const { t } = useTranslation();
@@ -67,6 +72,15 @@ export default function TitleBar() {
   const boardName = useBoard((s) => s.boards.find((b) => b.slug === activeBoard)?.name ?? activeBoard);
 
   const settingsView = useUi((s) => s.settingsView);
+  // The way back to the board a card's note was opened from (ADR-0053):
+  // only while that note is current, the board hidden and the settings view
+  // not showing (its own „Zurück“ comes first).
+  const boardReturn = useUi((s) => s.boardReturn);
+  const returnBoard = useBoard((s) =>
+    boardReturn !== null && !settingsView && !boardVisible && boardReturn.path === active
+      ? s.boards.find((b) => b.slug === boardReturn.board)
+      : undefined,
+  );
 
   const before = windowPlaces(vault?.name ?? null, active, boardVisible ? boardName : null);
   const places = settingsView ? [t("sidebar.settings")] : before;
@@ -135,6 +149,20 @@ export default function TitleBar() {
                   <span className="nv-word-short">{t("settingsView.back")}</span>
                 </>
               )}
+            </span>
+          </button>
+        )}
+        {returnBoard && (
+          <button
+            className="sb-text-action sb-text-action--compact"
+            type="button"
+            aria-label={t("board.backTo", { board: returnBoard.name })}
+            onClick={() => returnToBoard(returnBoard.slug)}
+          >
+            <Icon name="arrow-left" size={20} />
+            <span className="sb-window__word">
+              <span className="nv-word-long">{t("board.backTo", { board: returnBoard.name })}</span>
+              <span className="nv-word-short">{t("settingsView.back")}</span>
             </span>
           </button>
         )}

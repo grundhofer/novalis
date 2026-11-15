@@ -9,9 +9,15 @@ import { useUi } from "../stores/ui";
 import { useVault } from "../stores/vault";
 import TitleBar from "./TitleBar";
 
-// The key, with a `{{place}}` appended so „Zurück zu <Ort>“ shows its place.
+// The key, with a `{{place}}` or `{{board}}` appended so „Zurück zu <Ort>“
+// shows its place.
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string, values?: { place?: string }) => (values?.place ? `${key}:${values.place}` : key) }),
+  useTranslation: () => ({
+    t: (key: string, values?: { place?: string; board?: string }) => {
+      const place = values?.place ?? values?.board;
+      return place ? `${key}:${place}` : key;
+    },
+  }),
 }));
 vi.mock("../ipc/client", () => ({ commands: {}, unwrap: vi.fn() }));
 vi.mock("../lib/commands", () => ({ dispatchCommand: vi.fn() }));
@@ -25,7 +31,13 @@ describe("TitleBar", () => {
   beforeEach(() => {
     useVault.setState({ vault: null });
     useTabs.setState({ tabs: [], active: null });
-    useUi.setState({ boardVisible: false, activeBoard: null, sidebarVisible: true, settingsView: false });
+    useUi.setState({
+      boardVisible: false,
+      activeBoard: null,
+      sidebarVisible: true,
+      settingsView: false,
+      boardReturn: null,
+    });
     useBoard.setState({ boards: [] });
   });
 
@@ -157,6 +169,50 @@ describe("TitleBar", () => {
     fireEvent.click(back);
     expect(useUi.getState().settingsView).toBe(false);
     expect(container.querySelector("[data-sb-escape]")).toBeNull();
+  });
+
+  // ADR-0053: a note opened from a card leads back to its board.
+  it("leads back to the board a card's note was opened from", () => {
+    vault("Vault");
+    useTabs.setState({ tabs: ["Spec.md"], active: "Spec.md" });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Wochenplan" } as never], slug: "plan" });
+    useUi.setState({ boardReturn: { path: "Spec.md", board: "plan" } });
+    const { container } = render(<TitleBar />);
+
+    const back = screen.getByRole("button", { name: "board.backTo:Wochenplan" });
+    expect(back.className).toBe("sb-text-action sb-text-action--compact");
+    expect(back.hasAttribute("data-sb-escape")).toBe(false);
+    expect(back.querySelector("svg.sb-icon--20 use")?.getAttribute("href")).toBe("#arrow-left");
+    expect(back.querySelector(".nv-word-long")?.textContent).toBe("board.backTo:Wochenplan");
+    expect(back.querySelector(".nv-word-short")?.textContent).toBe("settingsView.back");
+    expect(container.querySelector(".sb-window__tools")?.lastElementChild).toBe(back);
+
+    fireEvent.click(back);
+    expect(useUi.getState().boardVisible).toBe(true);
+    expect(useUi.getState().activeBoard).toBe("plan");
+    // The board shows: the button goes.
+    expect(screen.queryByRole("button", { name: "board.backTo:Wochenplan" })).toBeNull();
+  });
+
+  it("offers no way back for another note, a gone board or while the settings show", () => {
+    vault("Vault");
+    useTabs.setState({ tabs: ["Spec.md", "Other.md"], active: "Other.md" });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Wochenplan" } as never], slug: "plan" });
+    useUi.setState({ boardReturn: { path: "Spec.md", board: "plan" } });
+    render(<TitleBar />);
+    expect(screen.queryByRole("button", { name: /^board\.backTo/ })).toBeNull();
+
+    act(() => useTabs.setState({ active: "Spec.md" }));
+    expect(screen.getByRole("button", { name: "board.backTo:Wochenplan" })).toBeTruthy();
+
+    act(() => useUi.setState({ settingsView: true }));
+    expect(screen.queryByRole("button", { name: /^board\.backTo/ })).toBeNull();
+
+    act(() => {
+      useUi.setState({ settingsView: false });
+      useBoard.setState({ boards: [] });
+    });
+    expect(screen.queryByRole("button", { name: /^board\.backTo/ })).toBeNull();
   });
 
   it("says only „Zurück“ when there was no place before", () => {

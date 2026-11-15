@@ -206,8 +206,13 @@ pub struct UiStateDto {
     pub board_visible: bool,
     pub active_board: Option<String>,
     /// How the tree orders the files of a folder (ADR-0012). Folders are
-    /// always first and by name, whatever this says.
+    /// always first and by name, A to Z, or Z to A when `tree_sort_reversed`
+    /// turns the name order round (ADR-0053).
     pub tree_sort: TreeSortDto,
+    /// `tree_sort` turned round by a second press (ADR-0053): name Z to A,
+    /// modified oldest first.
+    #[serde(default)]
+    pub tree_sort_reversed: bool,
     #[serde(default)]
     pub backlinks_visible: bool,
     /// The one-time cloud hint of PLAN.md §5.6 step 1 has been shown and
@@ -301,6 +306,7 @@ impl Default for UiStateDto {
             board_visible: false,
             active_board: None,
             tree_sort: TreeSortDto::Name,
+            tree_sort_reversed: false,
             backlinks_visible: false,
             cloud_hint_shown: false,
             recent_files: Vec::new(),

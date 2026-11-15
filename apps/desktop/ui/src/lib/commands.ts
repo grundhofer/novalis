@@ -1,5 +1,5 @@
 import { currentArea, moveArea } from "./areas";
-import { menuCardNow, runCardMenuAction } from "./cardActions";
+import { menuCardNow, openFromBoard, runCardMenuAction } from "./cardActions";
 import {
   editorSelection,
   editorSelectionOrLine,
@@ -449,7 +449,7 @@ export async function createNoteFromCard(card: CardDto): Promise<void> {
   if (!card.notes.includes(path)) {
     await useBoard.getState().apply({ kind: "linkNote", id: card.id, path });
   }
-  await useTabs.getState().open(path);
+  await openFromBoard(path);
 }
 
 /**

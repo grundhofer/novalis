@@ -11,6 +11,7 @@ import {
   moveCardToColumn,
   openCardContextMenu,
   openCardNote,
+  openFromBoard,
   renameCard,
 } from "../lib/cardActions";
 import { createNoteFromCard, deleteBoard } from "../lib/commands";
@@ -18,7 +19,6 @@ import { NO_DRAG_IMAGE } from "../lib/dragImage";
 import { isNote, stemOf } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
-import { useTabs } from "../stores/tabs";
 import { report, useUi } from "../stores/ui";
 import { Callout } from "./Banner";
 import { FileName } from "./FileName";
@@ -636,7 +636,7 @@ export default function BoardPane() {
                                       title={t("board.openNote")}
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        void useTabs.getState().open(note).catch(report);
+                                        void openFromBoard(note).catch(report);
                                       }}
                                     >
                                       <FileName name={stemOf(note)} />

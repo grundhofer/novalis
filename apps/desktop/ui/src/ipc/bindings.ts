@@ -712,9 +712,15 @@ export type UiStateDto = {
 	activeBoard?: string | null,
 	/**
 	 *  How the tree orders the files of a folder (ADR-0012). Folders are
-	 *  always first and by name, whatever this says.
+	 *  always first and by name, A to Z, or Z to A when `tree_sort_reversed`
+	 *  turns the name order round (ADR-0053).
 	 */
 	treeSort?: TreeSortDto,
+	/**
+	 *  `tree_sort` turned round by a second press (ADR-0053): name Z to A,
+	 *  modified oldest first.
+	 */
+	treeSortReversed?: boolean,
 	backlinksVisible?: boolean,
 	/**
 	 *  The one-time cloud hint of PLAN.md §5.6 step 1 has been shown and

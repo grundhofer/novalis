@@ -128,6 +128,7 @@ describe("Sidebar", () => {
       settingsView: false,
       activeBoard: null,
       treeSort: "name",
+      treeSortReversed: false,
       sidebarVisible: true,
     });
     // The two ADR-0019 moves are the store's; the tree only names the place
@@ -229,6 +230,28 @@ describe("Sidebar", () => {
     expect(byName().querySelector("use")?.getAttribute("href")).toBe("#arrow-up--16");
     expect(byModified().textContent).toBe("tree.columnModifiedtree.sortDescending");
     expect(byName().textContent).toBe("tree.columnName");
+    expect(byModified().title).toBe("tree.sortReverse");
+    expect(byName().title).toBe("tree.sortByName");
+
+    // A second press turns the chosen order round (ADR-0053): oldest first,
+    // the arrow and the hidden word with it.
+    fireEvent.click(byModified());
+    expect(useUi.getState().treeSort).toBe("modified");
+    expect(useUi.getState().treeSortReversed).toBe(true);
+    expect(rowNames()).toEqual(["Notes", "a.md", "b.md"]);
+    expect(byModified().querySelector("use")?.getAttribute("href")).toBe("#arrow-up--16");
+    expect(byModified().textContent).toBe("tree.columnModifiedtree.sortAscending");
+
+    // The other switch starts in its usual direction.
+    fireEvent.click(byName());
+    expect(useUi.getState().treeSortReversed).toBe(false);
+    expect(rowNames()).toEqual(["Notes", "a.md", "b.md"]);
+    expect(byName().textContent).toBe("tree.columnNametree.sortAscending");
+    fireEvent.click(byName());
+    expect(useUi.getState().treeSortReversed).toBe(true);
+    expect(rowNames()).toEqual(["Notes", "b.md", "a.md"]);
+    expect(byName().querySelector("use")?.getAttribute("href")).toBe("#arrow-down--16");
+    expect(byName().textContent).toBe("tree.columnNametree.sortDescending");
   });
 
   it("draws a board as a root row that opens it", async () => {
