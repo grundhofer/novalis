@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { DragEvent } from "react";
 
-import type { CardDto, ColumnDto, PositionDto } from "../ipc/client";
+import type { BoardDto, CardDto, ColumnDto, PositionDto } from "../ipc/client";
 import {
   deleteCard,
   editDescription,
@@ -45,7 +45,24 @@ import "../styles/board.css";
  * scrolling list. Below 640 px or 40em of the board its columns are swiped
  * (sebaro.css); the position bar `sb-board__nav` is built here, as the
  * React counterpart of `sb-board.js`, which is not loaded (ADR-0051 #21).
+ *
+ * The view shows every board of the vault, one under the other, in the
+ * tree's order (ADR-0054): each a `BoardSection` with its own head, as tall
+ * as its longest column but never taller than the view, so a long column
+ * scrolls in itself and keeps „Neue Karte“ in sight (ADR-0050). A board
+ * collapses to its head with each column's count (`collapsed` in its
+ * `board.json`), and its head is dragged to move the board among the
+ * others, as its row in the tree is (ADR-0019). Opening a board — its row,
+ * the palette, a link, a backlink, „Zurück zu <Board>“ — scrolls to it and
+ * expands it.
  */
+
+/**
+ * The last `boardReveal` the view acted on: kept across the view's unmount,
+ * so showing the view again scrolls to the active board without expanding
+ * one the user collapsed meanwhile.
+ */
+let revealed = -1;
 
 /**
  * Where a drag would land (spec/02 §4.22, ADR-0051 #42): before or after a
@@ -109,10 +126,127 @@ function reducedMotion(): boolean {
 
 export default function BoardPane() {
   const { t } = useTranslation();
-  const board = useBoard((s) => s.board);
   const boards = useBoard((s) => s.boards);
+  const docs = useBoard((s) => s.docs);
   const busy = useBoard((s) => s.busy);
-  const notice = useBoard((s) => (s.board ? s.notices[s.board.slug] : undefined));
+  const activeBoard = useUi((s) => s.activeBoard);
+  const reveal = useUi((s) => s.boardReveal);
+  const listRef = useRef<HTMLDivElement>(null);
+  /** A board's head dragged over this board: the place line above or below it. */
+  const [boardOver, setBoardOver] = useState<{ slug: string; before: boolean } | null>(null);
+
+  // Every listed board, read once; one the list brings later is read then.
+  useEffect(() => {
+    void useBoard.getState().readAll(true).catch(report);
+  }, [boards]);
+
+  // To the active board, expanded, whenever it is opened (ADR-0054); once
+  // more when every board is read, since a board above it read later grows
+  // and pushes it out of place.
+  const activeLoaded = activeBoard !== null && docs[activeBoard] !== undefined;
+  const allRead = boards.every((b) => docs[b.slug] !== undefined);
+  useEffect(() => {
+    if (!activeBoard || !activeLoaded) return;
+    if (reveal !== revealed) {
+      revealed = reveal;
+      if (useBoard.getState().docs[activeBoard]?.collapsed)
+        void useBoard.getState().setCollapsed(activeBoard, false).catch(report);
+    }
+    // The list alone scrolls: `scrollIntoView` would move the window's
+    // layout too, title bar and tabs out of sight.
+    const list = listRef.current;
+    const section = [...(list?.children ?? [])].find(
+      (child) => child instanceof HTMLElement && child.dataset.board === activeBoard,
+    );
+    if (!list || !section) return;
+    const top = list.scrollTop + section.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    list.scrollTo?.({ top, behavior: reducedMotion() ? "auto" : "smooth" });
+  }, [activeBoard, activeLoaded, allRead, reveal]);
+
+  if (boards.length === 0) {
+    // No board at all (DAT-07): heading and sentence, no button of its own;
+    // „Neues Board“ is in the File menu and the palette, the action zone
+    // keeps „Neue Notiz“ (ADR-0048). Alone in the view, sebaro centres it.
+    return (
+      <div className="sb-view__content">
+        <div className="sb-empty">
+          <h2 className="sb-empty__title">{t("board.noBoardTitle")}</h2>
+          <p className="sb-empty__text">{t("board.noBoardText")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * A board's head let go over `target` (ADR-0019, ADR-0054): before it as
+   * after the board above it — the moving one left out — and first when
+   * none is; after it from its lower half. On itself: nothing to send.
+   */
+  const dropBoard = (target: string, before: boolean, event: DragEvent) => {
+    const slug = event.dataTransfer.getData(BOARD_DRAG_TYPE);
+    setBoardOver(null);
+    if (!slug || slug === target) return;
+    const others = boards.filter((b) => b.slug !== slug);
+    const above = others[others.findIndex((b) => b.slug === target) - 1];
+    const place: PositionDto = !before
+      ? { kind: "after", id: target }
+      : above
+        ? { kind: "after", id: above.slug }
+        : { kind: "first" };
+    void useBoard.getState().placeBoard(slug, place).catch(report);
+  };
+
+  return (
+    <div
+      className="boards"
+      ref={listRef}
+      aria-busy={busy || undefined}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setBoardOver(null);
+      }}
+    >
+      {boards.map((ref) => {
+        const doc = docs[ref.slug];
+        const mark = boardOver?.slug === ref.slug ? (boardOver.before ? "drop-before" : "drop-after") : undefined;
+        const onDragOver = (event: DragEvent) => {
+          if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          const before = upperHalf(event);
+          if (boardOver?.slug !== ref.slug || boardOver.before !== before) setBoardOver({ slug: ref.slug, before });
+        };
+        const onDrop = (event: DragEvent) => {
+          if (!event.dataTransfer.types.includes(BOARD_DRAG_TYPE)) return;
+          event.preventDefault();
+          dropBoard(ref.slug, upperHalf(event), event);
+        };
+        return doc ? (
+          <BoardSection key={ref.slug} board={doc} mark={mark} onDragOver={onDragOver} onDrop={onDrop} />
+        ) : (
+          // Not read yet: its name, busy (STA-06).
+          <section key={ref.slug} className="board" data-board={ref.slug} aria-label={ref.name} aria-busy="true">
+            <div className="sb-window__head">
+              <h2 className="sb-window__heading">{ref.name}</h2>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+interface SectionProps {
+  board: BoardDto;
+  /** The place line of a board dragged over this one. */
+  mark: "drop-before" | "drop-after" | undefined;
+  onDragOver: (event: DragEvent) => void;
+  onDrop: (event: DragEvent) => void;
+}
+
+/** One board of the view (ADR-0054): its head, its hints, its columns. */
+function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
+  const { t } = useTranslation();
+  const notice = useBoard((s) => s.notices[board.slug]);
   const fileList = useFiles((s) => s.files);
   const filesLoaded = useFiles((s) => s.loaded);
   const files = useMemo(() => new Set(fileList), [fileList]);
@@ -121,10 +255,11 @@ export default function BoardPane() {
   /** The card the focus is in: it alone carries the place line (FOR-05, NAV-01). */
   const [current, setCurrent] = useState<string | null>(null);
   const ids = useId();
-  const switcherId = `${ids}-switcher`;
+  const boardHeadingId = `${ids}-heading`;
+  const bodyId = `${ids}-body`;
   const columnsRef = useRef<HTMLDivElement>(null);
   const [inPlace, setInPlace] = useState(0);
-  const columnCount = board?.columns.length ?? 0;
+  const columnCount = board.columns.length;
 
   // The position bar's column (spec/02 §3.16, weak point 1): followed on
   // scroll and on resize, as `sb-board.js` does.
@@ -148,21 +283,7 @@ export default function BoardPane() {
       if (frame) cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [board?.slug, columnCount]);
-
-  if (!board) {
-    // No board at all (DAT-07): heading and sentence, no button of its own;
-    // „Neues Board“ is in the File menu and the palette, the action zone
-    // keeps „Neue Notiz“ (ADR-0048). Alone in the view, sebaro centres it.
-    return (
-      <div className="sb-view__content">
-        <div className="sb-empty">
-          <h2 className="sb-empty__title">{t("board.noBoardTitle")}</h2>
-          <p className="sb-empty__text">{t("board.noBoardText")}</p>
-        </div>
-      </div>
-    );
-  }
+  }, [board.slug, columnCount, board.collapsed]);
 
   const cardsOf = (column: ColumnDto): CardDto[] =>
     board.cards
@@ -187,7 +308,7 @@ export default function BoardPane() {
     const displaced = board.columns[target];
     if (!moving || !displaced) return;
     const next = board.columns.map((c, i) => (i === index ? displaced : i === target ? moving : c));
-    void useBoard.getState().setColumns(next).catch(report);
+    void useBoard.getState().setColumns(next, board.slug).catch(report);
   };
 
   const renameColumn = (column: ColumnDto) =>
@@ -200,7 +321,10 @@ export default function BoardPane() {
       submit: async (name) => {
         await useBoard
           .getState()
-          .setColumns(board.columns.map((c) => (c.id === column.id ? { ...c, name } : c)));
+          .setColumns(
+            board.columns.map((c) => (c.id === column.id ? { ...c, name } : c)),
+            board.slug,
+          );
       },
     });
 
@@ -216,7 +340,10 @@ export default function BoardPane() {
         confirmKey: "app.delete",
       },
       submit: async () => {
-        await useBoard.getState().setColumns(board.columns.filter((c) => c.id !== column.id));
+        await useBoard.getState().setColumns(
+          board.columns.filter((c) => c.id !== column.id),
+          board.slug,
+        );
       },
     });
   };
@@ -229,7 +356,7 @@ export default function BoardPane() {
       labelKey: "board.boardNameLabel",
       initial: board.name,
       submit: async (name) => {
-        if (name !== board.name) await useBoard.getState().renameBoard(name);
+        if (name !== board.name) await useBoard.getState().renameBoard(name, board.slug);
       },
     });
 
@@ -242,7 +369,7 @@ export default function BoardPane() {
       initial: "",
       submit: async (name) => {
         const id = crypto.randomUUID();
-        await useBoard.getState().setColumns([...board.columns, { id, name }]);
+        await useBoard.getState().setColumns([...board.columns, { id, name }], board.slug);
       },
     });
 
@@ -254,13 +381,16 @@ export default function BoardPane() {
       labelKey: "board.cardTitleLabel",
       initial: "",
       submit: async (title) => {
-        await useBoard.getState().apply({
-          kind: "add",
-          title,
-          column: column.id,
-          notes: [],
-          position: { kind: "last" },
-        });
+        await useBoard.getState().apply(
+          {
+            kind: "add",
+            title,
+            column: column.id,
+            notes: [],
+            position: { kind: "last" },
+          },
+          board.slug,
+        );
       },
     });
 
@@ -324,13 +454,16 @@ export default function BoardPane() {
       if (!isNote(path) || !files.has(path)) return;
       void useBoard
         .getState()
-        .apply({
-          kind: "add",
-          title: stemOf(path),
-          column: column.id,
-          notes: [path],
-          position,
-        })
+        .apply(
+          {
+            kind: "add",
+            title: stemOf(path),
+            column: column.id,
+            notes: [path],
+            position,
+          },
+          board.slug,
+        )
         .catch(report);
       return;
     }
@@ -338,7 +471,10 @@ export default function BoardPane() {
     // lower half. Dropped on the column's free space: last.
     const cardId = drag;
     setDrag(null);
-    void useBoard.getState().apply({ kind: "move", id: cardId, column: column.id, position }).catch(report);
+    void useBoard
+      .getState()
+      .apply({ kind: "move", id: cardId, column: column.id, position }, board.slug)
+      .catch(report);
   };
 
   /** The step buttons of the position bar: the next or previous column into place. */
@@ -351,45 +487,73 @@ export default function BoardPane() {
   };
   const place = Math.min(inPlace, Math.max(0, board.columns.length - 1));
 
+  /** The count of each column, for the head of a collapsed board. */
+  const counts = board.columns.map((column) => ({ column, count: cardsOf(column).length }));
+
   return (
-    <section className="board" aria-busy={busy || undefined}>
+    <section
+      className="board"
+      data-board={board.slug}
+      aria-labelledby={boardHeadingId}
+      data-sb-state={mark}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {/* The board's head (spec/02 §4.17 `sb-window__head`): its name as the
           heading and the counts under it as one group (`sb-window__head-text`,
           sebaro D108 NV-Z7), its tools at the end, under the pair when the
           head wraps at large text. Renaming and deleting are in its „Mehr“
-          (AKT-10). */}
-      <div className="sb-window__head">
+          (AKT-10). The disclosure before the name collapses the board to
+          this head, the counts then per column (ADR-0054); the head is what
+          a drag moves the board by, among the others (ADR-0019). */}
+      <div
+        className="sb-window__head board-head"
+        draggable
+        onDragStart={(event) => {
+          if (event.target !== event.currentTarget) return;
+          event.dataTransfer.setData(BOARD_DRAG_TYPE, board.slug);
+          event.dataTransfer.effectAllowed = "move";
+        }}
+      >
+        <button
+          className="sb-icon-button sb-icon-button--compact"
+          type="button"
+          draggable={false}
+          aria-expanded={!board.collapsed}
+          aria-controls={bodyId}
+          aria-label={board.collapsed ? t("board.expand", { name: board.name }) : t("board.collapse", { name: board.name })}
+          onClick={() => void useBoard.getState().setCollapsed(board.slug, !board.collapsed).catch(report)}
+        >
+          <Icon name={board.collapsed ? "chevron-right" : "chevron-down"} size={20} />
+        </button>
         <div className="sb-window__head-text">
-          <h2 className="sb-window__heading">{board.name}</h2>
+          <h2 className="sb-window__heading" id={boardHeadingId}>
+            {board.name}
+          </h2>
           <p className="sb-window__meta">
-            {t("board.columns", { count: board.columns.length })} · {t("board.cards", { count: board.cards.length })}
+            {board.collapsed && counts.length > 0
+              ? counts.map(({ column, count }, index) => (
+                  <span key={column.id}>
+                    {index > 0 && " · "}
+                    {column.name} <span className="sb-num">{count}</span>
+                    <span className="sb-visually-hidden"> {t("board.cardsWord", { count })}</span>
+                  </span>
+                ))
+              : `${t("board.columns", { count: board.columns.length })} · ${t("board.cards", { count: board.cards.length })}`}
           </p>
         </div>
         <div className="sb-window__head-tools">
-          {boards.length > 1 && (
-            <div className="sb-field__control sb-select board-switcher">
-              <select
-                id={switcherId}
-                value={board.slug}
-                aria-label={t("board.switcher")}
-                onChange={(event) => {
-                  useUi.getState().setActiveBoard(event.target.value);
-                  void useBoard.getState().load(event.target.value).catch(report);
-                }}
-              >
-                {boards.map((ref) => (
-                  <option key={ref.slug} value={ref.slug}>
-                    {ref.name}
-                  </option>
-                ))}
-              </select>
-              <Icon name="chevron-down" size={24} />
-            </div>
+          {!board.collapsed && (
+            <button
+              className="sb-secondary-action sb-secondary-action--compact"
+              type="button"
+              draggable={false}
+              onClick={addColumn}
+            >
+              <Icon name="plus" />
+              {t("board.addColumn")}
+            </button>
           )}
-          <button className="sb-secondary-action sb-secondary-action--compact" type="button" onClick={addColumn}>
-            <Icon name="plus" />
-            {t("board.addColumn")}
-          </button>
           <MoreMenu
             label={t("board.moreBoard")}
             entries={[
@@ -435,16 +599,16 @@ export default function BoardPane() {
         <Callout kind="note" text={t("errors.cloudOnlySkipped", { count: board.cloudOnly.length })} />
       )}
 
-      {board.columns.length === 0 ? (
+      {board.collapsed ? null : board.columns.length === 0 ? (
         // No column yet (DAT-07): „Spalte hinzufügen“ stands in the head. An
         // empty state under the board's heading, in its padding: sebaro's
         // section form, never larger than the heading (spec/02 §3.14, D108).
-        <div className="sb-empty sb-empty--section">
+        <div className="sb-empty sb-empty--section" id={bodyId}>
           <h3 className="sb-empty__title">{t("board.emptyTitle")}</h3>
           <p className="sb-empty__text">{t("board.empty")}</p>
         </div>
       ) : (
-        <div className="sb-board">
+        <div className="sb-board" id={bodyId}>
           {/* The narrow board's position bar (spec/02 §3.16, DAT-13);
               sebaro.css shows it only while the columns are swiped. */}
           <div className="sb-board__nav">
@@ -636,7 +800,7 @@ export default function BoardPane() {
                                       title={t("board.openNote")}
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        void openFromBoard(note).catch(report);
+                                        void openFromBoard(note, board.slug).catch(report);
                                       }}
                                     >
                                       <FileName name={stemOf(note)} />
@@ -652,7 +816,7 @@ export default function BoardPane() {
                                       event.stopPropagation();
                                       void useBoard
                                         .getState()
-                                        .apply({ kind: "unlinkNote", id: card.id, path: note })
+                                        .apply({ kind: "unlinkNote", id: card.id, path: note }, board.slug)
                                         .catch(report);
                                     }}
                                   >

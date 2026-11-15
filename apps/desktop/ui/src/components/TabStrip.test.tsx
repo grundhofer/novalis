@@ -422,7 +422,7 @@ describe("TabStrip", () => {
 
     it("is current while the board shows, and no note tab is", () => {
       render(<TabStrip />);
-      expect(tabs()[0]).toHaveProperty("textContent", "Worktabs.pinned");
+      expect(tabs()[0]).toHaveProperty("textContent", "board.alltabs.pinned");
       expect(tabs().map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
       expect(tabs().map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
     });
@@ -431,7 +431,7 @@ describe("TabStrip", () => {
       render(<TabStrip />);
       const [board, ...notes] = tabs();
       expect(board!.querySelector("use")?.getAttribute("href")).toBe("#board");
-      expect(board!.getAttribute("title")).toBe("Work");
+      expect(board!.getAttribute("title")).toBe("board.all");
       expect(board!.parentElement!.getAttribute("draggable")).toBe("false");
       expect(notes.every((tab) => tab.parentElement!.getAttribute("draggable") === "true")).toBe(true);
     });
@@ -439,7 +439,7 @@ describe("TabStrip", () => {
     it("stays when the board is hidden, and a click shows it again", () => {
       useUi.setState({ boardVisible: false });
       render(<TabStrip />);
-      fireEvent.click(screen.getByText("Work"));
+      fireEvent.click(screen.getByText("board.all"));
       expect(useUi.getState().boardVisible).toBe(true);
     });
 
@@ -464,13 +464,13 @@ describe("TabStrip", () => {
       fireEvent.mouseDown(tabs()[0]!.parentElement!, { button: 1 });
       expect(useUi.getState()).toMatchObject({ activeBoard: "work", boardVisible: true });
       expect(closeNow).not.toHaveBeenCalled();
-      expect(tabs()[0]!.textContent).toBe("Worktabs.pinned");
+      expect(tabs()[0]!.textContent).toBe("board.alltabs.pinned");
     });
 
     it("goes with the board tool, and a note tab made current keeps it", () => {
       render(<TabStrip />);
       act(() => useUi.getState().hideBoard());
-      expect(tabs()[0]!.textContent).toBe("Worktabs.pinned");
+      expect(tabs()[0]!.textContent).toBe("board.alltabs.pinned");
       act(() => useUi.getState().toggleBoard());
       expect(tabs()[0]!.getAttribute("aria-selected")).toBe("true");
       act(() => useUi.getState().toggleBoard());
@@ -485,7 +485,7 @@ describe("TabStrip", () => {
       act(() => useUi.getState().toggleBoard("work"));
       expect(useUi.getState()).toMatchObject({ activeBoard: "work", boardVisible: true });
       act(() => useUi.getState().hideBoard());
-      expect(tabs().map((tab) => tab.textContent)).toEqual(["Worktabs.pinned", "a", "b"]);
+      expect(tabs().map((tab) => tab.textContent)).toEqual(["board.alltabs.pinned", "a", "b"]);
     });
 
     it("is reached by the arrows like any tab", () => {
@@ -542,7 +542,7 @@ describe("TabStrip", () => {
       useUi.setState({ activeBoard: "work", boardVisible: true });
       render(strip());
       expect(panel().getAttribute("aria-labelledby")).toBe(tabs()[0]!.id);
-      expect(tabs()[0]!.textContent).toBe("Worktabs.pinned");
+      expect(tabs()[0]!.textContent).toBe("board.alltabs.pinned");
     });
 
     it("has no role, name or tab stop while no tab is current", () => {

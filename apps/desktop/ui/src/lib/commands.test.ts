@@ -693,10 +693,12 @@ describe("card ↔ note", () => {
   async function boardWith(cards: unknown[]) {
     const { useBoard } = await import("../stores/board");
     const apply = vi.fn().mockResolvedValue(undefined);
+    const board = { slug: "plan", name: "Plan", columns: [{ id: "todo", name: "To do" }], cards };
     useBoard.setState({
       boards: [{ slug: "plan", name: "Plan", order: null }] as never,
       slug: "plan",
-      board: { slug: "plan", name: "Plan", columns: [{ id: "todo", name: "To do" }], cards } as never,
+      board: board as never,
+      docs: { plan: board as never },
       apply,
       load: vi.fn().mockResolvedValue(undefined),
     });
@@ -747,13 +749,16 @@ describe("card ↔ note", () => {
     dispatchCommand("board.cardFromSelection");
     await flush();
 
-    expect(apply).toHaveBeenCalledWith({
-      kind: "add",
-      title: "Call the shop",
-      column: "todo",
-      notes: ["Notes/a.md"],
-      position: { kind: "last" },
-    });
+    expect(apply).toHaveBeenCalledWith(
+      {
+        kind: "add",
+        title: "Call the shop",
+        column: "todo",
+        notes: ["Notes/a.md"],
+        position: { kind: "last" },
+      },
+      "plan",
+    );
     expect(useUi.getState().toast).toEqual({ key: "board.cardAdded", values: { board: "Plan" } });
     setEditorBridge(null);
   });

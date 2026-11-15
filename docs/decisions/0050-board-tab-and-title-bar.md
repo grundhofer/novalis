@@ -50,3 +50,8 @@ current only hides the board and keeps its tab, so a click on it shows the
 board again. While the board shows, `Cmd+W` has nothing to close
 and File ▸ Close is off. `state.json` is unchanged: a hidden board's tab
 comes back at the next start from `activeBoard`.
+
+**Amended 2026-11-15** — ADR-0054: the view shows every board, one under
+the other, so the pinned tab is „Boards“ and the breadcrumb reads vault /
+Boards. Opening a board scrolls the view to it; `activeBoard` names that
+board. The select in the board's head is gone.

@@ -200,10 +200,13 @@ export default function App() {
       ) {
         void useFiles.getState().refresh().catch(reportBackground);
       }
-      const board = useBoard.getState().slug;
-      if (board && [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${board}/`))) {
-        void useBoard.getState().refresh().catch(reportBackground);
-      }
+      // Every board read so far, since the view shows them all (ADR-0054).
+      const { slug: current, docs } = useBoard.getState();
+      const read = [...new Set([...Object.keys(docs), ...(current ? [current] : [])])];
+      const touched = read.filter((slug) =>
+        [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${slug}/`)),
+      );
+      if (touched.length > 0) void useBoard.getState().refresh(touched).catch(reportBackground);
       if (
         [...batch.added, ...batch.modified].some((e) => touchesBoardList(e.path)) ||
         batch.removed.some(touchesBoardList) ||
@@ -253,10 +256,8 @@ export default function App() {
   // ---- the macOS window title (lib/windowTitle.ts) -------------------------
   // The current place of the title bar's path (spec/02 §4.17).
   const vaultName = vault?.name ?? null;
-  const titleBoard = useUi((s) => (s.boardVisible ? s.activeBoard : null));
-  const shownBoard = useBoard((s) =>
-    titleBoard === null ? null : (s.boards.find((b) => b.slug === titleBoard)?.name ?? titleBoard),
-  );
+  // The boards view's place is „Boards“ (ADR-0054).
+  const shownBoard = useUi((s) => s.boardVisible) ? t("board.all") : null;
   const title = windowTitle(
     settingsView ? [t("sidebar.settings")] : windowPlaces(vaultName, active, shownBoard),
     t("app.openVault.title"),

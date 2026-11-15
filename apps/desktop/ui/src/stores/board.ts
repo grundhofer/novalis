@@ -48,8 +48,18 @@ export interface BoardNotice {
 
 interface BoardState {
   boards: BoardRefDto[];
+  /**
+   * The current board: the one last opened (tree, palette, a link, a
+   * backlink), which the palette's card commands and `state.json`'s
+   * `activeBoard` mean. `board` is its document, the same as `docs[slug]`.
+   */
   slug: string | null;
   board: BoardDto | null;
+  /**
+   * Every board read so far, by slug: the boards view shows them all, one
+   * under the other (ADR-0054).
+   */
+  docs: Record<string, BoardDto>;
   busy: boolean;
   /**
    * Per board, what its first read after the vault was opened resolved
@@ -68,19 +78,39 @@ interface BoardState {
    * (spec/02 §4.17, D102 (11)).
    */
   load: (slug: string, background?: boolean) => Promise<void>;
+  /** Read one board into `docs` without making it current (ADR-0054). */
+  read: (slug: string, background?: boolean) => Promise<void>;
+  /** Read every listed board that was not read yet: the boards view shows all. */
+  readAll: (background?: boolean) => Promise<void>;
   dismissNotice: (slug: string) => void;
-  /** Re-read the active board after a watcher batch; see `load`'s `background`. */
-  refresh: () => Promise<void>;
+  /**
+   * Re-read boards after a watcher batch — the given ones, else every one
+   * read so far; see `load`'s `background`.
+   */
+  refresh: (slugs?: string[]) => Promise<void>;
   /**
    * Re-read the list of boards. `setBoards` is what the vault open brings;
    * this is for a board that appeared or went since — `novalis board create`
    * from the CLI, or a sync client — which the watcher reports.
    */
   refreshList: () => Promise<void>;
-  apply: (op: CardOpDto) => Promise<void>;
+  /**
+   * One card write, on `slug`, else on the board that holds the card the op
+   * names, else on the current board.
+   */
+  apply: (op: CardOpDto, slug?: string) => Promise<void>;
   createBoard: (slug: string, name: string) => Promise<void>;
-  setColumns: (columns: ColumnDto[]) => Promise<void>;
-  renameBoard: (name: string) => Promise<void>;
+  /** The column list of `slug`, else of the current board. */
+  setColumns: (columns: ColumnDto[], slug?: string) => Promise<void>;
+  /** The name of `slug`, else of the current board. */
+  renameBoard: (name: string, slug?: string) => Promise<void>;
+  /**
+   * Collapse or expand a board in the boards view (ADR-0054): shown at
+   * once, written to its `board.json`, taken back if the write fails.
+   */
+  setCollapsed: (slug: string, collapsed: boolean) => Promise<void>;
+  /** The board of a read card, by id, else the current board. */
+  boardOf: (id: string) => string | null;
   /**
    * Put a board among the boards (ADR-0019): after another one, or last. The
    * key is the shell's to compute, and the document the write returns does
@@ -88,8 +118,8 @@ interface BoardState {
    */
   placeBoard: (slug: string, place: PositionDto) => Promise<void>;
   /**
-   * Move a card of the open board to another board (ADR-0019). The source is
-   * re-read without the card; the target is read when it is opened.
+   * Move a card to another board (ADR-0019). The source is re-read without
+   * the card, and the target if it was read before.
    */
   moveCardToBoard: (id: string, board: string) => Promise<void>;
   /** A board that went (ADR-0034): off the list, and out of the pane if shown. */
@@ -100,6 +130,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   boards: [],
   slug: null,
   board: null,
+  docs: {},
   busy: false,
   notices: {},
 
@@ -108,29 +139,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   // the shell starts resolving afresh for the new vault. Opening a vault
   // used to reset the list only, so the pane kept showing the old vault's
   // board until the user picked one of the new vault's.
-  setBoards: (boards) => set({ boards, slug: null, board: null, notices: {} }),
+  setBoards: (boards) => set({ boards, slug: null, board: null, docs: {}, notices: {} }),
 
   load: async (slug, background = false) => {
     const previous = get().slug;
-    set({ busy: true, slug });
+    set((s) => ({ busy: true, slug, board: s.docs[slug] ?? null }));
     try {
-      const board = await unwrap(commands.boardRead(slug));
-      set((s) => ({
-        board,
-        notices:
-          board.resolvedConflicts > 0 || board.resolvedColumns
-            ? {
-                ...s.notices,
-                [board.slug]: { cards: board.resolvedConflicts, columns: board.resolvedColumns },
-              }
-            : s.notices,
-      }));
-      // Not a failed command — the board came back — but a failed tidy-up is
-      // reported the same way, because silence is how it went unnoticed.
-      if (board.resolveError) {
-        const error = new NovalisError(board.resolveError);
-        useUi.getState().showMessage(errorKey(error), errorValues(error), background);
-      }
+      take(await unwrap(commands.boardRead(slug)), background);
     } catch (error) {
       // The board that could not be read is not the active one. Left as it
       // was, the pane kept showing the previous board while every write went
@@ -139,7 +154,7 @@ export const useBoard = create<BoardState>((set, get) => ({
       // follows, because the callers set it before they call this — but only
       // the slug: a board the watcher re-reads while the editor is showing
       // (`hideBoard`, stores/tabs.ts) must not come back over the note.
-      set({ slug: previous });
+      set((s) => ({ slug: previous, board: previous === null ? null : (s.docs[previous] ?? null) }));
       if (previous === null) useUi.getState().setActiveBoard(null);
       else useUi.setState({ activeBoard: previous });
       throw error;
@@ -155,9 +170,21 @@ export const useBoard = create<BoardState>((set, get) => ({
       return { notices };
     }),
 
-  refresh: async () => {
-    const slug = get().slug;
-    if (slug) await get().load(slug, true);
+  read: async (slug, background = false) => {
+    take(await unwrap(commands.boardRead(slug)), background);
+  },
+
+  readAll: async (background = false) => {
+    const { boards, docs } = get();
+    await Promise.all(boards.filter((b) => !docs[b.slug]).map((b) => get().read(b.slug, background)));
+  },
+
+  refresh: async (slugs) => {
+    const { slug: current, docs } = get();
+    const wanted = slugs ?? [...new Set([...Object.keys(docs), ...(current ? [current] : [])])];
+    // The current board through `load`, which rolls it back when it cannot
+    // be read; the others are only re-read.
+    await Promise.all(wanted.map((slug) => (slug === current ? get().load(slug, true) : get().read(slug, true))));
   },
 
   refreshList: async () => {
@@ -170,13 +197,13 @@ export const useBoard = create<BoardState>((set, get) => ({
     set({ boards });
   },
 
-  apply: async (op) => {
-    const slug = get().slug;
+  apply: async (op, target) => {
+    const slug = target ?? ("id" in op ? get().boardOf(op.id) : get().slug);
     if (!slug) return;
     await unwrap(commands.cardWrite(slug, op));
     // One re-read after the write: the card store is small, and re-reading is
     // how a replayed conflict becomes visible without a second source of truth.
-    await get().load(slug);
+    await (slug === get().slug ? get().load(slug) : get().read(slug));
   },
 
   createBoard: async (slug, name) => {
@@ -192,40 +219,88 @@ export const useBoard = create<BoardState>((set, get) => ({
     await get().load(ref.slug);
   },
 
-  setColumns: async (columns) => {
-    const slug = get().slug;
+  setColumns: async (columns, target) => {
+    const slug = target ?? get().slug;
     if (!slug) return;
-    set({ board: await unwrap(commands.boardWrite(slug, null, columns, null)) });
+    take(await unwrap(commands.boardWrite(slug, null, columns, null, null)), false);
   },
 
-  renameBoard: async (name) => {
-    const slug = get().slug;
+  renameBoard: async (name, target) => {
+    const slug = target ?? get().slug;
     if (!slug) return;
-    const board = await unwrap(commands.boardWrite(slug, name, null, null));
-    set((s) => ({
-      board,
-      boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)),
-    }));
+    take(await unwrap(commands.boardWrite(slug, name, null, null, null)), false);
+    set((s) => ({ boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)) }));
+  },
+
+  setCollapsed: async (slug, collapsed) => {
+    const shown = (value: boolean) =>
+      set((s) => {
+        const doc = s.docs[slug];
+        if (!doc) return s;
+        const next = { ...doc, collapsed: value };
+        return { docs: { ...s.docs, [slug]: next }, ...(s.slug === slug ? { board: next } : {}) };
+      });
+    shown(collapsed);
+    try {
+      take(await unwrap(commands.boardWrite(slug, null, null, null, collapsed)), false);
+    } catch (error) {
+      shown(!collapsed);
+      throw error;
+    }
+  },
+
+  boardOf: (id) => {
+    const { docs, slug } = get();
+    return Object.values(docs).find((doc) => doc.cards.some((card) => card.id === id))?.slug ?? slug;
   },
 
   placeBoard: async (slug, place) => {
-    await unwrap(commands.boardWrite(slug, null, null, place));
+    await unwrap(commands.boardWrite(slug, null, null, place, null));
     // `refreshList` keeps its vault guard: a place that resolves after Open
     // Vault… is about a list that is no longer shown.
     await get().refreshList();
   },
 
   forget: (slug) =>
-    set((s) => ({
-      boards: s.boards.filter((b) => b.slug !== slug),
-      ...(s.slug === slug ? { slug: null, board: null } : {}),
-    })),
+    set((s) => {
+      const docs = { ...s.docs };
+      delete docs[slug];
+      return {
+        boards: s.boards.filter((b) => b.slug !== slug),
+        docs,
+        ...(s.slug === slug ? { slug: null, board: null } : {}),
+      };
+    }),
 
   moveCardToBoard: async (id, board) => {
-    const from = get().slug;
-    // Dropped on the open board's own row: nowhere to go.
+    const from = get().boardOf(id);
+    // Dropped on its own board's row: nowhere to go.
     if (!from || from === board) return;
     await unwrap(commands.cardWrite(from, { kind: "moveToBoard", id, board }));
-    await get().load(from);
+    await get().refresh([from, ...(get().docs[board] ? [board] : [])]);
   },
 }));
+
+/**
+ * A document the shell returned: into `docs`, and `board` when it is the
+ * current one; what its first read resolved into `notices`.
+ */
+function take(board: BoardDto, background: boolean): void {
+  useBoard.setState((s) => ({
+    docs: { ...s.docs, [board.slug]: board },
+    ...(s.slug === board.slug ? { board } : {}),
+    notices:
+      board.resolvedConflicts > 0 || board.resolvedColumns
+        ? {
+            ...s.notices,
+            [board.slug]: { cards: board.resolvedConflicts, columns: board.resolvedColumns },
+          }
+        : s.notices,
+  }));
+  // Not a failed command — the board came back — but a failed tidy-up is
+  // reported the same way, because silence is how it went unnoticed.
+  if (board.resolveError) {
+    const error = new NovalisError(board.resolveError);
+    useUi.getState().showMessage(errorKey(error), errorValues(error), background);
+  }
+}

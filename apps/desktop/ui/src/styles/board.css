@@ -8,14 +8,45 @@
    only, like every other stylesheet here. */
 
 /* ----------------------------------------------------------------- board */
+/* Every board, one under the other (ADR-0054): the list scrolls, and is the
+   size container each board measures its height against. */
+.boards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  container-type: size;
+  background: var(--sb-color-bg);
+}
+
+/* A board is as tall as its longest column, never taller than the view: a
+   longer column scrolls in itself (ADR-0050). Boards are divided by a
+   hairline, as the columns are. */
 .board {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  max-block-size: 100cqh;
   padding: var(--sb-space-5) var(--sb-space-6) var(--sb-space-5);
   background: var(--sb-color-bg);
   overflow: hidden;
+}
+
+.board + .board {
+  border-block-start: var(--sb-border-width-hairline) solid var(--sb-color-border);
+}
+
+/* A board's head dragged over another (ADR-0019): the 3 px place line of a
+   card's drop (sebaro.css, spec/02 §4.22), above or below the board. */
+.board[data-sb-state="drop-before"] {
+  box-shadow: inset 0 var(--sb-border-width-strong) 0 var(--sb-color-accent);
+}
+
+.board[data-sb-state="drop-after"] {
+  box-shadow: inset 0 calc(-1 * var(--sb-border-width-strong)) 0 var(--sb-color-accent);
+}
+
+/* The disclosure leads the head and keeps its size when the head wraps. */
+.board-head > .sb-icon-button {
+  flex: none;
 }
 
 /* The hints sit in the board's own padding, not in the editor's margins. */
@@ -28,23 +59,8 @@
   display: block;
 }
 
-/* The board switcher in the head: sebaro's native select (EIN-05) at the
-   height of the head's other tools. */
-.board-switcher {
-  min-block-size: var(--sb-size-control-sm);
-}
-
-.board-switcher > select {
-  flex: 0 1 auto;
-  inline-size: auto;
-  block-size: auto;
-  min-block-size: calc(var(--sb-size-control-sm) - var(--sb-border-width-control));
-  font: var(--sb-type-label);
-  letter-spacing: var(--sb-type-label-tracking);
-}
-
-/* The board fills the pane: the position bar (narrow only) above the
-   columns, and the columns as tall as the board. The columns are novalis's
+/* The board's columns take the room the board has: the position bar
+   (narrow only) above the columns, and the columns as tall as the board. The columns are novalis's
    268 px at least (spec/02 §3.16: a product may set the token wider). */
 .board > .sb-board {
   --sb-x-sebaro-board-column: 268px;

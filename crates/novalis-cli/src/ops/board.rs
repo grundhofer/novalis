@@ -338,6 +338,7 @@ mod tests {
                 .collect(),
             updated: "2026-09-05T08:41:12.345Z".into(),
             order: None,
+            view: None,
             extra: Default::default(),
         }
     }

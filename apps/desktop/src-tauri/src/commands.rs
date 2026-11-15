@@ -1178,7 +1178,8 @@ pub async fn board_create(
 
 /// The two configurable things about a board: its name and its column list
 /// (§8.5). Columns go through `set_columns`, which re-reads and replays on a
-/// conflict, so two devices reordering columns never lose one.
+/// conflict, so two devices reordering columns never lose one. `collapsed`
+/// is its view in the boards view (ADR-0054), replayed the same way.
 #[tauri::command]
 #[specta::specta]
 pub async fn board_write(
@@ -1187,6 +1188,7 @@ pub async fn board_write(
     name: Option<String>,
     columns: Option<Vec<ColumnDto>>,
     place: Option<PositionDto>,
+    collapsed: Option<bool>,
 ) -> IpcResult<BoardDto> {
     let root = state.require_vault()?;
     blocking(move || {
@@ -1205,6 +1207,9 @@ pub async fn board_write(
                 })
                 .collect();
             boards::set_columns(&root, &slug, columns)?;
+        }
+        if let Some(collapsed) = collapsed {
+            boards::set_collapsed(&root, &slug, collapsed)?;
         }
         if let Some(name) = name {
             // One retry: `set_columns` above may have bumped the document we

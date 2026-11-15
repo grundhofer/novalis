@@ -41,7 +41,14 @@ const board = {
   resolvedConflicts: 0,
   resolvedColumns: false,
   resolveError: null,
+  collapsed: false,
 };
+
+/** The board the view shows: current, and among the boards read (ADR-0054). */
+function showBoard(doc: object | null): void {
+  const shown = doc as { slug: string } | null;
+  useBoard.setState({ board: shown as never, docs: shown ? { [shown.slug]: shown as never } : {} });
+}
 
 /**
  * A row of a „Mehr“ menu. The menus are closed popovers, which jsdom hides
@@ -56,6 +63,7 @@ describe("BoardPane", () => {
   beforeEach(() => {
     useBoard.setState({
       board: board as never,
+      docs: { plan: board as never },
       boards: [{ slug: "plan", name: "Plan" }] as never,
       busy: false,
       slug: "plan",
@@ -63,6 +71,9 @@ describe("BoardPane", () => {
       apply: vi.fn().mockResolvedValue(undefined),
       setColumns: vi.fn().mockResolvedValue(undefined),
       renameBoard: vi.fn().mockResolvedValue(undefined),
+      readAll: vi.fn().mockResolvedValue(undefined),
+      setCollapsed: vi.fn().mockResolvedValue(undefined),
+      placeBoard: vi.fn().mockResolvedValue(undefined),
     });
     useTabs.setState({ active: null, tabs: [] });
     useUi.setState({ prompt: null, boardVisible: true });
@@ -175,7 +186,7 @@ describe("BoardPane", () => {
     fireEvent.click(items("board.rename")[0]!);
     await useUi.getState().prompt?.submit("Roadmap");
 
-    expect(useBoard.getState().renameBoard).toHaveBeenCalledWith("Roadmap");
+    expect(useBoard.getState().renameBoard).toHaveBeenCalledWith("Roadmap", "plan");
   });
 
   it("removes a card through a confirmation, never straight away", () => {
@@ -221,7 +232,7 @@ describe("BoardPane", () => {
     it("shows a card's description rendered, and a click on a link in it is the card's", () => {
       const open = vi.fn().mockResolvedValue(undefined);
       useTabs.setState({ open } as never);
-      useBoard.setState({ board: described as never });
+      showBoard(described);
       render(<BoardPane />);
       expect(screen.getByText("why").tagName).toBe("EM");
 
@@ -232,7 +243,7 @@ describe("BoardPane", () => {
     });
 
     it("edits it in a multi-line dialog that starts from the current text", () => {
-      useBoard.setState({ board: described as never });
+      showBoard(described);
       render(<BoardPane />);
 
       fireEvent.click(items("board.editDescription")[0]!);
@@ -243,7 +254,7 @@ describe("BoardPane", () => {
     });
 
     it("writes the new text through the dialog", async () => {
-      useBoard.setState({ board: described as never });
+      showBoard(described);
       render(<BoardPane />);
 
       fireEvent.click(items("board.editDescription")[0]!);
@@ -257,7 +268,7 @@ describe("BoardPane", () => {
     });
 
     it("writes nothing when the text did not change", async () => {
-      useBoard.setState({ board: described as never });
+      showBoard(described);
       render(<BoardPane />);
 
       fireEvent.click(items("board.editDescription")[0]!);
@@ -330,7 +341,7 @@ describe("BoardPane", () => {
         column: "doing",
         notes: ["Spec.md"],
         position: { kind: "last" },
-      });
+      }, "plan");
     });
 
     it("makes none for a file that is not a note, a path not listed, or a tab", () => {
@@ -351,7 +362,7 @@ describe("BoardPane", () => {
       kind: "unlinkNote",
       id: "c1",
       path: "Roadmap.md",
-    });
+    }, "plan");
   });
 
   it("reorders columns without losing any", () => {
@@ -359,10 +370,13 @@ describe("BoardPane", () => {
 
     fireEvent.click(items("board.moveColumnRight")[0]!);
 
-    expect(useBoard.getState().setColumns).toHaveBeenCalledWith([
-      { id: "doing", name: "Doing" },
-      { id: "todo", name: "To do" },
-    ]);
+    expect(useBoard.getState().setColumns).toHaveBeenCalledWith(
+      [
+        { id: "doing", name: "Doing" },
+        { id: "todo", name: "To do" },
+      ],
+      "plan",
+    );
   });
 
   it("cannot move the first column left or the last one right", () => {
@@ -442,7 +456,8 @@ describe("BoardPane", () => {
     });
 
     it("keeps the notice when the document it came with is refreshed away", () => {
-      useBoard.setState({ notices: { plan: { cards: 1, columns: false } }, board: { ...board, resolvedConflicts: 0 } as never });
+      showBoard({ ...board, resolvedConflicts: 0 });
+      useBoard.setState({ notices: { plan: { cards: 1, columns: false } } });
       render(<BoardPane />);
       expect(screen.getByRole("status").textContent).toContain("board.conflictNotice");
     });
@@ -478,7 +493,7 @@ describe("BoardPane", () => {
     });
 
     it("says so when a card file could not be read", () => {
-      useBoard.setState({ board: { ...board, unreadable: ["01J bad.json"] } as never });
+      showBoard({ ...board, unreadable: ["01J bad.json"] });
       render(<BoardPane />);
       expect(screen.getByRole("status").textContent).toContain("board.unreadableCards");
     });
@@ -494,9 +509,7 @@ describe("BoardPane", () => {
   it("opens any linked note from its chip, and dims one that is gone", () => {
     const open = vi.fn().mockResolvedValue(undefined);
     useTabs.setState({ open });
-    useBoard.setState({
-      board: { ...board, cards: [card("c1", "Write the spec", "todo", ["Roadmap.md", "Spec.md", "Gone.md"])] } as never,
-    });
+    showBoard({ ...board, cards: [card("c1", "Write the spec", "todo", ["Roadmap.md", "Spec.md", "Gone.md"])] });
     render(<BoardPane />);
 
     fireEvent.click(screen.getByText("Spec"));
@@ -517,9 +530,7 @@ describe("BoardPane", () => {
   // D100 (6), ZUG-09: a linked note's name breaks as a file name does, only
   // after - . _ /, as in every other view.
   it("writes a linked note's name as a file name", () => {
-    useBoard.setState({
-      board: { ...board, cards: [card("c1", "Write the spec", "todo", ["notes/release-plan_v2.md"])] } as never,
-    });
+    showBoard({ ...board, cards: [card("c1", "Write the spec", "todo", ["notes/release-plan_v2.md"])] });
     render(<BoardPane />);
     const name = document.querySelector(".card-note-name .sb-file-name");
     expect(name?.textContent).toBe("release-plan_v2");
@@ -552,10 +563,12 @@ describe("BoardPane", () => {
   // before the tools, which wrap under the pair; a column's cards scroll in
   // sebaro's own scroll frame.
   it("groups the board's name and counts in its head and scrolls the cards in sebaro's frame", () => {
-    useBoard.setState({ board: { ...board, cards: [card("c1", "Write the spec", "todo")] } as never });
+    showBoard({ ...board, cards: [card("c1", "Write the spec", "todo")] });
     render(<BoardPane />);
     const head = document.querySelector(".board > .sb-window__head")!;
-    const text = head.firstElementChild!;
+    // The disclosure leads the head (ADR-0054), then the name and counts.
+    expect(head.firstElementChild?.getAttribute("aria-expanded")).toBe("true");
+    const text = head.children[1]!;
     expect(text.className).toBe("sb-window__head-text");
     expect([...text.children].map((part) => part.className)).toEqual(["sb-window__heading", "sb-window__meta"]);
     expect(text.nextElementSibling?.className).toBe("sb-window__head-tools");
@@ -563,7 +576,7 @@ describe("BoardPane", () => {
   });
 
   it("says „Noch keine Karte.“ in an empty column", () => {
-    useBoard.setState({ board: { ...board, cards: [card("c1", "Write the spec", "todo")] } as never });
+    showBoard({ ...board, cards: [card("c1", "Write the spec", "todo")] });
     render(<BoardPane />);
     const doing = document.querySelectorAll("section.sb-board__column")[1]!;
     expect(doing.querySelector("p.sb-board__empty")?.textContent).toBe("board.emptyColumn");
@@ -571,7 +584,7 @@ describe("BoardPane", () => {
   });
 
   it("shows sebaro's empty state for a board without columns, and none of the board", () => {
-    useBoard.setState({ board: { ...board, columns: [], cards: [] } as never });
+    showBoard({ ...board, columns: [], cards: [] });
     render(<BoardPane />);
     expect(document.querySelector(".sb-empty .sb-empty__title")?.textContent).toBe("board.emptyTitle");
     // Under the board's heading, in its padding: sebaro's section form (D108).
@@ -582,7 +595,8 @@ describe("BoardPane", () => {
   });
 
   it("has no button of its own when there is no board at all (DAT-07)", () => {
-    useBoard.setState({ board: null });
+    showBoard(null);
+    useBoard.setState({ boards: [] });
     render(<BoardPane />);
     expect(document.querySelector(".sb-empty .sb-empty__title")?.textContent).toBe("board.noBoardTitle");
     expect(screen.queryByRole("button")).toBeNull();
@@ -606,11 +620,11 @@ describe("BoardPane", () => {
       column: "doing",
       notes: [],
       position: { kind: "last" },
-    });
+    }, "plan");
   });
 
   it("marks a card whose column is gone with the warning glyph and word", () => {
-    useBoard.setState({ board: { ...board, orphanCards: ["c1"] } as never });
+    showBoard({ ...board, orphanCards: ["c1"] });
     render(<BoardPane />);
     const status = cardOf("Write the spec").querySelector(".sb-card__meta .sb-status.sb-status--warning")!;
     expect(status.textContent).toBe("board.columnMissing");
@@ -622,11 +636,11 @@ describe("BoardPane", () => {
     useBoard.setState({ busy: true });
     render(<BoardPane />);
     expect(screen.queryByText("editor.loading")).toBeNull();
-    expect(document.querySelector("section.board")?.getAttribute("aria-busy")).toBe("true");
+    expect(document.querySelector(".boards")?.getAttribute("aria-busy")).toBe("true");
   });
 
   it("names cloud-only cards it skipped in a note", () => {
-    useBoard.setState({ board: { ...board, cloudOnly: ["01J x.json"] } as never });
+    showBoard({ ...board, cloudOnly: ["01J x.json"] });
     render(<BoardPane />);
     const callout = screen.getByRole("note");
     expect(callout.className).toContain("sb-callout--note");
@@ -694,7 +708,7 @@ describe("BoardPane", () => {
         id: "c1",
         column: "doing",
         position: { kind: "last" },
-      });
+      }, "plan");
       expect(doing.getAttribute("data-sb-state")).toBeNull();
     });
 
@@ -712,7 +726,7 @@ describe("BoardPane", () => {
         id: "c2",
         column: "todo",
         position: { kind: "after", id: "c1" },
-      });
+      }, "plan");
     });
 
     // spec/02 §4.22, ADR-0051 #42: the upper half of a card drops before it,
@@ -727,12 +741,10 @@ describe("BoardPane", () => {
       };
 
       beforeEach(() => {
-        useBoard.setState({
-          board: {
+        showBoard({
             ...board,
             cards: [...board.cards, card("c3", "Review", "todo"), card("c4", "Release", "todo")],
-          } as never,
-        });
+          });
       });
 
       it("shows the line before the card from its upper half and after it from the lower", () => {
@@ -758,7 +770,7 @@ describe("BoardPane", () => {
           id: "c2",
           column: "todo",
           position: { kind: "first" },
-        });
+        }, "plan");
       });
 
       it("drops before a card as after the one above it, the moving card left out", () => {
@@ -772,7 +784,7 @@ describe("BoardPane", () => {
           id: "c2",
           column: "todo",
           position: { kind: "after", id: "c3" },
-        });
+        }, "plan");
 
         // The first card dragged before the second goes first again.
         fireEvent.dragStart(cardOf("Write the spec"), { dataTransfer: data });
@@ -783,7 +795,7 @@ describe("BoardPane", () => {
           id: "c1",
           column: "todo",
           position: { kind: "first" },
-        });
+        }, "plan");
       });
 
       // A drag let go before it leaves its card moves nothing, from either half.
@@ -811,7 +823,7 @@ describe("BoardPane", () => {
           column: "todo",
           notes: ["Spec.md"],
           position: { kind: "first" },
-        });
+        }, "plan");
       });
     });
 
@@ -846,5 +858,135 @@ describe("BoardPane", () => {
     } finally {
       Element.prototype.scrollIntoView = original;
     }
+  });
+
+  // ADR-0054: every board, one under the other, each collapsible; opening one
+  // scrolls to it; a head dragged moves the board among the others.
+  describe("the boards view", () => {
+    const atlas = {
+      ...board,
+      slug: "atlas",
+      name: "Atlas",
+      cards: [card("a1", "Map tiles", "todo"), card("a2", "Pick zoom", "todo"), card("a3", "Ship", "doing")],
+    };
+
+    beforeEach(() => {
+      useBoard.setState({
+        boards: [{ slug: "plan", name: "Plan" }, { slug: "atlas", name: "Atlas" }, { slug: "new", name: "New" }] as never,
+        docs: { plan: board as never, atlas: atlas as never },
+      });
+      useUi.setState({ activeBoard: null });
+    });
+
+    it("shows every board in the list's order, one not read yet by its name, and reads the rest", () => {
+      render(<BoardPane />);
+      const sections = [...document.querySelectorAll<HTMLElement>(".boards > section.board")];
+      expect(sections.map((section) => section.dataset.board)).toEqual(["plan", "atlas", "new"]);
+      expect(screen.getByRole("heading", { level: 2, name: "Atlas" })).toBeTruthy();
+      expect(sections[2]!.getAttribute("aria-busy")).toBe("true");
+      expect(sections[2]!.getAttribute("aria-label")).toBe("New");
+      expect(useBoard.getState().readAll).toHaveBeenCalledWith(true);
+      // No switcher any more: every board is there.
+      expect(document.querySelector("select")).toBeNull();
+    });
+
+    it("collapses a board from the disclosure before its name", () => {
+      render(<BoardPane />);
+      const toggles = screen.getAllByRole("button", { name: "board.collapse" });
+      expect(toggles).toHaveLength(2);
+      expect(toggles.every((toggle) => toggle.getAttribute("aria-expanded") === "true")).toBe(true);
+      const atlasToggle = document.querySelector('[data-board="atlas"] .board-head > button')!;
+      fireEvent.click(atlasToggle);
+      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", true);
+    });
+
+    it("shows a collapsed board as its head with each column's count", () => {
+      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, collapsed: true } as never } });
+      render(<BoardPane />);
+      const section = document.querySelector<HTMLElement>('[data-board="atlas"]')!;
+      const toggle = section.querySelector(".board-head > button")!;
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      expect(toggle.getAttribute("aria-label")).toBe("board.expand");
+      expect(section.querySelector(".sb-board, .sb-empty")).toBeNull();
+      expect(section.querySelector(".sb-window__meta")?.textContent).toBe(
+        "To do 2 board.cardsWord · Doing 1 board.cardsWord",
+      );
+      // Adding a column waits for the board to be expanded; its „Mehr“ stays.
+      expect(section.textContent).not.toContain("board.addColumn");
+      expect(section.querySelector('[aria-label="board.moreBoard"]')).toBeTruthy();
+      fireEvent.click(toggle);
+      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", false);
+    });
+
+    it("scrolls the list, and only it, to the board that was opened and expands it once", () => {
+      const scrolled = vi.fn();
+      Element.prototype.scrollTo = scrolled;
+      Element.prototype.scrollIntoView = vi.fn();
+      const top = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        const y = this instanceof HTMLElement && this.dataset.board === "atlas" ? 380 : 80;
+        return { top: y, height: 100, bottom: y + 100, left: 0, right: 400, width: 400 } as DOMRect;
+      };
+      useBoard.setState({ docs: { plan: board as never, atlas: { ...atlas, collapsed: true } as never } });
+      act(() => useUi.getState().setActiveBoard("atlas"));
+      render(<BoardPane />);
+      Element.prototype.getBoundingClientRect = top;
+      expect(scrolled).toHaveBeenCalled();
+      expect(scrolled.mock.contexts[0]).toBe(document.querySelector(".boards"));
+      expect(scrolled.mock.calls[0]![0]).toEqual({ top: 300, behavior: "smooth" });
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+      expect(useBoard.getState().setCollapsed).toHaveBeenCalledWith("atlas", false);
+      expect(useBoard.getState().setCollapsed).toHaveBeenCalledTimes(1);
+    });
+
+    it("moves a board by its head: before another from its upper half, after it from the lower", () => {
+      render(<BoardPane />);
+      const head = document.querySelector<HTMLElement>('[data-board="atlas"] .board-head')!;
+      const data = { types: [] as string[], setData: vi.fn(), getData: vi.fn(), effectAllowed: "", dropEffect: "" };
+      fireEvent.dragStart(head, { dataTransfer: data });
+      expect(head.getAttribute("draggable")).toBe("true");
+      expect(data.setData).toHaveBeenCalledWith("application/x-novalis-board", "atlas");
+
+      const target = document.querySelector<HTMLElement>('[data-board="plan"]')!;
+      target.getBoundingClientRect = () => ({ top: 0, height: 200, bottom: 200, left: 0, right: 400, width: 400 }) as DOMRect;
+      const drag = { types: ["application/x-novalis-board"], getData: () => "atlas", dropEffect: "" };
+      const at = (type: "dragOver" | "drop", y: number) => {
+        const event = createEvent[type](target, { dataTransfer: drag });
+        Object.defineProperty(event, "clientY", { value: y });
+        fireEvent(target, event);
+      };
+      at("dragOver", 50);
+      expect(target.getAttribute("data-sb-state")).toBe("drop-before");
+      at("dragOver", 150);
+      expect(target.getAttribute("data-sb-state")).toBe("drop-after");
+      at("drop", 50);
+      expect(useBoard.getState().placeBoard).toHaveBeenCalledWith("atlas", { kind: "first" });
+      expect(target.getAttribute("data-sb-state")).toBeNull();
+      at("drop", 150);
+      expect(useBoard.getState().placeBoard).toHaveBeenLastCalledWith("atlas", { kind: "after", id: "plan" });
+
+      // On itself: nothing to send.
+      vi.mocked(useBoard.getState().placeBoard).mockClear();
+      const own = document.querySelector<HTMLElement>('[data-board="atlas"]')!;
+      own.getBoundingClientRect = target.getBoundingClientRect;
+      fireEvent.drop(own, { dataTransfer: drag });
+      expect(useBoard.getState().placeBoard).not.toHaveBeenCalled();
+    });
+
+    it("writes a column change on the board it was made in", () => {
+      render(<BoardPane />);
+      const section = document.querySelector<HTMLElement>('[data-board="atlas"]')!;
+      const right = [...section.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(
+        (item) => item.textContent === "board.moveColumnRight",
+      )!;
+      fireEvent.click(right);
+      expect(useBoard.getState().setColumns).toHaveBeenCalledWith(
+        [
+          { id: "doing", name: "Doing" },
+          { id: "todo", name: "To do" },
+        ],
+        "atlas",
+      );
+    });
   });
 });

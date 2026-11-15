@@ -47,8 +47,31 @@ pub struct Board {
     /// Boards without one come after those with, by name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<String>,
+    /// How the board shows in the boards view (ADR-0054). Absent while
+    /// everything in it has its default, so an untouched board is
+    /// byte-identical to what every earlier version wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view: Option<BoardView>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+/// The board's own view settings in `board.json` (ADR-0054): synced with the
+/// vault, so they hold on every device. Keys a later version adds round-trip
+/// untouched.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoardView {
+    /// Only the head shows, with each column's card count.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub collapsed: bool,
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, Value>,
+}
+
+impl BoardView {
+    fn is_default(&self) -> bool {
+        *self == BoardView::default()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -336,6 +359,7 @@ pub fn create_board(
         columns,
         updated: now_rfc3339_ms(),
         order: None,
+        view: None,
         extra: BTreeMap::new(),
     };
     std::fs::create_dir_all(dir.join("cards")).map_err(|e| CoreError::from_io(&dir, e))?;
@@ -371,6 +395,27 @@ pub fn set_columns(vault: &Path, slug: &str, columns: Vec<Column>) -> CoreResult
         }
     }
     Err(CoreError::internal("set_columns: replay exhausted"))
+}
+
+/// Collapse or expand the board in the boards view (ADR-0054), re-read and
+/// replayed on a precondition conflict like `set_columns`. A view back at
+/// its defaults leaves the file without `view`.
+pub fn set_collapsed(vault: &Path, slug: &str, collapsed: bool) -> CoreResult<Board> {
+    for attempt in 0..3 {
+        let doc = read_board(vault, slug)?;
+        let mut board = doc.board;
+        let mut view = board.view.take().unwrap_or_default();
+        view.collapsed = collapsed;
+        board.view = (!view.is_default()).then_some(view);
+        board.updated = now_rfc3339_ms();
+        let p = board_dir(vault, slug)?.join("board.json");
+        match write_atomic(&p, &to_json_bytes(&board)?, Some(&doc.precondition)) {
+            Ok(_) => return Ok(board),
+            Err(CoreError::Conflict { .. }) if attempt < 2 => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(CoreError::internal("set_collapsed: replay exhausted"))
 }
 
 fn cards_dir(vault: &Path, slug: &str) -> CoreResult<PathBuf> {
@@ -1569,6 +1614,49 @@ mod tests {
         assert_eq!(
             resolve_board_conflicts(t.path(), "atlas").unwrap(),
             ConflictReport::default()
+        );
+    }
+
+    /// ADR-0054: the view key comes and goes with its values; unknown view
+    /// keys of a later version survive a collapse.
+    #[test]
+    fn set_collapsed_writes_view_only_when_not_default_and_keeps_unknown_keys() {
+        let t = vault();
+        let file = t.path().join("boards/atlas/board.json");
+        let before = std::fs::read_to_string(&file).unwrap();
+        assert!(!before.contains("\"view\""));
+
+        let b = set_collapsed(t.path(), "atlas", true).unwrap();
+        assert!(b.view.as_ref().unwrap().collapsed);
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(raw.contains("\"view\": {\n    \"collapsed\": true\n  }"));
+        assert!(
+            read_board(t.path(), "atlas")
+                .unwrap()
+                .board
+                .view
+                .unwrap()
+                .collapsed
+        );
+
+        set_collapsed(t.path(), "atlas", false).unwrap();
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(!raw.contains("\"view\""));
+
+        let edited = raw.replacen("{\n", "{\n  \"view\": { \"later\": 1 },\n", 1);
+        std::fs::write(&file, edited).unwrap();
+        let b = set_collapsed(t.path(), "atlas", true).unwrap();
+        let view = b.view.unwrap();
+        assert!(view.collapsed);
+        assert_eq!(view.extra.get("later"), Some(&serde_json::json!(1)));
+        let b = set_collapsed(t.path(), "atlas", false).unwrap();
+        assert_eq!(
+            b.view.unwrap().extra.get("later"),
+            Some(&serde_json::json!(1))
+        );
+        assert_eq!(
+            set_collapsed(t.path(), "nope", true).unwrap_err().code(),
+            "not_found"
         );
     }
 

@@ -1023,6 +1023,17 @@ das board springen können.“):
 
 Recorded as **ADR-0053**.
 
+Boards for projects (the ask and every answer verbatim in ADR-0054):
+- every board one under the other in one view, collapsible, the tab
+  „Boards“, the boards in the tree's order and moved by their heads, each as
+  tall as the view at most; collapsed, the head counts per column
+- the view's settings in `board.json` (`view`)
+- to come: filters (text, hidden columns, changed in the last N days, card
+  fields) and card sort per board; card fields labels, due date, priority,
+  assignee
+
+Recorded as **ADR-0054**; built in parts.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
