@@ -6,7 +6,7 @@
 //! document). Every struct here is `camelCase` on the wire, which is what
 //! `bindings.ts` and the UI stores expect.
 
-use novalis_core::boards::{Board, BoardRef, Card, Column};
+use novalis_core::boards::{Board, BoardRef, BoardView, Card, Column};
 use novalis_core::search::{SearchHit, SearchQuery, SearchReport};
 use novalis_core::settings::{Appearance, EditorSettings, Language, Settings, Tone};
 use novalis_core::vault::cloud::VaultKind;
@@ -781,8 +781,92 @@ pub struct BoardDto {
     /// still returned — a board that cannot be tidied is still a board — and
     /// the UI reports the error like any failed command.
     pub resolve_error: Option<crate::error::IpcError>,
-    /// Shown as its head only in the boards view (ADR-0054), from `board.json`.
+    /// How the board shows in the boards view (ADR-0054), from `board.json`.
+    pub view: BoardViewDto,
+}
+
+/// The board's own view (ADR-0054): collapsed, its filter and its card sort,
+/// kept in `board.json`. The text search is the UI's alone and never here.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardViewDto {
     pub collapsed: bool,
+    pub hidden_columns: Vec<String>,
+    pub changed_within: Option<ChangedWithinDto>,
+    pub sort: Option<CardSortDto>,
+    pub sort_reversed: bool,
+}
+
+/// The spans of „Zuletzt geändert“ (ADR-0054).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub enum ChangedWithinDto {
+    #[serde(rename = "today")]
+    Today,
+    #[serde(rename = "7d")]
+    Week,
+    #[serde(rename = "30d")]
+    Month,
+    #[serde(rename = "90d")]
+    Quarter,
+}
+
+/// A card order other than the manual one (ADR-0054).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum CardSortDto {
+    Title,
+    Updated,
+    Created,
+}
+
+impl ChangedWithinDto {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ChangedWithinDto::Today => "today",
+            ChangedWithinDto::Week => "7d",
+            ChangedWithinDto::Month => "30d",
+            ChangedWithinDto::Quarter => "90d",
+        }
+    }
+}
+
+impl CardSortDto {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CardSortDto::Title => "title",
+            CardSortDto::Updated => "updated",
+            CardSortDto::Created => "created",
+        }
+    }
+}
+
+impl From<&BoardView> for BoardViewDto {
+    /// A span or sort this build does not know (a later version's) reads as
+    /// none.
+    fn from(v: &BoardView) -> Self {
+        let within = [
+            ChangedWithinDto::Today,
+            ChangedWithinDto::Week,
+            ChangedWithinDto::Month,
+            ChangedWithinDto::Quarter,
+        ];
+        let sorts = [
+            CardSortDto::Title,
+            CardSortDto::Updated,
+            CardSortDto::Created,
+        ];
+        BoardViewDto {
+            collapsed: v.collapsed,
+            hidden_columns: v.hidden_columns.clone(),
+            changed_within: within
+                .into_iter()
+                .find(|w| v.changed_within.as_deref() == Some(w.as_str())),
+            sort: sorts
+                .into_iter()
+                .find(|s| v.sort.as_deref() == Some(s.as_str())),
+            sort_reversed: v.sort_reversed,
+        }
+    }
 }
 
 impl BoardDto {
@@ -804,7 +888,11 @@ impl BoardDto {
             resolved_conflicts: 0,
             resolved_columns: false,
             resolve_error: None,
-            collapsed: board.view.as_ref().is_some_and(|v| v.collapsed),
+            view: board
+                .view
+                .as_ref()
+                .map(BoardViewDto::from)
+                .unwrap_or_default(),
         }
     }
 }

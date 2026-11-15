@@ -49,6 +49,25 @@
   flex: none;
 }
 
+/* The filter's line under the head (ADR-0054): the search field, what is
+   on in the head's grey, and „Zurücksetzen“, wrapping at large text. */
+.board-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sb-space-2) var(--sb-space-4);
+  margin-block: var(--sb-space-2) var(--sb-space-3);
+}
+
+.board-search {
+  flex: 0 1 20em;
+  min-inline-size: 0;
+}
+
+.board-filter__summary {
+  margin: 0;
+}
+
 /* The hints sit in the board's own padding, not in the editor's margins. */
 .board .nv-callout {
   margin: 0 0 var(--sb-space-3);

@@ -151,10 +151,17 @@ export const commands = {
 	/**
 	 *  The two configurable things about a board: its name and its column list
 	 *  (§8.5). Columns go through `set_columns`, which re-reads and replays on a
-	 *  conflict, so two devices reordering columns never lose one. `collapsed`
-	 *  is its view in the boards view (ADR-0054), replayed the same way.
+	 *  conflict, so two devices reordering columns never lose one. `view` is how
+	 *  it shows in the boards view (ADR-0054), replayed the same way; keys of
+	 *  `view` this build does not know stay in the file.
 	 */
-	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null, collapsed: boolean | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, collapsed })),
+	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null, view: {
+	collapsed: boolean,
+	hiddenColumns: string[],
+	changedWithin: ChangedWithinDto | null,
+	sort: CardSortDto | null,
+	sortReversed: boolean,
+} | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, view })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
 	 *  field change, which is why a conflicting board never raises a banner
@@ -284,8 +291,8 @@ export type BoardDto = {
 	 *  the UI reports the error like any failed command.
 	 */
 	resolveError: IpcError | null,
-	/**  Shown as its head only in the boards view (ADR-0054), from `board.json`. */
-	collapsed: boolean,
+	/**  How the board shows in the boards view (ADR-0054), from `board.json`. */
+	view: BoardViewDto,
 };
 
 export type BoardRefDto = {
@@ -296,6 +303,18 @@ export type BoardRefDto = {
 	 *  The list arrives in display order either way.
 	 */
 	order: string | null,
+};
+
+/**
+ *  The board's own view (ADR-0054): collapsed, its filter and its card sort,
+ *  kept in `board.json`. The text search is the UI's alone and never here.
+ */
+export type BoardViewDto = {
+	collapsed: boolean,
+	hiddenColumns: string[],
+	changedWithin: ChangedWithinDto | null,
+	sort: CardSortDto | null,
+	sortReversed: boolean,
 };
 
 export type BootstrapDto = {
@@ -367,6 +386,12 @@ export type CardOpDto = { kind: "add"; title: string; column: string | null; not
  *  keeps a tombstone.
  */
 { kind: "moveToBoard"; id: string; board: string };
+
+/**  A card order other than the manual one (ADR-0054). */
+export type CardSortDto = "title" | "updated" | "created";
+
+/**  The spans of „Zuletzt geändert“ (ADR-0054). */
+export type ChangedWithinDto = "today" | "7d" | "30d" | "90d";
 
 export type ColumnDto = {
 	id: string,

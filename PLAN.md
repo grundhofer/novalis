@@ -477,7 +477,7 @@ Board folders appear in the file tree as one "board" item (the treatment the old
 
 `order` is optional (ADR-0019): a fractional-index key of the §8.3 kind, written only when the user drags the board in the tree or by its head in the boards view (ADR-0054); boards with a key come first, by key, then the rest by name, and the slug breaks ties.
 
-`view` is optional (ADR-0054): how the board shows in the boards view, `{ "collapsed": true }` so far; absent while every value in it is its default, unknown keys inside it round-trip untouched.
+`view` is optional (ADR-0054): how the board shows in the boards view — `collapsed`, `hiddenColumns` (column ids), `changedWithin` (`today`, `7d`, `30d`, `90d`), `sort` (`title`, `updated`, `created`; absent is the manual order) and `sortReversed`; absent while every value in it is its default, unknown keys inside it round-trip untouched. A board's text search is never stored.
 
 `cards/01K4G9Z2Q7M3N8RSTV5WXY6ZAB.json`:
 ```json
@@ -503,7 +503,7 @@ Rules: pretty-printed, sorted keys, trailing newline, atomic writes with the rea
 - Same card → the sync client leaves a sibling copy; detect generically (any file in `cards/` whose parsed `id` equals an existing card). Siblings with identical bytes are deleted (trash) without a `conflicts/` entry. Otherwise whole-card LWW on `updated` (ms); tie → bytewise-lexicographically larger content wins; **the winner's bytes are written verbatim** (no re-serialization, `updated` untouched, so every device converges on identical bytes and no resolve→conflict loop starts); the loser moves to `conflicts/<id>-<updated>.json` with `RENAME_EXCL`; one-line notice *„Board Atlas: 1 Karte hatte widersprüchliche Änderungen, die neuere wurde behalten; ältere Kopie unter conflicts/"*, shown once — on the first read of that board after the vault was opened, which is the one read that resolves — and dismissable (answered 2026-09-13, `docs/DECISIONS.md`).
 - `board.json` conflict → same rule, on the same first read; columns present in either version are unioned so no card is orphaned; its own one-line notice (*„Board Atlas: Die Spaltenliste hatte widersprüchliche Änderungen; die Spalten beider Versionen wurden behalten."*), dismissed together with the card notice.
 
-### 8.5 Configurable = board name + column list (add/rename/reorder/delete) + its view (`view`, ADR-0054: collapsed; filter and card sort to come). Everything else: §4.4.
+### 8.5 Configurable = board name + column list (add/rename/reorder/delete) + its view (`view`, ADR-0054: collapsed, hidden columns, span of the last change, card sort). Everything else: §4.4.
 
 ---
 

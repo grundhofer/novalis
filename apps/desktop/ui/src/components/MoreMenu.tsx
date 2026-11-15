@@ -1,6 +1,6 @@
 import { useId, type SyntheticEvent } from "react";
 
-import Icon from "./Icon";
+import Icon, { type IconName } from "./Icon";
 
 /** One row of a „Mehr“ menu. */
 export interface MoreEntry {
@@ -11,7 +11,9 @@ export interface MoreEntry {
   /** „Löschen …“: last, after a separator, the danger word with the trash (AKT-10, EBE-07). */
   danger?: boolean;
   /** A submenu of choices, the current one checked (spec/02 §4.10, §4.18). */
-  choices?: { label: string; checked: boolean; onSelect: () => void }[];
+  choices?: { label: string; checked: boolean; onSelect: () => void; disabled?: boolean }[];
+  /** The choices are switched each on its own (`menuitemcheckbox`), not one of them. */
+  multiple?: boolean;
 }
 
 /**
@@ -23,13 +25,24 @@ export interface MoreEntry {
  * button, the arrow keys, typed letters and the focus return. Rows are words
  * in the window density (32 px, `label`); a destructive row comes last after
  * a separator, the danger word with the trash, and opens its confirmation.
- * A row with `choices` opens a submenu of check rows (`menuitemradio`).
+ * A row with `choices` opens a submenu of check rows (`menuitemradio`, or
+ * `menuitemcheckbox` with `multiple`). With `trigger` the button is a
+ * compact secondary action with its icon and word instead of „Mehr“ (the
+ * board's „Filter“, ADR-0054).
  *
  * The menu lives inside the element it acts on, so a click or a context
  * menu in it must not reach that element's own handlers (a card opens its
  * note on a click); every event stops here. Nothing in it starts a drag.
  */
-export default function MoreMenu({ label, entries }: { label: string; entries: MoreEntry[] }) {
+export default function MoreMenu({
+  label,
+  entries,
+  trigger,
+}: {
+  label: string;
+  entries: MoreEntry[];
+  trigger?: { text: string; icon: IconName; pressed?: boolean };
+}) {
   const id = useId();
   const menu = `more${id}`;
   const tip = `tip${id}`;
@@ -62,10 +75,11 @@ export default function MoreMenu({ label, entries }: { label: string; entries: M
                 <button
                   className="sb-menu__item"
                   type="button"
-                  role="menuitemradio"
+                  role={entry.multiple ? "menuitemcheckbox" : "menuitemradio"}
                   tabIndex={-1}
                   aria-checked={choice.checked}
-                  onClick={choice.checked ? undefined : choice.onSelect}
+                  aria-disabled={choice.disabled || undefined}
+                  onClick={choice.disabled || (choice.checked && !entry.multiple) ? undefined : choice.onSelect}
                 >
                   <span className="sb-menu__check" aria-hidden="true">
                     <Icon name="check" />
@@ -97,24 +111,45 @@ export default function MoreMenu({ label, entries }: { label: string; entries: M
 
   return (
     <>
-      <button
-        className="sb-icon-button sb-icon-button--compact"
-        type="button"
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={false}
-        aria-describedby={tip}
-        popoverTarget={menu}
-        draggable={false}
-        onClick={stop}
-        onDoubleClick={stop}
-        onContextMenu={stop}
-      >
-        <Icon name="more-horizontal" size={20} />
-      </button>
-      <span className="sb-tooltip" role="tooltip" id={tip} popover="manual">
-        <span aria-hidden="true">{label}</span>
-      </span>
+      {trigger ? (
+        <button
+          className="sb-secondary-action sb-secondary-action--compact"
+          type="button"
+          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={false}
+          aria-pressed={trigger.pressed}
+          popoverTarget={menu}
+          draggable={false}
+          onClick={stop}
+          onDoubleClick={stop}
+          onContextMenu={stop}
+        >
+          <Icon name={trigger.icon} />
+          {trigger.text}
+        </button>
+      ) : (
+        <>
+          <button
+            className="sb-icon-button sb-icon-button--compact"
+            type="button"
+            aria-label={label}
+            aria-haspopup="menu"
+            aria-expanded={false}
+            aria-describedby={tip}
+            popoverTarget={menu}
+            draggable={false}
+            onClick={stop}
+            onDoubleClick={stop}
+            onContextMenu={stop}
+          >
+            <Icon name="more-horizontal" size={20} />
+          </button>
+          <span className="sb-tooltip" role="tooltip" id={tip} popover="manual">
+            <span aria-hidden="true">{label}</span>
+          </span>
+        </>
+      )}
       <ul
         className="sb-menu"
         role="menu"

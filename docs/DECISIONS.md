@@ -1034,6 +1034,10 @@ Boards for projects (the ask and every answer verbatim in ADR-0054):
 
 Recorded as **ADR-0054**; built in parts.
 
+The filter, part 2 of ADR-0054 (answers verbatim there): „Filter“ in each
+board's head opens a menu; the search is the session's only; the span in
+fixed steps; one card order for the whole board. Amends **ADR-0054**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:
