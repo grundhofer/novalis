@@ -310,7 +310,7 @@ Dependency budget: D26.
 
 ### 5.5 Data formats
 
-**Vault:** any folder. `boards/<slug>/` is a board only if it holds a valid `board.json`; other files under `boards/` are ordinary notes and `doctor` reports `.md` files inside a board folder. `.novalis/vault.json` is the one file v1 writes there (D23); legacy `.novalis/config.json` is read once for migration. Everything else is the user's.
+**Vault:** any folder. A folder below the top folder — `boards/<slug>/`, or wherever a board was moved (ADR-0058) — is a board only if it holds a valid `board.json`; other files under `boards/` are ordinary notes and `doctor` reports `.md` files inside a board folder. `.novalis/vault.json` is the one file v1 writes there (D23); legacy `.novalis/config.json` is read once for migration. Everything else is the user's.
 
 **Notes:** `.md`, UTF-8, line endings preserved. Frontmatter: `title` and `tags` read; written only by `meta` and `new --tag` as text edits of named keys (D22).
 
@@ -463,7 +463,7 @@ tauri-apps/tauri#7705 reproduces on macOS 26.6: out of the box a WKWebView shows
 └─ conflicts/            # losers of a same-card conflict, never deleted automatically
 ```
 
-Board folders appear in the file tree as one "board" item (the treatment the old app gave `.canvas` files). `board.json` and `cards/*.json` are excluded from the note cache; `.md` files inside a board folder remain notes and are reported by `doctor`.
+Board folders appear in the file tree as one "board" item (the treatment the old app gave `.canvas` files). A board can live in any folder below the vault's top folder (ADR-0058): `boards/` holds the boards of the tree's top level and every new one, a board moved into a folder is drawn there after the folder's files. Its key is its folder name in `boards/`, else its vault-relative folder path. `board.json` and `cards/*.json` are excluded from the note cache; `.md` files inside a board folder remain notes and are reported by `doctor`.
 
 ### 8.2 Files
 
@@ -531,7 +531,7 @@ Vault discovery: `--vault <dir>`, else `$NOVALIS_VAULT`, else walk up from cwd f
 | `links <note>` / `links --unresolved` / `links --orphans` | `--backlinks`, `--outgoing` | `{outgoing:[{target,form,line,resolvedPath}],backlinks:[{path,line}],cards:[{board,id,title,column}]}` / `{items:[{target,form,sources:[{path,line}]}]}` / `{items:[path]}` | cache |
 | `tags` | `--limit` | `{items:[{tag,count}]}` | cache |
 | `relink <from> <to>` | `--force`, `--materialize` | `{rewritten:[{path,count}],cardsUpdated,conflicts,cloudOnlySkipped}` | `<from>` is a **literal link target string** (wikilink text or Markdown path, case-insensitive, percent-decoded, not required to resolve); `<to>` must resolve; rewrites `[[from]]`, `[[from\|l]]`, `[[from#h]]`, `[text](from)` and card `notes[]` |
-| `board ls` / `board show <b>` / `board new <b> [--name N]` / `board columns <b> --set <json>` | | boards, columns, cards | boards store; `new` creates `boards/<b>/board.json` with no columns, exit 4 if it exists (ADR-0031) |
+| `board ls` / `board show <b>` / `board new <b> [--name N]` / `board columns <b> --set <json>` / `board mv <b> <folder>` | | boards, columns, cards | boards store; `new` creates `boards/<b>/board.json` with no columns, exit 4 if it exists (ADR-0031); `mv` moves the board's folder into `<folder>` (`""` the top level), `<b>` is a slug or the board folder's path (ADR-0058) |
 | `card ls [--board B] [--note <note>] [--column C] [--label L] [--priority P] [--assignee A] [--due overdue\|today\|7d\|none]` | | `{items:[{board,id,title,column,order,notes,updated,description?,labels?,due?,priority?,assignee?}]}` | answers "which cards link to X"; the field filters as in the app (ADR-0054, ADR-0055), days local |
 | `card add <b> --title T [--description D] [--column C] [--note <note>]… [--label L]… [--due YYYY-MM-DD] [--priority high\|medium\|low] [--assignee A]` | `--after ID \| --first \| --last` (default last) | `{card}` | `--column` = id, or name when unambiguous (else exit 4); default column = first; a bad due day or priority is exit 2 |
 | `card mv <id> [--column C] [--after ID \| --first \| --last]` · `card set <id> [--title T] [--description D] [--add-note N] [--rm-note N] [--label L]… \| [--add-label L]… [--rm-label L]… [--due D] [--priority P\|none] [--assignee A]` · `card rm <id>` | `--if-updated <rfc3339>` | `{card}` | one file per change; `--label` replaces the labels (`--label ""` clears), an empty `--due`/`--assignee` or `--priority none` clears; `rm` writes the tombstone if approved, else deletes |

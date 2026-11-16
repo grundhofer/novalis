@@ -148,9 +148,9 @@ describe("useBoard.load", () => {
   it("drops the board, the slug and the notices when a vault is opened", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce(doc({ resolvedConflicts: 1 }));
     await useBoard.getState().load("plan");
-    useBoard.getState().setBoards([{ slug: "plan", name: "Plan", order: null }]);
+    useBoard.getState().setBoards([{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }]);
     const state = useBoard.getState();
-    expect(state.boards).toEqual([{ slug: "plan", name: "Plan", order: null }]);
+    expect(state.boards).toEqual([{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }]);
     expect(state.board).toBeNull();
     expect(state.slug).toBeNull();
     expect(state.notices).toEqual({});
@@ -159,7 +159,7 @@ describe("useBoard.load", () => {
 
 describe("useBoard.refreshList", () => {
   beforeEach(() => {
-    useBoard.setState({ boards: [{ slug: "old", name: "Old", order: null }] });
+    useBoard.setState({ boards: [{ slug: "old", name: "Old", order: null, path: "boards/old" }] });
     vi.mocked(commands.boardList).mockClear();
   });
 
@@ -168,16 +168,16 @@ describe("useBoard.refreshList", () => {
   // `bootstrap()` and nothing re-read it. The watcher batch does now.
   it("re-reads the list from the shell, in the shell's order", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce([
-      { slug: "zeta", name: "Zeta", order: "a0" },
-      { slug: "alpha", name: "Alpha", order: null },
+      { slug: "zeta", name: "Zeta", order: "a0", path: "boards/zeta" },
+      { slug: "alpha", name: "Alpha", order: null, path: "boards/alpha" },
     ]);
 
     await useBoard.getState().refreshList();
 
     expect(commands.boardList).toHaveBeenCalledTimes(1);
     expect(useBoard.getState().boards).toEqual([
-      { slug: "zeta", name: "Zeta", order: "a0" },
-      { slug: "alpha", name: "Alpha", order: null },
+      { slug: "zeta", name: "Zeta", order: "a0", path: "boards/zeta" },
+      { slug: "alpha", name: "Alpha", order: null, path: "boards/alpha" },
     ]);
   });
 
@@ -189,10 +189,10 @@ describe("useBoard.refreshList", () => {
     vi.mocked(unwrap).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
     const pending = useBoard.getState().refreshList();
     useVault.setState({ vault: { root: "/b", name: "b", kind: "local", boards: [] } as never });
-    useBoard.getState().setBoards([{ slug: "b1", name: "B1", order: null }]);
-    answer([{ slug: "a1", name: "A1", order: null }]);
+    useBoard.getState().setBoards([{ slug: "b1", name: "B1", order: null, path: "boards/b1" }]);
+    answer([{ slug: "a1", name: "A1", order: null, path: "boards/a1" }]);
     await pending;
-    expect(useBoard.getState().boards).toEqual([{ slug: "b1", name: "B1", order: null }]);
+    expect(useBoard.getState().boards).toEqual([{ slug: "b1", name: "B1", order: null, path: "boards/b1" }]);
   });
 });
 
@@ -200,11 +200,55 @@ describe("useBoard.createBoard", () => {
   // `board_create` is not an own write: the watcher can list the new board
   // through `refreshList` before the create call returns.
   it("does not list a board twice when the watcher was first", async () => {
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] });
-    vi.mocked(unwrap).mockResolvedValueOnce({ slug: "plan", name: "Plan", order: null });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] });
+    vi.mocked(unwrap).mockResolvedValueOnce({ slug: "plan", name: "Plan", order: null, path: "boards/plan" });
     vi.mocked(unwrap).mockResolvedValueOnce(doc());
     await useBoard.getState().createBoard("plan", "Plan");
-    expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan", order: null }]);
+    expect(useBoard.getState().boards).toEqual([{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }]);
+  });
+});
+
+// ADR-0058: a board's folder moves; what was read of it, the pane, the
+// search and the way back follow it to its new key, and the tree lists the
+// two folders anew.
+describe("useBoard.moveBoard", () => {
+  it("moves the folder and keeps everything under the new key", async () => {
+    const atlas = doc({ slug: "atlas", name: "Atlas" });
+    useBoard.setState({
+      boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }],
+      slug: "atlas",
+      board: atlas,
+      docs: { atlas },
+      searches: { atlas: "spec" },
+      notices: {},
+    });
+    useUi.setState({ activeBoard: "atlas", boardReturn: { path: "a.md", board: "atlas" } });
+    const reload = vi.fn().mockResolvedValue(undefined);
+    useVault.setState({ reload });
+    vi.mocked(commands.boardWrite).mockClear();
+    vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "Projekte/atlas", name: "Atlas" }));
+    vi.mocked(unwrap).mockResolvedValueOnce([{ slug: "Projekte/atlas", name: "Atlas", order: null, path: "Projekte/atlas" }]);
+
+    expect(await useBoard.getState().moveBoard("atlas", "Projekte")).toBe("Projekte/atlas");
+
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, null, "Projekte");
+    const s = useBoard.getState();
+    expect(s.slug).toBe("Projekte/atlas");
+    expect(Object.keys(s.docs)).toEqual(["Projekte/atlas"]);
+    expect(s.board?.slug).toBe("Projekte/atlas");
+    expect(s.searches).toEqual({ "Projekte/atlas": "spec" });
+    expect(s.boards).toEqual([{ slug: "Projekte/atlas", name: "Atlas", order: null, path: "Projekte/atlas" }]);
+    expect(useUi.getState().activeBoard).toBe("Projekte/atlas");
+    expect(useUi.getState().boardReturn).toEqual({ path: "a.md", board: "Projekte/atlas" });
+    expect(reload.mock.calls).toEqual([[""], ["Projekte"]]);
+  });
+
+  it("lets go of a board that left the list", async () => {
+    const atlas = doc({ slug: "atlas", name: "Atlas" });
+    useBoard.setState({ slug: "atlas", board: atlas, docs: { atlas }, searches: { atlas: "x" }, notices: {} });
+    vi.mocked(unwrap).mockResolvedValueOnce([]);
+    await useBoard.getState().refreshList();
+    expect(useBoard.getState()).toMatchObject({ boards: [], docs: {}, searches: {}, slug: null, board: null });
   });
 });
 
@@ -214,8 +258,8 @@ describe("useBoard.placeBoard", () => {
   beforeEach(() => {
     useBoard.setState({
       boards: [
-        { slug: "atlas", name: "Atlas", order: null },
-        { slug: "zeta", name: "Zeta", order: null },
+        { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
+        { slug: "zeta", name: "Zeta", order: null, path: "boards/zeta" },
       ],
     });
     vi.mocked(commands.boardWrite).mockClear();
@@ -225,17 +269,17 @@ describe("useBoard.placeBoard", () => {
   it("writes the place and re-reads the list in the shell's order", async () => {
     vi.mocked(unwrap).mockResolvedValueOnce(doc({ slug: "atlas", name: "Atlas" }));
     vi.mocked(unwrap).mockResolvedValueOnce([
-      { slug: "zeta", name: "Zeta", order: "a0" },
-      { slug: "atlas", name: "Atlas", order: "a1" },
+      { slug: "zeta", name: "Zeta", order: "a0", path: "boards/zeta" },
+      { slug: "atlas", name: "Atlas", order: "a1", path: "boards/atlas" },
     ]);
 
     await useBoard.getState().placeBoard("atlas", { kind: "after", id: "zeta" });
 
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "after", id: "zeta" }, null);
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "after", id: "zeta" }, null, null);
     expect(commands.boardList).toHaveBeenCalledTimes(1);
     expect(useBoard.getState().boards).toEqual([
-      { slug: "zeta", name: "Zeta", order: "a0" },
-      { slug: "atlas", name: "Atlas", order: "a1" },
+      { slug: "zeta", name: "Zeta", order: "a0", path: "boards/zeta" },
+      { slug: "atlas", name: "Atlas", order: "a1", path: "boards/atlas" },
     ]);
   });
 
@@ -245,7 +289,7 @@ describe("useBoard.placeBoard", () => {
 
     await useBoard.getState().placeBoard("atlas", { kind: "last" });
 
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "last" }, null);
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, { kind: "last" }, null, null);
     expect(commands.boardList).toHaveBeenCalledTimes(1);
   });
 
@@ -301,8 +345,8 @@ describe("useBoard with every board read", () => {
   beforeEach(() => {
     useBoard.setState({
       boards: [
-        { slug: "plan", name: "Plan", order: null },
-        { slug: "atlas", name: "Atlas", order: null },
+        { slug: "plan", name: "Plan", order: null, path: "boards/plan" },
+        { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
       ],
       slug: "plan",
       board: null,
@@ -365,7 +409,7 @@ describe("useBoard with every board read", () => {
     const write = useBoard.getState().setView("atlas", { collapsed: true });
     const collapsed = { ...doc().view, collapsed: true };
     expect(useBoard.getState().docs.atlas?.view).toEqual(collapsed);
-    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, collapsed);
+    expect(commands.boardWrite).toHaveBeenCalledWith("atlas", null, null, null, collapsed, null);
     finish(doc({ slug: "atlas", view: collapsed }));
     await write;
 

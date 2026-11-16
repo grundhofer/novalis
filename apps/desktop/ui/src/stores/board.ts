@@ -13,6 +13,7 @@ import {
   type ColumnDto,
   type PositionDto,
 } from "../ipc/client";
+import { boardFolder, boardPath } from "../lib/paths";
 import { useUi } from "./ui";
 import { useVault } from "./vault";
 
@@ -125,6 +126,12 @@ interface BoardState {
    */
   placeBoard: (slug: string, place: PositionDto) => Promise<void>;
   /**
+   * Move a board's folder into `folder` (ADR-0058; `""` is the top level).
+   * What was read under the old key is kept under the new one, and the
+   * pane, the return button and the list follow. The new key.
+   */
+  moveBoard: (slug: string, folder: string) => Promise<string>;
+  /**
    * Move a card to another board (ADR-0019). The source is re-read without
    * the card, and the target if it was read before.
    */
@@ -202,7 +209,19 @@ export const useBoard = create<BoardState>((set, get) => ({
     // the list; its answer is about a vault that is no longer open.
     if (useVault.getState().vault?.root !== root) return;
     // The shell lists boards in display order (keyed ones first, ADR-0019).
-    set({ boards });
+    // A board that left the list (moved or trashed outside, ADR-0058) leaves
+    // what was read of it, so nothing re-reads a folder that is gone.
+    set((s) => {
+      const kept = (slug: string) => boards.some((b) => b.slug === slug);
+      const only = <T,>(map: Record<string, T>) => Object.fromEntries(Object.entries(map).filter(([slug]) => kept(slug)));
+      return {
+        boards,
+        docs: only(s.docs),
+        searches: only(s.searches),
+        notices: only(s.notices),
+        ...(s.slug !== null && !kept(s.slug) ? { slug: null, board: null } : {}),
+      };
+    });
   },
 
   apply: async (op, target) => {
@@ -230,13 +249,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   setColumns: async (columns, target) => {
     const slug = target ?? get().slug;
     if (!slug) return;
-    take(await unwrap(commands.boardWrite(slug, null, columns, null, null)), false);
+    take(await unwrap(commands.boardWrite(slug, null, columns, null, null, null)), false);
   },
 
   renameBoard: async (name, target) => {
     const slug = target ?? get().slug;
     if (!slug) return;
-    take(await unwrap(commands.boardWrite(slug, name, null, null, null)), false);
+    take(await unwrap(commands.boardWrite(slug, name, null, null, null, null)), false);
     set((s) => ({ boards: s.boards.map((b) => (b.slug === slug ? { ...b, name } : b)) }));
   },
 
@@ -253,7 +272,7 @@ export const useBoard = create<BoardState>((set, get) => ({
     const view = { ...before, ...change };
     shown(view);
     try {
-      take(await unwrap(commands.boardWrite(slug, null, null, null, view)), false);
+      take(await unwrap(commands.boardWrite(slug, null, null, null, view, null)), false);
     } catch (error) {
       shown(before);
       throw error;
@@ -268,10 +287,37 @@ export const useBoard = create<BoardState>((set, get) => ({
   },
 
   placeBoard: async (slug, place) => {
-    await unwrap(commands.boardWrite(slug, null, null, place, null));
+    await unwrap(commands.boardWrite(slug, null, null, place, null, null));
     // `refreshList` keeps its vault guard: a place that resolves after Open
     // Vault… is about a list that is no longer shown.
     await get().refreshList();
+  },
+
+  moveBoard: async (slug, folder) => {
+    const doc = await unwrap(commands.boardWrite(slug, null, null, null, null, folder));
+    const moved = doc.slug;
+    if (moved !== slug) {
+      const rekey = <T,>(map: Record<string, T>) =>
+        Object.fromEntries(Object.entries(map).map(([key, value]) => [key === slug ? moved : key, value]));
+      set((s) => ({
+        boards: s.boards.map((b) => (b.slug === slug ? { ...b, slug: moved, path: boardPath(moved) } : b)),
+        docs: rekey(s.docs),
+        searches: rekey(s.searches),
+        notices: rekey(s.notices),
+        ...(s.slug === slug ? { slug: moved } : {}),
+      }));
+      const ui = useUi.getState();
+      if (ui.activeBoard === slug) useUi.setState({ activeBoard: moved });
+      if (ui.boardReturn?.board === slug) ui.setBoardReturn({ ...ui.boardReturn, board: moved });
+      if (ui.cardEdit?.slug === slug) useUi.setState({ cardEdit: { ...ui.cardEdit, slug: moved } });
+    }
+    take(doc, true);
+    await get().refreshList();
+    // The tree lists the folders it came from and went to anew.
+    await Promise.all(
+      [...new Set([boardFolder(slug), boardFolder(moved)])].map((f) => useVault.getState().reload(f)),
+    );
+    return moved;
   },
 
   forget: (slug) =>

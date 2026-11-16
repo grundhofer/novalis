@@ -687,6 +687,9 @@ pub struct BoardRefDto {
     /// The board's place among the boards (ADR-0019); `None` until dragged.
     /// The list arrives in display order either way.
     pub order: Option<String>,
+    /// The board folder, vault-relative: `boards/<slug>`, or wherever it was
+    /// moved (ADR-0058).
+    pub path: String,
 }
 
 impl From<&BoardRef> for BoardRefDto {
@@ -695,6 +698,7 @@ impl From<&BoardRef> for BoardRefDto {
             slug: r.slug.clone(),
             name: r.name.clone(),
             order: r.order.clone(),
+            path: r.path.clone(),
         }
     }
 }

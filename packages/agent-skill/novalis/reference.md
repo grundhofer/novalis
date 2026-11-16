@@ -213,7 +213,7 @@ left alone, so a link in them still points at the old path.
 Flags: `--force`, `--materialize`, `--dry-run`. Moves the file to the macOS
 Trash (never a hard delete). Output `{path, danglingBacklinks: [path],
 danglingCards: [path], cloudOnly}`; `danglingCards` are the card files
-(`boards/<b>/cards/<id>.json`) whose `notes[]` point at the note. Exit 5
+(`<board folder>/cards/<id>.json`) whose `notes[]` point at the note. Exit 5
 while either list is non-empty unless `--force` (the error's `candidates`
 name both); exit 8 for a cloud-only note unless `--materialize`.
 
@@ -263,8 +263,11 @@ cloudOnlySkipped}`. Exit 5 on cloud-only skips unless `--force`.
 
 ### `board` — Status: harness
 
-`<b>` is the board **slug**, the folder name under `boards/`. A board that is
-not there is exit 3.
+`<b>` is the board **slug**: the folder name for a board in `boards/`, or the
+vault-relative folder path for a board moved into another folder
+(`Projekte/Kunde/plan`). The folder path works for every board
+(`boards/plan` = `plan`). A board that is not there is exit 3. A board is any
+folder below the vault's top folder that holds a valid `board.json`.
 
 - `board ls` → `{items:[{slug, name, path, columns:[{id,name}], cards}],
   truncated, cloudOnlySkipped}`. `path` is the board folder, `cards` is how
@@ -282,6 +285,13 @@ not there is exit 3.
   its `column` value, is listed in `orphanCards` and sorts first, as the first
   column: it is never lost. `--dry-run` writes nothing and answers with the
   columns the write would store and the `updated` still on disk.
+- `board mv <b> <folder>` moves the board's folder, cards and all, into
+  `<folder>` under its own folder name and answers in the `board show` shape
+  with the new `slug` and `path`. `""` is the top level, `boards/`. A folder
+  that is not there is exit 3; into the board itself, another board or a
+  hidden folder is exit 2; a name that is taken there is exit 4.
+  `--dry-run` moves nothing and answers with where it would go. novalis 1.4
+  and older look in `boards/` only and do not see a moved board.
 
 ### `card` — Status: harness
 
@@ -443,7 +453,7 @@ plain files but still produces conflict copies.
 `board` and `card` read and write these files. Never write them by hand.
 
 ```
-<vault>/boards/<slug>/
+<vault>/boards/<slug>/     # or any folder it was moved to, e.g. <vault>/Projekte/Kunde/<slug>/
 ├─ board.json          # presence of a valid board.json makes the folder a board
 ├─ cards/<ULID>.json   # one file per card
 └─ conflicts/          # losers of a same-card conflict, never deleted automatically

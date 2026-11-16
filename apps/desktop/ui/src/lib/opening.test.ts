@@ -21,7 +21,7 @@ describe("handleOpenRequests", () => {
     open = vi.fn().mockResolvedValue(undefined);
     load = vi.fn().mockResolvedValue(undefined);
     useTabs.setState({ open } as never);
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never, load } as never);
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] as never, load } as never);
     useVault.setState({ vault: { root: "/Users/me/Vault" } as never });
     useFiles.setState({ files: ["notes/a.md", "b.txt"] });
     useUi.setState({ message: null, activeBoard: null });

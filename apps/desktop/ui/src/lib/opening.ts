@@ -57,7 +57,7 @@ function openLink(raw: string): void {
     void useTabs.getState().open(path).catch(report);
     return;
   }
-  const board = path ? useBoard.getState().boards.find((b) => `boards/${b.slug}` === path) : undefined;
+  const board = path ? useBoard.getState().boards.find((b) => b.path === path) : undefined;
   if (board) {
     useUi.getState().setActiveBoard(board.slug);
     void useBoard.getState().load(board.slug).catch(report);

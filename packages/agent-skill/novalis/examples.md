@@ -222,6 +222,17 @@ novalis board columns projekte --set '[{"id":"offen","name":"Offen"},{"id":"arbe
 Column ids are stable and never shown; names are what the user sees and
 may change. Keep ids short and lowercase; `card ls --column` takes the id.
 
+To keep the board in the project's folder, move it there; from then on its
+slug is that folder path:
+
+```sh
+novalis board mv projekte "projects/Kunde X" --dry-run --json   # where it would go
+novalis board mv projekte "projects/Kunde X" --json             # slug: "projects/Kunde X/projekte"
+```
+
+Take the slug from that answer or from `board ls`, never build it. The
+recipes below use `projekte` for a board in `boards/`.
+
 ## 11. Add a project card with its fields
 
 ```sh

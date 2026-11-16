@@ -10,7 +10,7 @@ import {
   type VaultDto,
 } from "../ipc/client";
 import { isSupported } from "../lib/fileTypes";
-import { ancestorsOf, compareNs, folderOf } from "../lib/paths";
+import { ancestorsOf, boardFolder, compareNs, folderOf } from "../lib/paths";
 
 /**
  * The tree.
@@ -187,13 +187,13 @@ function orderEntries(entries: EntryDto[], sort: TreeSortDto, reversed: boolean)
 }
 
 /**
- * The row a board is drawn as: a synthetic entry at the root, named after the
- * board rather than its directory, so the tree does not need `boards/` to be
+ * The row a board is drawn as: a synthetic entry, named after the board
+ * rather than its directory, so the tree does not need `boards/` to be
  * expanded — or listed at all — to show it.
  */
 function boardEntry(board: BoardRefDto): EntryDto {
   return {
-    path: `boards/${board.slug}`,
+    path: board.path,
     name: board.name,
     dir: true,
     size: "0",
@@ -205,10 +205,11 @@ function boardEntry(board: BoardRefDto): EntryDto {
 }
 
 /**
- * Flatten the loaded, expanded folders into the list the virtualizer draws,
- * then the boards as the last root rows (ADR-0012). A board directory met
- * inside an expanded `boards` folder is skipped: it is drawn once, at the
- * root, from the vault's board list.
+ * Flatten the loaded, expanded folders into the list the virtualizer draws.
+ * A folder's boards come after its files (ADR-0058), in the list's own order;
+ * the boards of `boards/` are the root's last rows (ADR-0012). A board's
+ * directory met in a listing is skipped: it is drawn once, from the vault's
+ * board list, where the board belongs.
  */
 export function treeRows(
   children: Record<string, EntryDto[]>,
@@ -220,9 +221,7 @@ export function treeRows(
   const rows: TreeRow[] = [];
   // By flag, and by name for a directory listed before its `board.json`
   // arrived (a sync client writes them in two batches): drawn once either way.
-  const isBoard = (entry: EntryDto) =>
-    !!entry.boardSlug ||
-    (folderOf(entry.path) === "boards" && entry.dir && boards.some((b) => b.slug === entry.name));
+  const isBoard = (entry: EntryDto) => !!entry.boardSlug || (entry.dir && boards.some((b) => b.path === entry.path));
   const walk = (folder: string, depth: number) => {
     for (const entry of orderEntries(children[folder] ?? [], sort, reversed)) {
       if (isBoard(entry)) continue;
@@ -230,12 +229,12 @@ export function treeRows(
       rows.push({ entry, depth, expanded });
       if (expanded) walk(entry.path, depth + 1);
     }
+    // In the list's own order: the shell keys dragged boards first (ADR-0019).
+    for (const board of boards) {
+      if (boardFolder(board.slug) === folder) rows.push({ entry: boardEntry(board), depth, expanded: false });
+    }
   };
   walk("", 0);
-  // In the list's own order: the shell keys dragged boards first (ADR-0019).
-  for (const board of boards) {
-    rows.push({ entry: boardEntry(board), depth: 0, expanded: false });
-  }
   return rows;
 }
 

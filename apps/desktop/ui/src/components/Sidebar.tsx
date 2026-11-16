@@ -8,7 +8,7 @@ import { dispatchCommand, moveEntry, openTreeContextMenu } from "../lib/commands
 import { ariaKeyshortcutsOf, bindingFor, isOwnChord } from "../lib/keymap";
 import { copyIntoFolder } from "../lib/attachments";
 import { NO_DRAG_IMAGE } from "../lib/dragImage";
-import { folderOf, nsToMs } from "../lib/paths";
+import { boardFolder, folderOf, nsToMs } from "../lib/paths";
 import { windowRowHeight } from "../lib/windowRow";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, ENTRY_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
@@ -56,11 +56,12 @@ import Tool from "./Tool";
  * dragstart returns, so the drop would never fire (see BoardPane).
  *
  * A board row drags too (ADR-0019), under its own type, and takes two kinds
- * of drop: another board, placed after it, and a card of the open board
- * (from BoardPane), moved to it. A board dropped on the tree's space goes
- * last. Which kind a drag is comes from `dataTransfer.types`: the data
- * itself is unreadable until the drop, and the types are what keeps a file
- * off a board row and a board off a folder. The marks are sebaro's
+ * of drop: another board, placed after it — moved into its folder first when
+ * it lies elsewhere (ADR-0058) — and a card of the open board (from
+ * BoardPane), moved to it. A board dropped on a folder moves into it, on
+ * the tree's space to the top level, last. Which kind a drag is comes from
+ * `dataTransfer.types`: the data itself is unreadable until the drop, and
+ * the types are what keeps a file off a board row. The marks are sebaro's
  * (spec/02 §4.22, DSK-11), in `data-sb-state`: the dragged row keeps a 2 px
  * ink frame, a folder or board that takes the row a 3 px cobalt frame, a
  * board placed after another the 3 px cobalt line below it. HTML drag and
@@ -443,15 +444,33 @@ export default function Sidebar() {
     void moveEntry(path, toFolder).catch(report);
   };
 
-  /** A board dropped on board row `after`, or on the tree's space (`null`): last. */
+  /**
+   * A board dropped on board row `after`, or on the tree's space (`null`):
+   * into that board's folder or the top level (ADR-0058), then after it or
+   * last.
+   */
   const dropBoard = (event: DragEvent<HTMLDivElement>, after: string | null) => {
     const slug = event.dataTransfer.getData(BOARD_DRAG_TYPE);
     setOver(null);
     // On its own row: already there.
     if (!slug || slug === after) return;
+    const folder = after ? boardFolder(after) : "";
+    void (async () => {
+      const board = boardFolder(slug) === folder ? slug : await useBoard.getState().moveBoard(slug, folder);
+      await useBoard.getState().placeBoard(board, after ? { kind: "after", id: after } : { kind: "last" });
+    })().catch(report);
+  };
+
+  /** A board dropped on a folder (ADR-0058): its folder moves there. */
+  const dropBoardInto = (event: DragEvent<HTMLDivElement>, toFolder: string) => {
+    const slug = event.dataTransfer.getData(BOARD_DRAG_TYPE);
+    setOver(null);
+    if (!slug || boardFolder(slug) === toFolder) return;
     void useBoard
       .getState()
-      .placeBoard(slug, after ? { kind: "after", id: after } : { kind: "last" })
+      .moveBoard(slug, toFolder)
+      // Its folder opens, so the board is seen where it went.
+      .then((moved) => (boardFolder(moved) ? useVault.getState().reveal(moved) : undefined))
       .catch(report);
   };
 
@@ -670,8 +689,9 @@ export default function Sidebar() {
                 const isBoard = !!entry.boardSlug;
                 const isFolder = entry.dir && !isBoard;
                 const draggable = !entry.dir || isBoard;
-                // A folder takes a file; a board takes a board or a card.
-                const accepts: DragKind[] = isBoard ? ["board", "card"] : entry.dir ? ["file", "finder"] : [];
+                // A folder takes a file or a board (ADR-0058); a board takes a
+                // board or a card.
+                const accepts: DragKind[] = isBoard ? ["board", "card"] : entry.dir ? ["file", "finder", "board"] : [];
                 const dropTarget = accepts.length > 0;
                 const level = row.depth + 1;
                 const state =
@@ -749,7 +769,7 @@ export default function Sidebar() {
                               event.dataTransfer.dropEffect = kind === "finder" ? "copy" : "move";
                               // A board dropped on a board goes after it: the line
                               // between the rows; anything else goes into the row.
-                              const wanted: Drop["state"] = kind === "board" ? "drop-after" : "drop-into";
+                              const wanted: Drop["state"] = kind === "board" && isBoard ? "drop-after" : "drop-into";
                               if (over?.path !== entry.path || over.state !== wanted) {
                                 setOver({ path: entry.path, state: wanted });
                               }
@@ -775,7 +795,8 @@ export default function Sidebar() {
                               event.stopPropagation();
                               if (kind === "file") dropInto(event, entry.path);
                               else if (kind === "finder") dropFinder(event, entry.path);
-                              else if (kind === "board") dropBoard(event, entry.boardSlug);
+                              else if (kind === "board" && isBoard) dropBoard(event, entry.boardSlug);
+                              else if (kind === "board") dropBoardInto(event, entry.path);
                               else if (entry.boardSlug) dropCard(event, entry.boardSlug);
                             }
                           : undefined

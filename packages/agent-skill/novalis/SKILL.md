@@ -15,8 +15,9 @@ JSON shapes: `reference.md`. Worked recipes: `examples.md`.
 
 ## Invariants
 
-1. **Plain files are the truth.** A note is a `.md` file; a board is
-   `boards/<slug>/board.json` plus one `cards/<ULID>.json` per card. The note
+1. **Plain files are the truth.** A note is a `.md` file; a board is a folder
+   with `board.json` plus one `cards/<ULID>.json` per card, in `boards/<slug>/`
+   or in a project folder it was moved to (`board mv`). The note
    cache lives outside the vault, is disposable and is never yours: do not
    read, edit or delete anything under `.novalis/` or the app-data cache.
    `novalis index --rebuild` is the only reset.
@@ -89,7 +90,7 @@ Available now (the core harness):
 | `meta <note> [--set k=v] [--unset k] [--add-tag T] [--rm-tag T] [--if-match S]` | line-level frontmatter edit; unknown keys preserved |
 | `migrate [--apply] [--rename-to-title[=BOOL]] [--import-columns] [--force] [--materialize]` | one-time upgrade of a vault written by the old app; dry run unless `--apply` |
 | `help --json` | the command tree and the exit-code table |
-| `board ls` · `board show <b>` · `board new <b> [--name N]` · `board columns <b> --set <json>` | boards, columns, cards; `<b>` is the folder name under `boards/` |
+| `board ls` · `board show <b>` · `board new <b> [--name N]` · `board columns <b> --set <json>` · `board mv <b> <folder>` | boards, columns, cards; `<b>` is the slug from `board ls` (a folder name in `boards/`, or a folder path like `Projekte/Kunde/plan` for a board moved into a folder) |
 | `card ls [--board B] [--note N] [--column C] [--label L] [--priority P] [--assignee A] [--due overdue\|today\|7d\|none]` | which cards reference a note, carry a label, are overdue …; tombstones are never listed |
 | `card add <b> --title T [--description TEXT] [--column C] [--note N]… [--label L]… [--due YYYY-MM-DD] [--priority high\|medium\|low] [--assignee A] [--after ID\|--first\|--last]` | new card; default column = first, default position = last |
 | `card mv <id> …` · `card set <id> [--title T] [--description TEXT] [--label L]… \| [--add-label L] [--rm-label L] [--due D] [--priority P\|none] [--assignee A] …` · `card rm <id>` | one file per change; the id finds its own board; `--if-updated <rfc3339>` guards; an empty value (`--due ""`, `--label ""`, `--priority none`) clears |

@@ -736,8 +736,9 @@ pub fn build(
 
 /// The tree's context menu (ADR-0021): the File and Edit menus' own items,
 /// with their ids, for the row the UI has selected. A board row has its
-/// rename and delete in the board pane, so it gets "Show in Finder" alone;
-/// a folder has no "Move To…" (folders do not move, ADR-0018). Move to
+/// rename and delete in the board pane, so it gets "Show in Finder" and
+/// "Move To…" (ADR-0058) alone; a folder has no "Move To…" (folders do not
+/// move, ADR-0018). Move to
 /// Trash comes last after a separator, as in the card's menu (AKT-10,
 /// ADR-0051 #19).
 pub fn tree_context(
@@ -761,6 +762,7 @@ pub fn tree_context(
 fn tree_context_entries(board: bool, folder: bool) -> Vec<Option<(&'static str, &'static str)>> {
     let mut entries = vec![Some(("tree.reveal", "menu.file.revealInFinder"))];
     if board {
+        entries.push(Some(("tree.moveTo", "menu.edit.moveTo")));
         return entries;
     }
     entries.push(Some(("tree.openDefault", "menu.file.openInDefaultApp")));
@@ -1378,7 +1380,8 @@ mod tests {
     }
 
     // AKT-10, ADR-0051 #19: the destructive item last, after a separator,
-    // for a note and a folder alike; a board row shows only Show in Finder.
+    // for a note and a folder alike; a board row shows Show in Finder and
+    // Move To… only.
     #[test]
     fn tree_context_ends_with_move_to_trash_after_a_separator() {
         let ids = |board, folder| -> Vec<Option<&str>> {
@@ -1404,7 +1407,8 @@ mod tests {
         let folder = ids(false, true);
         assert!(!folder.contains(&Some("tree.moveTo")));
         assert_eq!(folder[folder.len() - 2..], [None, Some("tree.trash")]);
-        assert_eq!(ids(true, false), [Some("tree.reveal")]);
+        // ADR-0058: a board row moves too.
+        assert_eq!(ids(true, false), [Some("tree.reveal"), Some("tree.moveTo")]);
         for (_, key) in tree_context_entries(false, false).into_iter().flatten() {
             assert!(MENU_KEYS.contains(&key), "{key} is not in MENU_KEYS");
         }

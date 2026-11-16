@@ -112,9 +112,10 @@ fn visible_entries(root: &Path, folder: &str) -> IpcResult<Vec<EntryDto>> {
         let dir_b = b.kind == EntryKind::Dir;
         dir_b.cmp(&dir_a).then_with(|| a.name.cmp(&b.name))
     });
-    // A directory directly under `boards/` is a board only if it holds a valid
-    // `board.json`; anything else there is an ordinary folder (PLAN.md §5.5).
-    let in_boards_dir = folder == boards::BOARDS_DIR;
+    // A directory below the top folder is a board only if it holds a valid
+    // `board.json` (ADR-0058); anything else is an ordinary folder (PLAN.md
+    // §5.5).
+    let below_top = !folder.is_empty();
     // Conflict-copy detection belongs to the core, which owns the four naming
     // patterns; the UI used to guess with a narrower regex of its own, so its
     // count and `novalis doctor`'s disagreed. One directory listing is exactly
@@ -124,14 +125,10 @@ fn visible_entries(root: &Path, folder: &str) -> IpcResult<Vec<EntryDto>> {
     Ok(entries
         .iter()
         .map(|entry| {
-            let slug = if in_boards_dir
+            let slug = (below_top
                 && entry.kind == EntryKind::Dir
-                && boards::is_board_dir(&dir.join(&entry.name))
-            {
-                Some(entry.name.clone())
-            } else {
-                None
-            };
+                && boards::is_board_dir(&dir.join(&entry.name)))
+            .then(|| boards::slug_of(&join_rel(folder, &entry.name)));
             let conflict_of = if entry.kind == EntryKind::Dir {
                 None
             } else {
@@ -1168,6 +1165,7 @@ pub async fn board_create(
         }
         let board = boards::create_board(&root, &slug, &name, Vec::new())?;
         Ok(BoardRefDto {
+            path: boards::board_path(&slug),
             slug,
             name: board.name,
             order: board.order,
@@ -1180,7 +1178,9 @@ pub async fn board_create(
 /// (§8.5). Columns go through `set_columns`, which re-reads and replays on a
 /// conflict, so two devices reordering columns never lose one. `view` is how
 /// it shows in the boards view (ADR-0054), replayed the same way; keys of
-/// `view` this build does not know stay in the file.
+/// `view` this build does not know stay in the file. `folder` moves the
+/// board's folder there first (ADR-0058, `""` the top level); the answer
+/// carries the board's new key.
 #[tauri::command]
 #[specta::specta]
 pub async fn board_write(
@@ -1190,10 +1190,14 @@ pub async fn board_write(
     columns: Option<Vec<ColumnDto>>,
     place: Option<PositionDto>,
     view: Option<BoardViewDto>,
+    folder: Option<String>,
 ) -> IpcResult<BoardDto> {
     let root = state.require_vault()?;
     blocking(move || {
-        let slug = normalize_rel(&slug)?;
+        let mut slug = boards::validate_slug(&slug)?;
+        if let Some(folder) = folder {
+            slug = boards::move_board_to_folder(&root, &slug, &folder)?;
+        }
         // Where the board sits among the boards (ADR-0019): the key is
         // computed here from its neighbours, never sent by the UI.
         if let Some(place) = place {

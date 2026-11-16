@@ -1,6 +1,7 @@
 //! `novalis board` — the boards of a vault, one board with its cards, and the
-//! column list (PLAN.md §9.2). A board is `boards/<slug>/` with a valid
-//! `board.json`; the store itself lives in `novalis_core::boards`.
+//! column list (PLAN.md §9.2). A board is a folder with a valid
+//! `board.json`, in `boards/<slug>/` or moved anywhere below the vault's top
+//! folder (ADR-0058); the store itself lives in `novalis_core::boards`.
 
 use std::io::Write;
 
@@ -10,7 +11,7 @@ use novalis_core::CoreError;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::cli::{BoardArgs, BoardColumnsArgs, BoardCommand, BoardNewArgs};
+use crate::cli::{BoardArgs, BoardColumnsArgs, BoardCommand, BoardMvArgs, BoardNewArgs};
 use crate::ctx::Ctx;
 use crate::error::CliError;
 use crate::ops::card::{card_view, CardView};
@@ -74,9 +75,16 @@ pub enum BoardOut {
     Board(BoardDetailOut),
 }
 
-/// `boards/<slug>`, the vault-relative folder that is the board.
+/// The vault-relative folder that is the board: `boards/<slug>`, or the key
+/// itself for a board moved elsewhere (ADR-0058).
 pub fn board_path(slug: &str) -> String {
-    format!("{}/{slug}", boards::BOARDS_DIR)
+    boards::board_path(slug)
+}
+
+/// A `<board>` argument as the board's key: its name in `boards/`, or the
+/// vault-relative path of its folder (ADR-0058). Printed back in that form.
+pub fn board_key(arg: &str) -> Result<String, CliError> {
+    Ok(boards::validate_slug(arg)?)
 }
 
 /// Read `board.json`, with the vault-relative path in a `not_found` (exit 3):
@@ -187,11 +195,36 @@ pub fn run(ctx: &Ctx, args: BoardArgs) -> Result<BoardOut, CliError> {
         BoardCommand::Ls => list(ctx),
         BoardCommand::New(a) => new(ctx, a),
         BoardCommand::Show(a) => {
-            let board = read_board(ctx, &a.board)?;
-            detail(ctx, &a.board, &board, false)
+            let slug = board_key(&a.board)?;
+            let board = read_board(ctx, &slug)?;
+            detail(ctx, &slug, &board, false)
         }
         BoardCommand::Columns(a) => columns(ctx, a),
+        BoardCommand::Mv(a) => mv(ctx, a),
     }
+}
+
+/// `board mv` (ADR-0058): the board's folder, cards and all, into another
+/// folder under its own name; `""` is the top level, `boards/`. What the app
+/// does when a board is dragged onto a folder.
+fn mv(ctx: &Ctx, args: BoardMvArgs) -> Result<BoardOut, CliError> {
+    let slug = board_key(&args.board)?;
+    let board = read_board(ctx, &slug)?;
+    let (_, to) = boards::plan_board_move(&ctx.vault, &slug, &args.folder)?;
+    if ctx.dry_run {
+        return detail(ctx, &slug, &board, true).map(|out| match out {
+            BoardOut::Board(mut b) => {
+                b.slug = boards::slug_of(&to);
+                b.path = to;
+                b.cloud_only_skipped.clear();
+                BoardOut::Board(b)
+            }
+            other => other,
+        });
+    }
+    let moved = boards::move_board_to_folder(&ctx.vault, &slug, &args.folder)?;
+    let board = read_board(ctx, &moved)?;
+    detail(ctx, &moved, &board, false)
 }
 
 fn list(ctx: &Ctx) -> Result<BoardOut, CliError> {
@@ -254,14 +287,15 @@ fn new(ctx: &Ctx, args: BoardNewArgs) -> Result<BoardOut, CliError> {
 
 fn columns(ctx: &Ctx, args: BoardColumnsArgs) -> Result<BoardOut, CliError> {
     let wanted = parse_columns(&args.set)?;
+    let slug = board_key(&args.board)?;
     // The board must exist before anything is written or reported.
-    let mut board = read_board(ctx, &args.board)?;
+    let mut board = read_board(ctx, &slug)?;
     if ctx.dry_run {
         board.columns = wanted;
-        return detail(ctx, &args.board, &board, true);
+        return detail(ctx, &slug, &board, true);
     }
-    let written = boards::set_columns(&ctx.vault, &args.board, wanted)?;
-    detail(ctx, &args.board, &written, false)
+    let written = boards::set_columns(&ctx.vault, &slug, wanted)?;
+    detail(ctx, &slug, &written, false)
 }
 
 fn detail(ctx: &Ctx, slug: &str, board: &Board, dry_run: bool) -> Result<BoardOut, CliError> {

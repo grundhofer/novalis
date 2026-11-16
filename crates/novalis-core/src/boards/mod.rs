@@ -1,5 +1,6 @@
-//! Kanban boards (PLAN.md §8): `<vault>/boards/<slug>/board.json` plus one
-//! `cards/<ULID>.json` per card. Pretty-printed with sorted keys and a
+//! Kanban boards (PLAN.md §8): a folder with `board.json` plus one
+//! `cards/<ULID>.json` per card, in `<vault>/boards/<slug>/` or, moved there
+//! (ADR-0058), in any folder of the vault below its top folder. Pretty-printed with sorted keys and a
 //! trailing newline; unknown keys round-trip through `extra`; atomic writes
 //! under the read-time precondition with field-level replay; whole-card
 //! last-writer-wins on `updated` with verbatim winner bytes and losers kept
@@ -21,9 +22,10 @@ use crate::vault::fs::{
     create_atomic, list_dir, read_bytes, rename_excl, stat, trash, write_atomic, EntryKind,
     Precondition,
 };
-use crate::vault::path::{fold, is_hidden, nfc, normalize_rel};
+use crate::vault::path::{fold, is_hidden, join_rel, nfc, normalize_rel};
 
-/// The folder under the vault root that holds boards.
+/// The folder under the vault root that holds the boards of the tree's top
+/// level; a board moved into another folder lives there (ADR-0058).
 pub const BOARDS_DIR: &str = "boards";
 /// `board.json` format stamp.
 pub const BOARD_FORMAT: u32 = 1;
@@ -178,12 +180,15 @@ impl Card {
     }
 }
 
-/// A board found under `boards/`.
+/// A board found in the vault.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoardRef {
+    /// The board's key, see [`validate_slug`].
     pub slug: String,
     pub name: String,
     pub order: Option<String>,
+    /// The board folder, vault-relative ([`board_path`]).
+    pub path: String,
 }
 
 /// The list's order: keyed boards first by key, then the rest by name; the
@@ -304,25 +309,45 @@ pub fn is_ulid(s: &str) -> bool {
     ulid::Ulid::from_string(s).is_ok()
 }
 
-/// A board slug is one visible path segment under `boards/`; the normalized
-/// form, or `InvalidPath`.
+/// A board's key (ADR-0058): the folder's name for a board directly in
+/// `boards/`, as it always was, and the vault-relative folder path for a
+/// board anywhere else. `boards/<name>` is the same board as `<name>`. The
+/// normalized key, or `InvalidPath`.
 pub fn validate_slug(slug: &str) -> CoreResult<String> {
     let s = normalize_rel(slug)?;
-    if s.is_empty() || s.contains('/') || is_hidden(&s) {
+    // `Empty` for a hidden one too, as every earlier version said.
+    if s.is_empty() || s.split('/').any(is_hidden) {
         return Err(CoreError::InvalidPath {
             path: slug.to_string(),
             reason: crate::error::PathReason::Empty,
         });
     }
-    Ok(s)
+    Ok(slug_of(&s))
+}
+
+/// The key of the board in the vault-relative folder `rel` (normalized).
+pub fn slug_of(rel: &str) -> String {
+    match rel.strip_prefix(&format!("{BOARDS_DIR}/")) {
+        Some(name) if !name.contains('/') => name.to_string(),
+        _ => rel.to_string(),
+    }
+}
+
+/// The vault-relative folder of the board keyed `slug` (normalized).
+pub fn board_path(slug: &str) -> String {
+    if slug.contains('/') {
+        slug.to_string()
+    } else {
+        format!("{BOARDS_DIR}/{slug}")
+    }
 }
 
 fn board_dir(vault: &Path, slug: &str) -> CoreResult<PathBuf> {
-    Ok(vault.join(BOARDS_DIR).join(validate_slug(slug)?))
+    Ok(vault.join(board_path(&validate_slug(slug)?)))
 }
 
 fn board_rel(slug: &str, name: &str) -> String {
-    format!("{BOARDS_DIR}/{slug}/{name}")
+    format!("{}/{name}", board_path(slug))
 }
 
 fn parse_board(bytes: &[u8], path: &Path) -> CoreResult<Board> {
@@ -351,33 +376,119 @@ pub fn is_board_dir(dir: &Path) -> bool {
         .is_some()
 }
 
-/// Every folder under `boards/` with a valid `board.json`, in the order the
-/// tree shows them (see [`compare_refs`]).
+/// Every board of the vault, in the order of the boards view (see
+/// [`compare_refs`]): each folder below the top folder that holds a valid
+/// `board.json` (ADR-0058). A board's own folder is not searched further; a
+/// folder directly in the vault's top folder is never a board, so a key
+/// without `/` always means `boards/<key>`. Hidden folders and symlinks are
+/// skipped; a folder that cannot be listed (gone mid-sync) is left out.
 pub fn list_boards(vault: &Path) -> CoreResult<Vec<BoardRef>> {
-    let dir = vault.join(BOARDS_DIR);
-    let entries = match list_dir(&dir) {
-        Ok(e) => e,
-        Err(e) if e.is_not_found() => return Ok(Vec::new()),
-        Err(e) => return Err(e),
-    };
     let mut out = Vec::new();
-    for e in entries {
-        if e.kind != EntryKind::Dir || is_hidden(&e.name) {
-            continue;
-        }
-        let p = dir.join(&e.name).join("board.json");
-        if let Ok((bytes, _)) = read_bytes(&p) {
-            if let Ok(board) = parse_board(&bytes, &p) {
+    let mut stack = vec![String::new()];
+    while let Some(folder) = stack.pop() {
+        let entries = if folder.is_empty() {
+            list_dir(vault)?
+        } else {
+            match list_dir(&vault.join(&folder)) {
+                Ok(e) => e,
+                Err(_) => continue,
+            }
+        };
+        if folder.contains('/')
+            && entries
+                .iter()
+                .any(|e| e.kind == EntryKind::File && e.name == "board.json")
+        {
+            let p = vault.join(&folder).join("board.json");
+            if let Some(board) = read_bytes(&p)
+                .ok()
+                .and_then(|(bytes, _)| parse_board(&bytes, &p).ok())
+            {
                 out.push(BoardRef {
-                    slug: e.name.clone(),
+                    slug: slug_of(&folder),
                     name: board.name,
                     order: board.order,
+                    path: folder,
                 });
+                continue;
+            }
+        }
+        for e in entries {
+            if e.kind == EntryKind::Dir && !is_hidden(&e.name) {
+                stack.push(join_rel(&folder, &e.name));
             }
         }
     }
     out.sort_by(compare_refs);
     Ok(out)
+}
+
+/// Where [`move_board_to_folder`] would put the board keyed `slug`: its
+/// folder and the folder it would become, both vault-relative, after every
+/// check that move makes. The same two when it is already there.
+pub fn plan_board_move(vault: &Path, slug: &str, folder: &str) -> CoreResult<(String, String)> {
+    let slug = validate_slug(slug)?;
+    read_board(vault, &slug)?;
+    let from_rel = board_path(&slug);
+    let name = from_rel.rsplit('/').next().unwrap_or(&from_rel).to_string();
+    let parent = normalize_rel(folder)?;
+    let parent = if parent.is_empty() {
+        BOARDS_DIR.to_string()
+    } else {
+        parent
+    };
+    let refused = |reason| CoreError::InvalidPath {
+        path: parent.clone(),
+        reason,
+    };
+    if parent.split('/').any(is_hidden) {
+        return Err(refused(crate::error::PathReason::Hidden));
+    }
+    // The board itself, a folder in it, or a folder in another board.
+    let mut up = parent.as_str();
+    loop {
+        if up == from_rel || (up.contains('/') && is_board_dir(&vault.join(up))) {
+            return Err(refused(crate::error::PathReason::InBoard));
+        }
+        match up.rfind('/') {
+            Some(i) => up = &up[..i],
+            None => break,
+        }
+    }
+    // `boards/` itself may still be missing: the move makes it.
+    match stat(&vault.join(&parent)) {
+        Ok(st) if st.kind == EntryKind::Dir => {}
+        Err(e) if parent == BOARDS_DIR && e.is_not_found() => {}
+        _ => return Err(CoreError::NotFound { path: parent }),
+    }
+    let to_rel = join_rel(&parent, &name);
+    if to_rel != from_rel && std::fs::symlink_metadata(vault.join(&to_rel)).is_ok() {
+        return Err(CoreError::AlreadyExists { path: to_rel });
+    }
+    Ok((from_rel, to_rel))
+}
+
+/// Move a board's folder, `board.json` and cards with it, into `folder`
+/// (ADR-0058), keeping the folder's name; `""` is the tree's top level,
+/// `boards/`. Refused into the board itself or into another board, into a
+/// folder that is not there (`NotFound`), or where the name is taken
+/// (`AlreadyExists`). One `rename`, so a sync client sees a folder move.
+/// Returns the board's new key; moving it where it is changes nothing.
+pub fn move_board_to_folder(vault: &Path, slug: &str, folder: &str) -> CoreResult<String> {
+    let (from_rel, to_rel) = plan_board_move(vault, slug, folder)?;
+    if to_rel != from_rel {
+        let parent = vault.join(&to_rel);
+        if let Some(parent) = parent.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| CoreError::from_io(parent, e))?;
+        }
+        rename_excl(&vault.join(&from_rel), &vault.join(&to_rel)).map_err(|e| match e {
+            CoreError::AlreadyExists { .. } => CoreError::AlreadyExists {
+                path: to_rel.clone(),
+            },
+            other => other,
+        })?;
+    }
+    Ok(slug_of(&to_rel))
 }
 
 /// Put a board `position` among the vault's boards (ADR-0019): its key is
@@ -438,6 +549,14 @@ pub fn create_board(
     name: &str,
     columns: Vec<Column>,
 ) -> CoreResult<Board> {
+    // A new board is made in `boards/`; a folder elsewhere is reached by
+    // moving it there (ADR-0058).
+    if validate_slug(slug)?.contains('/') {
+        return Err(CoreError::InvalidPath {
+            path: slug.to_string(),
+            reason: crate::error::PathReason::Empty,
+        });
+    }
     let dir = board_dir(vault, slug)?;
     let board = Board {
         format: BOARD_FORMAT,
@@ -1215,6 +1334,7 @@ mod tests {
                 slug: "atlas".into(),
                 name: "Atlas".into(),
                 order: None,
+                path: "boards/atlas".into(),
             }]
         );
         assert!(matches!(
@@ -1247,6 +1367,135 @@ mod tests {
         assert!(list_boards(tempfile::tempdir().unwrap().path())
             .unwrap()
             .is_empty());
+    }
+
+    // ADR-0058: a board is a folder with a valid `board.json` anywhere below
+    // the vault's top folder; its key is its name in `boards/`, its path
+    // elsewhere.
+    #[test]
+    fn boards_are_found_in_any_folder_below_the_top_one() {
+        let t = vault();
+        let v = t.path();
+        create_board(v, "plan", "Plan", vec![]).unwrap();
+        let moved = move_board_to_folder(v, "plan", "").unwrap();
+        assert_eq!(moved, "plan");
+        std::fs::create_dir_all(v.join("Projekte/Kunde")).unwrap();
+        assert_eq!(
+            move_board_to_folder(v, "plan", "Projekte/Kunde").unwrap(),
+            "Projekte/Kunde/plan"
+        );
+        assert!(v.join("Projekte/Kunde/plan/board.json").is_file());
+        assert!(v.join("Projekte/Kunde/plan/cards").is_dir());
+        assert!(!v.join("boards/plan").exists());
+        // Not a board: a folder in the top folder, a hidden one, a board's own
+        // `cards/`, and a folder deep in `boards/` is a path again.
+        std::fs::create_dir_all(v.join("Top")).unwrap();
+        std::fs::copy(v.join("boards/atlas/board.json"), v.join("Top/board.json")).unwrap();
+        std::fs::create_dir_all(v.join(".hidden/x")).unwrap();
+        std::fs::copy(
+            v.join("boards/atlas/board.json"),
+            v.join(".hidden/x/board.json"),
+        )
+        .unwrap();
+        std::fs::create_dir_all(v.join("boards/atlas/cards/inner")).unwrap();
+        std::fs::copy(
+            v.join("boards/atlas/board.json"),
+            v.join("boards/atlas/cards/inner/board.json"),
+        )
+        .unwrap();
+        std::fs::create_dir_all(v.join("boards/group/deep")).unwrap();
+        std::fs::copy(
+            v.join("boards/atlas/board.json"),
+            v.join("boards/group/deep/board.json"),
+        )
+        .unwrap();
+        let refs = list_boards(v).unwrap();
+        let keys: Vec<(&str, &str)> = refs
+            .iter()
+            .map(|b| (b.slug.as_str(), b.path.as_str()))
+            .collect();
+        assert_eq!(
+            keys,
+            vec![
+                ("atlas", "boards/atlas"),
+                ("boards/group/deep", "boards/group/deep"),
+                ("Projekte/Kunde/plan", "Projekte/Kunde/plan")
+            ]
+        );
+        // Every key form reads the same board.
+        assert_eq!(validate_slug("boards/atlas").unwrap(), "atlas");
+        assert_eq!(
+            validate_slug("Projekte/Kunde/plan/").unwrap(),
+            "Projekte/Kunde/plan"
+        );
+        assert_eq!(
+            read_board(v, "Projekte/Kunde/plan").unwrap().board.name,
+            "Plan"
+        );
+        assert!(matches!(
+            validate_slug("a/.x"),
+            Err(CoreError::InvalidPath { .. })
+        ));
+        // A new board is made in `boards/` only.
+        assert!(matches!(
+            create_board(v, "Projekte/neu", "Neu", vec![]),
+            Err(CoreError::InvalidPath { .. })
+        ));
+        // Back to the top level.
+        assert_eq!(
+            move_board_to_folder(v, "Projekte/Kunde/plan", "boards").unwrap(),
+            "plan"
+        );
+    }
+
+    #[test]
+    fn a_board_moves_only_where_its_folder_can_go() {
+        let t = vault();
+        let v = t.path();
+        std::fs::create_dir_all(v.join("Projekte/plan")).unwrap();
+        let in_board = |r: CoreResult<String>| {
+            matches!(
+                r,
+                Err(CoreError::InvalidPath {
+                    reason: crate::error::PathReason::InBoard,
+                    ..
+                })
+            )
+        };
+        // Into itself, into a folder in it, into another board.
+        assert!(in_board(move_board_to_folder(v, "atlas", "boards/atlas")));
+        assert!(in_board(move_board_to_folder(
+            v,
+            "atlas",
+            "boards/atlas/cards"
+        )));
+        std::fs::create_dir_all(v.join("boards/zweit/sub")).unwrap();
+        create_board(v, "zweit", "Zweit", vec![]).unwrap();
+        assert!(in_board(move_board_to_folder(
+            v,
+            "atlas",
+            "boards/zweit/sub"
+        )));
+        // A name that is taken, a folder that is not there, a hidden one.
+        std::fs::create_dir_all(v.join("Projekte/atlas")).unwrap();
+        assert!(matches!(
+            move_board_to_folder(v, "atlas", "Projekte"),
+            Err(CoreError::AlreadyExists { path }) if path == "Projekte/atlas"
+        ));
+        assert!(matches!(
+            move_board_to_folder(v, "atlas", "Nirgends"),
+            Err(CoreError::NotFound { .. })
+        ));
+        assert!(matches!(
+            move_board_to_folder(v, "atlas", ".git"),
+            Err(CoreError::InvalidPath { .. })
+        ));
+        assert!(matches!(
+            move_board_to_folder(v, "fehlt", "Projekte"),
+            Err(CoreError::NotFound { .. })
+        ));
+        // Nothing moved on the way.
+        assert!(v.join("boards/atlas/board.json").is_file());
     }
 
     #[test]

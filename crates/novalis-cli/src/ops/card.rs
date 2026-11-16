@@ -21,7 +21,7 @@ use crate::cli::{
 };
 use crate::ctx::Ctx;
 use crate::error::{CliError, EXIT_NOT_FOUND};
-use crate::ops::board::{board_path, read_board, resolve_column, sort_by_columns};
+use crate::ops::board::{board_key, board_path, read_board, resolve_column, sort_by_columns};
 use crate::output::Render;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -280,7 +280,7 @@ pub fn run(ctx: &Ctx, args: CardArgs) -> Result<CardOut, CliError> {
 fn list(ctx: &Ctx, args: CardLsArgs) -> Result<CardOut, CliError> {
     // A named board must exist, even when it holds nothing.
     let slugs: Vec<String> = match &args.board {
-        Some(slug) => vec![slug.clone()],
+        Some(slug) => vec![crate::ops::board::board_key(slug)?],
         None => boards::list_boards(&ctx.vault)?
             .into_iter()
             .map(|b| b.slug)
@@ -368,7 +368,8 @@ fn list(ctx: &Ctx, args: CardLsArgs) -> Result<CardOut, CliError> {
     }))
 }
 
-fn add(ctx: &Ctx, args: CardAddArgs) -> Result<CardOut, CliError> {
+fn add(ctx: &Ctx, mut args: CardAddArgs) -> Result<CardOut, CliError> {
+    args.board = board_key(&args.board)?;
     let board = read_board(ctx, &args.board)?;
     let column = match &args.column {
         Some(c) => Some(resolve_column(&args.board, &board, c)?),

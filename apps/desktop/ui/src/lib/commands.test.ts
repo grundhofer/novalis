@@ -511,7 +511,7 @@ describe("tree context menu and reveal", () => {
   // ADR-0043: the file in its default app; a board row is no file.
   it("opens the target in the default app, never a board row", async () => {
     const { useBoard } = await import("../stores/board");
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] as never });
     useVault.setState({ selected: "Notes/a.md" });
     await dispatchCommand("tree.openDefault");
     expect(commands.systemOpen).toHaveBeenLastCalledWith({ kind: "default", path: "Notes/a.md" });
@@ -600,7 +600,7 @@ describe("board.newCard in the palette", () => {
     useUi.setState({ activeBoard: null });
     useBoard.setState({ boards: [], slug: null });
     expect(ids()).not.toContain("board.newCard");
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] as never });
     expect(ids()).toContain("board.newCard");
     useBoard.setState({ boards: [{ slug: "a" }, { slug: "b" }] as never });
     expect(ids()).not.toContain("board.newCard");
@@ -652,7 +652,7 @@ describe("deleting a board", () => {
     useTabs.setState({ active: null });
     useUi.setState({ prompt: null, activeBoard: "plan" });
     useBoard.setState({
-      boards: [{ slug: "plan", name: "Plan", order: null }, { slug: "ideas", name: "Ideas", order: null }] as never,
+      boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }, { slug: "ideas", name: "Ideas", order: null, path: "boards/ideas" }] as never,
       slug: "plan",
       board: { slug: "plan" } as never,
     });
@@ -695,7 +695,7 @@ describe("card ↔ note", () => {
     const apply = vi.fn().mockResolvedValue(undefined);
     const board = { slug: "plan", name: "Plan", columns: [{ id: "todo", name: "To do" }], cards };
     useBoard.setState({
-      boards: [{ slug: "plan", name: "Plan", order: null }] as never,
+      boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] as never,
       slug: "plan",
       board: board as never,
       docs: { plan: board as never },
@@ -863,7 +863,7 @@ describe("tree.moveTo", () => {
     stores = stubStores();
     reveal.mockClear();
     const { useBoard } = await import("../stores/board");
-    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null }] as never });
+    useBoard.setState({ boards: [{ slug: "plan", name: "Plan", order: null, path: "boards/plan" }] as never });
     useVault.setState({
       reveal,
       children: {
@@ -1030,9 +1030,31 @@ describe("tree.moveTo", () => {
     expect(useTabs.getState().active).toBe("a.md");
   });
 
-  it("does nothing for a folder, a board row or a file from outside the vault", async () => {
+  // ADR-0058: a board row moves too, its folder with its cards; the root is
+  // the top level, so `boards/` and the board's own folder are no choice.
+  it("moves a board row into the folder picked", async () => {
+    const { useBoard } = await import("../stores/board");
+    const moveBoard = vi.fn().mockResolvedValue("Archive/plan");
+    useBoard.setState({ moveBoard });
+    focusIn('<nav class="sb-side-nav sb-window__sidebar" id="sidebar"><div role="treeitem" tabindex="0"></div></nav>');
+    useVault.setState({ focused: "boards/plan" });
+    dispatchCommand("tree.moveTo");
+    const overlay = useUi.getState().overlay;
+    expect(overlay.kind).toBe("pickFolder");
+    if (overlay.kind !== "pickFolder") return;
+    expect(overlay.name).toBe("Plan");
+    expect(overlay.folders).toEqual(["Archive", "Empty", "Notes", "Notes/sub", "Notes/sub/deep"]);
+
+    await overlay.onPick("Archive");
+
+    expect(moveBoard).toHaveBeenCalledWith("plan", "Archive");
+    expect(reveal).toHaveBeenCalledWith("Archive/plan");
+    expect(useVault.getState()).toMatchObject({ focused: "Archive/plan", takeFocus: true });
+  });
+
+  it("does nothing for a folder or a file from outside the vault", async () => {
     const { paletteCommands } = await import("./commands");
-    for (const focused of ["Notes", "boards/plan", "/elsewhere/x.md"]) {
+    for (const focused of ["Notes", "/elsewhere/x.md"]) {
       useVault.setState({ focused });
       dispatchCommand("tree.moveTo");
       expect(useUi.getState().overlay.kind).toBe("none");
