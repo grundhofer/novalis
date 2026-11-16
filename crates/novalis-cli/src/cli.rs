@@ -81,7 +81,7 @@ pub enum Command {
     Doctor,
     /// Print the command contract, with --json for agents.
     Help,
-    /// List the boards, show one, or replace a board's column list.
+    /// List the boards, show one, replace a board's column list, or move it.
     Board(BoardArgs),
     /// List, add, move, change and remove cards.
     Card(CardArgs),
@@ -128,7 +128,10 @@ impl Command {
             Command::Index(a) => a.rebuild,
             // `board` and `card` are like `index`: the subcommand decides.
             Command::Board(a) => {
-                matches!(a.command, BoardCommand::Columns(_) | BoardCommand::New(_))
+                matches!(
+                    a.command,
+                    BoardCommand::Columns(_) | BoardCommand::New(_) | BoardCommand::Mv(_)
+                )
             }
             Command::Card(a) => !matches!(a.command, CardCommand::Ls(_)),
             other => always_mutates(other.name()),
@@ -433,6 +436,17 @@ pub enum BoardCommand {
     Show(BoardShowArgs),
     /// Replace the column list of a board.
     Columns(BoardColumnsArgs),
+    /// Move a board's folder, with its cards, into another folder.
+    Mv(BoardMvArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct BoardMvArgs {
+    /// The board: its slug, or the vault-relative path of its folder.
+    pub board: String,
+    /// The folder to move it into, vault-relative; "" is the top level,
+    /// `boards/`. The board keeps its folder name.
+    pub folder: String,
 }
 
 #[derive(Debug, Args)]
@@ -446,13 +460,13 @@ pub struct BoardNewArgs {
 
 #[derive(Debug, Args)]
 pub struct BoardShowArgs {
-    /// The board slug, the folder name under `boards/`.
+    /// The board: its slug, or the vault-relative path of its folder.
     pub board: String,
 }
 
 #[derive(Debug, Args)]
 pub struct BoardColumnsArgs {
-    /// The board slug, the folder name under `boards/`.
+    /// The board: its slug, or the vault-relative path of its folder.
     pub board: String,
     /// The new column list as JSON: `[{"id":"todo","name":"To Do"}]`.
     #[arg(long, value_name = "JSON", required = true)]
@@ -528,7 +542,7 @@ pub struct CardLsArgs {
 
 #[derive(Debug, Args)]
 pub struct CardAddArgs {
-    /// The board slug, the folder name under `boards/`.
+    /// The board: its slug, or the vault-relative path of its folder.
     pub board: String,
     #[arg(long, value_name = "TEXT", allow_hyphen_values = true, required = true)]
     pub title: String,

@@ -118,3 +118,20 @@ export function providerOf(absolutePath: string): string | null {
   const domain = match[1]!.split("-")[0]!;
   return domain === "GoogleDrive" ? "Google Drive" : domain;
 }
+
+/**
+ * A board's folder, vault-relative (ADR-0058): `boards/<slug>` for a board
+ * of the tree's top level, the key itself for one moved into a folder.
+ */
+export function boardPath(slug: string): string {
+  return slug.includes("/") ? slug : `boards/${slug}`;
+}
+
+/**
+ * The tree folder a board is drawn in, and the one a move names: `""` for a
+ * board in `boards/` — the tree's top level — else its folder's parent.
+ */
+export function boardFolder(slug: string): string {
+  if (!slug.includes("/")) return "";
+  return slug.slice(0, slug.lastIndexOf("/"));
+}

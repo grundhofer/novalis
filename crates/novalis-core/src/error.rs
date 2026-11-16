@@ -26,6 +26,9 @@ pub enum PathReason {
     NotMarkdown,
     /// A component below the vault root is a symlink.
     Symlink,
+    /// A board's folder cannot go into itself or into another board
+    /// (ADR-0058).
+    InBoard,
 }
 
 /// All failures the core can produce.

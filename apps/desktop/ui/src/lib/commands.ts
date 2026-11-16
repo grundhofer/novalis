@@ -7,7 +7,7 @@ import {
   runEditorCommand,
 } from "./editorBridge";
 import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
-import { commands, NovalisError, unwrap, type CardDto, type MenuTargetsDto } from "../ipc/client";
+import { commands, NovalisError, unwrap, type BoardRefDto, type CardDto, type MenuTargetsDto } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
@@ -17,7 +17,7 @@ import { useVault } from "../stores/vault";
 import { previewKind, viewKind } from "./fileTypes";
 import { localIsoDay } from "./localTime";
 import { resolveWikiTarget, wikiLinkFor } from "./links";
-import { ancestorsOf, fileNameOf, folderOf, isExternal, isNote, joinRel } from "./paths";
+import { ancestorsOf, boardFolder, boardPath, fileNameOf, folderOf, isExternal, isNote, joinRel } from "./paths";
 import { leaveSettingsView, openSettingsView } from "./settingsView";
 import { uiStateNow } from "./uiState";
 import { toggleSidebar } from "./windowFit";
@@ -227,7 +227,7 @@ function movablePath(): string | null {
  * file's own folder is left out, since moving there does nothing.
  */
 function moveTargets(path: string): string[] {
-  const boardDirs = useBoard.getState().boards.map((b) => `boards/${b.slug}`);
+  const boardDirs = useBoard.getState().boards.map((b) => b.path);
   const isBoardDir = (folder: string) => boardDirs.some((dir) => folder === dir || folder.startsWith(`${dir}/`));
   const folders = new Set<string>([""]);
   for (const file of useFiles.getState().files) for (const folder of ancestorsOf(file)) folders.add(folder);
@@ -250,6 +250,8 @@ function moveTargets(path: string): string[] {
  * ADR-0051 #39) — the one undo novalis has for a move; a drop shows its row.
  */
 function moveTo(): void {
+  const board = movableBoard();
+  if (board) return moveBoardTo(board);
   const path = movablePath();
   if (!path) return;
   const fromTree = currentArea()?.id === "sidebar";
@@ -273,6 +275,50 @@ function moveTo(): void {
           { folder: folderLabel(folder) },
           { labelKey: "app.undo", run: () => moveBack(target, path) },
         );
+    },
+  });
+}
+
+/** The board Move To… acts on (ADR-0058): the tree's board row. */
+function movableBoard(): BoardRefDto | null {
+  const path = targetPath();
+  return useBoard.getState().boards.find((b) => b.path === path) ?? null;
+}
+
+/**
+ * Move To… for a board (ADR-0058): its folder, cards and all, into the
+ * folder chosen; the vault's root is the tree's top level, `boards/`. Seen
+ * where it went as a file is, and „Rückgängig“ in the toast moves it back.
+ */
+function moveBoardTo(board: BoardRefDto): void {
+  const fromTree = currentArea()?.id === "sidebar";
+  const from = boardFolder(board.slug);
+  useUi.getState().setOverlay({
+    kind: "pickFolder",
+    name: board.name,
+    // `boards/` is the root's, and the board's own folder is where it is.
+    folders: moveTargets(board.path).filter((folder) => folder !== "boards" && folder !== from),
+    onPick: async (folder) => {
+      const moved = await useBoard.getState().moveBoard(board.slug, folder);
+      if (boardFolder(moved)) await useVault.getState().reveal(moved);
+      const path = boardPath(moved);
+      if (sidebarShown(useUi.getState())) {
+        useVault.getState().focus(path, fromTree, true);
+        return;
+      }
+      useVault.getState().focus(path);
+      useUi.getState().showToast(
+        "tree.movedTo",
+        { folder: folderLabel(folder) },
+        {
+          labelKey: "app.undo",
+          run: () =>
+            useBoard
+              .getState()
+              .moveBoard(moved, from)
+              .then(() => undefined),
+        },
+      );
     },
   });
 }
@@ -322,18 +368,18 @@ export function deleteBoard(slug: string): void {
       confirmKey: "app.confirmTrash.confirm",
     },
     submit: async () => {
-      await unwrap(commands.trash(`boards/${slug}`));
+      await unwrap(commands.trash(boardPath(slug)));
       useBoard.getState().forget(slug);
       if (useUi.getState().activeBoard === slug) useUi.getState().setActiveBoard(null);
-      await useVault.getState().reload("boards");
+      await useVault.getState().reload(folderOf(boardPath(slug)));
     },
   });
 }
 
 async function trashPath(path: string): Promise<void> {
-  // A board row in the tree is `boards/<slug>`: it gets the board's own
+  // A board row in the tree is its folder: it gets the board's own
   // confirmation and clean-up, not the file's (ADR-0034).
-  const board = useBoard.getState().boards.find((b) => `boards/${b.slug}` === path);
+  const board = useBoard.getState().boards.find((b) => b.path === path);
   if (board) return deleteBoard(board.slug);
   // Cmd-Delete reaches here from anywhere focus is not inside the editor, so
   // the one destructive command in the app asks first.
@@ -440,7 +486,9 @@ export async function createNoteFromCard(card: CardDto): Promise<void> {
   const name = noteNameOfTitle(card.title);
   if (!name) return;
   const target = targetFolder();
-  const folder = target === "boards" || target.startsWith("boards/") ? "" : target;
+  // Not into a board's folder: beside the board, in its tree folder (ADR-0058).
+  const inBoard = useBoard.getState().boards.find((b) => target === b.path || target.startsWith(`${b.path}/`));
+  const folder = target === "boards" ? "" : inBoard ? boardFolder(inBoard.slug) : target;
   let path = joinRel(folder, `${name}.md`);
   try {
     path = (await unwrap(commands.createNote(folder, name))).path;
@@ -514,9 +562,9 @@ function searchSeed(): string | undefined {
   return seed && !/[\r\n]/.test(seed) && seed.length <= 100 ? seed : undefined;
 }
 
-/** A board's tree row (`boards/<slug>`), which is no file to hand anywhere. */
+/** A board's tree row (its folder), which is no file to hand anywhere. */
 function isBoardPath(path: string): boolean {
-  return useBoard.getState().boards.some((b) => `boards/${b.slug}` === path);
+  return useBoard.getState().boards.some((b) => b.path === path);
 }
 
 /**
@@ -658,7 +706,7 @@ export function menuTargetsNow(): MenuTargetsDto {
     editor: text && !boardVisible && !settingsView,
     path: path !== null,
     vaultPath: path !== null && !isExternal(path),
-    movable: movablePath() !== null,
+    movable: movablePath() !== null || movableBoard() !== null,
     back: historyIndex > 0,
     forward: historyIndex < history.length - 1,
     reopen: closed.length > 0,
@@ -909,7 +957,7 @@ export function paletteCommands(): readonly {
   { id: "tab.closeAll", labelKey: "palette.cmd.closeAllTabs" },
   { id: "tree.rename", labelKey: "menu.file.rename" },
   // Only for a file that can move (DSK-11).
-  ...(movablePath() ? [{ id: "tree.moveTo", labelKey: "menu.edit.moveTo" }] : []),
+  ...(movablePath() || movableBoard() ? [{ id: "tree.moveTo", labelKey: "menu.edit.moveTo" }] : []),
   { id: "tree.trash", labelKey: "menu.edit.moveToTrash" },
   { id: "tree.reveal", labelKey: "menu.file.revealInFinder" },
   { id: "tree.openDefault", labelKey: "menu.file.openInDefaultApp" },

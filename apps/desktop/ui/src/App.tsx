@@ -22,7 +22,7 @@ import { createDispatch, menuTargetsNow, newNote } from "./lib/commands";
 import { openExternal, SCHEME } from "./lib/external";
 import { watchFullscreen } from "./lib/fullscreen";
 import { handleOpenRequests } from "./lib/opening";
-import { folderOf, isExternal } from "./lib/paths";
+import { boardPath, folderOf, isExternal } from "./lib/paths";
 import { isSupported, previewKind, viewKind } from "./lib/fileTypes";
 import { chordOf, commandForChord, fieldKeeps } from "./lib/keymap";
 import { resolveDestination, resolveWikiTarget } from "./lib/links";
@@ -57,13 +57,19 @@ const SettingsView = lazy(() => import("./components/SettingsView"));
 /** `state.json` is written at most this often while the user moves things. */
 const STATE_SAVE_MS = 400;
 /**
- * A board's `board.json`, the board folder, or `boards/` itself: what a board
- * arriving by sync or the CLI touches, and what trashing or renaming the
- * folder does. The list of boards is otherwise read once, when the vault
+ * A `board.json`, a folder directly in `boards/`, `boards/` itself, or a
+ * known board's folder or one it lies in: what a board arriving by sync or
+ * the CLI touches, and what trashing, renaming or moving a folder does
+ * (ADR-0058). The list of boards is otherwise read once, when the vault
  * opens, so it never learned of them.
  */
 function touchesBoardList(path: string): boolean {
-  return path === "boards" || /^boards\/[^/]+(\/board\.json)?$/.test(path);
+  return (
+    path === "boards" ||
+    path.endsWith("/board.json") ||
+    /^boards\/[^/]+$/.test(path) ||
+    useBoard.getState().boards.some((b) => b.path === path || b.path.startsWith(`${path}/`))
+  );
 }
 
 export default function App() {
@@ -207,10 +213,12 @@ export default function App() {
       const { slug: current, docs } = useBoard.getState();
       const read = [...new Set([...Object.keys(docs), ...(current ? [current] : [])])];
       const touched = read.filter((slug) =>
-        [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`boards/${slug}/`)),
+        [...batch.added, ...batch.modified].some((e) => e.path.startsWith(`${boardPath(slug)}/`)),
       );
       if (touched.length > 0) void useBoard.getState().refresh(touched).catch(reportBackground);
       if (
+        // A folder that arrives may hold a board (moved in by sync, ADR-0058).
+        batch.added.some((e) => e.dir) ||
         [...batch.added, ...batch.modified].some((e) => touchesBoardList(e.path)) ||
         batch.removed.some(touchesBoardList) ||
         batch.renamed.some((r) => touchesBoardList(r.from) || touchesBoardList(r.to))

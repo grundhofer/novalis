@@ -947,3 +947,93 @@ fn agent_test_findings_stay_fixed() {
         assert_eq!(run(&args).1, 2, "{args:?}");
     }
 }
+
+// ADR-0058: `board mv` takes a board's folder, cards and all, into another
+// folder; from then on its key is that path, and its cards are found by id.
+#[test]
+fn a_board_moves_into_a_folder() {
+    let tmp = tempfile::tempdir().expect("a temporary directory");
+    let root = tmp.path().canonicalize().expect("canonical temp root");
+    let vault = root.join("vault");
+    copy_dir(&demo_vault(), &vault);
+    std::fs::create_dir_all(vault.join("Projekte/Kunde")).expect("the target folder");
+    let run = |args: &[&str]| -> (serde_json::Value, i32) {
+        let out = Command::new(BIN)
+            .arg("--vault")
+            .arg(&vault)
+            .args(args)
+            .current_dir(&root)
+            .env("HOME", &root)
+            .env_remove("NOVALIS_VAULT")
+            .output()
+            .unwrap_or_else(|e| panic!("cannot run {BIN}: {e}"));
+        let code = out.status.code().unwrap_or(-1);
+        let raw = if out.stdout.is_empty() {
+            &out.stderr
+        } else {
+            &out.stdout
+        };
+        let value = serde_json::from_slice(raw)
+            .unwrap_or_else(|e| panic!("{args:?} printed no JSON ({e}): {raw:?}"));
+        (value, code)
+    };
+    assert_eq!(run(&["board", "new", "p", "--name", "P"]).1, 0);
+    let set = r#"[{"id":"todo","name":"To Do"}]"#;
+    assert_eq!(run(&["board", "columns", "p", "--set", set]).1, 0);
+    let (card, code) = run(&["card", "add", "p", "--title", "Eins"]);
+    assert_eq!(code, 0, "{card}");
+    let id = card["card"]["id"]
+        .as_str()
+        .expect("the card id")
+        .to_string();
+
+    // A dry run says where it would go and moves nothing.
+    let (dry, code) = run(&["--dry-run", "board", "mv", "p", "Projekte/Kunde"]);
+    assert_eq!(code, 0, "{dry}");
+    assert_eq!(dry["slug"], "Projekte/Kunde/p");
+    assert_eq!(dry["path"], "Projekte/Kunde/p");
+    assert_eq!(dry["dryRun"], true);
+    assert!(vault.join("boards/p/board.json").is_file());
+
+    let (moved, code) = run(&["board", "mv", "p", "Projekte/Kunde"]);
+    assert_eq!(code, 0, "{moved}");
+    assert_eq!(moved["slug"], "Projekte/Kunde/p");
+    assert_eq!(moved["cards"][0]["board"], "Projekte/Kunde/p");
+    assert!(vault
+        .join(format!("Projekte/Kunde/p/cards/{id}.json"))
+        .is_file());
+    assert!(!vault.join("boards/p").exists());
+
+    let (list, _) = run(&["board", "ls"]);
+    let item = list["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .find(|b| b["slug"] == "Projekte/Kunde/p")
+        .unwrap_or_else(|| panic!("the moved board in {list}"))
+        .clone();
+    assert_eq!(item["path"], "Projekte/Kunde/p");
+    let (cards, _) = run(&["card", "ls", "--board", "Projekte/Kunde/p/"]);
+    assert_eq!(cards["items"].as_array().expect("items").len(), 1);
+    let (changed, code) = run(&["card", "set", &id, "--title", "Zwei"]);
+    assert_eq!(code, 0, "{changed}");
+    assert_eq!(changed["card"]["board"], "Projekte/Kunde/p");
+    assert_eq!(run(&["board", "show", "p"]).1, 3);
+
+    // Refused: a folder that is not there (3), into the board itself (2),
+    // a name that is taken (4).
+    assert_eq!(run(&["board", "mv", "Projekte/Kunde/p", "Nirgends"]).1, 3);
+    assert_eq!(
+        run(&["board", "mv", "Projekte/Kunde/p", "Projekte/Kunde/p/cards"]).1,
+        2
+    );
+    assert_eq!(run(&["board", "new", "q"]).1, 0);
+    std::fs::create_dir_all(vault.join("Projekte/Kunde/q")).expect("a folder named q");
+    assert_eq!(run(&["board", "mv", "q", "Projekte/Kunde"]).1, 4);
+
+    // "" is the top level, `boards/`.
+    let (back, code) = run(&["board", "mv", "Projekte/Kunde/p", ""]);
+    assert_eq!(code, 0, "{back}");
+    assert_eq!(back["slug"], "p");
+    assert_eq!(back["path"], "boards/p");
+}

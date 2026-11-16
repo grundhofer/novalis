@@ -153,7 +153,9 @@ export const commands = {
 	 *  (§8.5). Columns go through `set_columns`, which re-reads and replays on a
 	 *  conflict, so two devices reordering columns never lose one. `view` is how
 	 *  it shows in the boards view (ADR-0054), replayed the same way; keys of
-	 *  `view` this build does not know stay in the file.
+	 *  `view` this build does not know stay in the file. `folder` moves the
+	 *  board's folder there first (ADR-0058, `""` the top level); the answer
+	 *  carries the board's new key.
 	 */
 	boardWrite: (slug: string, name: string | null, columns: ColumnDto[] | null, place: { kind: "first" } | { kind: "last" } | { kind: "after"; id: string } | null, view: {
 	collapsed: boolean,
@@ -167,7 +169,7 @@ export const commands = {
 	sortReversed: boolean,
 	/**  Each label's tone on this board, 1 to 6 (`--sb-category-1…6`). */
 	labelTones: { [key in string]: number },
-} | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, view })),
+} | null, folder: string | null) => typedError<BoardDto, IpcError>(__TAURI_INVOKE("board_write", { slug, name, columns, place, view, folder })),
 	/**
 	 *  The one write the board pane makes. Every variant is a single replayable
 	 *  field change, which is why a conflicting board never raises a banner
@@ -309,6 +311,11 @@ export type BoardRefDto = {
 	 *  The list arrives in display order either way.
 	 */
 	order: string | null,
+	/**
+	 *  The board folder, vault-relative: `boards/<slug>`, or wherever it was
+	 *  moved (ADR-0058).
+	 */
+	path: string,
 };
 
 /**

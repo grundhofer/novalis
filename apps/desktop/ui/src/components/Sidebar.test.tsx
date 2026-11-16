@@ -138,6 +138,9 @@ describe("Sidebar", () => {
       slug: null,
       board: null,
       placeBoard: vi.fn().mockResolvedValue(undefined),
+      moveBoard: vi.fn((slug: string, folder: string) =>
+        Promise.resolve(folder ? `${folder}/${slug.split("/").pop()}` : slug.split("/").pop()!),
+      ),
       moveCardToBoard: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(dispatchCommand).mockClear();
@@ -256,7 +259,7 @@ describe("Sidebar", () => {
 
   it("draws a board as a root row that opens it", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
-    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }], load });
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }], load });
     render(<Sidebar />);
 
     const row = screen.getByText("Atlas").closest("[role=treeitem]");
@@ -273,7 +276,7 @@ describe("Sidebar", () => {
   // The board directory is also an entry of the `boards` folder. Expanded,
   // that folder used to draw the board a second time, in place.
   it("draws a board once when its directory is listed under an expanded boards folder", () => {
-    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }] });
     useVault.setState({
       children: {
         "": [entry("boards", true), entry("a.md", false)],
@@ -436,7 +439,7 @@ describe("Sidebar", () => {
     });
 
     it("takes no file on a board row", () => {
-      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }] });
       render(<Sidebar />);
       const dataTransfer = dragStore();
 
@@ -478,8 +481,8 @@ describe("Sidebar", () => {
       beforeEach(() => {
         useBoard.setState({
           boards: [
-            { slug: "atlas", name: "Atlas", order: null },
-            { slug: "zeta", name: "Zeta", order: null },
+            { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
+            { slug: "zeta", name: "Zeta", order: null, path: "boards/zeta" },
           ],
         });
       });
@@ -526,17 +529,47 @@ describe("Sidebar", () => {
         expect(useBoard.getState().placeBoard).not.toHaveBeenCalled();
       });
 
-      it("neither moves nor places a board dropped on a folder row", () => {
+      // ADR-0058: a folder takes a board as it takes a file; the board's
+      // folder moves there, and the folder opens to show it.
+      it("moves a board dropped on a folder row into that folder", async () => {
+        const reveal = vi.fn().mockResolvedValue(undefined);
+        useVault.setState({ reveal });
         render(<Sidebar />);
         const dataTransfer = dragStore();
 
         fireEvent.dragStart(row("Atlas"), { dataTransfer });
-        expect(fireEvent.dragOver(row("Notes"), { dataTransfer })).toBe(true);
-        expect(row("Notes").dataset.sbState).toBeUndefined();
-        fireEvent.drop(row("Notes"), { dataTransfer });
+        expect(fireEvent.dragOver(row("Notes"), { dataTransfer })).toBe(false);
+        expect(row("Notes").dataset.sbState).toBe("drop-into");
+        await act(async () => fireEvent.drop(row("Notes"), { dataTransfer }));
 
+        expect(useBoard.getState().moveBoard).toHaveBeenCalledWith("atlas", "Notes");
+        expect(reveal).toHaveBeenCalledWith("Notes/atlas");
         expect(useBoard.getState().placeBoard).not.toHaveBeenCalled();
         expect(moveEntry).not.toHaveBeenCalled();
+      });
+
+      it("moves a board into the folder of the board it is dropped on, then after it", async () => {
+        useBoard.setState({
+          boards: [
+            { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
+            { slug: "Notes/zeta", name: "Zeta", order: null, path: "Notes/zeta" },
+          ],
+        });
+        useVault.setState({ expanded: { Notes: true } });
+        render(<Sidebar />);
+        const dataTransfer = dragStore();
+
+        fireEvent.dragStart(row("Atlas"), { dataTransfer });
+        await act(async () => fireEvent.drop(row("Zeta"), { dataTransfer }));
+
+        expect(useBoard.getState().moveBoard).toHaveBeenCalledWith("atlas", "Notes");
+        expect(useBoard.getState().placeBoard).toHaveBeenCalledWith("Notes/atlas", { kind: "after", id: "Notes/zeta" });
+
+        // Back on the tree's space: to the top level, last.
+        fireEvent.dragStart(row("Zeta"), { dataTransfer });
+        await act(async () => fireEvent.drop(document.querySelector(".sb-tree")!, { dataTransfer }));
+        expect(useBoard.getState().moveBoard).toHaveBeenLastCalledWith("Notes/zeta", "");
+        expect(useBoard.getState().placeBoard).toHaveBeenLastCalledWith("zeta", { kind: "last" });
       });
     });
 
@@ -554,8 +587,8 @@ describe("Sidebar", () => {
       beforeEach(() => {
         useBoard.setState({
           boards: [
-            { slug: "atlas", name: "Atlas", order: null },
-            { slug: "zeta", name: "Zeta", order: null },
+            { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
+            { slug: "zeta", name: "Zeta", order: null, path: "boards/zeta" },
           ],
         });
       });
@@ -594,7 +627,7 @@ describe("Sidebar", () => {
   // ADR-0021: a right-click on a row asks for the context menu for that row
   // and does not open or expand it; the browser's own menu stays away.
   it("asks for the context menu on right-click, naming a board row", () => {
-    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+    useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }] });
     useVault.setState({
       children: {
         "": [entry("boards", true), entry("a.md", false)],
@@ -1102,7 +1135,7 @@ describe("Sidebar", () => {
         },
         expanded: { Notes: true },
       });
-      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }] });
       render(<Sidebar />);
       const sets = screen
         .getAllByRole("treeitem")
@@ -1271,7 +1304,7 @@ describe("Sidebar", () => {
     // spec/02 §4.22, DSK-11: a row never goes into itself, so a board over
     // its own row keeps its ink frame and is not taken.
     it("does not take a board dragged over its own row", () => {
-      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null }] });
+      useBoard.setState({ boards: [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }] });
       render(<Sidebar />);
       const dataTransfer = dragStore();
       const row = screen.getByText("Atlas").closest<HTMLElement>("[role=treeitem]")!;

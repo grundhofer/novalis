@@ -118,13 +118,10 @@ fn entry_of(root: &Path, rel: &str, listings: &mut Listings) -> Option<(EntryDto
     if st.kind == EntryKind::Symlink || !listings.contains(&abs) {
         return None;
     }
-    let board_slug = if st.kind == EntryKind::Dir {
-        rel.strip_prefix(&format!("{}/", boards::BOARDS_DIR))
-            .filter(|slug| !slug.contains('/') && boards::is_board_dir(&abs))
-            .map(str::to_string)
-    } else {
-        None
-    };
+    // A board is a folder with a valid `board.json` below the top folder
+    // (ADR-0058).
+    let board_slug = (st.kind == EntryKind::Dir && rel.contains('/') && boards::is_board_dir(&abs))
+        .then(|| boards::slug_of(rel));
     Some((
         EntryDto::from_stat(rel.to_string(), &st, board_slug),
         st.mtime_ns,

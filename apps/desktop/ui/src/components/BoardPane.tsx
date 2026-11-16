@@ -25,7 +25,7 @@ import {
 } from "../lib/cardActions";
 import { createNoteFromCard, deleteBoard, newBoard } from "../lib/commands";
 import { NO_DRAG_IMAGE } from "../lib/dragImage";
-import { isNote, stemOf } from "../lib/paths";
+import { boardPath, isNote, stemOf } from "../lib/paths";
 import { BOARD_DRAG_TYPE, CARD_DRAG_TYPE, useBoard } from "../stores/board";
 import { useFiles } from "../stores/files";
 import { report, useUi } from "../stores/ui";
@@ -861,7 +861,7 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
       {board.unreadable.length > 0 && (
         <Callout
           kind="warning"
-          text={t("board.unreadableCards", { count: board.unreadable.length, folder: `boards/${board.slug}/cards` })}
+          text={t("board.unreadableCards", { count: board.unreadable.length, folder: `${boardPath(board.slug)}/cards` })}
         />
       )}
       {board.cloudOnly.length > 0 && (

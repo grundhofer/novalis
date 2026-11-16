@@ -1064,6 +1064,16 @@ away. Amends **ADR-0056**.
 
 Recorded as **ADR-0057**.
 
+Boards in folders (verbatim „ich hätte die auch gerne in einen ordner
+vrschoben, so wie die dateien“, then „wirklich verschieben ist besser damit
+die boards auch über projektordner richtig zugeordnet gefunden werden.“,
+„Nach den Dateien“, „Ja, board mv“): a board is a folder with `board.json`
+anywhere below the top folder; its folder really moves (drag, „Verschieben
+nach …“, `board mv`); in a folder the boards follow the files. Amends **D6**
+and **ADR-0012**.
+
+Recorded as **ADR-0058**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

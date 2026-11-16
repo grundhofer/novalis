@@ -261,23 +261,17 @@ fn attachments(ctx: &Ctx) -> Result<(Vec<String>, Vec<String>), CliError> {
     Ok((dead, orphans))
 }
 
-/// `.md` files that sit inside a folder holding a valid `board.json`. Other
-/// files under `boards/` are ordinary notes (PLAN.md §5.5).
+/// `.md` files that sit inside a board's folder, wherever the board is
+/// (ADR-0058). Other files under `boards/` are ordinary notes (PLAN.md §5.5).
 fn notes_under_boards(ctx: &Ctx) -> Result<usize, CliError> {
-    let prefix = format!("{}/", boards::BOARDS_DIR);
-    let mut n = 0;
-    for note in walk_notes(&ctx.vault)? {
-        let Some(rest) = note.path.strip_prefix(&prefix) else {
-            continue;
-        };
-        let Some(slug) = rest.split('/').next() else {
-            continue;
-        };
-        if boards::is_board_dir(&ctx.vault.join(&prefix).join(slug)) {
-            n += 1;
-        }
-    }
-    Ok(n)
+    let folders: Vec<String> = boards::list_boards(&ctx.vault)?
+        .into_iter()
+        .map(|b| format!("{}/", b.path))
+        .collect();
+    Ok(walk_notes(&ctx.vault)?
+        .iter()
+        .filter(|note| folders.iter().any(|f| note.path.starts_with(f.as_str())))
+        .count())
 }
 
 impl Render for DoctorOut {

@@ -107,8 +107,8 @@ describe("treeRows", () => {
   // and the rest by name (ADR-0019), so the tree does not sort again.
   it("appends the boards as root rows, in the list's order", () => {
     const rows = treeRows(children, {}, "name", [
-      { slug: "zeta", name: "Zeta", order: "a0" },
-      { slug: "atlas", name: "Atlas", order: null },
+      { slug: "zeta", name: "Zeta", order: "a0", path: "boards/zeta" },
+      { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
     ]);
     expect(paths(rows)).toEqual(["Notes", "a.md", "b.md", "c.md", "boards/zeta", "boards/atlas"]);
     expect(rows.at(-1)).toEqual({
@@ -127,6 +127,23 @@ describe("treeRows", () => {
     });
   });
 
+  // ADR-0058: a board moved into a folder is drawn there, after the folder's
+  // files and at their depth; a closed folder hides it with the rest.
+  it("draws a board in its folder, after the files", () => {
+    const nested = {
+      "": [entry("Projekte", { dir: true }), entry("a.md")],
+      Projekte: [entry("Projekte/plan", { dir: true, boardSlug: "Projekte/plan" }), entry("Projekte/x.md"), entry("Projekte/Sub", { dir: true })],
+    };
+    const boards = [
+      { slug: "Projekte/plan", name: "Plan", order: null, path: "Projekte/plan" },
+      { slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" },
+    ];
+    const rows = treeRows(nested, { Projekte: true }, "name", boards);
+    expect(paths(rows)).toEqual(["Projekte", "Projekte/Sub", "Projekte/x.md", "Projekte/plan", "a.md", "boards/atlas"]);
+    expect(rows[3]).toMatchObject({ depth: 1, entry: { name: "Plan", boardSlug: "Projekte/plan" } });
+    expect(paths(treeRows(nested, {}, "name", boards))).toEqual(["Projekte", "a.md", "boards/atlas"]);
+  });
+
   // The board's directory is also an entry of `boards/`; with that folder
   // expanded it used to be drawn there as well, under its directory name.
   // A `.wav` next to the notes is not the app's business (ADR-0015): it used
@@ -143,7 +160,7 @@ describe("treeRows", () => {
       "": [entry("boards", { dir: true }), entry("a.md")],
       boards: [entry("boards/atlas", { dir: true, boardSlug: "atlas" }), entry("boards/readme.md")],
     };
-    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "atlas", name: "Atlas", order: null }]);
+    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "atlas", name: "Atlas", order: null, path: "boards/atlas" }]);
     expect(paths(rows)).toEqual(["boards", "boards/readme.md", "a.md", "boards/atlas"]);
     expect(rows.filter((row) => row.entry.boardSlug === "atlas")).toHaveLength(1);
     expect(rows.at(-1)?.entry.name).toBe("Atlas");
@@ -158,7 +175,7 @@ describe("treeRows", () => {
       "": [entry("boards", { dir: true })],
       boards: [entry("boards/foo", { dir: true })],
     };
-    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo", order: null }]);
+    const rows = treeRows(withBoards, { boards: true }, "name", [{ slug: "foo", name: "Foo", order: null, path: "boards/foo" }]);
     expect(paths(rows)).toEqual(["boards", "boards/foo"]);
     expect(rows.at(-1)?.entry.boardSlug).toBe("foo");
   });

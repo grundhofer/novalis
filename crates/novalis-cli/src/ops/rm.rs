@@ -48,7 +48,7 @@ pub fn run(ctx: &Ctx, args: RmArgs) -> Result<RmOut, CliError> {
     let mut cards: Vec<String> = crate::ops::card::card_note_refs(ctx)?
         .into_iter()
         .filter(|(_, _, note)| fold(note) == key)
-        .map(|(board, id, _)| format!("boards/{board}/cards/{id}.json"))
+        .map(|(board, id, _)| format!("{}/cards/{id}.json", crate::ops::board::board_path(&board)))
         .collect();
     cards.sort();
     cards.dedup();

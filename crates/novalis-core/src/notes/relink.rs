@@ -426,11 +426,9 @@ pub fn relink_many(
     if !matcher.paths.is_empty() {
         for b in boards::list_boards(vault)? {
             let (docs, cloud, _unreadable) = boards::list_cards_lenient(vault, &b.slug)?;
-            report.cloud_only_skipped.extend(
-                cloud
-                    .into_iter()
-                    .map(|n| format!("boards/{}/cards/{n}", b.slug)),
-            );
+            report
+                .cloud_only_skipped
+                .extend(cloud.into_iter().map(|n| format!("{}/cards/{n}", b.path)));
             for d in docs {
                 if d.card.is_deleted() {
                     continue;
@@ -452,7 +450,7 @@ pub fn relink_many(
                 if !changed {
                     continue;
                 }
-                let rel = format!("boards/{}/cards/{}.json", b.slug, d.card.id);
+                let rel = format!("{}/cards/{}.json", b.path, d.card.id);
                 if !opts.dry_run {
                     match boards::update_card(
                         vault,
