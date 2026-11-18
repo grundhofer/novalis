@@ -16,8 +16,8 @@ import { codeTag, noteTag } from "./markdownExt";
  *
  * Decorated source mode (PLAN.md §5.3): the markers stay visible and are only
  * dimmed, headings are sized, emphasis is styled, links and tags are
- * underlined. Nothing here hides syntax — that is the "hide-syntax live
- * preview" that was explicitly declined (§4.4).
+ * underlined. Nothing here hides syntax; the live preview behind `Cmd+E`
+ * does (ADR-0059, livePreview.ts), and its few looks stand at the end.
  *
  * Around the text it is sebaro's editor, imported from the export's
  * `editor/sebaro-codemirror.ts` and never copied (DSK-03, spec/01 §1.8,
@@ -145,6 +145,29 @@ export const EDITOR_LOOKS: Readonly<Record<string, Record<string, string>>> = {
     borderWidth: "0 2px 2px 0",
     transform: "rotate(45deg)",
   },
+  // The live preview (ADR-0059, livePreview.ts): what stands where a
+  // marker stepped aside. A bullet in the text's colour, as the rendered
+  // preview drew it; a rule as sebaro's hairline across the measure.
+  ".nv-live-bullet": { color: "var(--sb-color-text)" },
+  ".nv-live-rule": {
+    display: "inline-block",
+    width: "100%",
+    verticalAlign: "middle",
+    borderTop: "var(--sb-border-width-hairline) solid var(--sb-color-border)",
+  },
+  // An image as wide as the column at most, as `.sb-prose` has it; one the
+  // viewer shows opens there on a click (ADR-0025).
+  ".nv-live-image": { maxWidth: "100%", verticalAlign: "bottom" },
+  ".nv-live-image[data-open]": { cursor: "pointer" },
+  // A drawn block: a table in sebaro's table look at the editor's size (the
+  // rendered preview's rules, styles/preview.css), a diagram centred, a
+  // wide one scrolling in its own frame.
+  ".nv-live-block": { paddingBlock: "var(--sb-space-2)", cursor: "text" },
+  ".nv-live-table .sb-table": { fontSize: "1em" },
+  ".nv-live-table .sb-table th": { fontSize: "0.875em" },
+  ".nv-live-diagram": { display: "flex", justifyContent: "center", overflow: "auto" },
+  ".nv-live-diagram svg": { maxWidth: "100%", height: "auto" },
+  ".nv-live-diagram pre.sb-code": { width: "100%", fontSize: "0.875em" },
 };
 
 /** sebaro's editor theme with novalis' own rules on top: the earlier theme outranks the later one. */

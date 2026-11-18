@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { unwrap } from "../ipc/client";
 import { goToEditorLine } from "../lib/editorBridge";
-import { setPreviewBridge } from "../lib/previewBridge";
 import { useEditorSave } from "../stores/editorSave";
 
 import { createNoteNamed, dispatchCommand } from "../lib/commands";
@@ -213,22 +212,6 @@ describe("Palette", () => {
 
       fireEvent.keyDown(input, { key: "Enter" });
       expect(goToEditorLine).toHaveBeenCalledWith(3);
-    });
-
-    it("goes to it in the preview when the preview shows the note", () => {
-      const goToLine = vi.fn();
-      setPreviewBridge({ find: vi.fn(), findNext: vi.fn(), findPrevious: vi.fn(), mark: vi.fn(), goToLine });
-      try {
-        useTabs.setState({ active: "n.md" });
-        render(<Palette mode="palette" />);
-        const input = screen.getByPlaceholderText("palette.placeholder");
-        fireEvent.change(input, { target: { value: "open q" } });
-        fireEvent.keyDown(input, { key: "Enter" });
-        expect(goToLine).toHaveBeenCalledWith(3);
-        expect(goToEditorLine).not.toHaveBeenCalled();
-      } finally {
-        setPreviewBridge(null);
-      }
     });
 
     it("has no headings for a file that is not Markdown", () => {

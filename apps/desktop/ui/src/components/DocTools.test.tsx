@@ -174,7 +174,9 @@ describe("DocTools", () => {
 
   // ADR-0051 #74: off in their place while the preview shows; Find and the
   // size act on the preview too.
-  it("turns the format tools off while the preview shows, and keeps every tool in its place", () => {
+  // ADR-0059: a note's preview is the editor's live preview, written in;
+  // the formats stay on, and the row keeps its tools in their places.
+  it("keeps the format tools on while a note's preview shows", () => {
     open("a.md");
     const { rerender } = render(<DocTools />);
     const before = names();
@@ -184,16 +186,10 @@ describe("DocTools", () => {
     expect(names()).toEqual(before);
     expect(tool("editor.preview").getAttribute("aria-pressed")).toBe("true");
     for (const name of before.slice(1, 11)) {
-      const button = tool(name!) as HTMLButtonElement;
-      expect(button.getAttribute("aria-disabled"), name!).toBe("true");
-      // aria-disabled, not the native attribute: it stays a tab stop.
-      expect(button.disabled).toBe(false);
-      fireEvent.click(button);
+      expect(tool(name!).hasAttribute("aria-disabled"), name!).toBe(false);
     }
-    expect(dispatchCommand).not.toHaveBeenCalled();
-    for (const name of ["editor.tools.find", "menu.view.fontSmaller", "menu.view.fontLarger"]) {
-      expect(tool(name).hasAttribute("aria-disabled"), name).toBe(false);
-    }
+    fireEvent.click(tool("menu.edit.bold"));
+    expect(dispatchCommand).toHaveBeenCalledWith("markdown.bold");
   });
 
   it("turns the formats off in a file the editor cannot write", () => {
@@ -311,18 +307,6 @@ describe("DocTools", () => {
   });
 
   // #74, APG: a tool that is off keeps its place and can take focus.
-  it("reaches the format tools by the arrows while the preview shows", () => {
-    open("a.md");
-    useUi.setState({ previewing: { "a.md": true } });
-    render(<DocTools />);
-    tool("editor.preview").focus();
-
-    press("ArrowRight");
-    expect(document.activeElement).toBe(tool("menu.edit.bold"));
-    expect(tool("menu.edit.bold").getAttribute("aria-disabled")).toBe("true");
-    expect(stops()).toEqual(["menu.edit.bold"]);
-  });
-
   it("is not there for a text or code file, a viewer's file, the board or a file on its way", () => {
     for (const path of ["b.txt", "c.ts", "x.pdf"]) {
       open(path);

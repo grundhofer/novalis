@@ -34,8 +34,8 @@ No preferences window. `lastVault` is state in `settings.json`; window/tabs/side
 | Tags as search filter / palette | yes, v1 |
 | Backlinks list (incl. cards linking here) | yes, v1 |
 | `[[` and `#` autocompletion | yes, v1 |
-| Read-only rendered preview (`Cmd-E`) | yes, v1.1 — built 2026-09-15 (ADR-0020) |
-| Hide-syntax live preview | no |
+| Read-only rendered preview (`Cmd-E`) | yes, v1.1 — built 2026-09-15 (ADR-0020); for a note replaced by the live preview 2026-11-18 (ADR-0059) |
+| Hide-syntax live preview | no — yes 2026-11-18, behind `Cmd-E` (ADR-0059) |
 | Split view / board + note split | no (D21) |
 | Folding, focus/typewriter, minimap, vim | no |
 | Image paste/drop | yes, hard-coded `attachments/` next to the note, no setting (ADR-0017, 2026-09-15) |
@@ -1073,6 +1073,17 @@ nach …“, `board mv`); in a folder the boards follow the files. Amends **D6**
 and **ADR-0012**.
 
 Recorded as **ADR-0058**.
+
+Writing in the preview (verbatim „ich will auch im vorschau modus schreiben
+können -> bei markdown kann man somit formatiert schreiben“, then
+„Live-Vorschau“, „⌘E wird beschreibbar“, „Alles inkl. Blöcke“): `Cmd+E` on a
+note is a live preview in the editor — markers step aside where no cursor
+is, images, tables and mermaid are drawn, the text stays its source byte for
+byte; the read-only rendered preview of a note goes. Supersedes the
+„Hide-syntax live preview: no“ below and the note half of **ADR-0020** and
+**ADR-0039**.
+
+Recorded as **ADR-0059**.
 
 ## Open items after the week-1 scaffold (2026-09-05)
 

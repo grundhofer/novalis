@@ -6,7 +6,6 @@ import {
   isEditorCommand,
   runEditorCommand,
 } from "./editorBridge";
-import { isPreviewCommand, previewMounted, runPreviewCommand } from "./previewBridge";
 import { commands, NovalisError, unwrap, type BoardRefDto, type CardDto, type MenuTargetsDto } from "../ipc/client";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
@@ -526,8 +525,7 @@ async function cardFromSelection(): Promise<void> {
   const slug = cardBoard();
   // A card links vault notes; a file from outside it is none (ADR-0047).
   if (!note || !isNote(note) || isExternal(note) || !slug) return;
-  // The rendered note has no editor; its selection is the document's.
-  const text = previewMounted() ? (window.getSelection()?.toString() ?? "") : editorSelectionOrLine();
+  const text = editorSelectionOrLine();
   const title = cardTitleOfLine(text ?? "");
   if (!title) return;
   const board = useBoard.getState();
@@ -552,12 +550,11 @@ async function cardFromSelection(): Promise<void> {
 }
 
 /**
- * What ⇧⌘F starts with (ADR-0037): the selection — the editor's, or the
- * rendered note's — when it is one line of at most 100 characters; else
- * nothing, as before.
+ * What ⇧⌘F starts with (ADR-0037): the editor's selection when it is one
+ * line of at most 100 characters; else nothing, as before.
  */
 function searchSeed(): string | undefined {
-  const text = (previewMounted() ? window.getSelection()?.toString() : editorSelection()) ?? "";
+  const text = editorSelection() ?? "";
   const seed = text.trim();
   return seed && !/[\r\n]/.test(seed) && seed.length <= 100 ? seed : undefined;
 }
@@ -848,6 +845,12 @@ for (let n = 1; n <= 9; n += 1) {
   REGISTRY[`tab.goto.${n}`] = () => useTabs.getState().goto(n);
 }
 
+/**
+ * Editor chords that send a table or a picture back to the text, also when
+ * the editor's bridge is not there to say which ids are its own.
+ */
+const FIND_AND_MARKS = ["find.open", "find.next", "find.previous", "markdown.bold", "markdown.italic"];
+
 /** Run a command by id. Unknown ids are ignored, not thrown. */
 export function dispatchCommand(id: string, from?: CommandOrigin): void {
   // A card's context menu (ADR-0032): its ids carry no chord and no palette
@@ -868,25 +871,14 @@ export function dispatchCommand(id: string, from?: CommandOrigin): void {
     }
     return;
   }
-  // A previewed note has no editor on screen (ADR-0020): find and the two
-  // marks act on the rendered text; a mark that cannot be placed, and every
-  // other editor chord (link, checkbox, go to line …), returns to the editor
-  // so the chord lands where it applies. The command itself is not replayed
-  // there — the editor mounts asynchronously, and the user is now looking at
-  // the right place to press it again.
-  if (previewMounted()) {
-    if (runPreviewCommand(id)) return;
-    if (isPreviewCommand(id) || isEditorCommand(id)) {
-      const active = useTabs.getState().active;
-      if (active) useUi.getState().endPreview(active);
-      return;
-    }
-  }
-  // A table or a picture (ADR-0025) takes no editor chord at all: every one
-  // returns to the text, like the ones the rendered note cannot place.
+  // A note's preview is the editor itself (ADR-0059) and takes every editor
+  // chord. A table or a picture (ADR-0025) takes none: every one returns to
+  // the text. The command itself is not replayed there — the editor mounts
+  // asynchronously, and the user is now looking at the right place to press
+  // it again.
   const active = useTabs.getState().active;
   const second = active && useUi.getState().previewing[active] ? previewKind(active) : null;
-  if (active && second && second !== "markdown" && (isPreviewCommand(id) || isEditorCommand(id))) {
+  if (active && second && second !== "markdown" && (FIND_AND_MARKS.includes(id) || isEditorCommand(id))) {
     useUi.getState().endPreview(active);
     return;
   }

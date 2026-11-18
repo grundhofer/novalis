@@ -7,7 +7,7 @@
 // .woff2/.woff/.ttf/.otf under dist, raw bytes (woff2 is already compressed).
 // Any http(s) src/href fails outright: nothing loads from a CDN (D10).
 //
-// The five keys read from docs/BUDGET.json (kB = 1024 bytes; other keys in
+// The four keys read from docs/BUDGET.json (kB = 1024 bytes; other keys in
 // that file belong to other gates and are ignored here):
 //   "eagerJsGzipKb"        sum of eager JS, gzipped
 //   "maxEagerChunkGzipKb"  largest single eager JS file, gzipped
@@ -15,9 +15,8 @@
 //                          large and repetitive, so the wire size is what counts;
 //                          the raw size is printed beside it)
 //   "fontsKb"              sum of bundled font files, raw
-//   "previewChunkGzipKb"   the Preview chunk plus what it imports statically
-//                          beyond the eager set, gzipped (ADR-0022 point 8:
-//                          the preview reaches CodeMirror only by import())
+// (A fifth, "previewChunkGzipKb", held the read-only preview's chunk; it
+// went with that chunk, ADR-0059.)
 // Exits 1 on any breach, missing input or unknown budget shape. No dependencies.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,7 +28,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "apps/desktop/ui/dist");
 const indexHtml = join(dist, "index.html");
 const budgetFile = join(root, "docs/BUDGET.json");
-const BUDGET_KEYS = ["eagerJsGzipKb", "maxEagerChunkGzipKb", "eagerCssGzipKb", "fontsKb", "previewChunkGzipKb"];
+const BUDGET_KEYS = ["eagerJsGzipKb", "maxEagerChunkGzipKb", "eagerCssGzipKb", "fontsKb"];
 const FONT_EXTENSIONS = new Set([".woff2", ".woff", ".ttf", ".otf"]);
 const KB = 1024;
 
@@ -95,27 +94,6 @@ const walk = (dir) => {
 };
 walk(dist);
 
-// A built chunk's static imports: `import{a as b}from"./x.js"`, `import"./x.js"`,
-// `export{a}from"./x.js"`. A dynamic `import("./x.js")` never matches: its
-// specifier follows `(`, not the keyword or `from`.
-const STATIC_IMPORT = /\b(?:import|export)\b(?:\s*(?:\{[^}]*\}|\*(?:\s*as\s+[\w$]+)?|[\w$]+(?:\s*,\s*\{[^}]*\})?)\s*from)?\s*["']([^"']+)["']/g;
-
-// The Preview chunk and every chunk it reaches through static imports that
-// index.html does not already preload: what `Cmd+E` loads on top of the shell.
-const eagerFiles = new Set(jsSizes.map(({ ref }) => resolveAsset(ref)));
-const previewChunks = readdirSync(join(dist, "assets")).filter((name) => /^Preview-[^.]+\.js$/.test(name));
-if (previewChunks.length !== 1) fail(`expected one dist/assets/Preview-*.js chunk, found ${previewChunks.length}`);
-const previewClosure = [];
-const pending = [join(dist, "assets", previewChunks[0])];
-while (pending.length > 0) {
-  const file = pending.pop();
-  if (eagerFiles.has(file) || previewClosure.some((item) => item.file === file)) continue;
-  previewClosure.push({ file, bytes: gzipBytes(file) });
-  for (const [, specifier] of readFileSync(file, "utf8").matchAll(STATIC_IMPORT)) {
-    if (specifier.startsWith("./")) pending.push(join(dirname(file), specifier));
-  }
-}
-
 const sum = (items) => items.reduce((total, { bytes }) => total + bytes, 0);
 const largestJs = jsSizes.reduce((max, item) => (item.bytes > max.bytes ? item : max), { ref: "-", bytes: 0 });
 
@@ -129,12 +107,6 @@ const rows = [
     detail: `${cssSizes.length} file(s), raw ${(cssSizes.reduce((total, { rawBytes }) => total + rawBytes, 0) / KB).toFixed(1)} kB`,
   },
   { metric: "fonts (raw)", bytes: sum(fontFiles), limitKb: budget.fontsKb, detail: `${fontFiles.length} file(s)` },
-  {
-    metric: "preview chunk + static (gzip)",
-    bytes: sum(previewClosure),
-    limitKb: budget.previewChunkGzipKb,
-    detail: previewClosure.map(({ file }) => file.slice(dist.length + 1)).join(" "),
-  },
 ];
 
 let breached = false;

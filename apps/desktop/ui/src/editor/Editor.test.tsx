@@ -62,7 +62,7 @@ describe("Editor keeps the place", () => {
     first.view.dispatch({ selection: { anchor: 9, head: 14 } });
     first.unmount();
 
-    expect(keptPosition("a.md")).toMatchObject({ line: 3, last: "editor" });
+    expect(keptPosition("a.md")?.selection?.ranges).toEqual([{ anchor: 9, head: 14 }]);
     const again = await mount("a.md");
     expect(again.view.state.selection.main).toMatchObject({ anchor: 9, head: 14 });
     again.unmount();
@@ -160,5 +160,38 @@ describe("Editor takes the focus", () => {
     expect(document.activeElement).toBe(tab);
     unmount();
     strip.remove();
+  });
+});
+
+// ADR-0059: `Cmd+E` swaps the live preview into the view that stands, so the
+// cursor and the undo history stay; the text does not change.
+describe("Editor's live preview", () => {
+  beforeEach(() => doc("a.md", TEXT));
+
+  it("turns on and off in the same view", async () => {
+    const props = { path: "a.md", revision: 0, spellcheck: false, invisibles: false, onFollowLink: () => undefined, notePaths: () => [] };
+    const rendered = render(<Editor {...props} />);
+    let view: EditorView | null = null;
+    for (let i = 0; i < 50 && !view; i += 1) {
+      await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+      const dom = rendered.container.querySelector<HTMLElement>(".cm-editor");
+      view = dom ? EditorView.findFromDOM(dom) : null;
+    }
+    if (!view) throw new Error("the editor never mounted");
+    view.dispatch({ selection: { anchor: 12 } });
+    expect(view.dom.classList.contains("nv-live")).toBe(false);
+
+    rendered.rerender(<Editor {...props} live />);
+    const dom = rendered.container.querySelector<HTMLElement>(".cm-editor");
+    expect(dom && EditorView.findFromDOM(dom)).toBe(view);
+    expect(view.dom.classList.contains("nv-live")).toBe(true);
+    expect(view.state.selection.main.head).toBe(12);
+    expect(view.contentDOM.querySelector(".cm-line")?.textContent).toBe("One");
+
+    rendered.rerender(<Editor {...props} />);
+    expect(view.dom.classList.contains("nv-live")).toBe(false);
+    expect(view.contentDOM.querySelector(".cm-line")?.textContent).toBe("# One");
+    expect(view.state.doc.toString()).toBe(TEXT);
+    rendered.unmount();
   });
 });
