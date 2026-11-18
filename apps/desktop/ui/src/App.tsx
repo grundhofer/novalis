@@ -48,7 +48,6 @@ const BoardPane = lazy(() => import("./components/BoardPane"));
 // „Karte bearbeiten“ (ADR-0054): loaded the first time a card is edited.
 const CardDialog = lazy(() => import("./components/CardDialog"));
 const Viewer = lazy(() => import("./components/Viewer"));
-const Preview = lazy(() => import("./components/Preview"));
 const TablePreview = lazy(() => import("./components/TablePreview"));
 const SvgPreview = lazy(() => import("./components/SvgPreview"));
 const Backlinks = lazy(() => import("./components/Backlinks"));
@@ -483,17 +482,12 @@ export default function App() {
                   // Silent while local, named only for a cloud file after 1 s
                   // (STA-06, ADR-0051 #27.8).
                   <Waiting key={active} path={active} />
-                ) : active && doc && second ? (
+                ) : active && doc && second && second !== "markdown" ? (
                   // The preview's chunk is local work: an empty pane while it
-                  // loads, no „Wird geladen …“ (STA-06, ADR-0051 #27.8).
+                  // loads, no „Wird geladen …“ (STA-06, ADR-0051 #27.8). A
+                  // note's preview is the editor's own (ADR-0059), below.
                   <Suspense fallback={<div className="sb-view__content" aria-busy="true" />}>
-                    {second === "markdown" ? (
-                      <Preview path={active} onFollowLink={followLink} />
-                    ) : second === "svg" ? (
-                      <SvgPreview path={active} />
-                    ) : (
-                      <TablePreview path={active} kind={second} />
-                    )}
+                    {second === "svg" ? <SvgPreview path={active} /> : <TablePreview path={active} kind={second} />}
                   </Suspense>
                 ) : active && doc ? (
                   // The editor's chunk is local work: an empty pane while it
@@ -506,6 +500,7 @@ export default function App() {
                       invisibles={invisibles}
                       onFollowLink={followLink}
                       notePaths={notePaths}
+                      live={second === "markdown"}
                     />
                   </Suspense>
                 ) : // Nothing open: the tab strip says how to open a note

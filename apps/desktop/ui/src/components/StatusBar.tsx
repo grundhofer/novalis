@@ -114,9 +114,11 @@ export default function StatusBar() {
   const words = useMemo(() => countWords(text, plainMode), [text, plainMode]);
 
   const copy = active ? useEditorSave.getState().conflictCopyPath(active) : null;
-  // The editor's, so only while the editor shows this tab — not the preview.
+  // The editor's, so only while the editor shows this tab — a note's live
+  // preview is the editor (ADR-0059), a table's or a picture's is not.
   const previewing = useUi((s) => (active ? !!s.previewing[active] : false));
-  const cursor = useCursor((s) => (s.cursor?.path === active && !previewing ? s.cursor : null));
+  const editing = !previewing || (!!active && previewKind(active) === "markdown");
+  const cursor = useCursor((s) => (s.cursor?.path === active && editing ? s.cursor : null));
   const picture = previewing && !!active && previewKind(active) === "svg";
   const message = useUi((s) => s.message);
   const details = message ? detailsOf(message.key, message.values) : null;

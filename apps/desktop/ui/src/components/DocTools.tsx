@@ -36,9 +36,9 @@ const keepFocus = (event: MouseEvent) => event.preventDefault();
  * tools (`link`, `code`, `quote`, `search`, and `zoom-out` / `zoom-in`,
  * which sebaro's reader gives the same ⌘− / ⌘+, §4.25.3); the others are
  * compact text actions with their word until sebaro has their icons (#75),
- * so the switch is the row's one outlined button (#94). While the
- * preview shows, the format tools are off in their place (#74), so the row
- * keeps its width; Find and the text size act on the preview too. The text
+ * so the switch is the row's one outlined button (#94). A note's preview
+ * is the editor's live preview (ADR-0059), so the format tools stay on in
+ * it; they are off only for a file the editor cannot write (#74). The text
  * size tools are off at the smallest and largest size (spec/02 §4.19).
  */
 export default function DocTools() {
@@ -53,9 +53,9 @@ export default function DocTools() {
   // Only once the file is read: a file on its way shows no tools.
   if (!active || boardVisible || !kind || readOnly === undefined) return null;
   const previewChord = bindingFor("note.togglePreview")?.chord;
-  // A format writes into the text: not while the preview shows (#74), and
-  // not into a file the editor cannot write.
-  const formatsOff = previewing || readOnly;
+  // A format writes into the text: not into a file the editor cannot write.
+  // A note's preview is written in (ADR-0059); only a note has formats.
+  const formatsOff = readOnly;
   const format = (id: string, command: string, label: string, look: { icon: "link" | "code" | "quote" } | { word: string }) => (
     <Tool
       id={`${uid}-${id}`}

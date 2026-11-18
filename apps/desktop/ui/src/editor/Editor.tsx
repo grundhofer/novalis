@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,7 @@ import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
 import { report, useUi } from "../stores/ui";
 import { setActiveView } from "./commands";
+import { livePreview } from "./livePreview";
 import { buildExtensions } from "./setup";
 import { notesChanged } from "./unresolvedLinks";
 import { editorTheme } from "./theme";
@@ -91,6 +92,8 @@ export interface EditorProps {
   invisibles: boolean;
   onFollowLink: (target: string) => void;
   notePaths: () => string[];
+  /** The live preview of a note (`Cmd+E`, ADR-0059): the markers step aside. */
+  live?: boolean;
 }
 
 export default function Editor({
@@ -100,6 +103,7 @@ export default function Editor({
   invisibles,
   onFollowLink,
   notePaths,
+  live = false,
 }: EditorProps) {
   const host = useRef<HTMLDivElement | null>(null);
   // The room under the last line follows the pane's height (theme.ts).
@@ -108,6 +112,12 @@ export default function Editor({
   // takes them when it is built, so a change of language rebuilds it.
   const { i18n } = useTranslation();
   const language = i18n.language;
+  // `Cmd+E` swaps the live preview in and out of the view that stands, so
+  // the cursor, the scroll and the undo history stay (ADR-0059).
+  const slot = useRef(new Compartment());
+  const liveNow = useRef(live);
+  const viewRef = useRef<EditorView | null>(null);
+  const liveFor = useRef<(on: boolean) => Extension>(() => []);
 
   useEffect(() => {
     const element = host.current;
@@ -119,6 +129,8 @@ export default function Editor({
 
     const doc = useEditorSave.getState().docs[path];
     if (!doc) return;
+    // Plain mode has no parse tree to read the markers off (§4.2).
+    liveFor.current = (on) => (on && !doc.plainMode ? livePreview(path, onFollowLink) : []);
 
     void (async () => {
       const extensions = await buildExtensions(path, {
@@ -141,6 +153,7 @@ export default function Editor({
         extensions: [
           editorTheme,
           ...extensions,
+          slot.current.of(liveFor.current(liveNow.current)),
           EditorView.updateListener.of((update) => {
             if (update.selectionSet || update.docChanged) reportCursor(path, update.state);
           }),
@@ -164,15 +177,16 @@ export default function Editor({
       nudgeSpelling(created.contentDOM);
       reportCursor(path, created.state);
       // The scroll is recorded as it happens, as the first line in view:
-      // when the pane goes because the preview takes its place, React has
-      // detached it before the cleanup below runs, and a detached scroller
-      // reads 0 (and may say so in one last scroll event).
+      // when the pane goes because a table's or a picture's preview takes
+      // its place, React has detached it before the cleanup below runs, and
+      // a detached scroller reads 0 (and may say so in one last scroll event).
       created.scrollDOM.addEventListener("scroll", () => {
         if (!created.dom.isConnected) return;
         const height = created.scrollDOM.getBoundingClientRect().top - created.documentTop;
         keepPosition(path, { editorTop: created.lineBlockAtHeight(Math.max(0, height)).from });
       });
       view = created;
+      viewRef.current = created;
       // A note created or deleted elsewhere changes which links resolve.
       stopNotes = useFiles.subscribe((state, previous) => {
         if (state.notes !== previous.notes) created.dispatch({ effects: notesChanged.of(null) });
@@ -211,17 +225,20 @@ export default function Editor({
           useEditorSave.getState().flush(path);
           useEditorSave.getState().detach(path, read);
         }
-        keepPosition(path, {
-          selection: view.state.selection.toJSON() as KeptSelection,
-          line: view.state.doc.lineAt(view.state.selection.main.head).number,
-          last: "editor",
-        });
+        keepPosition(path, { selection: view.state.selection.toJSON() as KeptSelection });
         setActiveView(null);
         useCursor.getState().clear(path);
+        viewRef.current = null;
         view.destroy();
       }
     };
   }, [path, revision, spellcheck, invisibles, language, onFollowLink, notePaths]);
+
+  useEffect(() => {
+    if (liveNow.current === live) return;
+    liveNow.current = live;
+    viewRef.current?.dispatch({ effects: slot.current.reconfigure(liveFor.current(live)) });
+  }, [live]);
 
   return <div className="editor" ref={host} />;
 }

@@ -11,7 +11,6 @@ import { headingsOf } from "../lib/headings";
 import { positionRanges } from "../lib/matchRanges";
 import { bindingFor } from "../lib/keymap";
 import { fileNameOf, folderOf, isNote, stemOf } from "../lib/paths";
-import { goToPreviewLine, previewMounted } from "../lib/previewBridge";
 import { useBoard } from "../stores/board";
 import { useEditorSave } from "../stores/editorSave";
 import { useFiles } from "../stores/files";
@@ -348,8 +347,7 @@ export default function Palette({
         void createNoteNamed(entry.name).catch(report);
         break;
       case "heading":
-        if (previewMounted()) goToPreviewLine(entry.line);
-        else goToEditorLine(entry.line);
+        goToEditorLine(entry.line);
         break;
       case "tag":
         useUi.getState().setOverlay({ kind: "search", tag: entry.tag });

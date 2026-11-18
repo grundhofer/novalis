@@ -177,7 +177,9 @@ describe("StatusBar", () => {
       expect(counts.firstElementChild?.className).toBe("");
     });
 
-    it("says nothing about another tab's cursor, or while the note is previewed", () => {
+    // A note's preview is the editor's live preview (ADR-0059) and has its
+    // cursor; a table's preview is not the editor.
+    it("says nothing about another tab's cursor, or while a table is previewed", () => {
       useCursor.getState().set({ path: "b.md", line: 1, column: 1, selected: 0, cursors: 1 });
       const { unmount } = render(<StatusBar />);
       expect(screen.queryByText("status.position")).toBeNull();
@@ -185,6 +187,14 @@ describe("StatusBar", () => {
 
       useCursor.getState().set({ path: "a.md", line: 1, column: 1, selected: 0, cursors: 1 });
       useUi.setState({ previewing: { "a.md": true } });
+      const again = render(<StatusBar />);
+      expect(screen.queryByText("status.position")).not.toBeNull();
+      again.unmount();
+
+      useTabs.setState({ tabs: ["t.csv"], active: "t.csv" });
+      useEditorSave.setState({ docs: { "t.csv": doc("a,b\n") } });
+      useCursor.getState().set({ path: "t.csv", line: 1, column: 1, selected: 0, cursors: 1 });
+      useUi.setState({ previewing: { "t.csv": true } });
       render(<StatusBar />);
       expect(screen.queryByText("status.position")).toBeNull();
     });

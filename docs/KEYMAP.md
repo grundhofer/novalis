@@ -73,7 +73,7 @@ it back).
 | `Cmd+I` | ⌘I | `markdown.italic` | editor:markdown |  | Apple standard; wraps in `_` |
 | `Ctrl+Cmd+F` | ⌃⌘F | `system` | global | `system` | Apple standard; the macOS Full Screen item |
 | `Cmd+,` | ⌘, | `settings.open` | global | Einstellungen | sebaro's fixed chord (DSK-09, DSK-02, ADR-0051 #1): the settings view in the content area, also the app menu's „Einstellungen …“, the palette and the sidebar's place „Einstellungen“; `Escape` or `Cmd+W` leaves it for the place before |
-| `Cmd+E` | ⌘E | `note.togglePreview` | global |  | The read-only preview of the open note (PLAN.md §4.4, ADR-0020) — of a CSV or TSV its table, of an SVG its picture (ADR-0025); the preview switch in the tool row under the tabs does the same (ADR-0051 #16, #73), and so does View ▸ Preview, a check item that is checked while the current tab shows its preview and off for a tab without one (ADR-0051 #43) |
+| `Cmd+E` | ⌘E | `note.togglePreview` | global |  | The live preview of the open note, written in: markers step aside where no cursor is, images, tables and mermaid are drawn (ADR-0059; until 2026-11-18 a read-only preview, ADR-0020) — of a CSV or TSV its table, of an SVG its picture (ADR-0025), read-only; the preview switch in the tool row under the tabs does the same (ADR-0051 #16, #73), and so does View ▸ Preview, a check item that is checked while the current tab shows its preview and off for a tab without one (ADR-0051 #43) |
 | `Cmd+P` | ⌘P | `quickOpen.open` | global |  | §4.5: quick-open, no Print |
 | `Cmd+K` | ⌘K | `palette.open` | global | Befehlspalette | sebaro's fixed palette chord (D84, DSK-09, ADR-0051); pressed again it closes the palette (spec/02 §4.16) |
 | `Shift+Cmd+P` | ⇧⌘P | `palette.open` | global |  | Sublime; the palette's second chord (ADR-0051) |
@@ -138,7 +138,9 @@ it back).
 | `Alt`-click | Add a cursor at the click position | editor |
 | `Cmd`-click on a link | Follow the wikilink or Markdown link — a web or mail link opens in the default browser or mail app (ADR-0044); a `[[link]]` to no note (drawn text-muted without a line, ADR-0051 #17) opens New Note with its name (ADR-0038) | editor:markdown |
 | `Cmd`-click on a `#tag` | Open the vault search filtered by that tag (ADR-0037; drawn in the link style since ADR-0051) | editor:markdown |
-| Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown, preview (`Cmd+E`, ADR-0039) |
+| Click on `[ ]` / `[x]` | Toggle the task checkbox (the only click that writes into a note) | editor:markdown |
+| Click on a link that shows only its words | Follow it, as `Cmd`-click does in the source (ADR-0059) | live preview (`Cmd+E`) |
+| Click on a drawn table or diagram | Put the cursor there, which shows its source (ADR-0059) | live preview (`Cmd+E`) |
 | Click on a card | Open the linked note in a tab (D21); a card without a note opens its description (ADR-0030) | board |
 | Click on a board item in the tree | Show the board pane | tree |
 | Drag a file row onto a folder row or the tree's empty space | Move the file there (rename with relink, ADR-0018) | tree |
@@ -155,7 +157,7 @@ it back).
 | Drop image or PDF files from the Finder on a folder row or the tree's empty space | Copy them there under their own names, never over a file; other types are refused with a note (ADR-0041) | tree |
 | Click on the image | Toggle between fitting the pane and 1:1, keeping the clicked point under the pointer (ADR-0025) | viewer (image, comic page) |
 | Pinch on the trackpad · `Ctrl`+wheel | Zoom around the pointer; a plain wheel scrolls (ADR-0025) | viewer (image, comic page) |
-| Click on an embedded image | Open the image in the viewer; an image inside a link follows the link, an SVG is not opened (ADR-0025) | preview (`Cmd+E`) |
+| Click on an embedded image | Open the image in the viewer; an SVG is not opened, a click on it places the cursor (ADR-0025, ADR-0059) | live preview (`Cmd+E`) |
 
 ## Not listed
 
@@ -202,20 +204,13 @@ it back).
   It is the view's key, like the tree's, and not a parity row. While the view
   shows, the editor's menu items are off (it covers the editor), and
   `Cmd+W` leaves the view before it closes a tab.
-- In the read-only preview (`Cmd+E`, ADR-0020 amended 2026-09-16) there is no
-  editor on screen, so the `editor`-scoped chords are routed to the rendered
-  note instead: `Cmd+F` opens a find bar over the rendered text, `Cmd+G` and
-  `Shift+Cmd+G` move between its matches, `Escape` closes it; `Cmd+B` and
-  `Cmd+I` toggle `**` / `_` around the selected text in the note's source, in
-  the block it was rendered from. When that selection cannot be placed (it
-  spans blocks, markup splits it, it occurs more than once in the block, or it
-  is empty) the tab switches to the editor rather than guessing; every other
-  editor chord (`Shift+Cmd+K`, `Cmd+Enter`, `Ctrl+G`, `Cmd+D`, …) switches to the
-  editor too, so the chord lands where it applies — it is not replayed there.
-  The table above is unchanged: same ids, same scopes. `note.togglePreview`
+- A note's preview (`Cmd+E`) is the editor's live preview (ADR-0059), so
+  every `editor`-scoped chord acts there as in the source. `note.togglePreview`
   is not only a note's (ADR-0025): a `.csv` or `.tsv` shows as a read-only
   table and an `.svg` as its picture, and there every editor chord switches
-  back to the text.
+  back to the text — it is not replayed there. Until 2026-11-18 a note's
+  preview was read-only and routed find and the two marks to the rendered
+  text (ADR-0020 amended 2026-09-16).
 - `tree.reveal` (Show in Finder, ADR-0021) has no chord: it is a File menu
   item, a palette entry and a context-menu entry, and acts on the selected
   row or, with none, the active tab.
@@ -237,8 +232,8 @@ it back).
   the tabs and palette entries. Code puts backticks round the selection, or
   a fenced block round a selection over several lines (lines inside a
   fenced block leave it instead); Quote toggles `> ` per line, round the
-  line's other marks, which the other formats change behind it (#77). The tool row's format tools are off while the preview
-  shows (#74); the chords still act there as described above.
+  line's other marks, which the other formats change behind it (#77). The tool row's format tools are off only in a
+  file the editor cannot write (#74); a note's live preview takes them (ADR-0059).
 - `board.newCard` (New Card, ADR-0030) has no chord: it is a palette entry,
   listed only while a board is active or the vault has exactly one.
 - `board.cardFromSelection` (New Card from Selection, ADR-0035) has no
