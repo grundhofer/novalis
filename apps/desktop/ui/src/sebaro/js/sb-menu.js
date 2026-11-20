@@ -16,7 +16,8 @@
 //       <ul class="sb-menu" role="menu" id="m1-file" aria-label="Datei" popover>…</ul></li>
 // Without this script the browser already opens and closes the menu (click, Escape, click outside). The script adds:
 //   - aria-expanded on the button follows the menu; the menu sits under the button, its end on the button's end
-//     (above it when there is no room below), and follows on scroll and on a change of the window's height; a
+//     (above it when there is no room below; moved up into the window when it fits neither side), is placed again
+//     when its size changes (sb-fit.js at large text), and follows on scroll and on a change of the window's height; a
 //     change of the window's width, or a scroll that takes the button out of the window, closes the menu with all
 //     its submenus, and focus goes back to the button if it was in the menu (D95 (a)); a submenu stands beside its
 //     parent menu at the height of its item, on the side its parent went to (the top menu's submenus: the reading
@@ -148,7 +149,9 @@
     item.click();                                                          // popovertarget keeps the native nesting
   }
 
-  // Place the menu under the button with its end on the button's end; above when the room below is too small.
+  // Place the menu under the button with its end on the button's end; above when the room below is too small. A menu
+  // taller than the room on either side moves up into the window, over its button if it must (as a submenu does), and
+  // scrolls in itself once it is taller than the window (max-block-size in sebaro.css).
   function place(menu, button, estimate, keep) {
     if (parentMenu(menu)) { placeSub(menu, button, estimate, keep); return; }
     var b = button.getBoundingClientRect();
@@ -159,7 +162,11 @@
     var rtl = getComputedStyle(button).direction === "rtl";
     var below = vh - b.bottom - gap - edge, above = b.top - gap - edge;
     menu.style.top = ""; menu.style.bottom = ""; menu.style.left = ""; menu.style.right = "";
-    if (h <= below || below >= above) menu.style.top = Math.round(b.bottom + gap) + "px";
+    if (h <= below || below >= above) {
+      var top = b.bottom + gap;
+      if (!estimate && top + h > vh - edge) top = Math.max(edge, vh - h - edge);
+      menu.style.top = Math.round(top) + "px";
+    } else if (!estimate && h > above) menu.style.top = edge + "px";
     else menu.style.bottom = Math.round(vh - b.top + gap) + "px";
     var start = rtl ? b.left : b.right - w;                                // the menu's left edge
     if (estimate) {
@@ -260,6 +267,7 @@
     if (open) {
       items(menu).forEach(function (i) { i.tabIndex = -1; });
       if (button) place(menu, button, false);
+      if (menuSizes) menuSizes.observe(menu);
       scrollStop(menu);
       if (!menu.contains(document.activeElement)) focusItem(menu, x.focus);   // a letter typed at once already moved in
       x.focus = "first"; x.noReturn = false;
@@ -275,6 +283,7 @@
       if (visible(to)) to.focus({ preventScroll: true });
     }
     x.focusInside = false; x.noReturn = false; x.returnTo = null;
+    if (menuSizes) menuSizes.unobserve(menu);
     if (x.drill) { removeBack(menu); menu.style.inlineSize = ""; x.drill = false; x.up = false; }
     if (menu.getAttribute("data-sb-scroll-stop") === "") { menu.removeAttribute("tabindex"); menu.removeAttribute("data-sb-scroll-stop"); }
   }, true);
@@ -290,6 +299,16 @@
   window.addEventListener("resize", function () {
     document.querySelectorAll(".sb-menu:popover-open").forEach(scrollStop);
   });
+  // A menu that grows or shrinks after it was placed (sb-fit.js puts an item's keys under its word at large text,
+  // spec/02 §4.10) is placed again, keeping its side, so it never runs past the window's edge (CHECKS.md §32.7).
+  var menuSizes = typeof ResizeObserver === "function" ? new ResizeObserver(function (entries) {
+    entries.forEach(function (e) {
+      var menu = e.target, button = buttonOf(menu);
+      if (!button || !menu.matches(":popover-open")) return;
+      place(menu, button, false, true);
+      scrollStop(menu);
+    });
+  }) : null;
 
   // A button without popovertarget: the script toggles the menu itself, naming the button as the source so that a
   // press on it is not also a click outside (where the browser cannot take a source, the state before the press counts).

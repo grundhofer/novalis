@@ -286,3 +286,13 @@ sebaro's design round 7 (D143 (7), D144 (6)) allows at most one outlined button 
 **Owner approval:** 2026-11-12, verbatim „n1a n2a“, within one answer to a page of numbered variants (its other letters answer questions on other products). On that page N1 A read „„Vorschau“ bleibt umrandet, die sieben Wort-Werkzeuge werden Textaktionen.“ and N2 A „Textaktionen wie im Bild.“ No new setting, feature, shortcut, dependency or outbound connection. The find bar, the dialog and the board of Z14's count are not part of this answer and stay as they are.
 
 **Amended 2026-11-14** — ADR-0052: the window no longer opens in the ground of the stored choice (#22). From its first frame its ground is novalis's tile colour, the start's, read by `build.rs` from the copy's `tokens.json` and `sebaro.product.json`; the command `start_ended` gives it the stored ground when the start is over.
+
+## Amendment 2026-11-20: a flatter action zone
+
+The owner found the action zone too high for the room it leaves the text. With the counter line on a row of its own over the whole width (D102 (1), sebaro's DSK-R1) it was about 110 px high at 100 %, and half its area, left of „Neue Notiz“, stayed empty. The agent put four ways to the owner: the two text rows beside the action; that and 8 px instead of 12 above and below; counter line and state sentence in one line; a narrow strip with the action floating over the content. The owner picked the second and had it built in sebaro itself:
+
+| # | Question | Decision |
+|---|---|---|
+| 96 | The height of the action zone with the counter line | sebaro D152, released as v2.0.4 and taken over: from 480 px of window width (30em at large text) the counter line and below it the state sentence or a failure stand in one column beside the primary action, which keeps its 56 px; 8 px above and below. The zone is 72 px at 100 % plus the 2 px line (was 108 px). Below 480 px it stays a column. The markup of `StatusBar.tsx` is unchanged; the layout is sebaro.css's (`docs/sebaro-luecken.md` Z17) |
+
+**Owner approval:** 2026-11-20, verbatim „2“ to the four numbered proposals, „Ich baue in Foundry“ to the question of the way, and „ok mach das“ to merging in sebaro, tagging and releasing v2.0.4 and taking it into novalis. No new setting, feature, shortcut, dependency or outbound connection.

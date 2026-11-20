@@ -47,7 +47,7 @@
     try { if (tone === "warm") localStorage.setItem("sb-tone", "warm"); else localStorage.removeItem("sb-tone"); } catch (e) {}
     sync();
     var status = document.querySelector("[data-sb-tone-status]");
-    if (status) status.textContent = messages(status)[tone];
+    if (status) { var table = messages(status); status.textContent = table[tone] != null ? table[tone] : MESSAGES.de[tone]; }
     document.dispatchEvent(new CustomEvent("sb-tone-change", { detail: { tone: tone } }));
   }
   function init() {

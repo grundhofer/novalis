@@ -1085,6 +1085,16 @@ byte; the read-only rendered preview of a note goes. Supersedes the
 
 Recorded as **ADR-0059**.
 
+## Answered 2026-11-20
+
+A flatter action zone (verbatim „2“ to four proposals, „Ich baue in Foundry“,
+„ok mach das“; in ADR-0051, amendment 2026-11-20, #96):
+- built in sebaro (D152) and released as v2.0.4: from 480 px the counter
+  line and the state sentence stand in one column beside „Neue Notiz“,
+  8 px above and below; the zone is 72 px instead of 108 at 100 % (#96)
+
+Recorded as an amendment to **ADR-0051**.
+
 ## Open items after the week-1 scaffold (2026-09-05)
 
 These came out of the build and need your yes before they are closed:

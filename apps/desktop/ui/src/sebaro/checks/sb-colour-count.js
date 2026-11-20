@@ -92,7 +92,7 @@ function sbColourCount(view) {
     });
   });
   // Product area paints have a local job only inside their own component (D143/D144).
-  ["studio", "collaboration", "everyday", "learning", "tools", "media", "money", "system"].forEach(function (id) {
+  ["studio", "collaboration", "everyday", "learning", "tools", "media", "money", "system", "placeholder"].forEach(function (id) {
     ["", "-glyph"].forEach(function (suffix) {
       probe.style.color = "var(--sb-tile-" + id + suffix + ")";
       var c = getComputedStyle(probe).color;

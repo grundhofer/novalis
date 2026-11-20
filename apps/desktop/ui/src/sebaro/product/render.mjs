@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// A product's raster files, drawn from the SVGs of its kit folder (shared/PRODUCT-CONTRACT.md section 6): favicon.ico,
-// touch icon, manifest icons, Play icon, Play feature graphic, desktop icon. Node 20+, built-ins only; Chromium through
-// the product's own Playwright, never one of this folder. No network.
+// A product's raster files, drawn from the SVGs of its kit folder (PRODUCT-CONTRACT.md section 6, in product/ of a copy):
+// favicon.ico, touch icon, manifest icons, Play icon, Play feature graphic, desktop icon. Node 20+, built-ins only;
+// Chromium through the product's own Playwright, never one of this folder. No network.
 // A product without a Node project (an Android app that draws its Play icon once) names a folder that holds
 // node_modules/playwright in the environment variable SEBARO_PLAYWRIGHT (1.1.0); `product_kit.py build --render`
 // passes it on. Named, that folder is the only place looked in; without it the lookup is the product's as before.
@@ -42,12 +42,14 @@
 // then stands in the temporary folder: `share` links the node_modules folder of the Playwright the raster files are
 // drawn with into it (1.2.0), so SEBARO_PLAYWRIGHT and the product's own Playwright hold for `share` too.
 //
-// Inside sebaroDesign this file is tools/product_render.mjs; a copy carries it as product/render.mjs beside
-// product/product_kit.py.
+// A copy carries this file as product/render.mjs beside product/product_kit.py; the maintainers of sebaro keep it as
+// tools/product_render.mjs in their repository, sebaro-foundry.
 // Exit codes: 0 ok · 1 a file could not be drawn or the browser could not run · 2 usage or input (no record, an SVG
 // that is not the one the build wrote, no Playwright).
 //
 // Versions (CHANGELOG):
+//   1.3.1  2026-11-14  the head names the maintainers' repository by its name, sebaro-foundry, and the contract
+//                      where a copy holds it (sebaro CHECKS.md §132); nothing drawn changed.
 //   1.3.0  2026-11-14  text in a source: data-sb-fit, its font and its room, for the Play feature graphic of kit 1.3.0
 //                      (sebaro CHECKS.md §129); a source without text is drawn as before, to the same bytes.
 //   1.2.0  2026-11-12  `share` finds Playwright where the raster files find it: the folder SEBARO_PLAYWRIGHT names,
@@ -64,7 +66,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import zlib from "node:zlib";
 
-export const VERSION = "1.3.0";
+export const VERSION = "1.3.1";
 const SELF = "product/render.mjs";              // this file's place in a copy; the record's notice names it
 const KIT = "product/product_kit.py";
 const RECORD = "sebaro-product.json";           // the kit's record: what to draw

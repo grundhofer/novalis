@@ -158,7 +158,7 @@ function main() {
   // a profile copy is kept current by its updater; a --target export is compared with its sources by the maintainers
   const tail = typeof rec.profile === "string"
     ? " · a newer release is not looked for (checks/update-copy.mjs --check)"
-    : " · source drift and gates NOT checked (export_system.py --verify with a sebaroDesign checkout)";
+    : " · source drift and gates NOT checked (export_system.py --verify in a checkout of sebaro-foundry)";
   if (errors.length) {
     console.log(`result: drift, ${errors.length} error(s), ${warnings.length} warning(s) (exit 1)${mode} · ` +
       `${args.dir}: ${what}${tail}`);
