@@ -8,13 +8,21 @@ into a product repository carry this same file (owner decision D76, 2026-10-20).
 | Icons (the icon set: SVG sources, sprite, `sprite.css`, Compose and VectorDrawable icons) | MIT, text below |
 | CSS and the generated token files (`tokens.css`, `tokens.tailwind.css`, `sebaro.css`, `tokens.json`, `SebaroTheme.kt`, `SebaroTokens.swift`), the component code (Compose wrappers, scripts) | MIT, text below |
 | Rules and specifications (rule catalogue, `spec/`, contracts and guides) | MIT, text below |
-| Tools (generators, checks, gates, tests) | MIT, text below |
-| Fonts: sebaro Sans, sebaro Mono and every other font file (the donor systems in the workshop ship other OFL families) | SIL Open Font License 1.1, with their own licence texts next to the font files (`*-OFL.txt`, `licenses/`); the MIT licence does not apply to them |
+| Tools (generators, checks, gates, tests), also where a copy ships them: the product kit in `product/` (`product_kit.py`, `sign_geometry.py`, `render.mjs`), `brand/og/render.mjs` and the scripts in `checks/` | MIT, text below; `sign_geometry.py` also holds third-party code under MIT, see below |
+| Fonts: sebaro Sans, sebaro Mono and every other font file | SIL Open Font License 1.1, with their own licence texts next to the font files (`*-OFL.txt`, `licenses/`); the MIT licence does not apply to them |
 | The name „sebaro“ and the product names, the wordmark, the logo (mark and lockups), product marks, app signs (symbols, codes and tiles), app icons, and every file derived from them (favicons, web manifest icons, OG and social images, launcher and Tauri icons) | **all rights reserved**, not covered by the MIT licence |
 | Everything else not named above (for example generated images, research, concepts) | all rights reserved |
 
 Using the MIT parts grants no right to the reserved names and marks. Fonts and marks keep their own terms when they
 sit in the same folder as MIT files.
+
+**Origin of the shipped scripts.** Both `render.mjs` (`brand/og/render.mjs`, and `product/render.mjs`, which is
+`tools/product_render.mjs` in the workshop) are sebaro's own code under the MIT licence below; they drive Playwright
+and Chromium, which the product's own build installs and no copy ships. `sign_geometry.py` (`tools/` in the workshop,
+`product/` in a copy) is sebaro's own code except `path_events` and its helpers, a port of the SVG path parser and arc
+code of fontTools 4.55.3 (MIT, Copyright (c) 2017 Just van Rossum; the parser after svg.path, Copyright (c) 2013-2014
+Lennart Regebro, MIT; the arc after Blink's `SVGPathNormalizer::DecomposeArcToCubic`, BSD). The fontTools notice
+stands word for word in the head of that file and travels with it.
 
 ## MIT License
 

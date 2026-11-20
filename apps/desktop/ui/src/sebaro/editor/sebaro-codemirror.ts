@@ -136,7 +136,7 @@ export const sebaroCodeFileTheme = EditorView.theme({
 //   view.dom.style.setProperty("--sb-x-sebaro-editor-size", "1.125rem");
 // it multiplies with the system's text size (D108 (6)): 1.125rem at 200 % is 36 px; no cap
 
-/** Indentation guides (provisional, agent): only in code and data files, never in prose or Markdown; one hairline in
+/** Indentation guides: only in code and data files, never in prose or Markdown; one hairline in
  *  `border`, the same for the block the caret is in (no second look). The options of
  *  @replit/codemirror-indentation-markers: `indentationMarkers(sebaroIndentMarkers)` in a code file's extensions. */
 export const sebaroIndentMarkers = {
@@ -146,12 +146,12 @@ export const sebaroIndentMarkers = {
             activeLight: "var(--sb-color-border)", activeDark: "var(--sb-color-border)" },
 };
 
-/** Provisional (agent): marks the editor while a selection is not empty, so the theme takes the grounds of the
+/** Marks the editor while a selection is not empty, so the theme takes the grounds of the
  *  current line and of inline code away (CodeMirror calls an attribute function on every update). */
 export const sebaroSelectionMark = EditorView.editorAttributes.of((view) =>
   view.state.selection.ranges.some((r) => !r.empty) ? { "data-sb-selection": "" } : null);
 
-/** Provisional (agent): a diff in the editor, from the product's own diff of the file. Each inserted or deleted
+/** A diff in the editor, from the product's own diff of the file. Each inserted or deleted
  *  line gets its line decoration and its sign in a gutter of its own, never the fill alone (D85). */
 export const sebaroDiffLine = {
   inserted: Decoration.line({ class: "sb-cm-inserted" }),

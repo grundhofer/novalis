@@ -50,6 +50,12 @@
       "glyph": "#FFFFFF",
       "css": "--sb-tile-system",
       "kotlin": "SebaroSignTile.System"
+    },
+    "placeholder": {
+      "tile": "#514946",
+      "glyph": "#FFFFFF",
+      "css": "--sb-tile-placeholder",
+      "kotlin": "SebaroSignTile.Placeholder"
     }
   },
   "foot": {

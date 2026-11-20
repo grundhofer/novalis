@@ -240,7 +240,7 @@
     // name i stands at i × step clockwise from the top; turned by r it stands at i × step + r. Forward (clockwise) to
     // the next r with i × step + r ≡ 0 (mod 360): less than one turn in 200 ms (a named exception of spec/03 §13.2), no
     // extra spins (decided with D105 (6), BA-13: at most 200 ms like every motion, still under reduced motion)
-    // the name already under the pointer drawn again: the disc stays, only the status is written anew (provisional, agent)
+    // the name already under the pointer drawn again: the disc stays, only the status is written anew
     var now = wheel.__sbTurn || 0, base = -i * step, turn = i === (wheel.__sbIndex || 0) ? now : base + 360 * Math.ceil((now + 1 - base) / 360);
     wheel.__sbTurn = turn;
     wheel.__sbIndex = i;

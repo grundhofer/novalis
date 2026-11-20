@@ -1,7 +1,7 @@
 {
   "generated": "generated — do not edit · tools/icons.py 1.1.0",
   "system": "sebaro",
-  "source_sha256": "0c461669dbff4b35",
+  "source_sha256": "9f2cf53a9763d323",
   "grammar": {
     "name": "Line 1.75 round",
     "summary": "1.75 stroke at 24 (1.5 on 16 masters, 2 on spots), round caps and joins, container radius 2 (below 8: 1), straight segments at 0/30/45/60/90/120/135/150 plus circular arcs and free curves, clear gap >= 2.25, at most 4 parts beside the main outline, no signature detail; filled only for selected navigation, toggles that are on and the four status icons at 16 px",
@@ -20,7 +20,7 @@
     "cuts": {},
     "signature": {
       "name": "none",
-      "description": "No signature detail. Direction A (D36) gives every colour one job and allows no ornament without data, so icons stay plain function signs; identity comes from the colour rule, sebaro Sans and the app signs. Filled dots exist only as punctuation (i, !, ?, keyboard keys, image light: d 2.5) and as overflow dots (d 3), listed in grammar_fills."
+      "description": "No signature detail. Direction A (D36) gives every colour one job and allows no ornament without data, so icons stay plain function signs; identity comes from the colour rule, sebaro Sans and the app signs. Filled dots exist only as punctuation (i, !, ?, keyboard keys, image light, the Wi-Fi base: d 2.5) and as overflow dots (d 3), listed in grammar_fills."
     }
   },
   "files": {
@@ -36,7 +36,7 @@
     "web": "<svg class=\"sb-icon sb-icon--24\" aria-hidden=\"true\" focusable=\"false\"><use href=\"sprite.svg#NAME\"/></svg>",
     "compose": "Icon(SebaroIcons.Outline.Name, contentDescription = null)"
   },
-  "count": 122,
+  "count": 123,
   "icons": [
     {
       "name": "arrow-down",
@@ -2786,7 +2786,9 @@
         "outline": [
           24
         ],
-        "filled": [],
+        "filled": [
+          24
+        ],
         "spot": false
       },
       "rtl": "none",
@@ -2794,17 +2796,21 @@
       "source": "own",
       "license": "sebaro",
       "sprite": [
-        "microphone"
+        "microphone",
+        "microphone--filled"
       ],
       "compose": [
         "SebaroIcons.Outline.Microphone",
         "SebaroIcons.Outline16.Microphone",
         "SebaroIcons.Outline20.Microphone",
-        "SebaroIcons.Outline32.Microphone"
+        "SebaroIcons.Outline32.Microphone",
+        "SebaroIcons.Filled.Microphone",
+        "SebaroIcons.Filled16.Microphone"
       ],
       "compose_cuts": {},
       "android": [
-        "ic_sb_microphone_24"
+        "ic_sb_microphone_24",
+        "ic_sb_microphone_filled_24"
       ]
     },
     {
@@ -3487,7 +3493,9 @@
         "outline": [
           24
         ],
-        "filled": [],
+        "filled": [
+          24
+        ],
         "spot": false
       },
       "rtl": "none",
@@ -3495,17 +3503,21 @@
       "source": "own",
       "license": "sebaro",
       "sprite": [
-        "qr-code"
+        "qr-code",
+        "qr-code--filled"
       ],
       "compose": [
         "SebaroIcons.Outline.QrCode",
         "SebaroIcons.Outline16.QrCode",
         "SebaroIcons.Outline20.QrCode",
-        "SebaroIcons.Outline32.QrCode"
+        "SebaroIcons.Outline32.QrCode",
+        "SebaroIcons.Filled.QrCode",
+        "SebaroIcons.Filled16.QrCode"
       ],
       "compose_cuts": {},
       "android": [
-        "ic_sb_qr_code_24"
+        "ic_sb_qr_code_24",
+        "ic_sb_qr_code_filled_24"
       ]
     },
     {
@@ -3974,7 +3986,9 @@
         "outline": [
           24
         ],
-        "filled": [],
+        "filled": [
+          24
+        ],
         "spot": false
       },
       "rtl": "none",
@@ -3982,17 +3996,21 @@
       "source": "own",
       "license": "sebaro",
       "sprite": [
-        "scan"
+        "scan",
+        "scan--filled"
       ],
       "compose": [
         "SebaroIcons.Outline.Scan",
         "SebaroIcons.Outline16.Scan",
         "SebaroIcons.Outline20.Scan",
-        "SebaroIcons.Outline32.Scan"
+        "SebaroIcons.Outline32.Scan",
+        "SebaroIcons.Filled.Scan",
+        "SebaroIcons.Filled16.Scan"
       ],
       "compose_cuts": {},
       "android": [
-        "ic_sb_scan_24"
+        "ic_sb_scan_24",
+        "ic_sb_scan_filled_24"
       ]
     },
     {
@@ -5312,6 +5330,53 @@
       "compose_cuts": {},
       "android": [
         "ic_sb_wheel_24"
+      ]
+    },
+    {
+      "name": "wifi",
+      "canonical": null,
+      "de": null,
+      "category": "system",
+      "aliases": [
+        "wlan",
+        "wireless"
+      ],
+      "tags": {
+        "de": [
+          "WLAN",
+          "WLAN verbinden",
+          "Drahtlosnetz",
+          "Funknetz"
+        ],
+        "en": [
+          "Wi-Fi",
+          "connect to Wi-Fi",
+          "wireless network"
+        ]
+      },
+      "variants": {
+        "outline": [
+          24
+        ],
+        "filled": [],
+        "spot": false
+      },
+      "rtl": "none",
+      "status": "stable",
+      "source": "own",
+      "license": "sebaro",
+      "sprite": [
+        "wifi"
+      ],
+      "compose": [
+        "SebaroIcons.Outline.Wifi",
+        "SebaroIcons.Outline16.Wifi",
+        "SebaroIcons.Outline20.Wifi",
+        "SebaroIcons.Outline32.Wifi"
+      ],
+      "compose_cuts": {},
+      "android": [
+        "ic_sb_wifi_24"
       ]
     },
     {
