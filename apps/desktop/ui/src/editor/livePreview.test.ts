@@ -50,11 +50,15 @@ async function live(text: string, cursor = text.length, onFollowLink = vi.fn()) 
     selection: { anchor: cursor },
     extensions: [...(await buildExtensions("n.md", hooks)), livePreview("n.md", onFollowLink)],
   });
-  ensureSyntaxTree(state, state.doc.length, 5000);
   const parent = document.createElement("div");
   document.body.append(parent);
   const view = new EditorView({ state, parent });
   views.push(view);
+  // The tree a state shows is what its first 20 ms of parsing reached; on a
+  // slow runner that is only the first lines (CI, 2026-11-18).
+  // `ensureSyntaxTree` parses the rest, and a transaction hands it over.
+  ensureSyntaxTree(view.state, view.state.doc.length, 5000);
+  view.dispatch({});
   return view;
 }
 
@@ -142,8 +146,9 @@ describe("livePreview", () => {
 describe("liveTargetAt", () => {
   const state = (text: string, cursor: number) => {
     const s = EditorState.create({ doc: text, selection: { anchor: cursor }, extensions: livePreviewLanguage });
+    // As in `live`: the whole tree, handed over by a transaction.
     ensureSyntaxTree(s, s.doc.length, 5000);
-    return s;
+    return s.update({}).state;
   };
   let livePreviewLanguage: Awaited<ReturnType<typeof buildExtensions>>;
   beforeAll(async () => {
