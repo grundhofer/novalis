@@ -13,7 +13,7 @@
     "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "The product's id, kebab-case: the value of data-sb-product, part of the Android resource names (sb_sign_<id>) and the id SebaroProductInfo.kt passes."},
     "name": {"$ref": "#/$defs/text", "description": "The product's name as it writes it: the title of the sign and tile SVGs and, unless web.name says otherwise, the manifest's name."},
     "shortName": {"$ref": "#/$defs/text", "description": "The launcher label, the manifest's short_name. Default: name. Launchers cut labels longer than about 12 characters."},
-    "tile": {"enum": ["studio", "collaboration", "everyday", "learning", "tools", "media", "money", "system"], "description": "The purpose group of the sign tile (palette signTiles.groups, D50, D51): it gives the tile's ground and the sign's colour, the same in light and dark. The kit takes the groups from the copy's product/tiles.json."},
+    "tile": {"enum": ["studio", "collaboration", "everyday", "learning", "tools", "media", "money", "system", "placeholder"], "description": "The purpose group of the sign tile (palette signTiles.groups, D50, D51): it gives the tile's ground and the sign's colour, the same in light and dark. The kit takes the groups from the copy's product/tiles.json. \"placeholder\" (Graphit, D150) is the starters' tile until a product picks its own group, which it does before its first release: the kit builds it and warns."},
     "sign": {
       "type": "object",
       "additionalProperties": false,
