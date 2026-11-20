@@ -27,7 +27,7 @@
     "@lezer/markdown": "^1.8.1",
     "@tanstack/react-virtual": "^3.14.26",
     "@tauri-apps/api": "^2.12.4",
-    "i18next": "^26.7.2",
+    "i18next": "^27.1.5",
     "mammoth": "1.13.0",
     "mermaid": "12.3.0",
     "pdfjs-dist": "6.5.438",
