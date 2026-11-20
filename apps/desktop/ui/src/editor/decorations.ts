@@ -111,7 +111,14 @@ export const decorations: Extension = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate): void {
-      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+      // A tree that grew: the parse goes on after the first 20 ms, and what
+      // it reaches later gets its marks then, not at the next keystroke.
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.selectionSet ||
+        syntaxTree(update.state) !== syntaxTree(update.startState)
+      ) {
         this.decorations = build(update.view);
       }
     }
