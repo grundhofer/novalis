@@ -1,7 +1,7 @@
 /* generated — do not edit.
  * sebaroDesign token contract 2.0 · draft "sebaro" · palette "sebaro"
  * source: systems/sebaro/tokens/tokens.json (sha256 b20394467cd8a934)
- *         palettes/sebaro.json (sha256 371d475a0f24873d)
+ *         palettes/sebaro.json (sha256 49659985fc757a5f)
  * builder: tools/build_tokens.py 2.0.0 · spec: shared/TOKEN-CONTRACT.md
  */
 
@@ -788,6 +788,8 @@
   --sb-tile-money-glyph: #FFFFFF;
   --sb-tile-system: #1A89C5;
   --sb-tile-system-glyph: #FFFFFF;
+  --sb-tile-placeholder: #514946;
+  --sb-tile-placeholder-glyph: #FFFFFF;
 }
 [data-sb-product] {
   --sb-product-tile: initial;
@@ -824,6 +826,10 @@
 [data-sb-tile="system"] {
   --sb-product-tile: var(--sb-tile-system);
   --sb-product-glyph: var(--sb-tile-system-glyph);
+}
+[data-sb-tile="placeholder"] {
+  --sb-product-tile: var(--sb-tile-placeholder);
+  --sb-product-glyph: var(--sb-tile-placeholder-glyph);
 }
 
 :root {

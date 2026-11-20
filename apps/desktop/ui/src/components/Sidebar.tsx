@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { defaultRangeExtractor, measureElement, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -840,7 +841,7 @@ function dayOf(entry: TreeRow["entry"], t: (key: string) => string): string | nu
  * narrow sidebar the meta drops it (styles/app.css). A board's „Board“ is no
  * day; its icon says it.
  */
-function rowTitle(row: TreeRow, t: (key: string, values?: Record<string, string>) => string): string {
+function rowTitle(row: TreeRow, t: TFunction): string {
   const { entry } = row;
   const day = entry.boardSlug ? null : dayOf(entry, t);
   return day ? t("tree.rowTitle", { name: entry.name, day }) : entry.name;

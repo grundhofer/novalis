@@ -31,7 +31,7 @@
       else { root.dataset.theme = next; localStorage.setItem("sb-theme", next); }
     } catch (e) { root.dataset.theme = next; }
     var status = document.querySelector("[data-sb-theme-status]");
-    if (status) status.textContent = messages(status)[next];
+    if (status) { var table = messages(status); status.textContent = table[next] != null ? table[next] : MESSAGES.de[next]; }
     document.dispatchEvent(new CustomEvent("sb-theme-change", { detail: { theme: next } }));
   });
 })();

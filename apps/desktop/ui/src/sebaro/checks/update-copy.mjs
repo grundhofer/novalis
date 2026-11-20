@@ -2,7 +2,8 @@
 // update-copy.mjs: fetches a public copy of the sebaro design system and writes or updates a profile copy with it.
 // Node 20+, built-ins only (node:fs, node:path, node:crypto, node:zlib, fetch). Shipped by tools/export_system.py as
 // checks/update-copy.mjs in every profile copy, and published with every release as a file of its own for the first
-// fetch; the source lives in sebaroDesign tools/. tools/release_copies.py builds what it reads.
+// fetch. The maintainers of sebaro keep it as tools/update-copy.mjs in their repository, sebaro-foundry, where
+// tools/release_copies.py builds what it reads.
 //
 //   node update-copy.mjs --profile android [--packs a,b] --out sebaro [--release v1.14.3]   # the first copy
 //   node sebaro/checks/update-copy.mjs                     # in place: the newest release, the copy's profile and packs
@@ -30,6 +31,18 @@
 // After an update it prints the sections of CHANGES.md between the release the copy had and the new one: what
 // changed for a product and what to do. --check prints their headings when a newer release exists.
 //
+// A copy keeps its major version (1.3.0): the major of a release is its token contract (a renamed, removed or newly
+// required token, a removed output), so a release of a newer major can break the product's code. Without --release
+// the updater does not write a release of a newer major than the copy's (the release it records, or else the token
+// contract it was written with): it refuses (exit 5) and names the command, --release <tag>, after the product read
+// the notes. --check says it beside its exit 1. A new copy, and a copy whose major is not known, take the newest.
+//
+// What it trusts: the index, fetched over HTTPS from the releases of the guide, which a person publishes; the
+// archive and the notes are bound to the index by size and sha256, every file to the archive's record. Nothing is
+// signed: whoever can change a published release of the guide can serve an index and archives that agree, and this
+// file would write them. A product that wants more keeps its copy in git, so that every update is a diff it reads
+// (the README's scheduled job commits an update on its own), or names a release it has read with --release.
+//
 // It checks the sha256 and the size of the archive against the index, the sha256 of every file against the release's
 // record and of every stretch against the cut plan, writes the copy into a temporary folder beside the target, reads
 // it back, and swaps the two at the end: a run that fails leaves the old copy as it was. It refuses to replace a
@@ -41,14 +54,15 @@
 // exists (both versions are printed) · 2 usage: an unknown option, profile or pack, a pack without a pack it needs,
 // a folder that is no profile copy · 3 refused: the copy has an edited, missing or added file (--force) · 4 the
 // release cannot be read or does not verify: no such release, a failed download, a sha256 or size that does not
-// match, a broken archive, an index or cut plan of a format this file does not read; nothing was changed.
+// match, a broken archive, an index or cut plan of a format this file does not read; nothing was changed · 5 refused:
+// the newest release is of a newer major version than the copy and --release does not name it; nothing was changed.
 
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
 
-const VERSION = "1.2.0"; // 1.2.0 (sebaro CHECKS.md §125, the owner 2026-11-13): reads the releases of grundhofer/sebaro-blueprint, the guide's new name; GitHub forwards the old address, so a copy of v1.14.0 still finds a newer release; 1.1.0 (D148 stage 6c, sebaro CHECKS.md §120): prints the change notes (CHANGES.md) between two releases, --check their headings; measures the minified sizes of the stylesheets (cssSizes); its refusal names no repository; 1.0.0 (D148 stage 6b, sebaro CHECKS.md §119): the first version
+const VERSION = "1.3.0"; // 1.3.0 (sebaro CHECKS.md §132): a copy keeps its major version: without --release a release of a newer major is not written (exit 5) and --check says so; the head says what the updater trusts; 1.2.1 (sebaro CHECKS.md §132): its head names the maintainers' repository by its name, sebaro-foundry, not the old sebaroDesign; nothing else changed; 1.2.0 (sebaro CHECKS.md §125, the owner 2026-11-13): reads the releases of grundhofer/sebaro-blueprint, the guide's new name; GitHub forwards the old address, so a copy of v1.14.0 still finds a newer release; 1.1.0 (D148 stage 6c, sebaro CHECKS.md §120): prints the change notes (CHANGES.md) between two releases, --check their headings; measures the minified sizes of the stylesheets (cssSizes); its refusal names no repository; 1.0.0 (D148 stage 6b, sebaro CHECKS.md §119): the first version
 const RELEASES = "https://github.com/grundhofer/sebaro-blueprint/releases"; // where the public copies are
 const SOURCE_ENV = "SEBARO_COPIES";
 const INDEX_NAME = "copies.json";
@@ -74,6 +88,7 @@ const USAGE = "usage: node update-copy.mjs [--profile P] [--packs a,b|all|none] 
 class UsageError extends Error {} // exit 2
 class ArgumentError extends UsageError {} // exit 2, with the usage text
 class Refused extends Error {} // exit 3
+class NewMajor extends Error {} // exit 5
 class ReleaseError extends Error {} // exit 4
 
 function parseArgs(argv) {
@@ -665,6 +680,23 @@ function releaseOf(rec, index) {
   return rec.release?.tag ?? (commit && commit === index.commit ? index.tag : null);
 }
 
+// 1.3.0: the major version of a copy: of the release it records (or the index's, written from the same commit), or
+// else of the token contract it was written with, which is the major of every release (shared/PACKAGES.md §2);
+// null when neither says.
+function majorOf(rec, index) {
+  const at = version(releaseOf(rec, index));
+  if (at) return at[0];
+  const m = /^(\d+)\./.exec(String(rec.contracts?.tokens ?? ""));
+  return m ? Number(m[1]) : null;
+}
+
+// 1.3.0: the release of the index is of a newer major version than the copy.
+function newMajor(rec, index) {
+  const to = version(index.tag);
+  const from = majorOf(rec, index);
+  return to !== null && from !== null && to[0] > from;
+}
+
 function describe(rec) {
   return `profile ${rec.profile}, packs ${(rec.packs ?? []).join(", ") || "none"}`;
 }
@@ -686,7 +718,12 @@ function check(dir, rec, index) {
   }
   console.log(`update available: ${dir} is at ${at ? `release ${has}` : has}, the newest release is ${index.tag} ` +
     `(${describe(rec)})`);
-  console.log("    to update: node update-copy.mjs --out <this copy>, or the copy's own checks/update-copy.mjs");
+  if (newMajor(rec, index)) {
+    console.log(`    ${index.tag} is a new major version (${majorOf(rec, index)}.x here): the update takes it only when ` +
+      `--release ${index.tag} names it, after the notes are read`);
+  } else {
+    console.log("    to update: node update-copy.mjs --out <this copy>, or the copy's own checks/update-copy.mjs");
+  }
   return 1;
 }
 
@@ -732,6 +769,15 @@ async function run(argv) {
     return code;
   }
 
+  if (rec && a.release === null && newMajor(rec, index)) {
+    const from = majorOf(rec, index);
+    const at = releaseOf(rec, index);
+    throw new NewMajor(`the newest release, ${index.tag}, is a new major version, and ${dir} is at ` +
+      `${at ? `release ${at}` : `token contract ${rec.contracts?.tokens}`} (${from}.x): a new major version can break ` +
+      `the product's code, so the updater takes it only when it is named. Read its section of ${CHANGES_NAME} ` +
+      `(--check prints the headings), then run again with --release ${index.tag}. To stay at ${from}.x, name a ` +
+      `release of that line with --release` + (at ? ` (this copy is at ${at})` : ""));
+  }
   const chosen = choosePacks(index, profile, a.packs, rec?.packs ?? null);
   if (rec && !a.force) {
     const changes = localChanges(dir, rec);
@@ -786,6 +832,10 @@ async function main() {
     if (e instanceof Refused) {
       console.error(`refused: ${e.message}`);
       return 3;
+    }
+    if (e instanceof NewMajor) {
+      console.error(`refused: ${e.message}. Nothing was changed.`);
+      return 5;
     }
     if (e instanceof ReleaseError) {
       console.error(`error: ${e.message}. Nothing was changed.`);

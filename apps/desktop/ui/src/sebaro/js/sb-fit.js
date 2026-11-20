@@ -1,4 +1,4 @@
-// sb-fit.js: large text on the web (D99 (1), D100 (1), (3), (5), D101 (1), (2), (8), (9), (11); spec/02 §7, spec/09 §1).
+// sb-fit.js: large text on the web (D99 (1), D100 (1), (3), (5), D101 (1), (2), (8), (9), (11); spec/02 §7, spec/09 §1, §3.1).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval, styles only through classes, data
 // attributes and the CSSOM. It writes no words of its own (D87): the select takes the words of the segments, the step
 // line the word of the current step. Without it the words still wrap and no demo page scrolls sideways at 200 % text
@@ -17,8 +17,8 @@
 //      (also updating controlled framework state); a radio changed with a change event, a form reset or sb-tone-change are read back, and the select reads
 //      the radios again on every pass and when it gets focus, a press or a key. A script that sets checked without an event
 //      calls sbFit.refresh(fieldset) to show it at once. Focus moves with the swap. While the select shows, the
-//      fieldset is role="none", so the legend names only the select and is not read twice (provisional, agent).
-//      Back to the segments only when the words fit 4 px narrower (hysteresis, provisional (agent)).
+//      fieldset is role="none", so the legend names only the select and is not read twice.
+//      Back to the segments only when the words fit 4 px narrower (hysteresis).
 //      The column is measured at the width the control takes when it fills its place (a control as wide as its words
 //      grows with its choice). Without the script the words wrap and an overlong word breaks.
 //   2. Steps (spec/02 §3.12, D100 (1), D101 (1), (2)): once a step's word does not fit its column on two lines even
@@ -42,27 +42,27 @@
 //      like Compose's SbWrapText; every other word of the paragraph, heading or button keeps hyphens: manual. The span
 //      adds no character; it is taken away again before each measure. Never in code, pre, kbd, samp, .sb-id (D80),
 //      .sb-file-name (D101 (6)), a name marked translate="no" (a product name breaks at the line end without a hyphen,
-//      D101 (10); provisional, agent), [data-sb-truncate] or a word with soft hyphens (the author's own break points,
+//      D101 (10)), [data-sb-truncate] or a word with soft hyphens (the author's own break points,
 //      SCH-06). A word that runs across inline elements („<b>Woch</b>enrückblick“, a palette's marked hit) is one
 //      word: measured and wrapped whole, its elements inside the span (review of the desktop lane, DSK-R4). A word
 //      after „/“ that the browser broke only because it gives no break after the slash („kompakt/komfortabel“) first
 //      gets a <wbr data-sb-fit-wbr> after the slash and goes whole onto its own line; hyphens only if it still does
-//      not fit there (the guide's OVF6 request; provisional, agent).
-//   6. Top bar (spec/02 §4.1, D102 lane narrow; provisional, agent): once a word of the title or subtitle would break
+//      not fit there (the guide's OVF6 request).
+//   6. Top bar (spec/02 §4.1, D102 lane narrow): once a word of the title or subtitle would break
 //      beside the back button and the actions, data-sb-fit="stack" puts the heading on its own line under them (a
 //      large title).
-//   7. Actions (spec/02 §1, D102 lane narrow; provisional, agent): a primary, secondary or danger action whose word would
+//   7. Actions (spec/02 §1, D102 lane narrow): a primary, secondary or danger action whose word would
 //      break beside its icon but fits the action gets data-sb-fit="stack": the icon stands above the words; so does one
 //      whose words wrap in a line narrower than 2em beside the icon (D102 lane patterns).
-//   8. Menu items with keys (spec/02 §4.10, guide 2.11.0 request; provisional, agent): a menu item whose word would
+//   8. Menu items with keys (spec/02 §4.10, guide 2.11.0 request): a menu item whose word would
 //      break beside its shortcut (.sb-keys) but fits the item without it gets data-sb-fit="stack": the keys go on the
 //      line under the words (sebaro.css). A closed menu has no size; it is measured when it opens (its items change
 //      size, ResizeObserver).
-//   9. Dialog actions (spec/02 §4.6, NV-L; provisional, agent): once the actions of an sb-dialog no longer fit one line
+//   9. Dialog actions (spec/02 §4.6, NV-L): once the actions of an sb-dialog no longer fit one line
 //      and wrap, data-sb-fit="stack" on .sb-dialog__actions gives each its own row at the full width, in their order
 //      (the verb last); measured in the one-line form whenever the row changes size (a dialog that opens gets its
 //      size, ResizeObserver). Without the script they wrap end-aligned.
-//  10. Switch row with a leading icon (spec/02 §2.6, CHECKS §45.5; provisional, agent): once a word of the label would
+//  10. Switch row with a leading icon (spec/02 §2.6, CHECKS §45.5): once a word of the label would
 //      break beside the icon and the switch, data-sb-fit="stack" gives the label the line beside the icon and puts
 //      the switch on a line of its own, at the end (sebaro.css). Measured in the one-line form, by the width the words
 //      take, not by a count of characters. Without the script the switch wraps below 6em of the label.
@@ -74,7 +74,7 @@
 //      the column is 4.5rem.
 (function () {
   "use strict";
-  var HYST = 4;   // px: a part goes back to its wide form only when it fits this much narrower (provisional, agent)
+  var HYST = 4;   // px: a part goes back to its wide form only when it fits this much narrower
   var NO_HYPHENS = ".sb-opening__title, .sb-product-area--empty .sb-product-area__line, code, pre, kbd, samp, var, textarea, input, select, option, script, style, svg, math, .sb-id, " +
     ".sb-file-name, .sb-visually-hidden, [data-sb-truncate], [translate=\"no\"], .sb-fit-probe";
   var SVGNS = "http://www.w3.org/2000/svg";
@@ -197,7 +197,7 @@
       var sel = segSelect(fs, parts);
       segSync(fs);
       fs.setAttribute("data-sb-fit", "select");
-      // the legend names the select; without a group around it the name is read once (provisional, agent)
+      // the legend names the select; without a group around it the name is read once
       if (!fs.hasAttribute("data-sb-fit-role")) fs.setAttribute("data-sb-fit-role", fs.getAttribute("role") || "");
       fs.setAttribute("role", "none");
       if (focused) sel.focus();
@@ -442,7 +442,7 @@
     unwrapWords(btn);
     btn.removeAttribute("data-sb-fit");
     var cs = getComputedStyle(btn), room = btn.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
-    // D102 lane patterns (provisional, agent): also when the words wrap and the line beside the icon is narrower than
+    // D102 lane patterns: also when the words wrap and the line beside the icon is narrower than
     // two of the action's letters (2em; a busy action's spinner in a narrow dialog at 200 %): above the words the
     // icon gives them the action's whole width, even where a long word still has to break there
     var beside = room - icon.getBoundingClientRect().width - px(cs.columnGap);
@@ -566,7 +566,7 @@
     // Chromium gives no break after „/“ between letters, so in „kompakt/komfortabel“ break-word cuts the second word
     // although it would fit its own line after the slash (the guide's OVF6 request, review of the D105 lane narrow-
     // tools-docs, NTD-R2): such a piece first gets a <wbr> after the slash and the words are measured again; only a
-    // piece that still does not fit its line then gets hyphens (provisional, agent)
+    // piece that still does not fit its line then gets hyphens
     var slashed = found.filter(function (f) { return f.afterSlash; });
     if (slashed.length) {
       for (var j = slashed.length - 1; j >= 0; j--) breakAfterSlash(slashed[j]);

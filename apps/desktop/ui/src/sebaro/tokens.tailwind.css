@@ -1,7 +1,7 @@
 /* generated — do not edit.
  * sebaroDesign token contract 2.0 · draft "sebaro" · palette "sebaro"
  * source: systems/sebaro/tokens/tokens.json (sha256 b20394467cd8a934)
- *         palettes/sebaro.json (sha256 371d475a0f24873d)
+ *         palettes/sebaro.json (sha256 49659985fc757a5f)
  * builder: tools/build_tokens.py 2.0.0 · spec: shared/TOKEN-CONTRACT.md
  *
  * Tailwind CSS v4 bridge. Import order:
@@ -100,6 +100,8 @@
   --color-tile-money-glyph: var(--sb-tile-money-glyph);
   --color-tile-system: var(--sb-tile-system);
   --color-tile-system-glyph: var(--sb-tile-system-glyph);
+  --color-tile-placeholder: var(--sb-tile-placeholder);
+  --color-tile-placeholder-glyph: var(--sb-tile-placeholder-glyph);
   --color-syntax-keyword: var(--sb-syntax-keyword);
   --color-syntax-string: var(--sb-syntax-string);
   --color-syntax-constant: var(--sb-syntax-constant);
