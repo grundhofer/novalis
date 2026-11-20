@@ -880,6 +880,10 @@ Weiter nicht geprüft: ob das Fenster nach dem Start den gespeicherten Grund nim
 
 Weiter nicht geprüft: der Fenstergrund freiliegend nach dem Start; die Farbwerte anders als umgerechnet aus der Aufnahme; die Ursache des DMG-Fehlers vom 14.11.; das DMG auf einem anderen Mac geöffnet und installiert; der wöchentliche Schritt in CI selbst.
 
+**Nachtrag 2026-11-16, der wöchentliche Schritt in CI:** Sein erster Lauf. GitHub startete den zeitgesteuerten Lauf erst gegen 14:30 UTC statt um 06:00. Er lief auf `main` `798cb9a` und meldete `update available`: Die Kopie war auf v2.0.0, das neueste Release v2.0.2. Exit 1, der Lauf war damit wie vorgesehen rot. Die Abschnitte aus `CHANGES.md`, die er nennen soll, kamen nur als Überschriften („## v2.0.2“, „## v2.0.1“), ohne Inhalt darunter. Seit #283 ist die Kopie auf v2.0.4 (Z17); `update-copy.mjs --check` meldet lokal „up to date“, Exit 0.
+
+Weiter nicht geprüft: warum die Abschnitte leer ankamen; ein Wochenlauf in CI nach #283.
+
 ## Z17 Aus dem Release v2.0.4: flachere Aktionszone (2026-11-20)
 
 Der Inhaber fand die Aktionszone zu hoch („mir gefällt einfach die nutzung der fläche nicht, da sich der lesebereich unnötig verkleinert“) und wählte von vier Vorschlägen den zweiten (ADR-0051 #96). Gebaut ist er in sebaro selbst (Werkstatt sebaro Foundry `51a3723`, D152, CHECKS §136), veröffentlicht als Release `v2.0.4`. Die Kopie hatte vorher `v2.0.0`; geholt ist sie mit dem eigenen Updater, Profil und Pakete wie bisher (`desktop`; `board`, `notes`, `editor-codemirror`). 25 der 66 Dateien und das Protokoll sind geändert, das meiste aus v2.0.1 bis v2.0.3.
