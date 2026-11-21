@@ -24,5 +24,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "vite.config.ts", "eslint.config.js", "scripts"]
+  "include": ["src", "vite.config.ts", "eslint.config.js", "scripts"],
+  // sebaro's React parts (since v3.0.0), which novalis does not import: two of
+  // them do not pass `noUncheckedIndexedAccess` (docs/sebaro-luecken.md Z18).
+  "exclude": ["src/sebaro/react"]
 }
