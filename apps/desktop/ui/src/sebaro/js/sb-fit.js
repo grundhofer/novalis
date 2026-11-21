@@ -1,4 +1,4 @@
-// sb-fit.js: large text on the web (D99 (1), D100 (1), (3), (5), D101 (1), (2), (8), (9), (11); spec/02 §7, spec/09 §1, §3.1).
+// sb-fit.js: large text on the web (D99 (1), D100 (1), (3), (5), D101 (1), (2), (8), (9), (11)).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval, styles only through classes, data
 // attributes and the CSSOM. It writes no words of its own (D87): the select takes the words of the segments, the step
 // line the word of the current step. Without it the words still wrap and no demo page scrolls sideways at 200 % text
@@ -9,7 +9,7 @@
 // on a theme or tone change, once the fonts are loaded and on window.sbFit.refresh(). A change of the window's width,
 // the text size, the theme or the tone decides every form afresh, as a fresh load would; the hysteresis below only
 // holds while a part changes size at the same text size (a scroll bar coming and going, a neighbour growing):
-//   1. Segmented control (spec/02 §2.7, D100 (3)): once one option does not fit its column the way Compose measures it
+//   1. Segmented control (D100 (3)): once one option does not fit its column the way Compose measures it
 //      (its widest word at the title weight wider than the column less the 4 px sides, the 16 px check and its gap,
 //      counted for every option, or the words on more than two lines), the fieldset gets data-sb-fit="select" and
 //      shows a select with the same options, the legend as its label, the disabled options disabled. The radios stay
@@ -21,22 +21,22 @@
 //      Back to the segments only when the words fit 4 px narrower (hysteresis).
 //      The column is measured at the width the control takes when it fills its place (a control as wide as its words
 //      grows with its choice). Without the script the words wrap and an overlong word breaks.
-//   2. Steps (spec/02 §3.12, D100 (1), D101 (1), (2)): once a step's word does not fit its column on two lines even
+//   2. Steps (D100 (1), D101 (1), (2)): once a step's word does not fit its column on two lines even
 //      with hyphens (at the title weight for every step, so the form does not change with the current step), the list
 //      gets data-sb-fit="short": every bar stays, done steps keep their check, the words are visually hidden (screen
 //      readers still read each step with its state) and the current step's word stands once, aria-hidden, in
 //      p.sb-progress__now on its own line under the bars, start-aligned. 2 to 4 steps, as Compose. Words are
 //      span.sb-progress__word (the script wraps a bare word in one).
-//   3. Facts line (spec/10 §4.1, D101 (11)): once one cell with its „·“ does not fit one line, data-sb-fit="list": the
+//   3. Facts line (D101 (11)): once one cell with its „·“ does not fit one line, data-sb-fit="list": the
 //      name on its own line, under it each cell on its own line, no „·“, the same type and colours; links stay links.
-//   4. Several series (spec/02 §3.7, D101 (7), (8)): while every line end „Name 90 %“ stays on one line in half the
+//   4. Several series (D101 (7), (8)): while every line end „Name 90 %“ stays on one line in half the
 //      plot's width and still covers the height where its line ends after ends that would touch are moved apart, the
 //      names stand at the line ends; else data-sb-fit="values": the legend names the series (a two-series chart writes
 //      its legend with hidden and data-sb-fit-legend; the script shows it), every end keeps only its last value. Ends
 //      that would touch are moved apart in both forms (--sb-chart-shift). Slot labels under any chart that would run
 //      into each other are left out from the front, so the latest stay (as Compose, D99 (2)). The head of a deviation
 //      chart („weniger · 0 = 7 Std. · mehr“) whose words would touch gets data-sb-fit="stack": one word per line (OR-2).
-//   5. Hyphens only for a word that alone does not fit its line (D101 (9), spec/07 §3): every word is first allowed to
+//   5. Hyphens only for a word that alone does not fit its line (D101 (9)): every word is first allowed to
 //      break only without a hyphen (overflow-wrap: break-word, sebaro.css); a word the browser had to break inside
 //      is wrapped, and only that word, in span.sb-hyphenate[data-sb-fit-word] (hyphens: auto, by the page's lang),
 //      like Compose's SbWrapText; every other word of the paragraph, heading or button keeps hyphens: manual. The span
@@ -48,26 +48,26 @@
 //      after „/“ that the browser broke only because it gives no break after the slash („kompakt/komfortabel“) first
 //      gets a <wbr data-sb-fit-wbr> after the slash and goes whole onto its own line; hyphens only if it still does
 //      not fit there (the guide's OVF6 request).
-//   6. Top bar (spec/02 §4.1, D102 lane narrow): once a word of the title or subtitle would break
+//   6. Top bar (D102 lane narrow): once a word of the title or subtitle would break
 //      beside the back button and the actions, data-sb-fit="stack" puts the heading on its own line under them (a
 //      large title).
-//   7. Actions (spec/02 §1, D102 lane narrow): a primary, secondary or danger action whose word would
+//   7. Actions (D102 lane narrow): a primary, secondary or danger action whose word would
 //      break beside its icon but fits the action gets data-sb-fit="stack": the icon stands above the words; so does one
 //      whose words wrap in a line narrower than 2em beside the icon (D102 lane patterns).
-//   8. Menu items with keys (spec/02 §4.10, guide 2.11.0 request): a menu item whose word would
+//   8. Menu items with keys (guide 2.11.0 request): a menu item whose word would
 //      break beside its shortcut (.sb-keys) but fits the item without it gets data-sb-fit="stack": the keys go on the
 //      line under the words (sebaro.css). A closed menu has no size; it is measured when it opens (its items change
 //      size, ResizeObserver).
-//   9. Dialog actions (spec/02 §4.6, NV-L): once the actions of an sb-dialog no longer fit one line
+//   9. Dialog actions (NV-L): once the actions of an sb-dialog no longer fit one line
 //      and wrap, data-sb-fit="stack" on .sb-dialog__actions gives each its own row at the full width, in their order
 //      (the verb last); measured in the one-line form whenever the row changes size (a dialog that opens gets its
 //      size, ResizeObserver). Without the script they wrap end-aligned.
-//  10. Switch row with a leading icon (spec/02 §2.6, CHECKS §45.5): once a word of the label would
+//  10. Switch row with a leading icon: once a word of the label would
 //      break beside the icon and the switch, data-sb-fit="stack" gives the label the line beside the icon and puts
 //      the switch on a line of its own, at the end (sebaro.css). Measured in the one-line form, by the width the words
 //      take, not by a count of characters. Without the script the switch wraps below 6em of the label.
-//  11. Heatmap week heads (spec/02 §3.7, CHECKS.md §130): the column of the week heads is as wide as its widest head
-//      on one line, never narrower than its 4.5rem, as Compose's SbHeatmap measures it (spec/08 §14.11): the widest
+//  11. Heatmap week heads: the column of the week heads is as wide as its widest head
+//      on one line, never narrower than its 4.5rem, as Compose's SbHeatmap measures it: the widest
 //      head in whole px into --sb-heatmap-heads on the table (sebaro.css takes the larger). A German head („ab
 //      28.09.“) fits 4.5rem and keeps it; an English one („from 28 Sep“) no longer runs into the first day. Only in the
 //      wide form: in the narrow one (the container query) the heads wrap in their 3.4em by design. Without the script
@@ -315,7 +315,7 @@
   }
 
   // ------------------------------------------------------------------ 4b slot labels that would touch
-  // As Compose (D99 (2), spec/08 §14.10): x labels under a chart that would run into each other are left out instead of
+  // As Compose (D99 (2)): x labels under a chart that would run into each other are left out instead of
   // overlapping, read from the back, so the latest stay („Mo Mi Fr So“). The slots are aria-hidden (the values table and
   // the bars carry the words), so only the picture changes. data-sb-fit="hidden" on the label.
   function fitSlots(ol) {
@@ -338,7 +338,7 @@
   // ------------------------------------------------------------------ 4c the deviation head (OR-2)
   // „weniger · 0 = 7 Std. · mehr“ over the bars: while the three words stand beside each other with 8 px between them
   // (the grid's gap) in one line, nothing changes; else data-sb-fit="stack" puts each on its own line, towards its
-  // side, the midpoint centred on the zero line (sebaro.css; as Compose, spec/08 §14.24). Measured in the one-line form.
+  // side, the midpoint centred on the zero line (sebaro.css; as Compose). Measured in the one-line form.
   function fitHead(p) {
     var kids = Array.prototype.slice.call(p.children);
     if (kids.length !== 3 || !p.clientWidth) return;
@@ -472,7 +472,7 @@
     if (kids.some(function (k) { return Math.abs(k.getBoundingClientRect().top - top) > 1; })) row.setAttribute("data-sb-fit", "stack");
   }
 
-  // ------------------------------------------------------------------ 4h a switch row with a leading icon (§45.5)
+  // ------------------------------------------------------------------ 4h a switch row with a leading icon
   // While every word of the label fits beside the icon and the switch, nothing changes; once one would have to break
   // there, data-sb-fit="stack": the label keeps the line beside the icon, the switch goes to the line under it, at
   // the end, so „Einstellungen“ at 200 % on 320 px stays whole. A word too long even for that line still breaks (step
@@ -586,7 +586,7 @@
   }
   // a break after „/“ only where the text before it ends in a slash that follows a word: never after the separators a
   // name begins with („/Users“, „../a“), and a run of separators stays together („a//b“ may break after „//“, the
-  // piece after it is then measured whole) — the rule of the file names (spec/02 §3.11)
+  // piece after it is then measured whole) — the rule of the file names
   function slashBreak(before) {
     if (!/\/$/.test(before)) return false;
     var j = before.length - 1;
@@ -696,7 +696,7 @@
   // ------------------------------------------------------------------ scheduling
   var PARTS = [
     [".sb-opening__title, .sb-product-area--empty .sb-product-area__line", fitOpening], [".sb-segmented", fitSegmented], [".sb-progress__steps", fitSteps], [".sb-facts-line", fitFacts],
-    // the heatmap is measured with its figure (spec/02 §3.7: table.sb-heatmap is a child of figure.sb-chart); its
+    // the heatmap is measured with its figure (table.sb-heatmap is a child of figure.sb-chart); its
     // class is only looked for, so the cut's run-time list does not keep the heatmap's rules for every page (`asked`)
     [".sb-chart", function (fig) {
       if (fig.querySelector(".sb-chart__end--series")) fitSeries(fig);

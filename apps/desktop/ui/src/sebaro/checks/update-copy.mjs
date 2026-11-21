@@ -1,23 +1,29 @@
 #!/usr/bin/env node
-// update-copy.mjs: fetches a public copy of the sebaro design system and writes or updates a profile copy with it.
-// Node 20+, built-ins only (node:fs, node:path, node:crypto, node:zlib, fetch). Shipped by tools/export_system.py as
-// checks/update-copy.mjs in every profile copy, and published with every release as a file of its own for the first
-// fetch. The maintainers of sebaro keep it as tools/update-copy.mjs in their repository, sebaro-foundry, where
-// tools/release_copies.py builds what it reads.
+// update-copy.mjs: fetches a release of the sebaro design system and writes or updates a profile copy with it.
+// Node 20+, built-ins only (node:fs, node:path, node:crypto, node:zlib, node:child_process, fetch). Every profile copy
+// holds it as checks/update-copy.mjs, and every release has it as a file of its own, for the first copy and for a copy
+// whose updater is older than 2.0.0:
 //
-//   node update-copy.mjs --profile android [--packs a,b] --out sebaro [--release v1.14.3]   # the first copy
+//   gh release download -R grundhofer/sebaro-foundry -p update-copy.mjs
+//   node update-copy.mjs --profile android [--packs a,b] --out sebaro [--release v3.0.0]   # the first copy
+//   node update-copy.mjs --out sebaro --release v3.0.0     # a copy written by an updater before 2.0.0
 //   node sebaro/checks/update-copy.mjs                     # in place: the newest release, the copy's profile and packs
 //   node sebaro/checks/update-copy.mjs --packs a,b         # the same with another choice (all: every pack, none: the core)
-//   node sebaro/checks/update-copy.mjs --release v1.14.3   # one release, not the newest
+//   node sebaro/checks/update-copy.mjs --release v3.0.1    # one release, not the newest
 //   node sebaro/checks/update-copy.mjs --check             # changes nothing; exit 1 when a newer release exists
 //
-// A release is four kinds of file: copies.json (the index: the tag, and per profile its archive with bytes and
-// sha256 and its packs with what they hold and need), sebaro-<profile>.tar.gz (the copy of that profile with every
-// pack, its record sebaro-export.json, and .sebaro-cut.json, the cut plan), CHANGES.md (what changed for a product
-// with each release, one section per tag; every copy holds it too) and this file. They are read from
-// RELEASES below: <RELEASES>/latest/download/<file>, with --release <tag> <RELEASES>/download/<tag>/<file>. --from
-// <folder or URL> or the environment variable SEBARO_COPIES names another place: a URL with the same two paths, or a
-// folder that holds the files of one release (with --release <tag> also <folder>/<tag>/).
+// The releases are those of the private repository REPO below, read through the GitHub API (API_ENV names another
+// base URL, for tests). The token is the first of $SEBARO_FOUNDRY_TOKEN, $GH_TOKEN, $GITHUB_TOKEN and the output of
+// `gh auth token`: on a developer's machine `gh auth login` is enough, a CI job passes the repository secret
+// SEBARO_FOUNDRY_TOKEN to the step. The token goes to the API alone, never to the host a download is redirected to,
+// and is never printed. Without a token, or when GitHub answers 401, 403 or 404 for the repository, the updater says
+// what is missing (exit 6). --from <folder> reads a folder that holds the files of one release instead (with
+// --release <tag> also <folder>/<tag>/) and needs no token.
+//
+// Of a release it reads copies.json (the index: the tag, and per profile its archive with bytes and sha256 and its
+// packs with what they hold and need), sebaro-<profile>.tar.gz (the copy of that profile with every pack, its record
+// sebaro-export.json, and .sebaro-cut.json, the cut plan) and CHANGES.md (what changed for a product with each
+// release, one section per tag; every copy holds it too).
 //
 // What it writes is, file for file and byte for byte, what the maintainers' export of that release writes for the
 // same profile and packs (`export_system.py --profile P --packs X --from-commit <tag>`). It only selects and joins:
@@ -31,40 +37,42 @@
 // After an update it prints the sections of CHANGES.md between the release the copy had and the new one: what
 // changed for a product and what to do. --check prints their headings when a newer release exists.
 //
-// A copy keeps its major version (1.3.0): the major of a release is its token contract (a renamed, removed or newly
-// required token, a removed output), so a release of a newer major can break the product's code. Without --release
-// the updater does not write a release of a newer major than the copy's (the release it records, or else the token
-// contract it was written with): it refuses (exit 5) and names the command, --release <tag>, after the product read
-// the notes. --check says it beside its exit 1. A new copy, and a copy whose major is not known, take the newest.
+// A copy keeps its major version: a release of a newer major can break the product's code. Without --release the
+// updater does not write a release of a newer major than the one the copy records: it refuses (exit 5) and names the
+// command, --release <tag>, after the product read the notes. --check says it beside its exit 1. A new copy, and a
+// copy that records no release, take the newest.
 //
-// What it trusts: the index, fetched over HTTPS from the releases of the guide, which a person publishes; the
-// archive and the notes are bound to the index by size and sha256, every file to the archive's record. Nothing is
-// signed: whoever can change a published release of the guide can serve an index and archives that agree, and this
-// file would write them. A product that wants more keeps its copy in git, so that every update is a diff it reads
-// (the README's scheduled job commits an update on its own), or names a release it has read with --release.
+// What it trusts: the index, fetched over HTTPS from the releases of REPO, which a person publishes; the archive and
+// the notes are bound to the index by size and sha256, every file to the archive's record. Nothing is signed: whoever
+// can change a published release there can serve an index and archives that agree, and this file would write them. A
+// product keeps its copy in git, so that every update is a diff it reads, or names a release it has read.
 //
-// It checks the sha256 and the size of the archive against the index, the sha256 of every file against the release's
-// record and of every stretch against the cut plan, writes the copy into a temporary folder beside the target, reads
-// it back, and swaps the two at the end: a run that fails leaves the old copy as it was. It refuses to replace a
-// copy in which a recorded file is edited or missing or a file was added (the test of verify-export.mjs --strict);
-// --force replaces it anyway. What is not the copy's stays: dotfiles and dot folders, and with --force a file the old
-// record does not name (unless the release writes a file of that path).
+// It writes the copy into a temporary folder beside the target, reads it back, and swaps the two at the end: a run
+// that fails leaves the old copy as it was. It refuses to replace a copy in which a recorded file is edited or
+// missing or a file was added (the test of verify-export.mjs --strict); --force replaces it anyway. What is not the
+// copy's stays: dotfiles and dot folders, and with --force a file the old record does not name (unless the release
+// writes a file of that path).
 //
 // Exit codes: 0 the copy was written, or with --check it is at the newest release · 1 --check: a newer release
 // exists (both versions are printed) · 2 usage: an unknown option, profile or pack, a pack without a pack it needs,
 // a folder that is no profile copy · 3 refused: the copy has an edited, missing or added file (--force) · 4 the
 // release cannot be read or does not verify: no such release, a failed download, a sha256 or size that does not
 // match, a broken archive, an index or cut plan of a format this file does not read; nothing was changed · 5 refused:
-// the newest release is of a newer major version than the copy and --release does not name it; nothing was changed.
+// the newest release is of a newer major version than the copy and --release does not name it; nothing was changed ·
+// 6 no access: no token, or one that cannot read the repository; nothing was changed.
 
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import zlib from "node:zlib";
+import { execFileSync } from "node:child_process";
 
-const VERSION = "1.3.0"; // 1.3.0 (sebaro CHECKS.md §132): a copy keeps its major version: without --release a release of a newer major is not written (exit 5) and --check says so; the head says what the updater trusts; 1.2.1 (sebaro CHECKS.md §132): its head names the maintainers' repository by its name, sebaro-foundry, not the old sebaroDesign; nothing else changed; 1.2.0 (sebaro CHECKS.md §125, the owner 2026-11-13): reads the releases of grundhofer/sebaro-blueprint, the guide's new name; GitHub forwards the old address, so a copy of v1.14.0 still finds a newer release; 1.1.0 (D148 stage 6c, sebaro CHECKS.md §120): prints the change notes (CHANGES.md) between two releases, --check their headings; measures the minified sizes of the stylesheets (cssSizes); its refusal names no repository; 1.0.0 (D148 stage 6b, sebaro CHECKS.md §119): the first version
-const RELEASES = "https://github.com/grundhofer/sebaro-blueprint/releases"; // where the public copies are
-const SOURCE_ENV = "SEBARO_COPIES";
+const VERSION = "2.0.0"; // 2.0.0: the releases of the private sebaro-foundry through the GitHub API, with a token (exit 6 without); --from is a folder
+const REPO = "grundhofer/sebaro-foundry"; // the private repository whose releases hold the copies
+const RELEASES = "https://github.com/grundhofer/sebaro-foundry/releases";
+const API = "https://api.github.com";
+const API_ENV = "SEBARO_FOUNDRY_API"; // another base URL of the API, for tests
+const TOKEN_ENVS = ["SEBARO_FOUNDRY_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]; // in this order, then `gh auth token`
 const INDEX_NAME = "copies.json";
 const INDEX_SCHEMA = "1"; // the major version of copies.json and of the cut plan this file reads
 const MANIFEST_NAME = "sebaro-export.json";
@@ -76,20 +84,22 @@ const NO_PACKS = "none";
 const FETCH_TIMEOUT_MS = 120000;
 
 const USAGE = "usage: node update-copy.mjs [--profile P] [--packs a,b|all|none] [--out DIR] [--release TAG]\n" +
-  "                            [--from FOLDER|URL] [--check] [--force]\n" +
+  "                            [--from FOLDER] [--check] [--force]\n" +
   "  --profile P    the profile of a new copy (a copy that exists keeps its own)\n" +
   "  --packs LIST   the packs the copy should hold, all or none (default: the copy's packs, none for a new one)\n" +
   "  --out DIR      the folder of the copy (default: the copy this file stands in)\n" +
   "  --release TAG  that release (default: the newest)\n" +
-  `  --from SRC     a folder or a URL in place of ${RELEASES} (or $${SOURCE_ENV})\n` +
+  `  --from FOLDER  a folder with the files of a release, in place of ${RELEASES}\n` +
   "  --check        change nothing; exit 1 when a newer release exists\n" +
-  "  --force        replace a copy with edited, missing or added files";
+  "  --force        replace a copy with edited, missing or added files\n" +
+  "the releases are private: the token is $SEBARO_FOUNDRY_TOKEN, $GH_TOKEN, $GITHUB_TOKEN or what gh auth token prints";
 
 class UsageError extends Error {} // exit 2
 class ArgumentError extends UsageError {} // exit 2, with the usage text
 class Refused extends Error {} // exit 3
 class NewMajor extends Error {} // exit 5
 class ReleaseError extends Error {} // exit 4
+class NoAccess extends Error {} // exit 6
 
 function parseArgs(argv) {
   const a = { profile: null, packs: null, out: null, release: null, from: null, check: false, force: false };
@@ -111,7 +121,7 @@ function parseArgs(argv) {
       a[valued[arg.slice(0, arg.indexOf("="))]] = arg.slice(arg.indexOf("=") + 1);
     } else throw new ArgumentError(`unknown argument ${arg}`);
   }
-  if (a.from === "") throw new ArgumentError("--from needs a folder or a URL");
+  if (a.from === "") throw new ArgumentError("--from needs a folder");
   if (a.check && (a.packs !== null || a.force)) {
     throw new ArgumentError("--check changes nothing: it takes no --packs and no --force");
   }
@@ -132,21 +142,88 @@ function parseJson(data, what) {
 
 // ----------------------------------------------------------------------------------------------- the release
 
-// Where the files of a release are: a folder, or a URL with /latest/download/ and /download/<tag>/ below it.
+const ACCESS = `The releases of sebaro are in the private repository ${REPO}; reading them needs a token.\n` +
+  "    on your machine: gh auth login, with an account that can read the repository (the updater asks `gh auth token`)\n" +
+  "    in CI: the repository secret SEBARO_FOUNDRY_TOKEN (a read-only token for that repository), passed to the step:\n" +
+  "        env:\n" +
+  "          SEBARO_FOUNDRY_TOKEN: ${{ secrets.SEBARO_FOUNDRY_TOKEN }}\n" +
+  `    read in this order: ${TOKEN_ENVS.map((n) => `$${n}`).join(", ")}, gh auth token`;
+
+// The token and where it came from (a name, for the messages; the token itself is never printed).
+function findToken() {
+  for (const name of TOKEN_ENVS) {
+    const value = (process.env[name] ?? "").trim();
+    if (value) return { value, from: `$${name}` };
+  }
+  try {
+    const value = execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 15000,
+    }).trim();
+    if (value) return { value, from: "gh auth token" };
+  } catch {
+    // gh is not installed or not logged in
+  }
+  throw new NoAccess(`no token. ${ACCESS}`);
+}
+
+// Where the files of a release are: a folder (--from), or the releases of REPO behind the GitHub API.
 function source(from) {
-  const src = (from ?? (process.env[SOURCE_ENV] || RELEASES)).replace(/\/+$/, ""); // an empty variable is no source
-  if (/^https?:\/\//i.test(src)) return { url: src, label: src };
-  const folder = path.resolve(src.startsWith("file://") ? new URL(src).pathname : src);
+  if (from === null) {
+    const api = (process.env[API_ENV] || API).replace(/\/+$/, "");
+    return { api, token: findToken(), label: api === API ? RELEASES : `${api}/repos/${REPO}/releases` };
+  }
+  const folder = path.resolve(from);
   let isDir = false;
   try {
     isDir = fs.statSync(folder).isDirectory();
   } catch {
     // no such folder
   }
-  if (!isDir) {
-    throw new UsageError(`${folder} is no folder (--from, $${SOURCE_ENV}: a folder with the files of a release, or a URL)`);
-  }
+  if (!isDir) throw new UsageError(`${folder} is no folder (--from: a folder with the files of a release)`);
   return { folder, label: "a local folder" };
+}
+
+// One GET. The token is sent only where `auth` is true: to the API, never to the host a download is redirected to.
+async function get(src, url, accept, auth) {
+  try {
+    return await fetch(url, {
+      redirect: auth ? "manual" : "follow",
+      headers: {
+        accept,
+        "user-agent": `sebaro-update-copy/${VERSION}`,
+        ...(auth ? { authorization: `Bearer ${src.token.value}`, "x-github-api-version": "2022-11-28" } : {}),
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new ReleaseError(`${url} could not be fetched: ${e.cause?.message ?? e.message}`);
+  }
+}
+
+// The release `tag` of REPO, or the newest published one, as the API describes it (its tag and its files). A 404
+// there is a missing release when the repository itself answers, else, like 401 and 403, a token that cannot read it.
+async function findRelease(src, tag) {
+  if (src.release) return src.release;
+  const repo = `${src.api}/repos/${REPO}`;
+  const json = "application/vnd.github+json";
+  let res = await get(src, `${repo}/releases/${tag ? `tags/${encodeURIComponent(tag)}` : "latest"}`, json, true);
+  if (res.status === 404) {
+    res = await get(src, repo, json, true);
+    if (res.ok) throw new ReleaseError(tag ? `${REPO} has no release ${tag}` : `${REPO} has no published release`);
+  }
+  if ([401, 403, 404].includes(res.status)) {
+    throw new NoAccess(`GitHub answers HTTP ${res.status} for ${REPO} with the token from ${src.token.from}: the token ` +
+      `is wrong, has expired or may not read that repository. ${ACCESS}`);
+  }
+  if (!res.ok) throw new ReleaseError(`${src.label}: HTTP ${res.status}`);
+  const found = parseJson(Buffer.from(await res.arrayBuffer()), "the API's answer");
+  if (found === null || typeof found !== "object" || !Array.isArray(found.assets)) {
+    throw new ReleaseError(`${src.label}: the API's answer is no release`);
+  }
+  src.release = found;
+  return found;
 }
 
 async function fetchFile(src, release, name) {
@@ -160,21 +237,15 @@ async function fetchFile(src, release, name) {
       throw new ReleaseError(`${file} cannot be read (${e.code ?? e.message})`);
     }
   }
-  const url = `${src.url}/${release ? `download/${encodeURIComponent(release)}` : "latest/download"}/${name}`;
-  let res;
-  try {
-    res = await fetch(url, {
-      redirect: "follow",
-      headers: { "user-agent": `sebaro-update-copy/${VERSION}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-  } catch (e) {
-    throw new ReleaseError(`${url} could not be fetched: ${e.cause?.message ?? e.message}`);
+  const found = await findRelease(src, release);
+  const asset = found.assets.find((a) => a.name === name);
+  if (!asset || !Number.isInteger(asset.id)) {
+    throw new ReleaseError(`release ${found.tag_name} of ${REPO} has no file ${name}`);
   }
-  if (!res.ok) {
-    const none = res.status === 404 ? " (no such release, or it has no such file)" : "";
-    throw new ReleaseError(`${url}: HTTP ${res.status}${none}`);
-  }
+  let res = await get(src, `${src.api}/repos/${REPO}/releases/assets/${asset.id}`, "application/octet-stream", true);
+  const to = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+  if (to) res = await get(src, new URL(to, src.api).href, "application/octet-stream", false);
+  if (!res.ok) throw new ReleaseError(`${name} of release ${found.tag_name}: HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
 
@@ -680,17 +751,14 @@ function releaseOf(rec, index) {
   return rec.release?.tag ?? (commit && commit === index.commit ? index.tag : null);
 }
 
-// 1.3.0: the major version of a copy: of the release it records (or the index's, written from the same commit), or
-// else of the token contract it was written with, which is the major of every release (shared/PACKAGES.md §2);
-// null when neither says.
+// The major version of a copy: of the release it records (or the index's, written from the same commit); null when
+// it records none.
 function majorOf(rec, index) {
   const at = version(releaseOf(rec, index));
-  if (at) return at[0];
-  const m = /^(\d+)\./.exec(String(rec.contracts?.tokens ?? ""));
-  return m ? Number(m[1]) : null;
+  return at ? at[0] : null;
 }
 
-// 1.3.0: the release of the index is of a newer major version than the copy.
+// The release of the index is of a newer major version than the copy.
 function newMajor(rec, index) {
   const to = version(index.tag);
   const from = majorOf(rec, index);
@@ -773,10 +841,10 @@ async function run(argv) {
     const from = majorOf(rec, index);
     const at = releaseOf(rec, index);
     throw new NewMajor(`the newest release, ${index.tag}, is a new major version, and ${dir} is at ` +
-      `${at ? `release ${at}` : `token contract ${rec.contracts?.tokens}`} (${from}.x): a new major version can break ` +
+      `release ${at} (${from}.x): a new major version can break ` +
       `the product's code, so the updater takes it only when it is named. Read its section of ${CHANGES_NAME} ` +
       `(--check prints the headings), then run again with --release ${index.tag}. To stay at ${from}.x, name a ` +
-      `release of that line with --release` + (at ? ` (this copy is at ${at})` : ""));
+      `release of that line with --release (this copy is at ${at})`);
   }
   const chosen = choosePacks(index, profile, a.packs, rec?.packs ?? null);
   if (rec && !a.force) {
@@ -840,6 +908,10 @@ async function main() {
     if (e instanceof ReleaseError) {
       console.error(`error: ${e.message}. Nothing was changed.`);
       return 4;
+    }
+    if (e instanceof NoAccess) {
+      console.error(`error: ${e.message}\nNothing was changed.`);
+      return 6;
     }
     throw e;
   }

@@ -910,3 +910,46 @@ Der Inhaber fand die Aktionszone zu hoch („mir gefällt einfach die nutzung de
 | Einstellungsansicht | keine Zone (D74) |
 
 Weiter nicht geprüft: diese Fälle im Fenster der gebauten App; das Board (die Attrappe hat keins).
+
+## Z18 Aus den Releases v2.0.5 bis v3.0.1: Releases aus dem privaten Repository (2026-11-21)
+
+Die Kopie kommt aus sebaros Release `v3.0.1` (vorher `v2.0.4`), Profil und Pakete wie bisher (`desktop`; `board`, `notes`, `editor-codemirror`). Seit `v3.0.0` liegen sebaros Releases im privaten Repository `grundhofer/sebaro-foundry` und werden mit einem Token gelesen. Die Releasenummer folgt nicht mehr dem Token-Vertrag, der bleibt 2.0: `tokens.css`, `tokens.json` und `tokens.tailwind.css` sind Byte für Byte gleich. Der Updater der alten Kopie (1.3.0) liest die alte öffentliche Quelle und sieht `v3.0.0` nicht. Geholt ist die Kopie deshalb einmal mit dem Updater 2.0.0 aus dem Release selbst, seitdem wieder mit dem der Kopie:
+
+```sh
+gh release download v3.0.1 -R grundhofer/sebaro-foundry -p update-copy.mjs    # in einen Ordner außerhalb des Repos
+node <dieser Ordner>/update-copy.mjs --out apps/desktop/ui/src/sebaro --release v3.0.1
+```
+
+25 der 66 Dateien und das Protokoll sind geändert, 23 sind neu (`react/`), zusammen 89. In `css/sebaro.css` ist außer Kommentaren eine Regel neu (`.sb-avatar:has(> .sb-avatar__role)`). An Code geändert sind sonst der Updater, `js/sb-menu.js`, `checks/sb-colour-count.js` und `product/sign_geometry.py`; die übrigen Skripte und `editor/sebaro-codemirror.ts` nur in Kommentaren.
+
+Was die Notizen einem Desktop-Produkt sagen, und was novalis damit tut:
+
+- **Token:** Der Updater nimmt `SEBARO_FOUNDRY_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN` oder die Ausgabe von `gh auth token`, in dieser Reihenfolge; auf dem Mac eines Entwicklers reicht `gh auth login` mit einem Konto, das das Repository lesen darf. Der wöchentliche Schritt in `ci.yml` (Job `audit`, nur bei `schedule`, Z16) reicht das Secret `SEBARO_FOUNDRY_TOKEN` des Repositories an diesen einen Schritt. Ohne Token endet der Updater mit Ausgang 6 („no token“), der Wochenlauf ist dann rot. Bei einem PR läuft der Schritt weiter nicht; ein PR aus einem Fork hätte das Secret nicht. `scripts/check-sebaro-export.mjs` in `just check` und CI braucht kein Netz und kein Token.
+- **`react/`:** die React-Form von sebaros Teilen als TypeScript-Quelle, in dieser Kopie 20 Teile und 3 Helfer. novalis importiert keins davon, die eigenen Komponenten bleiben. ESLint nimmt `src/sebaro` weiter ganz aus, einen Formatierer hat novalis nicht. Die Typprüfung las den Ordner, weil `tsconfig.json` `src` einschließt, und schlug fehl (Tabelle unten); `tsconfig.json` nimmt `src/sebaro/react` deshalb aus. `editor/sebaro-codemirror.ts` bleibt in der Typprüfung.
+- **`js/sb-menu.js` (D155 (10)):** Ein offenes Menü schließt, sobald im Fenster irgendetwas außer dem Menü selbst rollt, und der Fokus geht auf seine Taste zurück. Vorher folgte das Menü seiner Taste und schloss erst, wenn sie das Fenster verließ. In novalis betrifft das die Menüs des Boards (`MoreMenu.tsx`: Filter, „Mehr zum Board“, Spalten, Karten). Kein Code von novalis geändert.
+- **Protokoll `sebaro-export.json`:** `gates` hat fünf Einträge (ohne `compose`), `release.from` nennt die neue Quelle. `scripts/check-sebaro-export.mjs` liest `format`, `files`, `tool` und `sebaroDesign.commit`; alle vier gibt es weiter.
+- **Baukasten:** bleibt 1.4.0, geändert sind Kommentare und der eigene Bogen-Code in `product/sign_geometry.py` (v2.0.6). `product_kit.py check` nennt `sebaro-product/` aktuell, auch das Zeichen mit seinen Bögen; nichts neu gebaut.
+- **Ohne Folge für novalis:** das Schild am Avatar (v2.0.5; novalis hat keinen Avatar), `checks/sb-colour-count.js` (novalis markiert keine Ansicht, Z14), die erste Zeile von `fonts/fonts.css`, `--from` und `SEBARO_COPIES` (nie verwendet), der Abschnitt für `AGENTS.md` (novalis hat keinen eingefügten sebaro-Abschnitt), die Starter-Archive.
+
+| Stelle | Was fehlt oder nicht passt | Vorschlag |
+|---|---|---|
+| `react/`, Typprüfung | Die Notizen und das README der Kopie sagen, die Typprüfung des Produkts lese den Ordner und `tsconfig.json` nehme ihn nicht aus. Mit `noUncheckedIndexedAccess` (novalis' `tsconfig.json`) scheitern zwei Dateien: `src/sebaro/react/Dialog.tsx(49,45): error TS2532: Object is possibly 'undefined'.` (`tops[0]`) und `src/sebaro/react/Listbox.tsx(26,67): error TS2532: Object is possibly 'undefined'.` (`options[at]`). Ohne diese eine Option läuft `tsc --noEmit` durch. novalis nimmt den Ordner aus der Typprüfung | Die zwei Stellen in sebaro so schreiben, dass sie die Option bestehen, und die Teile dort mit ihr prüfen; in den Notizen nennen, welche Compiler-Optionen die Teile bestehen. Danach den Ausschluss in `tsconfig.json` wieder streichen |
+| `react/`, Zahl | Die Notizen nennen „24 parts, 5 helpers“. Das ist das ganze Profil; diese Kopie hält 20 und 3, der Rest gehört zu Paketen, die sie nicht hat | Die Zahl als die des Profils kennzeichnen |
+| Menü, Rollen | Die Notizen sagen „closes an open menu when the page scrolls“. Gemeint ist jedes Rollen im Fenster außer im Menü selbst (`scroll` am Fenster, in der Capture-Phase). Zwei Folgen nennen sie nicht: Ein Dreh am Rad über einem anderen Teil des Fensters schließt das Menü; und ein Menü, das geöffnet wird, während etwas noch gleitet, schließt sofort wieder. `.sb-board__columns` gleitet in sebaro.css selbst (`scroll-behavior: smooth`) | In den Notizen „anything in the window but the menu itself“ schreiben; für das Gleiten festlegen, ob ein Menü, das währenddessen öffnet, offen bleiben soll |
+| Alter Updater, „finds no newer one“ | Für eine Kopie auf v2.0.4 stimmt der Satz nicht: Ihr Updater meldet „update available: … is at release v2.0.4, the newest release is v2.0.6“, weil die alte Quelle v2.0.5 und v2.0.6 noch hat. Wer dem folgt, holt erst v2.0.6 mit dem alten Updater | Sagen, dass die alte Quelle bei v2.0.6 endet und eine ältere Kopie direkt zum neuen Updater geht |
+| Befehl mit Tag | Die Notizen von v3.0.0 nennen im Befehl `v3.0.0`, die von v3.0.1 sagen „nothing to do“. Ein Produkt, das von v2 kommt, muss selbst darauf kommen, den neuesten Tag einzusetzen | Im Befehl `<newest tag>` schreiben oder sagen, dass der Tag des Abschnitts durch den neuesten ersetzt wird |
+| Token in CI | Die Notizen sagen „add the secret“, aber nicht, was für ein Token es sein soll. Nur die Fehlermeldung des Updaters sagt „a read-only token for that repository“ | Art und Rechte des Tokens in den Notizen und im README nennen |
+| Icons, erste Zeile | `icons/icons.json`, `icons/sprite.css` und `icons/sprite.svg` nennen einen anderen Quell-Hash (`00cf24bf6ca2f2cd`, vorher `9f2cf53a9763d323`), sonst ist nichts an ihnen geändert. Die Notizen nennen nur die erste Zeile von `fonts/fonts.css` | Die Icons daneben nennen |
+| Protokoll, `transform` | Zwei Datei-Einträge (`editor/sebaro-codemirror.ts`, `checks/lint-web.sh`) haben kein `transform` mehr. Die Notizen nennen nur `gates` und `release.from` | Nennen, für ein Werkzeug, das das Feld liest; novalis liest es nicht |
+| `AGENTS.md` | „once the Blueprint's restructuring is merged“: Ob das der Fall ist, sagt die Notiz nicht, und nicht, was ein Produkt ohne eingefügten Abschnitt tut | Den Stand nennen und sagen, ob ein Produkt ohne Abschnitt einen bekommen soll |
+
+**Geprüft:** `just check` ist grün (1020 UI-Tests; 240 Rust-Tests, ignoriert wie bisher nur `vault::fs::tests::trash_moves_file_to_system_trash`; Budget: eager JS 169,9 von 250 kB, größter Chunk 113,2 von 120 kB, eager CSS 31,0 von 35 kB). `verify-export.mjs --strict`: „up to date, 89 files, 0 warning(s), strict“. `update-copy.mjs --check`: v3.0.1, das neueste Release, Ausgang 0; ohne Token und ohne `gh` Ausgang 6 mit „no token“. **Gesehen** in Chromium (Playwright, ohne Bildschirm, das gebaute `dist` mit der Attrappe der Shell und einem Board mit 8 Spalten und 112 Karten), 1280 × 800, je mit dem alten und dem neuen `sb-menu.js`:
+
+| Fall | alt | neu |
+|---|---|---|
+| Filter-Menü offen, die Tab-Zeile rollt 30 px | bleibt offen | schließt, Fokus auf „Filter“ |
+| Menü einer Karte offen, Rad 40 px über der Nachbarspalte | bleibt offen | schließt |
+| Filter-Menü geöffnet, während das Board waagerecht gleitet | bleibt offen | schließt sofort |
+| Filter ▸ Spalten, eine Spalte abgewählt, das Board in Ruhe | schließt | schließt |
+
+**Nicht geprüft:** die gebaute App und WebKit (die Menüs nur in Chromium); der wöchentliche Schritt in CI mit dem Secret; ob eine Tastenfolge in novalis ein Menü öffnet, während das Board noch gleitet.

@@ -31,7 +31,7 @@
 // with the SVGs a build gives now (missing, edited, stale); it never compares pixels. A raster file of an earlier
 // run that the record no longer lists is removed.
 //
-// `share` runs the share-image generator of a copy with the pack share-images (brand/og/render.mjs, spec/09 §18.1)
+// `share` runs the share-image generator of a copy with the pack share-images (brand/og/render.mjs)
 // for the product of <folder>. That generator reads the sign tile of the page list's product from
 // brand/inline/tile-<id>.svg beside itself, and a profile copy holds no product's tile. So `share` copies what the
 // generator reads (tokens.css, fonts/, icons/sprite.svg and sprite.css, brand/og/, brand/inline/) into a temporary
@@ -49,15 +49,15 @@
 //
 // Versions (CHANGELOG):
 //   1.3.1  2026-11-14  the head names the maintainers' repository by its name, sebaro-foundry, and the contract
-//                      where a copy holds it (sebaro CHECKS.md §132); nothing drawn changed.
-//   1.3.0  2026-11-14  text in a source: data-sb-fit, its font and its room, for the Play feature graphic of kit 1.3.0
-//                      (sebaro CHECKS.md §129); a source without text is drawn as before, to the same bytes.
+//                      where a copy holds it; nothing drawn changed.
+//   1.3.0  2026-11-14  text in a source: data-sb-fit, its font and its room, for the Play feature graphic of kit 1.3.0;
+//                     a source without text is drawn as before, to the same bytes.
 //   1.2.0  2026-11-12  `share` finds Playwright where the raster files find it: the folder SEBARO_PLAYWRIGHT names,
-//                      or the product's own (D148 stage 6c, sebaro CHECKS.md §120). Before, the generator looked
+//                      or the product's own (D148 stage 6c). Before, the generator looked
 //                      from the temporary folder and the working folder alone.
 //   1.1.0  2026-11-12  SEBARO_PLAYWRIGHT names a folder that holds node_modules/playwright, for a product without
-//                      a Node project (D148 stage 6b, sebaro CHECKS.md §119); the default lookup is unchanged.
-//   1.0.0  2026-11-12  first version (D148 stage 6a, sebaro CHECKS.md §118).
+//                      a Node project (D148 stage 6b); the default lookup is unchanged.
+//   1.0.0  2026-11-12  first version (D148 stage 6a).
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, rmdirSync, readdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";

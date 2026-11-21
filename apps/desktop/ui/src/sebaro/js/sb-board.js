@@ -1,4 +1,4 @@
-// sb-board.js: the swipe layout of the board on narrow screens, spec/02 §3.16 (D91 B2b).
+// sb-board.js: the swipe layout of the board on narrow screens (D91 B2b).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval.
 // Markup (the board works without this script: below 640 px of its width the columns sit side by side and are
 // swiped, the start of the next column stays in view, every column is a named region with heading and count):
@@ -26,16 +26,16 @@
 // scroll and click listeners and a pending frame, takes away the position bar the script built (a bar from the markup
 // stays, as hidden as the markup had it, with its position text and step buttons as they were), gives the
 // data-sb-board-name elements present at setup their markup text back, hides the data-sb-board-target words again and
-// forgets the board, so setup can run on it again (spec/02 §7).
-// Collaboration patterns of a web app (D104 (9), (14); spec/02 §3.29), for pages without a framework:
-//   [data-sb-votes="5"]           a fixed number of votes per person (spec/02 §3.29): every .sb-vote inside it has a minus and a
+// forgets the board, so setup can run on it again.
+// Collaboration patterns of a web app (D104 (9), (14)), for pages without a framework:
+//   [data-sb-votes="5"]           a fixed number of votes per person: every .sb-vote inside it has a minus and a
 //                                 plus button ([data-sb-vote="-1"] / [data-sb-vote="1"]) and its number .sb-vote__count;
 //                                 a press moves one vote, never below 0 and never past the budget; minus is
 //                                 aria-disabled at 0 and every plus once no vote is left; the element named by
 //                                 data-sb-votes-status="<id>" says „Noch 3 von 5 Stimmen.“ / „Alle 5 Stimmen
 //                                 vergeben.“ (it sits inside the action zone's state sentence, a status); fires
 //                                 "sb-vote-change" (bubbles, detail { vote, count, left }) on the .sb-vote
-//   svg.sb-wheel                  the wheel (spec/02 §3.29): window.sbWheel.turnTo(wheel, index) turns its .sb-wheel__disc so that
+//   svg.sb-wheel                  the wheel: window.sbWheel.turnTo(wheel, index) turns its .sb-wheel__disc so that
 //                                 the pointer stands on the index-th name (text inside the disc, in order), forward and
 //                                 less than one turn (the name already under the pointer: no turn), over
 //                                 motion.duration.long (sebaro.css; reduced motion: at once),
@@ -44,7 +44,7 @@
 //                                 it to another name at random: a stand-in for the server, never for a product
 // Tab moves through the cards and „Mehr“ buttons column by column; the browser scrolls a focused element into view and
 // the scroll snap settles on its column. Messages follow the language of the board (closest [lang], else
-// <html lang>): German default, English built in; more via window.sbMessages["sb-board"] (spec/09 §6.1, D87).
+// <html lang>): German default, English built in; more via window.sbMessages["sb-board"] (D87).
 (function () {
   var MESSAGES = {
     de: { prev: "Vorige Spalte", next: "Nächste Spalte", position: "Spalte {n} von {m}: {name}",
@@ -135,7 +135,7 @@
       var cols = columnsOf(scroller);
       if (!cols.length) return;
       var i = inPlace(cols), name = nameOf(cols[i]);
-      if (board.id) {   // a window's label names the column only while its board swipes (§3.16, B2b weak point 3)
+      if (board.id) {   // a window's label names the column only while its board swipes (B2b weak point 3)
         var swiping = getComputedStyle(nav).display !== "none";
         document.querySelectorAll('[data-sb-board-target="' + board.id + '"]').forEach(function (el) { el.hidden = !swiping; });
       }
@@ -201,7 +201,7 @@
     }
     delete board.__sbBoard;
   }
-  // ---------------------------------------------------------------- votes with a budget (D104 (9), spec/02 §3.29)
+  // ---------------------------------------------------------------- votes with a budget (D104 (9))
   function voteBox(el) { return el.closest("[data-sb-votes]"); }
   function voteSync(box) {
     var n = parseInt(box.getAttribute("data-sb-votes"), 10) || 0, used = 0;
@@ -231,14 +231,14 @@
     vote.dispatchEvent(new CustomEvent("sb-vote-change", { bubbles: true, detail: { vote: vote, count: count, left: left } }));
   });
 
-  // ---------------------------------------------------------------- the wheel (D104 (14), spec/02 §3.29)
+  // ---------------------------------------------------------------- the wheel (D104 (14))
   function wheelNames(wheel) { return Array.prototype.slice.call(wheel.querySelectorAll(".sb-wheel__disc text")); }
   function turnTo(wheel, index) {
     var names = wheelNames(wheel), disc = wheel.querySelector(".sb-wheel__disc");
     if (!names.length || !disc) return;
     var i = ((index % names.length) + names.length) % names.length, step = 360 / names.length;
     // name i stands at i × step clockwise from the top; turned by r it stands at i × step + r. Forward (clockwise) to
-    // the next r with i × step + r ≡ 0 (mod 360): less than one turn in 200 ms (a named exception of spec/03 §13.2), no
+    // the next r with i × step + r ≡ 0 (mod 360): less than one turn in 200 ms (a named exception), no
     // extra spins (decided with D105 (6), BA-13: at most 200 ms like every motion, still under reduced motion)
     // the name already under the pointer drawn again: the disc stays, only the status is written anew
     var now = wheel.__sbTurn || 0, base = -i * step, turn = i === (wheel.__sbIndex || 0) ? now : base + 360 * Math.ceil((now + 1 - base) / 360);

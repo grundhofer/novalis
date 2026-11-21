@@ -1,4 +1,4 @@
-// D144 (3), spec/03 §14: full product-colour screen with the bare white symbol, then fade to the app.
+// D144 (3): full product-colour screen with the bare white symbol, then fade to the app.
 // Markup: .sb-start[data-sb-product] > .sb-start__tile with the product's bare sign inline (sign/sign.svg of the
 // product kit's folder; brand/inline/sign-<id>.svg of a --target export). Target markers are legacy no-ops.
 // First visit per tab (sessionStorage sb-started); nostore opts out of storage. hold/release waits for app data,
@@ -18,7 +18,7 @@
   }
   function ms(v) { var n = parseFloat(v); return /ms$/.test(v) ? n : n * 1000; }
 
-  // spec/03 §14.1: take .sb-enter off again once its animation is over
+  // take .sb-enter off again once its animation is over
   function enter(el) {
     el.classList.remove("sb-enter"); void el.offsetWidth; el.classList.add("sb-enter");
     function off(event) {
@@ -32,7 +32,7 @@
   }
 
   // one run of the start inside scope (the document or one frame); finish() runs once at the end: when the animation
-  // finishes, or at the latest 500 ms after its duration (spec/03 §14.1)
+  // finishes, or at the latest 500 ms after its duration
   function run(scope, overlay, finish) {
     var finished = false, cap = null;
     function once() { if (finished) return; finished = true; clearTimeout(cap); finish(); }
@@ -44,7 +44,7 @@
     if (fade) { fade.onfinish = once; fade.oncancel = once; cap = setTimeout(once, fadeMs + 500); } else once();
   }
 
-  // spec/03 §14.1: the start is over (or this page shows none)
+  // the start is over (or this page shows none)
   function end(started) {
     if (ended) return;
     ended = true;
@@ -71,7 +71,7 @@
     get done() { return ended; },
     hold: function () { holds++; },
     release: function () { holds = Math.max(0, holds - 1); start(); },
-    // spec/03 §14.1: loading failed; end the start now, the tile fades where it stands
+    // loading failed; end the start now, the tile fades where it stands
     fail: function () { if (done || !root.classList.contains("sb-starting")) return; failed = true; start(); },
     // replay inside one element that holds its own .sb-start (demo frames); loadMs stands in for the real loading
     // time (default 700 ms) during which the tile stays in the middle

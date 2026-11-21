@@ -237,6 +237,14 @@ jobs:
       # updater asks whether a newer release exists (exit 1). Update with
       # `node apps/desktop/ui/src/sebaro/checks/update-copy.mjs` as a commit
       # of its own (CLAUDE.md, generated files).
+      #
+      # Since sebaro v3.0.0 the releases are those of a private repository and
+      # the updater reads them with a token: the repository secret
+      # SEBARO_FOUNDRY_TOKEN, passed to this step alone. Without it the step
+      # ends with exit 6. A pull request from a fork has no secrets, which is
+      # one more reason this never runs on a PR.
       - name: sebaro copy at the newest release (weekly)
         if: ${{ !cancelled() && github.event_name == 'schedule' }}
+        env:
+          SEBARO_FOUNDRY_TOKEN: ${{ secrets.SEBARO_FOUNDRY_TOKEN }}
         run: node apps/desktop/ui/src/sebaro/checks/update-copy.mjs --check

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="sb-sprite" width="0" height="0" aria-hidden="true" focusable="false">
-<!-- generated — do not edit. tools/icons.py 1.1.0 · system "sebaro" · grammar "Line 1.75 round" · source 9f2cf53a9763d323 · use with sprite.css (shared/ICONS-GUIDE.md §9.1) -->
+<!-- generated — do not edit. tools/icons.py 1.1.0 · system "sebaro" · grammar "Line 1.75 round" · source 00cf24bf6ca2f2cd · use with sprite.css (shared/ICONS-GUIDE.md §9.1) -->
 <symbol id="arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="sb-sym-24"><path d="M12 4.5 V19.5"/><path d="M6.5 14 L12 19.5 L17.5 14"/></symbol>
 <symbol id="arrow-down--16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" class="sb-sym-16"><path d="M8 3 V13"/><path d="M4 9 L8 13 L12 9"/></symbol>
 <symbol id="arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="sb-sym-24"><path d="M4.5 12 H19.5"/><path d="M10 6.5 L4.5 12 L10 17.5"/></symbol>

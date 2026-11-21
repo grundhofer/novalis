@@ -1,7 +1,7 @@
 {
   "generated": "generated — do not edit · tools/icons.py 1.1.0",
   "system": "sebaro",
-  "source_sha256": "9f2cf53a9763d323",
+  "source_sha256": "00cf24bf6ca2f2cd",
   "grammar": {
     "name": "Line 1.75 round",
     "summary": "1.75 stroke at 24 (1.5 on 16 masters, 2 on spots), round caps and joins, container radius 2 (below 8: 1), straight segments at 0/30/45/60/90/120/135/150 plus circular arcs and free curves, clear gap >= 2.25, at most 4 parts beside the main outline, no signature detail; filled only for selected navigation, toggles that are on and the four status icons at 16 px",

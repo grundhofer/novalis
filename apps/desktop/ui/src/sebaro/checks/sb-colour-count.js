@@ -2,7 +2,7 @@
 function sbViewTypeCount(view) {
   var key = view.getAttribute('data-sb-view-type');
   var keys = 'entry overview list detail form flow tool result read history search settings about state-empty state-loading state-error state-permission outside account import help'.split(' ');
-  var colour = ['entry', 'overview', 'detail', 'result', 'state-empty'];
+  var colour = ['overview', 'detail', 'result', 'state-empty'];   // DEMO-CHECK 1.17 (D155 (8)): not the entry
   var none = ['detail', 'read', 'history', 'search', 'settings', 'about'];
   function visible(e) { return e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; }
   function owned(selector) { return (view.matches(selector) ? [view] : []).concat(Array.from(view.querySelectorAll(selector))).filter(function (e) { return e.closest('[data-sb-view]') === view && visible(e); }); }
@@ -20,7 +20,7 @@ function sbViewTypeCount(view) {
   return { viewType: key, viewTypeErrors: errors, framePrimary: framePrimary };
 }
 
-// D143 (7), D144 (6): task boundaries, not arbitrary layout wrappers (spec/02 §1.0).
+// D143 (7), D144 (6): task boundaries, not arbitrary layout wrappers.
 function sbControlLevels(view) {
   var boundary = '[data-sb-action-area], [data-sb-view], [data-sb-web-app-head], header, section, .sb-site-header, .sb-section, .sb-card, .sb-list-row, .sb-top-bar, .sb-toolbar, .sb-dialog__actions, .sb-window__part, .sb-window__head, .sb-window__bar, .sb-board__column, .sb-find-bar';
   var counts = new Map(), themeButtons = 0, areas = Array.from(view.querySelectorAll(boundary));
@@ -39,7 +39,7 @@ function sbControlLevels(view) {
   return { outlinedAreas: Array.from(counts.values()), headerThemeButtons: themeButtons };
 }
 
-// sb-colour-count.js: the colour count per view (spec/03 §1.4), a port of sketch A's live check
+// sb-colour-count.js: the colour count per view, a port of sketch A's live check
 // (concepts/runde-2/colour-is-function/skizze.js checkFrame). A review aid for demos and app stand-ins, and since
 // 2026-10-22 the gate group `colour` of tools/check_demo.py (COL1-COL6), which calls sbColourCount on every view.
 // Every view root carries data-sb-view="<name>" (and data-sb-primary-expected="0" where the view has no primary
@@ -47,8 +47,8 @@ function sbControlLevels(view) {
 // „Farbprüfung: Hauptaktion 1 · Ort 4 · Status 3 · App-Zeichen 1 · Farben ohne Rolle 0 · Text auf Farbfläche 0 · bestanden“.
 // Sign tiles (.sb-sign-tile) count as „App-Zeichen“, not as colours. Colours with a local job count only inside their
 // part (LOCAL below; anywhere else they are colours without a role): the diff fills success-subtle / danger-subtle on a
-// signed diff line (D85, spec/02 §3.19), the category tones in .sb-category (D91 C1b), the mark in mark / .sb-mark
-// (C2a), the categorical, sequential and diverging chart colours in charts and scale cells (spec/01 §8, D91 G6a) and
+// signed diff line (D85), the category tones in .sb-category (D91 C1b), the mark in mark / .sb-mark
+// (C2a), the categorical, sequential and diverging chart colours in charts and scale cells (D91 G6a) and
 // the code colours in code (D67). The line names only the core jobs.
 // Known gaps (as in the sketch): pseudo-element paints (checkbox marks, chip frames, slider handles) and focus outlines
 // are not read.
@@ -120,7 +120,9 @@ function sbColourCount(view) {
     return v[0] * 0.2126 + v[1] * 0.7152 + v[2] * 0.0722;
   }
   areas.forEach(function (area) {
-    var style = getComputedStyle(area), product = area.getAttribute("data-sb-product");
+    // DEMO-CHECK 1.16: an area names its product, or its tile group where the page has no product.css
+    var style = getComputedStyle(area), tile = area.getAttribute("data-sb-tile");
+    var product = area.getAttribute("data-sb-product") || (tile ? "tile:" + tile : null);
     products.add(product);
     if (!product || !style.getPropertyValue("--sb-product-tile").trim()) areaErrors.push("unknown product");
     var test = document.createElement("span");
