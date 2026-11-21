@@ -896,3 +896,17 @@ Der Inhaber fand die Aktionszone zu hoch („mir gefällt einfach die nutzung de
 
 **Nicht geprüft:** die gebaute App; die Zone bei 200 % Schrift, in einem Fenster unter 480 px und mit einer Fehlermeldung in novalis (in sebaros Demo gemessen: dreizeilige Meldung 110 px, 470 px die Spalte); das Board und die Einstellungsansicht.
 
+
+**Nachtrag 2026-11-21, vor v1.5.1 nachgeprüft:** `just app` aus dem Stand von #287 (`f66307f`), einmal gestartet mit eigenem `HOME` und einem Test-Vault (die Einstellungen des Inhabers blieben unberührt), 1280 × 800, hell: Die Zone zeigt „6.002 Wörter · 18.008 Zeichen · Zeile 1, Spalte 1“ neben „Neue Notiz“ und ist rund 73 pt hoch. Weiter im Fenster der App geprüft wurde nicht, weil der Inhaber zur selben Zeit am Mac arbeitete. Der Rest ist in WebKit gemessen (Playwright, ohne Bildschirm, das gebaute `dist` mit einer Attrappe der Shell, deren Vault in OneDrive liegt):
+
+| Fall | Zone |
+|---|---|
+| 1280 px, hell und dunkel | 72 px, Zählerzeile und Stand-Satz neben der Taste |
+| 520 px | 78 px, die Zählerzeile bricht um |
+| 470 px | 128 px, die Spalte, die Taste in voller Breite |
+| 200 % Schrift, 1280 px / 900 px | 116 / 156 px, weiter neben der Taste |
+| Fehler beim Speichern, 1280 px | 94 px: Zählerzeile, darunter die Meldung mit „Details“, die Taste in der Mitte daneben |
+| Fehler beim Speichern, 470 px | 188 px |
+| Einstellungsansicht | keine Zone (D74) |
+
+Weiter nicht geprüft: diese Fälle im Fenster der gebauten App; das Board (die Attrappe hat keins).
