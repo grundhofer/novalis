@@ -77,4 +77,14 @@ export function formatDay(ms: number, t: (key: string) => string): string {
   return new Intl.DateTimeFormat(i18next.language, { dateStyle: "short" }).format(new Date(ms));
 }
 
+/**
+ * A count shown without a catalog sentence, in the language's digits: „12.000“,
+ * en „12,000“ (spec/07 §3 rule 4). Counts inside a sentence take
+ * `{{count, number}}` in the catalog instead; line and column numbers carry no
+ * separator at all.
+ */
+export function formatCount(n: number): string {
+  return new Intl.NumberFormat(i18next.language).format(n);
+}
+
 export default i18next;

@@ -56,7 +56,10 @@ if (!en || !de) {
 for (const key of Object.keys(en)) if (!(key in de)) fail(`de.json is missing "${key}"`);
 for (const key of Object.keys(de)) if (!(key in en)) fail(`en.json is missing "${key}" (en is canonical)`);
 
-const placeholders = (value) => new Set([...value.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]));
+// A placeholder with its format counts as one: `{{count, number}}` in en and a
+// bare `{{count}}` in de would print „12,000“ against „12000“.
+const placeholders = (value) =>
+  new Set([...value.matchAll(/\{\{(\w+(?:, ?\w+)?)\}\}/g)].map((m) => m[1].replace(/, ?/, ", ")));
 for (const [key, value] of Object.entries(en)) {
   if (!(key in de)) continue;
   const left = placeholders(value);

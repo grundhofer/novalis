@@ -417,7 +417,7 @@ describe("the count", () => {
     openSearchPanel(v);
     type(field(v, "search"), "a");
     vi.runAllTimers();
-    expect(count(v)).toBe("12000\u00a0matches");
+    expect(count(v)).toBe("12,000\u00a0matches");
 
     slowClock();
     type(field(v, "search"), "c");
@@ -428,16 +428,16 @@ describe("the count", () => {
     // Which match the selection is waits for the matches before it.
     type(field(v, "search"), "b");
     vi.runAllTimers();
-    expect(count(v)).toBe("12000\u00a0matches");
+    expect(count(v)).toBe("12,000\u00a0matches");
     select(v, text.length - 4, text.length - 3);
-    expect(count(v)).toBe("12000\u00a0matches");
+    expect(count(v)).toBe("12,000\u00a0matches");
     vi.runAllTimers();
-    expect(count(v)).toBe("Match 12000 of 12000");
+    expect(count(v)).toBe("Match 12,000 of 12,000");
 
     // The replacement finds nothing else: the count stays as it is.
     type(field(v, "replace"), "x");
     expect(vi.getTimerCount()).toBe(0);
-    expect(count(v)).toBe("Match 12000 of 12000");
+    expect(count(v)).toBe("Match 12,000 of 12,000");
   });
 
   // A stretch at a time, a match across a seam counted once, as one cursor
@@ -462,7 +462,7 @@ describe("the count", () => {
       for (const cursor = query.getCursor(v.state); !cursor.next().done; ) n += 1;
       v.dispatch({ effects: setSearchQuery.of(query) });
       vi.runAllTimers();
-      expect([search, count(v)]).toEqual([search, `${n}\u00a0matches`]);
+      expect([search, count(v)]).toEqual([search, `${n.toLocaleString("en")}\u00a0matches`]);
     }
   });
 
@@ -488,11 +488,11 @@ describe("the count", () => {
       for (let step = cursor.next(); !step.done; step = cursor.next(), n += 1) last = step.value;
       v.dispatch({ effects: setSearchQuery.of(query) });
       vi.runAllTimers();
-      expect([search, count(v)]).toEqual([search, `${n}\u00a0matches`]);
+      expect([search, count(v)]).toEqual([search, `${n.toLocaleString("en")}\u00a0matches`]);
       if (last.from === last.to) continue;
       select(v, last.from, last.to);
       vi.runAllTimers();
-      expect([search, count(v)]).toEqual([search, `Match ${n} of ${n}`]);
+      expect([search, count(v)]).toEqual([search, `Match ${n.toLocaleString("en")} of ${n.toLocaleString("en")}`]);
     }
   });
 

@@ -13,6 +13,7 @@ import type {
   DueWithinDto,
   PositionDto,
 } from "../ipc/client";
+import { formatCount } from "../i18n";
 import { cardOrder, cardPasses, dueDay, DUES, filterCount, isOverdue, PRIORITIES, SORTS, SPANS } from "../lib/boardView";
 import {
   deleteCard,
@@ -760,7 +761,7 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
               ? counts.map(({ column, count }, index) => (
                   <span key={column.id}>
                     {index > 0 && " · "}
-                    {column.name} <span className="sb-num">{count}</span>
+                    {column.name} <span className="sb-num">{formatCount(count)}</span>
                     <span className="sb-visually-hidden"> {t("board.cardsWord", { count })}</span>
                   </span>
                 ))
@@ -949,7 +950,7 @@ function BoardSection({ board, mark, onDragOver, onDrop }: SectionProps) {
                     <h3 className="sb-board__title" id={headingId}>
                       <span className="sb-board__name">{column.name}</span>{" "}
                       <span className="sb-board__count">
-                        {cards.length}
+                        {formatCount(cards.length)}
                         <span className="sb-visually-hidden"> {t("board.cardsWord", { count: cards.length })}</span>
                       </span>
                     </h3>
