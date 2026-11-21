@@ -6,11 +6,10 @@ share: SVG path data, a sign as stroked and filled paths on the 24-unit grid wit
 with the fixed foot (D143/D144). The code was moved out of signs.py, which imports every name back, so
 `signs.Glyph`, `signs.flatten`, `signs.foot_tile` and the others are what they were. No command line: this is a module.
 
-Path data is read by `path_events`, a port of fontTools 4.55.3 `svgLib/path/parser.py` and `arc.py` (MIT; the parser
-after svg.path by Lennart Regebro, MIT; the arc after Blink's SVGPathNormalizer::DecomposeArcToCubic, BSD) with the
-few lines of `misc/transform.py` the arc needs. The arithmetic is kept expression by expression, so the points are the
-same floats fontTools gives and the error texts are the same; tools/tests/test_product_kit.py `PathData` compares the
-two on every sign of the registry and on a syntax corpus.
+Path data is read by `path_events`, a port of fontTools 4.55.3 `svgLib/path/parser.py` (MIT; after svg.path by
+Lennart Regebro, MIT): the same events, floats and error texts as fontTools. Arcs are sebaro's own code (`_arc_cubics`,
+after the SVG 2 arc notes), within 1e-9 of fontTools' points; tools/tests/test_product_kit.py `PathData` compares the
+two on every sign of the registry and on a syntax corpus (D153 (4)).
 """
 # Third-party notice for `path_events` and its helpers below (the port named in the docstring). fontTools is under the
 # MIT licence; its parser is an adaptation of svg.path, Copyright (c) 2013-2014 Lennart Regebro, also MIT. The notice
@@ -85,10 +84,6 @@ _BOOL_RE = re.compile("^[01]")
 _SEPARATOR_RE = re.compile("[, \t]")
 _ARC_ARGUMENT_TYPES = (("rx", _FLOAT_RE), ("ry", _FLOAT_RE), ("x-axis-rotation", _FLOAT_RE),
                        ("large-arc-flag", _BOOL_RE), ("sweep-flag", _BOOL_RE), ("x", _FLOAT_RE), ("y", _FLOAT_RE))
-_TWO_PI = 2 * math.pi
-_PI_OVER_TWO = 0.5 * math.pi
-_EPSILON = 1e-15
-_IDENTITY = (1, 0, 0, 1, 0, 0)     # (xx, xy, yx, yy, dx, dy)
 
 
 def _tokenize_path(pathdef: str):
@@ -130,102 +125,52 @@ def _tokenize_arc_arguments(arcdef: str):
         raise ValueError(f"Not enough arguments: '{arcdef}'")
 
 
-def _transformed(m: tuple, other: tuple) -> tuple:
-    """m with `other` applied first (fontTools Transform.transform)."""
-    xx1, xy1, yx1, yy1, dx1, dy1 = other
-    xx2, xy2, yx2, yy2, dx2, dy2 = m
-    return (xx1 * xx2 + xy1 * yx2, xx1 * xy2 + xy1 * yy2, yx1 * xx2 + yy1 * yx2, yx1 * xy2 + yy1 * yy2,
-            xx2 * dx1 + yx2 * dy1 + dx2, xy2 * dx1 + yy2 * dy1 + dy2)
+def _arc_cubics(start: complex, rx: float, ry: float, rotation: float, large: bool, sweep: bool, end: complex):
+    """An elliptical arc as cubic Bezier segments of at most 90 degrees each: (control 1, control 2, end) as complex.
 
-
-def _norm_sin_cos(v: float) -> float:
-    if abs(v) < _EPSILON:
-        v = 0
-    elif v > 1 - _EPSILON:
-        v = 1
-    elif v < -1 + _EPSILON:
-        v = -1
-    return v
-
-
-def _rotated(m: tuple, angle: float) -> tuple:
-    c = _norm_sin_cos(math.cos(angle))
-    s = _norm_sin_cos(math.sin(angle))
-    return _transformed(m, (c, s, -s, c, 0, 0))
-
-
-def _map_point(m: tuple, pt: complex) -> complex:
-    xx, xy, yx, yy, dx, dy = m
-    x, y = pt.real, pt.imag
-    r = (xx * x + yx * y + dx, xy * x + yy * y + dy)
-    return r[0] + r[1] * 1j
-
-
-def _arc_cubics(current_point: complex, rx: float, ry: float, rotation: float, large: bool, sweep: bool,
-                target_point: complex):
-    """An elliptical arc as cubic Bezier segments, one per 90 degrees: (control 1, control 2, end) as complex."""
-    angle = math.radians(rotation)
-    # endpoint to centre parametrisation: https://www.w3.org/TR/SVG/implnote.html#ArcConversionEndpointToCenter
-    rx = math.fabs(rx)
-    ry = math.fabs(ry)
-    if not (rx and ry):                         # a radius of 0: nothing is drawn (fontTools draws no line either)
+    sebaro's own code, after the arc notes of SVG 2 (https://www.w3.org/TR/SVG2/implnote.html, B.2.4 endpoint to centre,
+    B.2.5 radii out of range); each segment is the usual cubic of a circular arc of angle a, handles 4/3 tan(a/4) long,
+    mapped onto the ellipse.
+    """
+    if not (rx and ry) or start == end:         # a radius of 0 or no length: nothing is drawn
         return
-    if target_point == current_point:           # a zero-length arc
+    cos_phi, sin_phi = math.cos(math.radians(rotation)), math.sin(math.radians(rotation))
+    half_x, half_y = (start.real - end.real) / 2, (start.imag - end.imag) / 2
+    x1 = cos_phi * half_x + sin_phi * half_y    # (x1', y1'): the start relative to the chord's middle, unrotated
+    y1 = -sin_phi * half_x + cos_phi * half_y
+    excess = (x1 / rx) ** 2 + (y1 / ry) ** 2    # > 1: the radii cannot reach both ends and grow (B.2.5)
+    if excess > 1:
+        rx, ry = rx * math.sqrt(excess), ry * math.sqrt(excess)
+    rx2y1, ry2x1 = (rx * y1) ** 2, (ry * x1) ** 2
+    root = math.sqrt(max((rx * ry) ** 2 - rx2y1 - ry2x1, 0.0) / (rx2y1 + ry2x1))
+    if large == sweep:
+        root = -root
+    cx1, cy1 = root * rx * y1 / ry, -root * ry * x1 / rx
+    cx = cos_phi * cx1 - sin_phi * cy1 + (start.real + end.real) / 2
+    cy = sin_phi * cx1 + cos_phi * cy1 + (start.imag + end.imag) / 2
+    ux, uy = (x1 - cx1) / rx, (y1 - cy1) / ry    # start and end on the unit circle
+    vx, vy = (-x1 - cx1) / rx, (-y1 - cy1) / ry
+    theta = math.atan2(uy, ux)
+    sweep_angle = math.atan2(ux * vy - uy * vx, ux * vx + uy * vy)
+    if sweep and sweep_angle < 0:
+        sweep_angle += 2 * math.pi
+    elif not sweep and sweep_angle > 0:
+        sweep_angle -= 2 * math.pi
+    if not all(map(math.isfinite, (cx, cy, theta, sweep_angle))):
         return
-    mid_point_distance = (current_point - target_point) * 0.5
-    point_transform = _rotated(_IDENTITY, -angle)
-    transformed_mid_point = _map_point(point_transform, mid_point_distance)
-    square_rx = rx * rx
-    square_ry = ry * ry
-    square_x = transformed_mid_point.real * transformed_mid_point.real
-    square_y = transformed_mid_point.imag * transformed_mid_point.imag
-    # radii too small for the arc are scaled up: http://www.w3.org/TR/SVG/implnote.html#ArcCorrectionOutOfRangeRadii
-    radii_scale = square_x / square_rx + square_y / square_ry
-    if radii_scale > 1:
-        rx *= math.sqrt(radii_scale)
-        ry *= math.sqrt(radii_scale)
-    point_transform = _rotated((1 / rx, 0, 0, 1 / ry, 0, 0), -angle)
-    point1 = _map_point(point_transform, current_point)
-    point2 = _map_point(point_transform, target_point)
-    delta = point2 - point1
-    d = delta.real * delta.real + delta.imag * delta.imag
-    scale_factor_squared = max(1 / d - 0.25, 0.0)
-    scale_factor = math.sqrt(scale_factor_squared)
-    if sweep == large:
-        scale_factor = -scale_factor
-    delta *= scale_factor
-    center_point = (point1 + point2) * 0.5
-    center_point += complex(-delta.imag, delta.real)
-    point1 -= center_point
-    point2 -= center_point
-    theta1 = math.atan2(point1.imag, point1.real)
-    theta2 = math.atan2(point2.imag, point2.real)
-    theta_arc = theta2 - theta1
-    if theta_arc < 0 and sweep:
-        theta_arc += _TWO_PI
-    elif theta_arc > 0 and not sweep:
-        theta_arc -= _TWO_PI
+    # a segment may run 1e-3 rad over a right angle: a quarter arc with rounded radii (8.485 for 6 sqrt 2) stays one
+    count = max(1, math.ceil(abs(sweep_angle) / (math.pi / 2 + 1e-3)))
+    step = sweep_angle / count
+    handle = 4 / 3 * math.tan(step / 4)
 
-    point_transform = _transformed(_rotated(_IDENTITY, angle), (rx, 0, 0, ry, 0, 0))
-    # adding 0.001 keeps an inexact atan2 from giving one segment too many (Blink)
-    num_segments = int(math.ceil(math.fabs(theta_arc / (_PI_OVER_TWO + 0.001))))
-    for i in range(num_segments):
-        start_theta = theta1 + i * theta_arc / num_segments
-        end_theta = theta1 + (i + 1) * theta_arc / num_segments
-        t = (4 / 3) * math.tan(0.25 * (end_theta - start_theta))
-        if not math.isfinite(t):
-            return
-        sin_start_theta = math.sin(start_theta)
-        cos_start_theta = math.cos(start_theta)
-        sin_end_theta = math.sin(end_theta)
-        cos_end_theta = math.cos(end_theta)
-        p1 = complex(cos_start_theta - t * sin_start_theta, sin_start_theta + t * cos_start_theta)
-        p1 += center_point
-        end = complex(cos_end_theta, sin_end_theta)
-        end += center_point
-        p2 = end
-        p2 += complex(t * sin_end_theta, -t * cos_end_theta)
-        yield _map_point(point_transform, p1), _map_point(point_transform, p2), _map_point(point_transform, end)
+    def on_ellipse(u: float, v: float) -> complex:
+        x, y = rx * u, ry * v
+        return complex(cos_phi * x - sin_phi * y + cx, sin_phi * x + cos_phi * y + cy)
+    for i in range(count):
+        a, b = theta + i * step, theta + (i + 1) * step
+        cos_a, sin_a, cos_b, sin_b = math.cos(a), math.sin(a), math.cos(b), math.sin(b)
+        yield (on_ellipse(cos_a - handle * sin_a, sin_a + handle * cos_a),
+               on_ellipse(cos_b + handle * sin_b, sin_b - handle * cos_b), on_ellipse(cos_b, sin_b))
 
 
 def path_events(pathdef: str):

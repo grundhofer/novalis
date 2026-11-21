@@ -1,4 +1,4 @@
-// sb-sheet.js: the bottom sheet of spec/02 §4.7 as a modal (D80 „Sheet mit Fokusfalle“).
+// sb-sheet.js: the bottom sheet as a modal (D80 „Sheet mit Fokusfalle“).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval.
 // Markup carries the state; the sheet is a native modal dialog, so the page behind it is inert while it is open:
 //   <button class="sb-secondary-action" type="button" data-sb-opens="s1" aria-haspopup="dialog">Kategorie: Gesundheit</button>

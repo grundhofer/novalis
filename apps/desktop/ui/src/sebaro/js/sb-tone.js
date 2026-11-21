@@ -1,4 +1,4 @@
-// sb-tone.js: the choice „Farbton: Kühl · Warm“ (D90, D91 C4c, Z3a; spec/09 §6.2, TOKEN-CONTRACT §10.4). On websites it
+// sb-tone.js: the choice „Farbton: Kühl · Warm“ (D90, D91 C4c, Z3a, TOKEN-CONTRACT §10.4). On websites it
 // sits in the footer under „Darstellung“; apps put it into their settings next to Hell/Dunkel (D75).
 // Markup: a group [data-sb-tone-choice] (starts hidden; this script shows it) holding radio inputs name="sb-tone" with
 // the values "cool" and "warm". A choice sets or removes html[data-sb-tone="warm"] and stores it as sb-tone (only
@@ -10,7 +10,7 @@
 // keeps its aria-checked (a click on the chosen one keeps it chosen).
 // Messages follow the language of the status element (its closest [lang], else <html lang>): German is the default,
 // English is built in; a page adds a language with window.sbMessages = { "sb-tone": { fr: { … } } } before this
-// script (D87, spec/09 §6.1).
+// script (D87).
 (function () {
   var MESSAGES = {
     de: { cool: "Farbton Kühl ist an.", warm: "Farbton Warm ist an." },

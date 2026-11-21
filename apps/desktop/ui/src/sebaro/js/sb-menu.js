@@ -1,5 +1,5 @@
-// sb-menu.js: the menu button of spec/02 §4.10 (ARIA menu button pattern, D80 „Skripte für Bedienung“), with
-// submenus (spec/02 §4.24, D91 F4b: „Untermenüs mit Pfeiltasten“).
+// sb-menu.js: the menu button (ARIA menu button pattern, D80 „Skripte für Bedienung“), with
+// submenus (D91 F4b: „Untermenüs mit Pfeiltasten“).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval, position only through the CSSOM.
 // Progressive enhancement over markup that already works without it, through the Popover API:
 //   <button class="sb-icon-button" type="button" aria-label="Mehr" aria-haspopup="menu" aria-expanded="false"
@@ -17,9 +17,9 @@
 // Without this script the browser already opens and closes the menu (click, Escape, click outside). The script adds:
 //   - aria-expanded on the button follows the menu; the menu sits under the button, its end on the button's end
 //     (above it when there is no room below; moved up into the window when it fits neither side), is placed again
-//     when its size changes (sb-fit.js at large text), and follows on scroll and on a change of the window's height; a
-//     change of the window's width, or a scroll that takes the button out of the window, closes the menu with all
-//     its submenus, and focus goes back to the button if it was in the menu (D95 (a)); a submenu stands beside its
+//     when its size changes (sb-fit.js at large text), and follows on a change of the window's height; a change of
+//     the window's width, or a scroll of the page (of anything but a menu's own items), closes the menu with all
+//     its submenus, and focus goes back to the button if it was in the menu (D95 (a), D155 (10)); a submenu stands beside its
 //     parent menu at the height of its item, on the side its parent went to (the top menu's submenus: the reading
 //     side, else the other side; never over a visible part of a menu further up); without such a side it takes the
 //     place and width of its parent, which stays open but hidden, and starts with a row „‹ <parent's name>“
@@ -43,7 +43,7 @@
 // Disabled items (disabled or aria-disabled="true") are skipped. Motion: the menu enters through the
 // .sb-menu:popover-open rule of sebaro.css (an answer to the press, D80); it closes without motion.
 // Its one message (the back row's name) follows the language of the menu (closest [lang], else <html lang>): German
-// default, English built in; more via window.sbMessages["sb-menu"] (spec/09 §6.1, D87).
+// default, English built in; more via window.sbMessages["sb-menu"] (D87).
 (function () {
   if (typeof HTMLElement.prototype.showPopover !== "function") return;   // the menu stays a static list
   var MESSAGES = {
@@ -92,10 +92,6 @@
     list[i].focus();
   }
   function visible(el) { return !!el && el.isConnected && el.getClientRects().length > 0; }
-  function inView(el) {                                                    // some part of it inside the window
-    var r = el.getBoundingClientRect();
-    return r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < document.documentElement.clientWidth;
-  }
   // The back row of a submenu that took its parent's place (D95 (c/d)): a real menu item, first in the submenu, showing
   // the parent's name (its aria-label, else its aria-labelledby, else the text of the control that opened it: the words
   // come from the markup), named „Zurück zu <name>“, with the item's chevron turned back.
@@ -188,7 +184,7 @@
   // than the room there moved up, a shorter submenu does not follow it; only a submenu taller than the room moves up
   // (and may then lie over the button). The parent stays open but hidden (data-sb-replaced, set once focus is in the
   // submenu), and the back row leads back; nothing lies over the items of another level. While a menu is open it
-  // keeps the way it was placed (keep: scroll and height changes only move it).
+  // keeps the way it was placed (keep: a height change only moves it).
   function placeSub(menu, item, estimate, keep) {
     var parent = parentMenu(menu), sx = s(menu), edge = 8;
     if (!keep) { removeBack(menu); menu.style.inlineSize = ""; sx.drill = false; sx.up = false; }
@@ -299,8 +295,8 @@
   window.addEventListener("resize", function () {
     document.querySelectorAll(".sb-menu:popover-open").forEach(scrollStop);
   });
-  // A menu that grows or shrinks after it was placed (sb-fit.js puts an item's keys under its word at large text,
-  // spec/02 §4.10) is placed again, keeping its side, so it never runs past the window's edge (CHECKS.md §32.7).
+  // A menu that grows or shrinks after it was placed (sb-fit.js puts an item's keys under its word at large text)
+  // is placed again, keeping its side, so it never runs past the window's edge.
   var menuSizes = typeof ResizeObserver === "function" ? new ResizeObserver(function (entries) {
     entries.forEach(function (e) {
       var menu = e.target, button = buttonOf(menu);
@@ -424,9 +420,9 @@
     closeAll(menu);
   });
 
-  // D95 (a): a change of the window's width, or a scroll that takes the button out of the window, closes the whole
-  // menu like a native one (focus back to the button if it was in the menu); a change of the height alone (address
-  // bar, on-screen keyboard) and any other scroll only move the open menus with their buttons
+  // D95 (a), D155 (10): a change of the window's width, or a scroll of the page, closes the whole menu like a native
+  // one (focus back to the button if it was in the menu); a change of the height alone (address bar, on-screen
+  // keyboard) only moves the open menus with their buttons, and a menu that scrolls its own items stays
   var lastWidth = window.innerWidth;
   function closeTree(top) {
     var button = buttonOf(top), inside = top.contains(document.activeElement);
@@ -439,11 +435,13 @@
   function follow(event) {
     var resized = event.type === "resize" && window.innerWidth !== lastWidth;
     if (event.type === "resize") lastWidth = window.innerWidth;
+    var scrolled = event.type === "scroll";
+    if (scrolled && event.target instanceof Element && event.target.closest(".sb-menu")) return;
     document.querySelectorAll(".sb-menu:popover-open").forEach(function (menu) {
       if (parentMenu(menu) || !menu.matches(":popover-open")) return;      // a top menu; its submenus follow it
       var b = buttonOf(menu);
       if (!b) return;
-      if (resized || !inView(b)) { closeTree(menu); return; }
+      if (resized || scrolled) { closeTree(menu); return; }
       place(menu, b, false, true);
       menu.querySelectorAll(".sb-menu:popover-open").forEach(function (sub) { var item = buttonOf(sub); if (item) place(sub, item, false, true); });
     });

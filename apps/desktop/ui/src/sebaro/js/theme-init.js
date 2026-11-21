@@ -1,14 +1,14 @@
-// theme-init.js: apply a stored "Hell oder Dunkel" choice before first paint (spec/09 §2, TOKEN-CONTRACT §9).
+// theme-init.js: apply a stored "Hell oder Dunkel" choice before first paint (TOKEN-CONTRACT §9).
 // Load it in <head> before the stylesheets, as a classic script: a file keeps pages working under a CSP without
 // 'unsafe-inline'. Nothing stored = the page follows prefers-color-scheme.
-// It also applies the app setting „Bewegung immer reduzieren“ (D46, spec/03 §13): sb-motion = "reduce" sets
+// It also applies the app setting „Bewegung immer reduzieren“ (D46): sb-motion = "reduce" sets
 // html[data-sb-motion="reduce"], which sebaro.css and sb-start.js treat like prefers-reduced-motion: reduce.
 // And the colour tone „Farbton: Kühl · Warm“ (D90, D91 C4c; TOKEN-CONTRACT §10.4): sb-tone = "warm" sets
 // html[data-sb-tone="warm"] (sb-tone.js stores it); nothing stored = the cool standard palette.
 try { var t = localStorage.getItem("sb-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
 try { if (localStorage.getItem("sb-motion") === "reduce") document.documentElement.dataset.sbMotion = "reduce"; } catch (e) {}
 try { if (localStorage.getItem("sb-tone") === "warm") document.documentElement.dataset.sbTone = "warm"; } catch (e) {}
-// And the language of a page without a language URL (D102 (50); spec/09 §18.2): only on <html
+// And the language of a page without a language URL (D102 (50)): only on <html
 // data-sb-language="stored">, sb-lang (a language code such as "de" or "en", stored by the choice in sb-controls.js)
 // becomes <html lang>. A page with a URL per language never has the attribute, so its lang stays the server's.
 try {

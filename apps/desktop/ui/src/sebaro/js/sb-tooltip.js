@@ -1,4 +1,4 @@
-// sb-tooltip.js: the tooltip of spec/02 §4.9 (D80 „Skripte für Bedienung“; WCAG 1.4.13 content on hover or focus).
+// sb-tooltip.js: the tooltip (D80 „Skripte für Bedienung“; WCAG 1.4.13 content on hover or focus).
 // Classic script (pages open from file://), CSP-safe: no inline handlers, no eval, position only through the CSSOM.
 // Markup carries the state:
 //   <button class="sb-icon-button" type="button" aria-label="Kalender" aria-describedby="t1">…</button>
@@ -14,7 +14,7 @@
 //   - keeps it while the pointer moves from the trigger onto the tooltip (hoverable);
 //   - hides it when the pointer leaves both, on blur, on a press of the trigger and on Escape; Escape hides only the
 //     tooltip (a dialog or sheet around it stays open) and focus stays where it is.
-// Motion: none. A tooltip appears and disappears in place; it is not new content entering (spec/02 §0.4).
+// Motion: none. A tooltip appears and disappears in place; it is not new content entering.
 // The delay is the constant DELAY_MS (no token yet). The script writes no words (D87).
 (function () {
   if (typeof HTMLElement.prototype.showPopover !== "function") return;   // aria-describedby still describes the trigger
