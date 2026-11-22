@@ -5,6 +5,37 @@ hand for someone who builds a product; the newest release stands first. Every pr
 release publishes it beside the copies, and `checks/update-copy.mjs` prints the sections between the release a copy
 had and the one it fetched. The headings are the release tags.
 
+## v3.1.1
+
+**Every product**
+
+- TEC-13, screenshots: a product must offer a switch in its settings that allows screenshots wherever it blocks
+  them in a sensitive view (Android FLAG_SECURE, the desktop window's content protection on Windows and macOS). The
+  product sets the default and writes down why. With screenshots allowed, no view stays locked, not even the one with
+  the recovery code: a screenshot can be the person's way to keep it. A web page cannot block screenshots and Linux
+  has no content protection, so a web app and a desktop app on Linux have no switch. A product with the protection
+  fixed in code adds the switch.
+
+**An Android app**
+
+- A screen that shows sensitive content offers FLAG_SECURE at least as a setting, and the switch in the settings
+  clears it in every view (`window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)`).
+- The starter compiles against API 37.1 (`compileSdk` 37 with `compileSdkMinor = "1"` in the version catalog, set
+  in each module with `compileSdk { version = release(…) { minorApiLevel = … } }`): Compose from BOM 2026.11 on asks
+  for it. The target stays API 36. A build machine needs the platform `platforms;android-37.1`. An app follows when
+  it takes such a Compose version.
+- The starter's versions: AGP 9.5.2, Kotlin 2.4.21, KSP 2.3.14, Compose BOM 2026.11.01, Robolectric 4.18.1,
+  Roborazzi 1.79.0, Gradle 9.9.2; the build setup takes Gradle Play Publisher 4.1.2. Robolectric and its framework
+  jar (`robolectricAndroidAll`, now `16-robolectric-13921718-2-i7` for Android 16) are a pair: each Robolectric
+  version expects one exact jar per SDK level, so the two change together by hand. An app's own
+  `.github/dependabot.yml` ignores `org.robolectric:android-all-instrumented` in its `gradle` entry, as the
+  starter's does now.
+
+**A desktop app**
+
+- Content protection of the window (`setContentProtected` of `@tauri-apps/api/window`) only with the switch in the
+  settings, as on Android.
+
 ## v3.1.0
 
 **Every product**
