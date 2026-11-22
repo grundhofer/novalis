@@ -12,7 +12,7 @@ export type TreeNode = {
   enter?: boolean;
   children?: TreeNode[];
 };
-type Row = { node: TreeNode; level: number; parent?: string };
+type Row = { node: TreeNode; level: number; parent?: string | undefined };
 type Props = {
   labelledBy: string;
   nodes: TreeNode[];
