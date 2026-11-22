@@ -5,6 +5,113 @@ hand for someone who builds a product; the newest release stands first. Every pr
 release publishes it beside the copies, and `checks/update-copy.mjs` prints the sections between the release a copy
 had and the one it fetched. The headings are the release tags.
 
+## v3.1.1
+
+**Every product**
+
+- TEC-13, screenshots: a product must offer a switch in its settings that allows screenshots wherever it blocks
+  them in a sensitive view (Android FLAG_SECURE, the desktop window's content protection on Windows and macOS). The
+  product sets the default and writes down why. With screenshots allowed, no view stays locked, not even the one with
+  the recovery code: a screenshot can be the person's way to keep it. A web page cannot block screenshots and Linux
+  has no content protection, so a web app and a desktop app on Linux have no switch. A product with the protection
+  fixed in code adds the switch.
+
+**An Android app**
+
+- A screen that shows sensitive content offers FLAG_SECURE at least as a setting, and the switch in the settings
+  clears it in every view (`window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)`).
+- The starter compiles against API 37.1 (`compileSdk` 37 with `compileSdkMinor = "1"` in the version catalog, set
+  in each module with `compileSdk { version = release(…) { minorApiLevel = … } }`): Compose from BOM 2026.11 on asks
+  for it. The target stays API 36. A build machine needs the platform `platforms;android-37.1`. An app follows when
+  it takes such a Compose version.
+- The starter's versions: AGP 9.5.2, Kotlin 2.4.21, KSP 2.3.14, Compose BOM 2026.11.01, Robolectric 4.18.1,
+  Roborazzi 1.79.0, Gradle 9.9.2; the build setup takes Gradle Play Publisher 4.1.2. Robolectric and its framework
+  jar (`robolectricAndroidAll`, now `16-robolectric-13921718-2-i7` for Android 16) are a pair: each Robolectric
+  version expects one exact jar per SDK level, so the two change together by hand. An app's own
+  `.github/dependabot.yml` ignores `org.robolectric:android-all-instrumented` in its `gradle` entry, as the
+  starter's does now.
+
+**A desktop app**
+
+- Content protection of the window (`setContentProtected` of `@tauri-apps/api/window`) only with the switch in the
+  settings, as on Android.
+
+## v3.1.0
+
+**Every product**
+
+- The Blueprint's new rules TEC-12 and TEC-13: give every stored field a class (sensitive, normal, technical).
+  Sensitive data (health with cycle, pregnancy and symptoms, sex life, religion, biometrics; credentials, tokens and
+  pairing keys; precise location histories; anything they can be derived from, even one mode switch or a
+  notification text) lies only encrypted with a hardware-backed key, in one encrypted data store, never in
+  plaintext elsewhere (settings, files, logs, crash texts, notifications, widgets, file names), without cloud
+  backup. Only the access lock's secrets (PIN hash, recovery code hash) may lie apart, hashed slowly with a salt and
+  sealed by a key of their own, so the lock works while the database cannot be read. A backup is encrypted; a
+  readable export only when the person chooses it, with a note on what it holds. A missing key or a broken file is
+  an error state, never a silent deletion; a test proves that no plaintext is stored. A product that stores nothing
+  sensitive says so in one sentence. Check what the product stores today and move a sensitive item that lies
+  elsewhere into the encrypted store, with a migration that keeps the data.
+- Each starter's plan has a section *Data and encryption*.
+- Every starter brings `AGENTS.md` (with the section of the Blueprint's skill, its paths filled in), `CLAUDE.md` and
+  `docs/ansichten.md`, the list of the views with type and primary action. A product that has none may copy them.
+
+**An Android app**
+
+- New in the copy: `PARTS.md` lists the parts of `designsystem/`, each public composable with its file and the opening
+  of its comment; a pack's parts are in `PARTS.<pack>.md`. Generated from the code. Read it before a screen is built.
+- `SbScreen` and `SbAppPane` have `actionField`: the field of the primary action („Artikel“ over „Artikel
+  hinzufügen“). The frame draws it directly above the action, with the gutter around it; the content ends above it
+  and a toast of `snackbarHost` stands above it instead of over it. An app that keeps such a field at the end of
+  its content moves it there.
+- `SbCheckRow` has the parameter `hairline`: the line above the row, as `SbListRow` draws it. It is for a list one
+  checks off (the first row keeps none); the Blueprint's view type `list` now names that form: a row opens the
+  detail or checks its item off. An app that drew the line itself may drop its own code.
+- The lint rule A8 says what holds: a screen's root is `SbScreen` or a pane of `SbAppFrame` (`SbAppPane`). The
+  script is unchanged.
+- The starter's `ci.yml` and `release.yml` allow the permission INTERNET when `release-permissions.txt` names it as
+  a line of its own; without the file or the line it stays forbidden. The workflows are the app's own: an app that
+  needs the network, by the owner's decision, takes over the two steps.
+- An empty list stands in the middle of its area's height, as the Blueprint's empty state asks; the starter's
+  `ListScreen.kt` shows how (a scrolling column with `Arrangement.Center` instead of an item of the lazy list).
+  Look at the app's own empty lists.
+- The starter's plan: one list of local checks, without the release build (`ci` builds it); an app with fewer than
+  three places shows no navigation and opens its second place from the top bar. `tools/rename.py` makes the README
+  the product's and runs Gradle without a daemon.
+- With a database: Room over SQLCipher (`net.zetetic:sqlcipher-android`), its passphrase sealed by an Android
+  Keystore key; sensitive settings become rows of that database and leave DataStore and SharedPreferences. Without
+  one: DataStore with a serializer that encrypts with AES-GCM under a Keystore key (Tink is not needed). Remove
+  `androidx.security:security-crypto` (EncryptedSharedPreferences, EncryptedFile): all its APIs are deprecated since
+  1.1.0-alpha07. A screen that shows sensitive content offers FLAG_SECURE at least as a setting.
+- Device transfer (TEC-12, TEC-13): normal and technical data move to a new phone, sensitive data does not, and
+  nothing goes to the cloud backup. Set `android:allowBackup="true"` (`false` does not reliably stop device transfer
+  on Android 12+, so the rules decide). In `data_extraction_rules.xml`, `<cloud-backup>` excludes every domain with
+  `path="."`; `<device-transfer>` excludes no normal data, only the encrypted store (the database with `-wal`, `-shm`,
+  `-journal`), the sealed passphrase and the lock's files, each by name (a file in `no_backup/` is never transferred),
+  so a new phone never starts with an unreadable store. With minSdk below 31,
+  `android:fullBackupContent="@xml/backup_rules"` excludes every domain: on Android 11 and lower nothing leaves the
+  device. The starter's `app/src/main/res/xml/` shows both files. An app whose rules exclude device transfer for
+  everything opens it; its facts (`backup.android`) then say `allowBackup: true` and `deviceTransfer: possible`.
+
+**A web app or a desktop app**
+
+- `react/Menu.tsx` and `react/Tree.tsx` pass a type check with `exactOptionalPropertyTypes`; the parts are checked
+  with it from now on. A product that kept `react/` out of its type check for that may take it back in. The public
+  optional props are as they were: pass no key instead of an explicit `undefined`.
+
+**A web app**
+
+- Sensitive data leaves `localStorage` for IndexedDB, encrypted with a non-extractable WebCrypto key. That protects
+  less than on a phone (TEC-13, note); more needs a secret outside the browser and the owner's decision.
+
+**A desktop app**
+
+- The core encrypts sensitive data with a key from the system's keychain. Do not start with Stronghold: a Tauri
+  maintainer announced its removal in Tauri v3.
+
+**A website**
+
+- Stores no sensitive data.
+
 ## v3.0.2
 
 **Every product that shows people**

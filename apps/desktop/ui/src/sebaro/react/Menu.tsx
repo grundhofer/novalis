@@ -42,7 +42,7 @@ type Level = {
   /** the focus leaves with Tab: every menu closes */
   onLeave(): void;
   /** the name of the row that leads back to the menu `name`: „Zurück zu Datei“ */
-  backWord?: (name: string) => string;
+  backWord?: ((name: string) => string) | undefined;
 };
 
 const EDGE = 8;
@@ -138,7 +138,7 @@ function useMenuKeys(level: Level, onBack?: () => void) {
   };
 }
 
-type EntriesProps = { menu: string; entries: MenuEntry[]; level: Level; checks: boolean; went?: Side };
+type EntriesProps = { menu: string; entries: MenuEntry[]; level: Level; checks: boolean; went?: Side | undefined };
 
 /** The items of one menu. `menu`: its id, from which the headings of its groups take theirs. `checks`: the items
  *  leave room for a check before their word. `went`: the side this menu opened to, which its own submenus keep. */
@@ -191,7 +191,7 @@ type SubProps = {
   entry: { label: string; id: string; items: MenuEntry[] };
   level: Level;
   checks: boolean;
-  went?: Side;
+  went?: Side | undefined;
 };
 
 /** An item that opens a submenu, and the submenu: both in one list item, as the tree of menus is. */
