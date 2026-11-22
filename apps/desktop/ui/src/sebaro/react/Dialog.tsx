@@ -46,7 +46,9 @@ export function Dialog({ id, open, title, text, body, onClose, children }: Props
     const fit = () => {
       row.removeAttribute("data-sb-fit");
       const tops = [...row.children].map((action) => action.getBoundingClientRect().top);
-      if (tops.some((top) => Math.abs(top - tops[0]) > 1)) row.setAttribute("data-sb-fit", "stack");
+      const [first] = tops;
+      if (first !== undefined && tops.some((top) => Math.abs(top - first) > 1))
+        row.setAttribute("data-sb-fit", "stack");
     };
     fit();
     window.addEventListener("resize", fit);

@@ -5,6 +5,33 @@ hand for someone who builds a product; the newest release stands first. Every pr
 release publishes it beside the copies, and `checks/update-copy.mjs` prints the sections between the release a copy
 had and the one it fetched. The headings are the release tags.
 
+## v3.0.2
+
+**Every product that shows people**
+
+- An avatar with the moderation shield keeps the room at its end only in a group of avatars (`.sb-avatars`,
+  `SbAvatars`), where the next avatar starts after the shield. Alone, as at the start of a list row, it keeps none:
+  the names of a list of people share one edge again (since v2.0.5 the moderated row stood 5 px further in). A
+  picture test of such a list changes.
+
+**An Android app**
+
+- Fixed: the licence list read only one version of a parent POM. A library whose licence stands in an older version
+  of a parent another library also uses (Guava's `failureaccess` and `listenablefuture` beside `guava`, as Media3
+  brings them) failed the build with „nennt keine Lizenz“. An app that added `licenses/com.google.guava.*.txt` for
+  that may delete the two files.
+
+**Every product**
+
+- The notes of v3.0.0 below: fetch the updater and the copy of the newest release, not of v3.0.0 (the commands name
+  `<tag>`); the product's `AGENTS.md` takes the Blueprint's new section now; what the menu script closes on, which
+  token the CI needs and what else changed in the record are said more exactly.
+
+**A web app or a desktop app**
+
+- `react/Dialog.tsx` and `react/Listbox.tsx` pass a type check with `noUncheckedIndexedAccess`. A product that kept
+  `react/` out of its type check for that may take it back in.
+
 ## v3.0.1
 
 Texts alone; no part, token or script changed.
@@ -29,28 +56,30 @@ number no longer follows the token contract, which stays 2.0: no token changed. 
 
 **Every product**
 
-- Do first: fetch the new updater. The one in a copy older than v3.0.0 reads the old public releases and finds no
-  newer one.
+- Do first: fetch the new updater. The one in a copy older than v3.0.0 reads the old public releases and never sees
+  a release from v3.0.0 on (it may still offer v2.0.6; skip that).
 
   ```sh
-  gh release download v3.0.0 -R grundhofer/sebaro-foundry -p update-copy.mjs
-  node update-copy.mjs --out <your copy> --release v3.0.0
+  gh release download <tag> -R grundhofer/sebaro-foundry -p update-copy.mjs   # <tag>: the newest release
+  node update-copy.mjs --out <your copy> --release <tag>
   ```
 
   Then delete the downloaded file: the copy holds it as `checks/update-copy.mjs` (updater 2.0.0).
 - The updater needs a token that can read that repository: the first of `SEBARO_FOUNDRY_TOKEN`, `GH_TOKEN`,
   `GITHUB_TOKEN` and the output of `gh auth token`. On your machine `gh auth login` is enough. In CI, add the secret
-  `SEBARO_FOUNDRY_TOKEN` to the product's repository and pass it to the step that runs `checks/update-copy.mjs
+  `SEBARO_FOUNDRY_TOKEN` (the family's read-only token for that repository; the owner has it) to the product's
+  repository and pass it to the step that runs `checks/update-copy.mjs
   --check`: `env:` with `SEBARO_FOUNDRY_TOKEN: ${{ secrets.SEBARO_FOUNDRY_TOKEN }}`. Without a token the updater says
   what is missing and ends with exit 6.
 - `--from` takes a folder with a release's files, no URL; the variable `SEBARO_COPIES` is gone.
 - The product kit's files changed in their comments and texts alone: `product/product_kit.py check` says whether the
   product's folder is still current; run `build` only when it says so.
 - Comments, the README and the contracts of the copy no longer cite the workshop's specification. No rule changed.
-- The product's own `AGENTS.md`: once the Blueprint's restructuring is merged, replace the pasted sebaro section by
-  the Blueprint's new `skills/sebaro/AGENTS-snippet.md`.
+- The product's own `AGENTS.md`: replace the pasted sebaro section by the Blueprint's
+  `skills/sebaro/AGENTS-snippet.md`. The old section points to `templates/` in the Blueprint, which is gone.
 - The record `sebaro-export.json`: `gates` has five entries (no `compose`), and `release.from` names the new source.
-  A tool that reads the record must not expect six gates.
+  A tool that reads the record must not expect six gates. The entries of the lint script and the editor files carry
+  no `transform` any more; the icon files carry a new source hash, no icon changed.
 - A release also has each starter as one file, `sebaro-template-<kind>.tar.gz` (`android-compose`, `webapp-vite`,
   `website-astro`, `desktop-tauri`): the starter with its copy of this release. A new product starts from it:
   `gh release download -R grundhofer/sebaro-foundry -p 'sebaro-template-<kind>.tar.gz'`, unpack, then the kit's
@@ -58,13 +87,14 @@ number no longer follows the token contract, which stays 2.0: no token changed. 
 
 **A web app or a desktop app**
 
-- The copy holds `react/`: the React form of the parts as TypeScript source (24 parts, 5 helpers), each file in the
-  core or in the pack whose rules it needs; the README's section *React parts* lists them. They import `react`,
+- The copy holds `react/`: the React form of the parts as TypeScript source (24 parts and 5 helpers with every pack), each file in
+  the core or in the pack whose rules it needs; the README's section *React parts* lists them. They import `react`,
   `react-dom` and each other, and every word comes in as a prop. Where your `tsconfig.json` includes the copy, the
   type check reads them; keep the copy out of lint and formatter as before. Nothing to change unless you want to
   replace your own wrappers with them.
 
-- `js/sb-menu.js` closes an open menu when the page scrolls.
+- `js/sb-menu.js` closes an open menu when anything in the window scrolls, except the menu itself: also a list
+  beside it, and a board that still glides after a swipe.
 - The first line of `fonts/fonts.css` changed (it names the hash of the font configuration, which no longer builds
   desktop TTFs); the rules are the same. The desktop copy's README no longer mentions static TTFs.
 - `checks/sb-colour-count.js` fails a view of type `entry` that holds a product area.
