@@ -3461,9 +3461,9 @@ div.sb-side-nav__head { display: flex; align-items: center; gap: var(--sb-space-
 .sb-avatar { position: relative; }
 .sb-avatar[data-sb-presence="offline"] { border-style: dashed; color: var(--sb-color-text-muted); }
 .sb-avatar__role { position: absolute; inset-block-end: calc(var(--sb-size-icon-sm) / -3); inset-inline-end: calc(var(--sb-size-icon-sm) / -3); inline-size: var(--sb-size-icon-sm); block-size: var(--sb-size-icon-sm); color: var(--sb-color-text); background: var(--sb-color-bg); border-radius: var(--sb-radius-pill); }
-/* the shield stands a third past the corner: its avatar keeps that room at the end, so the 4 px gap of sb-avatars starts
-   after the shield (Compose SbAvatar) */
-.sb-avatar:has(> .sb-avatar__role) { margin-inline-end: calc(var(--sb-size-icon-sm) / 3); }
+/* the shield stands a third past the corner: in sb-avatars its avatar keeps that room at the end, so the 4 px gap starts
+   after the shield (Compose SbAvatars). Alone, as at the start of a list row, it keeps none: the names share an edge */
+.sb-avatars .sb-avatar:has(> .sb-avatar__role) { margin-inline-end: calc(var(--sb-size-icon-sm) / 3); }
 
 /* D143 (4): one noninteractive product area per view; product id resolves in tokens.css. */
 .sb-product-area { box-sizing: border-box; background: var(--sb-product-tile); color: var(--sb-product-glyph); padding: 24px; border-radius: var(--sb-radius-container); overflow-wrap: anywhere; }

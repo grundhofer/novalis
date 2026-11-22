@@ -2,7 +2,7 @@
   "$comment": "the record of this copy, generated — do not edit. Check that the folder is unchanged: node checks/verify-export.mjs --strict. Update it: node checks/update-copy.mjs (README.md, section Keep in sync)",
   "format": "1.0",
   "tool": "export_system.py 1.42.1",
-  "date": "2026-11-21",
+  "date": "2026-11-22",
   "system": {
     "slug": "sebaro",
     "name": "sebaro",
@@ -36,14 +36,14 @@
     "editor-codemirror"
   ],
   "release": {
-    "tag": "v3.0.1",
+    "tag": "v3.0.2",
     "asset": "sebaro-desktop.tar.gz",
-    "sha256": "6ce49035fb2cdfcb539224a20ac12fdba20e779fb830156c430633775224acb7",
+    "sha256": "ea2708729650f0854fbadb16c60457961ce8469499719e5baf0cbc06e93f972b",
     "updater": "update-copy.mjs 2.0.0",
     "from": "https://github.com/grundhofer/sebaro-foundry/releases"
   },
   "sebaroDesign": {
-    "commit": "e5a2ce038c71fa051146f598662bc4088efe5007",
+    "commit": "12116473cecaa136c98ed05a454ecbfce3eeec1e",
     "uncommittedChanges": false,
     "fromCommit": true
   },
@@ -126,9 +126,9 @@
     {
       "path": "css/sebaro.css",
       "source": "systems/sebaro/css/sebaro.css",
-      "sourceSha256": "4d762f754687b0336e2ae66cbcbec8e6f08e4dd586a8653f5d98d9b44d770aa2",
-      "sha256": "27cd96d87d916b8d3c633f22416fff4b69b39f6a12d15cf1fe07f81456fee9ab",
-      "bytes": 307857,
+      "sourceSha256": "b7676992896fdc4844ae035492a8fa914094a6b239fd8f6c9104a8a8dc76f733",
+      "sha256": "a5514a6d856df268dc42420081090be8c829bf4477dd911a7f70e368e59d097f",
+      "bytes": 307948,
       "transform": "the rules of the profile's core and of the copy's packs (the parts and stretches that export/profiles.json gives them) of css/sebaro.css, in their order there, without the marks"
     },
     {
@@ -495,9 +495,9 @@
     {
       "path": "react/Dialog.tsx",
       "source": "systems/sebaro/react/Dialog.tsx",
-      "sourceSha256": "e84f598b2f19e9fe3b419bf46feb30fe6ac5e9a33a19739b25a91c0839344bcf",
-      "sha256": "e84f598b2f19e9fe3b419bf46feb30fe6ac5e9a33a19739b25a91c0839344bcf",
-      "bytes": 3945
+      "sourceSha256": "09f653147d946227afbe4ffc3e467d6560e808be7385d8cdd6b82d52d3716452",
+      "sha256": "09f653147d946227afbe4ffc3e467d6560e808be7385d8cdd6b82d52d3716452",
+      "bytes": 4002
     },
     {
       "path": "react/Divider.tsx",
@@ -537,9 +537,9 @@
     {
       "path": "react/Listbox.tsx",
       "source": "systems/sebaro/react/Listbox.tsx",
-      "sourceSha256": "d8b817b83d0648e71cd3250ef1750449ee01e8b2fa947a8d080157d11de0a01a",
-      "sha256": "d8b817b83d0648e71cd3250ef1750449ee01e8b2fa947a8d080157d11de0a01a",
-      "bytes": 2189
+      "sourceSha256": "96d2929e80fe39c4bb40123d884a57e23d713063812a73c7449b0cb5f418089b",
+      "sha256": "96d2929e80fe39c4bb40123d884a57e23d713063812a73c7449b0cb5f418089b",
+      "bytes": 2206
     },
     {
       "path": "react/Menu.tsx",
@@ -693,9 +693,9 @@
     {
       "path": "CHANGES.md",
       "source": "systems/sebaro/CHANGES.md",
-      "sourceSha256": "ddb47ac22c362bcf0098b22647238cf84f0d947f7fd3aae9c5880775a1be4d6b",
-      "sha256": "ddb47ac22c362bcf0098b22647238cf84f0d947f7fd3aae9c5880775a1be4d6b",
-      "bytes": 34184
+      "sourceSha256": "ba788450f0c15fc85e3f78051ec3dfe987ba069091a4b90d94bcd7e4d7eccba1",
+      "sha256": "ba788450f0c15fc85e3f78051ec3dfe987ba069091a4b90d94bcd7e4d7eccba1",
+      "bytes": 35999
     },
     {
       "path": "LICENSE.md",
@@ -734,7 +734,7 @@
       "path": "README.md",
       "source": null,
       "sourceSha256": null,
-      "sha256": "6cdaa2d6e84cb31e717b4f72abd6713dd7bfdc8c933bf1beed59cf069efb7dc2",
+      "sha256": "5047eb4c488ad469debb33032d7f2538852f2d389e9b4edbbda9b3abcde9a2e8",
       "bytes": 66805,
       "transform": "generated"
     }
@@ -745,10 +745,10 @@
     "files": [
       {
         "path": "css/sebaro.css",
-        "bytes": 307857,
-        "gzipBytes": 71044,
-        "minifiedBytes": 183099,
-        "minifiedGzipBytes": 25746
+        "bytes": 307948,
+        "gzipBytes": 71081,
+        "minifiedBytes": 183111,
+        "minifiedGzipBytes": 25749
       },
       {
         "path": "tokens.css",

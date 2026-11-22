@@ -23,7 +23,7 @@ export function Listbox({ labelledBy, options, selected, onChange, start }: Prop
     if (to !== undefined) {
       const rows = list.current?.querySelectorAll<HTMLElement>("[role='option']");
       rows?.[Math.max(0, Math.min(options.length - 1, to))]?.focus();
-    } else if (event.key === " " || event.key === "Enter") toggle(options[at].id);
+    } else if ((event.key === " " || event.key === "Enter") && options[at]) toggle(options[at].id);
     else return;
     event.preventDefault();
   };

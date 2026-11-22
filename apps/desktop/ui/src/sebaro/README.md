@@ -132,7 +132,7 @@ node <this folder>/checks/update-copy.mjs --packs <pack>,<pack>
 | `editor/` | packs `editor-shiki`, `editor-codemirror`: the code looks as files (section *Editor*) |
 | `CHANGES.md` | what changed for a product, release by release, and what to do after an update (section *Keep in sync*) |
 
-**Sizes, for a page budget**, in bytes as shipped and minified (without comments and white space; a bundler's minifier gets a little less): `tokens.css` 45,348 and 38,367; `css/sebaro.css` of the core alone 279,508 and 166,116, with every pack 369,496 and 222,322; the pack table has what each pack adds. `icons/sprite.svg`, inlined in every page: 59,325. The sizes of this copy's two files, also gzip'ed, are in `sebaro-export.json` under `cssSizes`.
+**Sizes, for a page budget**, in bytes as shipped and minified (without comments and white space; a bundler's minifier gets a little less): `tokens.css` 45,348 and 38,367; `css/sebaro.css` of the core alone 279,599 and 166,128, with every pack 369,587 and 222,334; the pack table has what each pack adds. `icons/sprite.svg`, inlined in every page: 59,325. The sizes of this copy's two files, also gzip'ed, are in `sebaro-export.json` under `cssSizes`.
 
 ## Plain HTML
 
